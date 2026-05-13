@@ -89,6 +89,7 @@ public sealed class LayerDependencyTests
         string[] forbiddenDependencies =
         [
             "Vulperonex.Infrastructure",
+            "Vulperonex.Application",
             "Vulperonex.Adapters",
             "Vulperonex.Plugins",
             "Vulperonex.Web",

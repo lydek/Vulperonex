@@ -13,6 +13,7 @@
     <PackageReference Include="xunit.v3" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Vulperonex.Application\Vulperonex.Application.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Domain\Vulperonex.Domain.csproj" />
   </ItemGroup>
 </Project>
