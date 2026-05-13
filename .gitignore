@@ -8,6 +8,8 @@ dist/
 publish/
 TestResults/
 coverage/
+coverage.json
+coverage.*.json
 
 # Frontend dependencies and outputs
 node_modules/
