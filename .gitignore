@@ -1,0 +1,44 @@
+# Local agent/tool settings
+.claude/
+
+# Build outputs
+bin/
+obj/
+dist/
+publish/
+TestResults/
+coverage/
+
+# Frontend dependencies and outputs
+node_modules/
+src/frontend/node_modules/
+src/frontend/dist/
+src/Hosts/Vulperonex.Web/wwwroot/
+
+# Runtime data
+App_Data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+
+# Secrets and local config
+.env
+.env.*
+*.pem
+*.key
+machine.key
+appsettings.Development.json
+
+# IDE/editor noise
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# Logs
+*.log
+logs/

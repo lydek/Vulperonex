@@ -1,0 +1,151 @@
+﻿# Vulperonex MVP — 任務清單
+
+> 詳細說明見 tasks/plan.md
+> 更新日期：2026-05-13
+
+---
+
+## 全域執行規則
+
+- [ ] 每個行為先定義 BDD Given / When / Then scenario
+- [ ] 每個 scenario 以 TDD 流程落地：RED → GREEN → REFACTOR
+- [ ] 每個自動化測試命名符合 `Given_*_When_*_Then_*`（C#）或 `should * when *`（Vitest），或測試體含 `// Given / When / Then` 區塊（每個 Checkpoint code review 驗證）
+- [ ] Domain 實作遵守 tactical DDD：Entity / Value Object / Domain Event / invariant 放在正確邊界
+- [ ] Application 邊界遵守 light CQRS：command/write ports 與 query/read DTO services 分離
+- [ ] DCI Role/Behavior（SPEC §4.1b）：Role 物件純 Domain 邏輯，不依賴 Infrastructure；Context/Interaction 在 Application；MVP 不做 runtime role/reflection/mixin；架構測試驗證 Role 無 Infrastructure 引用
+- [ ] 手動驗證只補足 Photino / OBS / browser runtime，不取代自動化測試
+
+---
+
+## Phase 1：Solution 骨架 + Domain Foundation
+
+- [ ] **Task 1** — 建立 Solution 結構與所有 csproj 骨架（含 `Vulperonex.Adapters.Abstractions`、`Vulperonex.Adapters.Twitch`、`Vulperonex.Adapters.Simulation`）
+- [ ] **Task 2** — Domain：IStreamEvent、7 個 MVP 事件 record + `PlatformConnectionChangedEvent`、StreamUser、StreamEventKeys（含 `platform.connection_changed` 常數）
+- [ ] **Task 3** — Domain：MemberRecord、PlatformIdentity、LoyaltyInfo（Entity/VO/invariant）；**Application ports**：IMemberRepository（write）、IMemberQueryService（read）— ports 不在 Domain 層
+
+### ✅ Checkpoint 1
+- [ ] `dotnet build` 全綠
+- [ ] Architecture tests：Domain 無 Infrastructure / Platform 引用
+- [ ] Domain 單元測試覆蓋率 > 90%
+
+---
+
+## Phase 2：事件匯流排 + Infrastructure
+
+- [ ] **Task 4** — IStreamEventBus + InMemoryStreamEventBus（Channel、handler 隔離、WaitForIdleAsync）
+- [ ] **Task 5** — EF Core + SQLite + 第一批 DB migration（含 MigrationClassifier 架構測試）
+- [ ] **Task 6** — TDQ 溢出處理 + ActionExecutionLog dedup（at-least-once 保證）
+- [ ] **Task 7** — MemberResolver（INSERT OR IGNORE 原子 GetOrCreate，**實作 Infrastructure-only**；Application 只引用 `IMemberResolver` port）+ PlatformUserDisplayCache（L1/L2，Infrastructure-only，Application/Domain 不引用）
+- [ ] **Task 8** — ISystemSettingsService（SQLite-backed、熱重載 IObservable、AES-256-GCM OAuth token + IOAuthTokenStore + SystemSettingKey 常數）
+
+### ✅ Checkpoint 2
+- [ ] `dotnet test` 全綠
+- [ ] 事件 publish → bus → handler 端到端
+- [ ] MemberResolver 並行測試通過
+- [ ] Task 5：`PRAGMA auto_vacuum` = 2（FULL）bootstrap assertion 通過
+- [ ] Task 7：`IPlatformUserInfoCache.UpdateAsync` cache miss → default row（`Badges = Array.Empty<string>()`）通過
+- [ ] Task 8：AES-256-GCM AAD cross-key copy → `CredentialDecryptionException` 通過
+
+---
+
+## Phase 3：Simulation Adapter + WorkflowEngine
+
+- [ ] **Task 9** — SimulationAdapter + IStreamEventTypeRegistry（SC-3, SC-4）
+- [ ] **Task 10** — WorkflowEngine：條件評估、Serial/Parallel Actions、ErrorBehavior/Timeout（SC-2, SC-9）
+- [ ] **Task 11** — Plugin System：IVulperonexPlugin、InvokePluginAction executor（SC-10）
+
+### ✅ Checkpoint 3
+- [ ] SC-2, SC-3, SC-4, SC-9, SC-10 通過
+- [ ] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端到端
+
+---
+
+## Phase 4：Twitch Adapter + MemberModule
+
+- [ ] **Task 12** — TwitchAdapter：IRC + EventSub + DisplayHints + 指數退避重連（SC-1, SC-6a WorkflowEngine half）
+- [ ] **Task 13** — MemberModule + OverlayModule DTO 安全過濾（SC-8）
+
+### ✅ Checkpoint 4
+- [ ] SC-1, SC-6a (Task 12) + SC-6b (Task 13), SC-8 通過
+- [ ] Overlay DTO 欄位白名單正確
+
+---
+
+## Phase 5：Web Host + SignalR + CLI
+
+- [ ] **Task 14a** — Minimal API：WorkflowRule CRUD + EventTypes endpoint + i18n 錯誤碼 + 循環引用偵測 + Action schema validation（未知 type / 缺 param / 非法 config）+ CQRS 架構測試
+- [ ] **Task 14b** — Minimal API：Simulate / Config / Member 端點 + security.* / oauth.* protected namespace 封鎖
+- [ ] **Task 15** — SignalR Hub + Overlay Push + 雙埠 Kestrel + 埠配對遞增（SC-5）
+- [ ] **Task 16** — CLI：simulate / config / member / rule 指令（透過 HTTP API，伺服器永遠 loopback-only 無需身分驗證）
+
+### ✅ Checkpoint 5
+- [ ] SC-2, SC-5, SC-8, SC-9 通過
+- [ ] WorkflowRule CRUD + 循環引用偵測通過
+- [ ] `security.*` config key 封鎖（GET + PUT）通過
+- [ ] `oauth.*` config key 封鎖（GET + PUT → 403 + `OAUTH_CREDENTIAL_NAMESPACE`）+ CLI passthrough 至 stderr 通過
+- [ ] CLI rule / config / member / simulate 全命令 integration test 通過
+- [ ] CLI simulate chat fixture rule + mock sender 驗證通過
+- [ ] CLI simulate → Overlay SignalR 端到端手動測試
+- [ ] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
+- [ ] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過
+- [ ] Task 14b：`GET /api/config/oauth.unknown.refresh_token`（未知 key）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry lookup）通過
+- [ ] Task 16：`ASPNETCORE_ENVIRONMENT=Development` + `appsettings.Development.json` 不覆蓋 `Database:Path` 通過
+
+---
+
+## Phase 6：日誌 + 前端 + Photino
+
+- ~~**Task 17**~~ — 已移除（原 MockYouTube Adapter，推遲出 MVP scope）
+- [ ] **Task 18** — Serilog 三 Sink + AppLogs 清理 worker（`log.db_retention_days` + `log.db_max_size_mb` size-based cleanup）+ 熱重載 log level
+- [ ] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 + Pinia + useStreamEvents + Overlay 路由
+- [ ] **Task 20** — WorkflowRule UI：規則建立表單 + EventTypeKey dropdown + i18n 錯誤碼
+- [ ] **Task 21** — Photino Desktop Shell + 埠衝突處理 + 靜態 fallback
+
+### ✅ Checkpoint 6（最終）
+- [ ] `dotnet test` → 所有 active SC 通過（SC-1~SC-6, SC-8~SC-10；SC-7 removed）
+- [ ] `pnpm test` → 前端測試全通過
+- [ ] `pnpm lint` → 前端 lint 無錯誤（**oxlint 已安裝則直接執行；若尚未安裝，需先 ask-first 再 npm install**）
+- [ ] `pnpm build` → wwwroot 建置成功
+- [ ] Photino 手動測試：模擬 chat → Overlay 顯示
+- [ ] 安全 review：Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（非 Base64Url），解碼用 `Convert.FromBase64String`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符 → 拒絕且不 exchange code（integration test 驗證）**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ 只接受預設 callback path + 接收後立即關閉（single-use）**
+
+---
+
+## Success Criteria 對照
+
+| SC | Task |
+|----|------|
+| SC-1：7 個 MVP 事件 | Task 12 |
+| SC-2：WorkflowEngine 執行 rule | Task 10 |
+| SC-3：SimulationAdapter 無 Twitch 引用 | Task 9 |
+| SC-4：Domain 無 Twitch symbols | Task 2 (持續) |
+| SC-5：Overlay SignalR 5s 內收到 | Task 15 |
+| SC-6a：Simulation ≡ Twitch 副作用（WorkflowEngine half） | Task 12 |
+| SC-6b：Simulation ≡ Twitch 副作用（MemberRecord DB state half） | Task 13 |
+| SC-7：已移除（MockYouTube Adapter，推遲出 MVP scope）| — |
+| SC-8：ULID MemberRecord 建立 | Task 13 |
+| SC-9：SendChatMessage platform 路由 | Task 10 |
+| SC-10：Plugin 發布事件觸發 rule | Task 11 |
+
+## Architecture / Security / Testing Gates
+
+| Gate | Task |
+|------|------|
+| Clean Architecture 層依賴不違規 | Task 3（持續，架構測試）|
+| Domain > 90% 覆蓋率 | Task 2 起持續（coverlet.msbuild `/p:Include=[Vulperonex.Domain]* /p:Exclude=[*.Tests.*]* /p:Threshold=90`，CI fail on drop）|
+| Application > 80% 覆蓋率 | Task 10/11/14 持續（coverlet.msbuild `/p:Threshold=80 /p:Include=[Vulperonex.Application]* /p:Exclude=[*.Tests.*]*`；Unit tests only；Application behavior in integration → 補 unit tests with fakes）|
+| CQRS：GET 路徑不呼叫 IWorkflowRuleRepository | Task 14a（**interaction/integration test with fakes**，非靜態 assembly 掃描）|
+| WorkflowRule 循環引用偵測 | Task 14a |
+| i18n：後端零 human-readable 字串 | Task 14a |
+| security.* config key 封鎖（GET + PUT）| Task 14b |
+| 兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（永遠 loopback-only，socket bind test 驗証）| Task 15 |
+| Overlay DTO 不洩漏 MemberId/内部欄位 | Task 13 |
+| AES-256-GCM refresh_token 加密（versioned envelope `v1:<Base64>`、per-token nonce randomness、tamper → CredentialDecryptionException）+ machine.key 生命週期 | Task 8 |
+| machine.key 檔案權限（Windows ACL user-only / Unix 0600）；chmod/ACL 失敗 → fail-fast `IOException` | Task 8 |
+| AES-256-GCM AAD = setting key name UTF-8；cross-key copy → CredentialDecryptionException | Task 8 |
+| oauth.* config namespace 封鎖（GET + PUT → 403 + `OAUTH_CREDENTIAL_NAMESPACE`） | Task 14b |
+| BDD 命名規範：`Given_*_When_*_Then_*`（C#）/ `should * when *`（Vitest）每 Checkpoint code review 驗證 | Task 2 起持續 |
+| DCI Role/Behavior isolation：`*Role`/`*Behavior` 類型（Domain 命名空間）不得引用 `*.Infrastructure.*` 或 EF Core（架構測試 `DciRoleIsolationTests`）| Task 3 |
+| DCI Context/Interaction 位置：`*Context`/`*UseCase` 不定義於 Domain；PR code review gate（非 CI 自動測試）| 持續（PR review）|
+| Plugin/Action context 不暴露 `IServiceProvider`（service locator 反模式）；review 確認 plugin host 只注入明確 interface | Task 11（PR code review gate）|
+| TDQ replay 不造成重複副作用（ActionExecutionLog dedup）+ 不造成重複 MemberRecord（INSERT OR IGNORE）+ cache 更新用狀態替換不累加（注意：rule 更新後舊 TDQ replay 的 action index drift 屬 MVP 已知限制，不在此 gate 範圍內）| Task 6/7/12 |
