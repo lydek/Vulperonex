@@ -40,4 +40,22 @@ public sealed class MemberRecordTests
 
         member.Identities.Should().ContainSingle().Which.Should().Be(identity);
     }
+
+    [Fact]
+    public void Given_NullIdentity_When_CreatingMemberRecord_Then_ArgumentNullExceptionIsThrown()
+    {
+        var act = () => MemberRecord.Create(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("identity");
+    }
+
+    [Fact]
+    public void Given_NullIdentity_When_Added_Then_ArgumentNullExceptionIsThrown()
+    {
+        var member = MemberRecord.Create(PlatformIdentity.Create("twitch", "12345"));
+
+        var act = () => member.AddIdentity(null!);
+
+        act.Should().Throw<ArgumentNullException>().WithParameterName("identity");
+    }
 }

@@ -14,4 +14,17 @@ public sealed class LoyaltyInfoTests
         loyalty.TotalLoyalty.Should().Be(0);
         loyalty.CheckInCount.Should().Be(0);
     }
+
+    [Theory]
+    [InlineData(-1, 0, "totalLoyalty")]
+    [InlineData(0, -1, "checkInCount")]
+    public void Given_NegativeLoyaltyValue_When_Constructed_Then_ArgumentOutOfRangeExceptionIsThrown(
+        int totalLoyalty,
+        int checkInCount,
+        string parameterName)
+    {
+        var act = () => new LoyaltyInfo(totalLoyalty, checkInCount);
+
+        act.Should().Throw<ArgumentOutOfRangeException>().WithParameterName(parameterName);
+    }
 }
