@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
@@ -10,5 +11,17 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
     <PackageReference Include="NetArchTest.Rules" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Simulation\Vulperonex.Adapters.Simulation.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Twitch\Vulperonex.Adapters.Twitch.csproj" />
+    <ProjectReference Include="..\..\src\Hosts\Vulperonex.Cli\Vulperonex.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Hosts\Vulperonex.Desktop\Vulperonex.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\Hosts\Vulperonex.Web\Vulperonex.Web.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Application\Vulperonex.Application.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Domain\Vulperonex.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Plugins.Abstractions\Vulperonex.Plugins.Abstractions.csproj" />
   </ItemGroup>
 </Project>

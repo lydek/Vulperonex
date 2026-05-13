@@ -1,1 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk" />
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\Vulperonex.Application\Vulperonex.Application.csproj" />
+    <ProjectReference Include="..\..\Vulperonex.Domain\Vulperonex.Domain.csproj" />
+    <ProjectReference Include="..\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

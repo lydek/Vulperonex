@@ -2,4 +2,13 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
+    <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Simulation\Vulperonex.Adapters.Simulation.csproj" />
+    <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Twitch\Vulperonex.Adapters.Twitch.csproj" />
+    <ProjectReference Include="..\..\Vulperonex.Application\Vulperonex.Application.csproj" />
+    <ProjectReference Include="..\..\Vulperonex.Domain\Vulperonex.Domain.csproj" />
+    <ProjectReference Include="..\..\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Vulperonex.Plugins.Abstractions\Vulperonex.Plugins.Abstractions.csproj" />
+  </ItemGroup>
 </Project>
