@@ -1246,7 +1246,7 @@ dotnet test tests/Vulperonex.Tests.Unit \
 
 - 向解決方案添加新的頂級專案（**Task 1 初始專案已授權，不需逐一詢問；Task 1 以外的額外新專案才 ask-first**）。
 - 刪除或重命名欄位的架構遷移。
-- 添加新的 NuGet / npm **依賴項**（包含 oxlint 等 dev tool — 詢問後安裝一次，**已安裝後執行 lint 屬驗證步驟，不需再詢問**）。
+- 添加新的 NuGet / npm **依賴項**（包含 oxlint 等 dev tool — 詢問後安裝一次，**已安裝後執行 lint 屬驗證步驟，不需再詢問**）。例外：Phase 1 Task 1c 所需且本 SPEC 已命名的測試/coverage 套件已預先授權，不需逐一詢問：`xUnit 3`、`NSubstitute`、`FluentAssertions 7`、`NetArchTest`、`coverlet.msbuild 6.0.2`。
 - 更改公共外掛程式契約 (`IVulperonexPlugin`)。
 - 在第二階段之後修改核心領域事件的形狀。
 
