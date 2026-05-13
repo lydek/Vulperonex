@@ -64,6 +64,8 @@ frontend (Vue SPA)
 
 ### Phase 1：Solution 骨架 + Domain Foundation
 
+> 詳細切片計畫：`docs/phases/phase-1-foundation/plan.md`
+
 #### Task 1：建立 Solution 結構與專案骨架
 
 **描述：** 建立整個 .NET Solution 及所有 csproj，設定專案間引用關係，確認 `dotnet build` 全綠。不含任何業務邏輯。

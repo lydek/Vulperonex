@@ -19,6 +19,8 @@
 
 ## Phase 1：Solution 骨架 + Domain Foundation
 
+> 詳細切片清單：`docs/phases/phase-1-foundation/todo.md`
+
 - [ ] **Task 1** — 建立 Solution 結構與所有 csproj 骨架（含 `Vulperonex.Adapters.Abstractions`、`Vulperonex.Adapters.Twitch`、`Vulperonex.Adapters.Simulation`）
 - [ ] **Task 2** — Domain：IStreamEvent、7 個 MVP 事件 record + `PlatformConnectionChangedEvent`、StreamUser、StreamEventKeys（含 `platform.connection_changed` 常數）
 - [ ] **Task 3** — Domain：MemberRecord、PlatformIdentity、LoyaltyInfo（Entity/VO/invariant）；**Application ports**：IMemberRepository（write）、IMemberQueryService（read）— ports 不在 Domain 層
