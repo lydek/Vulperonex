@@ -9,7 +9,7 @@ public sealed class InMemoryWorkflowActionExecutionStore : IWorkflowActionExecut
     public Task<bool> TryBeginAsync(ActionExecutionKey key, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        return Task.FromResult(!_statusByKey.ContainsKey(key));
+        return Task.FromResult(_statusByKey.TryAdd(key, ActionExecutionStatus.Running));
     }
 
     public Task MarkCompletedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default)
@@ -28,6 +28,7 @@ public sealed class InMemoryWorkflowActionExecutionStore : IWorkflowActionExecut
 
     private enum ActionExecutionStatus
     {
+        Running,
         Completed,
         Failed,
     }

@@ -41,5 +41,5 @@
 - [x] Plugin context reflection test 確認不暴露 `IServiceProvider`
 - [x] Domain coverage gate >90% 通過
 - [x] Application coverage gate >80% 通過
-- [ ] Git 狀態乾淨（忽略的本地檔案除外）
-- [ ] 第四階段開始前完成第三階段審查
+- [x] Git 狀態乾淨（忽略的本地檔案除外）
+- [x] 第四階段開始前完成第三階段審查
