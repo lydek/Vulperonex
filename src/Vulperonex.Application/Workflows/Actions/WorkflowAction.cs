@@ -1,0 +1,17 @@
+using System.Text.Json.Serialization;
+
+namespace Vulperonex.Application.Workflows.Actions;
+
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SendChatMessageAction), SendChatMessageAction.ActionType)]
+[JsonDerivedType(typeof(InvokeSubWorkflowAction), InvokeSubWorkflowAction.ActionType)]
+[JsonDerivedType(typeof(InvokePluginAction), InvokePluginAction.ActionType)]
+public abstract record WorkflowAction
+{
+    [JsonIgnore]
+    public abstract string Type { get; }
+    public int TimeoutMs { get; init; } = 10_000;
+    public int MaxRetries { get; init; }
+    public int BackoffMs { get; init; } = 500;
+    public ErrorBehavior ErrorBehavior { get; init; } = ErrorBehavior.StopOnError;
+}
