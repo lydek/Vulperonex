@@ -65,7 +65,7 @@ public sealed class PluginWorkflowTests
         public Task InitializeAsync(IPluginContext context, CancellationToken cancellationToken = default)
         {
             _context = context;
-            context.EventTypes.Register(new StreamEventTypeMetadata(CustomEventKey, "Custom plugin event"));
+            context.EventTypes.Register(new PluginEventTypeMetadata(CustomEventKey, "Custom plugin event"));
             return Task.CompletedTask;
         }
 

@@ -4,8 +4,9 @@ namespace Vulperonex.Plugins.Abstractions;
 
 public sealed class PluginEventTypeRegistrar(IStreamEventTypeRegistry registry) : IPluginEventTypeRegistrar
 {
-    public void Register(StreamEventTypeMetadata metadata)
+    public void Register(PluginEventTypeMetadata metadata)
     {
-        registry.Register(metadata with { IsSystemEvent = false });
+        ArgumentNullException.ThrowIfNull(metadata);
+        registry.Register(new StreamEventTypeMetadata(metadata.Key, metadata.Description, IsSystemEvent: false));
     }
 }

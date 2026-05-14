@@ -31,9 +31,20 @@ public sealed class PluginContractTests
         var registry = new InMemoryStreamEventTypeRegistry();
         var registrar = new PluginEventTypeRegistrar(registry);
 
-        registrar.Register(new StreamEventTypeMetadata("custom.event", "Custom event", IsSystemEvent: true));
+        registrar.Register(new PluginEventTypeMetadata("custom.event", "Custom event"));
 
         registry.IsKnownForWorkflow("custom.event").Should().BeTrue();
+    }
+
+    [Fact]
+    public void Given_PluginEventTypeRegistrarInterface_When_Inspected_Then_ItDoesNotDependOnApplicationEventTypes()
+    {
+        var registerMethod = typeof(IPluginEventTypeRegistrar).GetMethod(nameof(IPluginEventTypeRegistrar.Register));
+        var parameterTypes = registerMethod!.GetParameters().Select(parameter => parameter.ParameterType);
+
+        parameterTypes.Should().NotContain(typeof(StreamEventTypeMetadata));
+        parameterTypes.Should().AllSatisfy(parameterType =>
+            parameterType.Namespace.Should().NotStartWith("Vulperonex.Application"));
     }
 
     [Fact]
