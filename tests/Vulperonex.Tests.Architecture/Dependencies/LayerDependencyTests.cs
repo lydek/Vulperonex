@@ -24,11 +24,12 @@ public sealed class LayerDependencyTests
     }
 
     [Fact]
-    public void Given_InfrastructureProject_When_ProjectReferencesAreInspected_Then_InfrastructureReferencesApplicationAndDomain()
+    public void Given_InfrastructureProject_When_ProjectReferencesAreInspected_Then_InfrastructureReferencesApprovedPortsAndCoreLayers()
     {
         GetProjectReferences("src/Vulperonex.Infrastructure/Vulperonex.Infrastructure.csproj")
             .Should()
             .BeEquivalentTo(
+                "src/Adapters/Vulperonex.Adapters.Abstractions/Vulperonex.Adapters.Abstractions.csproj",
                 "src/Vulperonex.Application/Vulperonex.Application.csproj",
                 "src/Vulperonex.Domain/Vulperonex.Domain.csproj");
     }
