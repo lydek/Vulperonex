@@ -31,7 +31,7 @@
 
 ## 任務 8：SystemSettings + token 安全儲存
 
-- [ ] 任務 8a：實作 `ISystemSettingsService` SQLite-backed Get/Set
+- [x] 任務 8a：實作 `ISystemSettingsService` SQLite-backed Get/Set
 - [ ] 任務 8b：實作設定熱重載 `Changes` observable，並接上 bus capacity / display cache capacity+TTL 覆寫
 - [ ] 任務 8c：實作 OAuth token 加密、`machine.key` 與 `IOAuthTokenStore`
 
