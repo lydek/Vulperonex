@@ -34,6 +34,8 @@
 
 ## Phase 2：事件匯流排 + Infrastructure
 
+> 詳細切片清單：`docs/phases/phase-2-infrastructure/todo.md`
+
 - [ ] **Task 4** — IStreamEventBus + InMemoryStreamEventBus（Channel、handler 隔離、WaitForIdleAsync）
 - [ ] **Task 5** — EF Core + SQLite + 第一批 DB migration（含 MigrationClassifier 架構測試）
 - [ ] **Task 6** — TDQ 溢出處理 + ActionExecutionLog dedup（at-least-once 保證）

@@ -177,6 +177,8 @@ frontend (Vue SPA)
 
 ### Phase 2：事件匯流排 + Infrastructure
 
+> 詳細切片計畫：`docs/phases/phase-2-infrastructure/plan.md`
+
 #### Task 4：IStreamEventBus + In-Memory 實作
 
 **描述：** 在 Application 層定義 `IStreamEventBus` 介面，在 Infrastructure 層實作以 `Channel<IStreamEvent>` 為基礎的 `InMemoryStreamEventBus`。包含：handler 例外隔離（try/catch per handler）、`WaitForIdleAsync` 供測試用、fire-and-forget 語意。TDQ 溢出機制在此 task 中以 stub 形式存在（task 6 補全）。
