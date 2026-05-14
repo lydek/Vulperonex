@@ -14,7 +14,7 @@ public sealed class VulperonexDbContextTests
         await using var fixture = new SqliteFixture();
         await using var context = await fixture.CreateContextAsync();
 
-        await context.Database.OpenConnectionAsync();
+        await context.Database.OpenConnectionAsync(TestContext.Current.CancellationToken);
 
         context.Database.GetDbConnection().State.Should().Be(System.Data.ConnectionState.Open);
     }

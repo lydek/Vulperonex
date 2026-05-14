@@ -8,6 +8,8 @@ public sealed class SqliteFixture : IAsyncDisposable
 {
     private readonly SqliteConnection _connection = new("Data Source=:memory:");
 
+    public SqliteConnection Connection => _connection;
+
     public async Task<VulperonexDbContext> CreateContextAsync()
     {
         if (_connection.State != System.Data.ConnectionState.Open)

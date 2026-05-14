@@ -19,15 +19,6 @@ public sealed class VulperonexDbContext(DbContextOptions<VulperonexDbContext> op
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<MemberEntity>().HasKey(member => member.MemberId);
-        modelBuilder.Entity<PlatformIdentityEntity>().HasKey(identity => identity.Id);
-        modelBuilder.Entity<WorkflowRuleEntity>().HasKey(rule => rule.Id);
-        modelBuilder.Entity<SystemSettingEntity>().HasKey(setting => setting.Key);
-        modelBuilder.Entity<AppLogEntity>().HasKey(log => log.Id);
-        modelBuilder.Entity<PlatformUserDisplayInfoEntity>().HasKey(displayInfo => new
-        {
-            displayInfo.Platform,
-            displayInfo.PlatformUserId,
-        });
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(VulperonexDbContext).Assembly);
     }
 }

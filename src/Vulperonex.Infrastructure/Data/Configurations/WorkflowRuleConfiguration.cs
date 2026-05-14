@@ -1,0 +1,19 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Vulperonex.Infrastructure.Data.Entities;
+
+namespace Vulperonex.Infrastructure.Data.Configurations;
+
+public sealed class WorkflowRuleConfiguration : IEntityTypeConfiguration<WorkflowRuleEntity>
+{
+    public void Configure(EntityTypeBuilder<WorkflowRuleEntity> builder)
+    {
+        builder.ToTable("WorkflowRules");
+        builder.HasKey(rule => rule.Id);
+        builder.Property(rule => rule.Id).HasColumnType("TEXT");
+        builder.Property(rule => rule.Name).HasColumnType("TEXT");
+        builder.Property(rule => rule.ConditionsJson).HasColumnType("TEXT");
+        builder.Property(rule => rule.ActionsJson).HasColumnType("TEXT");
+        builder.Property(rule => rule.IsEnabled).HasColumnType("INTEGER");
+    }
+}

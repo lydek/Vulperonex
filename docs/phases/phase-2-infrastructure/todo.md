@@ -14,7 +14,7 @@
 ## 任務 5：EF Core + SQLite 基礎設施
 
 - [x] 任務 5a：建立 EF Core / SQLite 基礎與 `VulperonexDbContext`
-- [ ] 任務 5b：新增 `InitialSchema` migration 與資料表配置
+- [x] 任務 5b：新增 `InitialSchema` migration 與資料表配置
 - [ ] 任務 5c：實作 DB bootstrap、`PRAGMA auto_vacuum = FULL` 與 `MigrationClassifier`
 
 ## 任務 6：TDQ + at-least-once 保證
