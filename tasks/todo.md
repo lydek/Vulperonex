@@ -56,13 +56,13 @@
 
 > 詳細切片清單：`docs/phases/phase-3-workflow/todo.md`
 
-- [ ] **Task 9** — SimulationAdapter + IStreamEventTypeRegistry（SC-3, SC-4）
-- [ ] **Task 10** — WorkflowEngine：條件評估、Serial/Parallel Actions、ErrorBehavior/Timeout（SC-2, SC-9）
-- [ ] **Task 11** — Plugin System：IVulperonexPlugin、InvokePluginAction executor（SC-10）
+- [x] **Task 9** — SimulationAdapter + IStreamEventTypeRegistry（SC-3, SC-4）
+- [x] **Task 10** — WorkflowEngine：條件評估、Serial/Parallel Actions、ErrorBehavior/Timeout（SC-2, SC-9）
+- [x] **Task 11** — Plugin System：IVulperonexPlugin、InvokePluginAction executor（SC-10）
 
 ### ✅ Checkpoint 3
-- [ ] SC-2, SC-3, SC-4, SC-9, SC-10 通過
-- [ ] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端到端
+- [x] SC-2, SC-3, SC-4, SC-9, SC-10 通過
+- [x] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端到端
 
 ---
 

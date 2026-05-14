@@ -75,10 +75,11 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 
 ## Task 9b：SimulationAdapter publish MVP events
 
-**描述：** 實作 `SimulationAdapter` 與 `ISimulationAdapter`，讓測試與後續 Web/CLI 可以透過同一 adapter 發布七個 MVP domain events。REST/CLI 公開 alias 留到 Task 14b；本 task 提供內部 API 與測試入口。
+**描述：** 實作 `IStreamEventSource`、`SimulationAdapter` 與 `ISimulationAdapter`，讓測試與後續 Web/CLI 可以透過同一 adapter 發布七個 MVP domain events。REST/CLI 公開 alias 留到 Task 14b；本 task 提供內部 API 與測試入口。
 
 **驗收準則：**
 - [ ] `ISimulationAdapter` contract 不引用 Twitch 或 Web/CLI 型別。
+- [ ] `IStreamEventSource` 位於 `Vulperonex.Adapters.Abstractions`，作為 adapter lifecycle / event source 的共用 contract。
 - [ ] `SimulationAdapter` 可 publish 七個 MVP events：message、followed、donated、subscribed、gifted subscription、raided、reward redeemed。
 - [ ] `StartAsync` 註冊所有 Simulation-supported event keys 到 `IStreamEventTypeRegistry`。
 - [ ] publish 路徑只透過 `IStreamEventBus.PublishAsync`。
@@ -93,6 +94,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 **依賴：** Task 9a
 
 **可能涉及的檔案：**
+- `src/Adapters/Vulperonex.Adapters.Abstractions/IStreamEventSource.cs`
 - `src/Adapters/Vulperonex.Adapters.Simulation/ISimulationAdapter.cs`
 - `src/Adapters/Vulperonex.Adapters.Simulation/SimulationAdapter.cs`
 - `src/Adapters/Vulperonex.Adapters.Simulation/SimulationRequest.cs`
@@ -160,15 +162,20 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 **描述：** 實作 WorkflowEngine 的 condition evaluation 純邏輯，先支援 UserRole、MessageContent、Cooldown 的 MVP evaluator。此 task 不執行 actions。
 
 **驗收準則：**
-- [ ] `MessageContentCondition` 支援 contains / exact / regex MVP semantics。
-- [ ] regex pattern 長度與合法性檢查以 Application validator 表達；API error mapping 留到 Task 14a。
-- [ ] `CooldownCondition` 使用 `IClock`，不直接讀 `DateTime.UtcNow`。
+- [ ] `UserRoleCondition` 使用 `StreamRole` flags：`Subscriber`、`Moderator`、`Vip`、`Follower`，並支援 `HasAny`、`HasAll`、`NotHave` mode。
+- [ ] `MessageContentCondition` 支援 `PrefixMatch` / `ContainsMatch` / `FullRegex` MVP semantics。
+- [ ] regex pattern 長度上限 512 與合法性檢查以 Application validator 表達；API error mapping 留到 Task 14a。
+- [ ] `FullRegex` runtime evaluation timeout 為 500ms，避免 ReDoS 造成 handler 卡死。
+- [ ] `CooldownCondition` 使用 `IClock`，不直接讀 `DateTime.UtcNow`；`DurationSeconds` save-time 範圍 `[1, 86400]` 由 Application validator 表達，API error mapping 留到 Task 14a。
 - [ ] unknown condition type 回傳 fail/validation result，不 crash。
 
 **驗證：**
-- [ ] Unit test：message contains/exact/regex matching。
-- [ ] Unit test：invalid regex 被辨識。
+- [ ] Unit test：UserRole HasAny/HasAll/NotHave matching。
+- [ ] Unit test：message PrefixMatch/ContainsMatch/FullRegex matching。
+- [ ] Unit test：invalid regex、超過 512 字元 regex 被辨識。
+- [ ] Unit test：FullRegex evaluation 超過 500ms 時 fail closed。
 - [ ] Unit test：cooldown 在 fake clock 下阻擋與放行。
+- [ ] Unit test：CooldownCondition DurationSeconds 範圍 validator。
 - [ ] Unit test：unknown condition type 不觸發 rule。
 
 **依賴：** Task 10a
@@ -249,14 +256,14 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] `TimeoutMs` 透過 cancellation token 傳入 executor；timeout 後依 `ErrorBehavior` 處理。
 - [ ] `RetryOnError` 使用 `MaxRetries` 與 `BackoffMs`。
 - [ ] `ContinueOnError` 記錄錯誤後執行後續 action。
-- [ ] `StopRuleOnError` 停止目前 rule 的後續 actions。
+- [ ] `StopOnError` 停止目前 rule 的後續 actions。
 - [ ] Parallel mode 尊重 `MaxParallelism`。
 - [ ] handler exception 不透過 `WaitForIdleAsync` 外拋，仍符合 EventBus contract。
 
 **驗證：**
 - [ ] Unit/integration test：timeout cancels action。
 - [ ] Unit/integration test：retry count 與 backoff 使用 fake clock 或 deterministic scheduler。
-- [ ] Unit/integration test：ContinueOnError / StopRuleOnError 差異。
+- [ ] Unit/integration test：ContinueOnError / StopOnError 差異。
 - [ ] Unit/integration test：parallel mode 不超過 MaxParallelism。
 - [ ] `dotnet test` 全綠。
 
