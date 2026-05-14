@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Settings;
 using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Infrastructure.EventBus;
@@ -17,6 +18,8 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
     private TaskCompletionSource? _idleCompletion;
     private int _pendingDispatchCount;
 
+    public int Capacity { get; }
+
     public InMemoryStreamEventBus()
         : this(DefaultCapacity)
     {
@@ -29,6 +32,7 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
             throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be greater than zero.");
         }
 
+        Capacity = capacity;
         _overflowStore = overflowStore;
         _channel = Channel.CreateBounded<IStreamEvent>(new BoundedChannelOptions(capacity)
         {
@@ -37,6 +41,14 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
             SingleWriter = false,
         });
         _dispatchTask = Task.Run(DispatchAsync);
+    }
+
+    public static async Task<InMemoryStreamEventBus> CreateAsync(
+        ISystemSettingsService settings,
+        CancellationToken cancellationToken = default)
+    {
+        var capacity = await settings.GetAsync(SystemSettingKey.BusChannelCapacity, DefaultCapacity, cancellationToken);
+        return new InMemoryStreamEventBus(capacity);
     }
 
     public async Task PublishAsync(IStreamEvent streamEvent, CancellationToken cancellationToken = default)

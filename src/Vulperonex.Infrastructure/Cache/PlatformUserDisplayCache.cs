@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Vulperonex.Adapters.Abstractions;
+using Vulperonex.Application.Settings;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Data.Entities;
 
@@ -12,6 +13,23 @@ public sealed class PlatformUserDisplayCache(
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly LruCache<string, PlatformUserDisplayInfo> _l1 = new(l1Capacity);
+
+    public int L1Capacity { get; } = l1Capacity;
+
+    public TimeSpan Ttl { get; private init; } = TimeSpan.FromHours(24);
+
+    public static async Task<PlatformUserDisplayCache> CreateAsync(
+        VulperonexDbContext context,
+        ISystemSettingsService settings,
+        CancellationToken cancellationToken = default)
+    {
+        var capacity = await settings.GetAsync(SystemSettingKey.OverlayDisplayCacheL1Capacity, 500, cancellationToken);
+        var ttlHours = await settings.GetAsync(SystemSettingKey.OverlayDisplayCacheTtlHours, 24, cancellationToken);
+        return new PlatformUserDisplayCache(context, capacity)
+        {
+            Ttl = TimeSpan.FromHours(ttlHours),
+        };
+    }
 
     public async Task<PlatformUserDisplayInfo?> GetAsync(
         string platform,
