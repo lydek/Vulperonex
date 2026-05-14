@@ -32,6 +32,7 @@ Task 10a WorkflowRule application contracts and DTOs
     -> Task 10c SendChatMessage action and platform routing
     -> Task 10d WorkflowEngine subscription / priority / serial execution
     -> Task 10e timeout, retry, parallel mode, and error behavior
+    -> Task 10f InvokeSubWorkflow action and InvocationId dedup
 
 Task 11a plugin contracts
     -> Task 11b plugin static registry / action executor
@@ -51,12 +52,14 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] registry metadata 至少包含 `Key`、`Description`、`IsSystemEvent`。
 - [ ] `Register(...)` 對同一 key idempotent；first-wins。
 - [ ] metadata 衝突時保留先到者，不拋例外。
-- [ ] `GetAll()` 排除 `IsSystemEvent=true` key，或提供明確 API 讓呼叫端排除 system events。
+- [ ] `IsKnown(key)` 對已註冊的一般事件與系統事件都回傳 true。
+- [ ] `IsKnownForWorkflow(key)` 排除 `IsSystemEvent=true` key，供 WorkflowRule 儲存驗證使用。
+- [ ] `GetAll()` 只回傳 workflow-visible event keys，排除 `IsSystemEvent=true` key。
 
 **驗證：**
 - [ ] Unit test：重複註冊同一 key 只保留一筆。
 - [ ] Unit test：metadata 衝突時 first-wins。
-- [ ] Unit test：`platform.connection_changed` 可標為 system event 並被 workflow-visible query 排除。
+- [ ] Unit test：`platform.connection_changed` 可標為 system event；`IsKnown=true`、`IsKnownForWorkflow=false`，且不出現在 `GetAll()`。
 
 **依賴：** Task 4
 
@@ -217,13 +220,15 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] EventTypeKey 不匹配的 rules 不執行。
 - [ ] rules 依 `Priority ASC, CreatedAt ASC, Id ASC` 執行。
 - [ ] serial mode 依 action index 順序執行。
-- [ ] action execution 使用 Task 6 的 `ActionExecutionLog` dedup key shape `(EventId, WorkflowRuleId, ActionIndex)`。
+- [ ] serial mode 作用域為單一 `WorkflowRule`：同一 rule 的事件一次執行一個，不同 rule 使用獨立 queue，rule A 不阻塞 rule B。
+- [ ] action execution 使用 Task 6 的 `ActionExecutionLog` dedup key shape：一般 action 為 `(EventId, WorkflowRuleId, ActionIndex)`；`InvokeSubWorkflowAction` 為 `(EventId, WorkflowRuleId, ActionIndex, InvocationId)`。
 
 **驗證：**
 - [ ] Integration test：publish `UserSentMessageEvent` -> matching rule -> mock sender 收到一次（SC-2 起點）。
 - [ ] Unit/integration test：disabled rule skip。
 - [ ] Unit/integration test：priority ordering。
 - [ ] Unit/integration test：同一 event/rule/action 重播被 dedup skip。
+- [ ] Unit/integration test：同一 rule serial queue 會排序執行；不同 rule 不互相阻塞。
 
 **依賴：** Task 9b, Task 10b, Task 10c
 
@@ -267,6 +272,35 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 
 ---
 
+## Task 10f：InvokeSubWorkflow action and InvocationId dedup
+
+**描述：** 實作內建 `InvokeSubWorkflowAction` executor，讓 WorkflowEngine 可調用另一個 workflow rule，並確保子工作流調用使用穩定 `InvocationId` 參與 dedup key。
+
+**驗收準則：**
+- [ ] `InvokeSubWorkflowActionExecutor` 可依 `WorkflowId` 載入目標 workflow rule 並執行其 actions。
+- [ ] 目標 workflow 不存在時記錄 warning 並 skip，不 crash，且不套用 `ErrorBehavior`。
+- [ ] 每次 `InvokeSubWorkflowAction` 在 action 執行前產生 `InvocationId`，並納入 TDQ payload 或等價持久化資料，使 replay 使用同一 `InvocationId`。
+- [ ] 子工作流 action execution key 使用 `(EventId, WorkflowRuleId, ActionIndex, InvocationId)`。
+- [ ] 子工作流仍遵守 timeout、retry/backoff、serial/parallel 與 ErrorBehavior 行為。
+
+**驗證：**
+- [ ] Unit/integration test：missing target workflow warning + skip。
+- [ ] Unit/integration test：sub-workflow matching action 被執行。
+- [ ] Unit/integration test：`InvocationId` 在 replay 後維持不變，不重新產生 ULID。
+- [ ] Unit/integration test：sub-workflow dedup key 包含 `InvocationId`，重播不重複執行。
+
+**依賴：** Task 10e
+
+**可能涉及的檔案：**
+- `src/Vulperonex.Application/Workflows/Actions/InvokeSubWorkflowActionExecutor.cs`
+- `src/Vulperonex.Application/Workflows/WorkflowEngine.cs`
+- `tests/Vulperonex.Tests.Unit/Application/Workflows/Actions/`
+- `tests/Vulperonex.Tests.Integration/Workflows/`
+
+**預估規模：** M
+
+---
+
 ## Task 11a：Plugin contracts
 
 **描述：** 在 `Vulperonex.Plugins.Abstractions` 實作 MVP plugin contracts：`IVulperonexPlugin`、`IPluginContext`、`IPluginActionContext`。
@@ -274,6 +308,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 **驗收準則：**
 - [ ] `IVulperonexPlugin.Name` 為 lowercase-kebab plugin id。
 - [ ] `IPluginContext` 只暴露 `IStreamEventBus` 與 logger 等明確服務，不暴露 `IServiceProvider`。
+- [ ] `IPluginContext` 提供明確的 event type registration surface，讓 plugin 在 `InitializeAsync` 註冊自訂 `EventTypeKey` 到 `IStreamEventTypeRegistry`。
 - [ ] `IPluginActionContext` 包含 `ActionExecutionKey`、event/rule/action metadata、`Params: IReadOnlyDictionary<string, JsonElement>`。
 - [ ] contracts 不引用 Infrastructure、Hosts 或 adapter implementations。
 
@@ -281,8 +316,9 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Architecture test：`Plugins.Abstractions` 只依賴 Domain + Application。
 - [ ] Reflection test：plugin context interfaces property types 不含 `IServiceProvider`。
 - [ ] Unit test：JsonElement params 可用 `.GetString()` / `.GetInt32()` / `.GetBoolean()` 讀取。
+- [ ] Unit test：plugin 可透過 `IPluginContext` 註冊 custom workflow-visible event type。
 
-**依賴：** Task 10a
+**依賴：** Task 10a, Task 9a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Plugins.Abstractions/IVulperonexPlugin.cs`
@@ -331,16 +367,18 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 
 **驗收準則：**
 - [ ] plugin 可在 `InitializeAsync` 或 action execution 中 publish custom `IStreamEvent`。
+- [ ] plugin 在 `InitializeAsync` 註冊 custom event key 到 `IStreamEventTypeRegistry`，且 `IsKnownForWorkflow(customKey)=true`。
 - [ ] custom event 可透過 EventTypeKey match WorkflowRule。
 - [ ] matching custom event rule 可觸發 `SendChatMessageAction`。
 - [ ] plugin publish 路徑仍通過 `IStreamEventBus`，不直接呼叫 WorkflowEngine。
 
 **驗證：**
 - [ ] Integration test：`Plugin_CanPublishCustomEvent_TriggeringWorkflow` 通過。
+- [ ] Integration test：plugin custom event key 註冊後可被 workflow-visible registry query 查到。
 - [ ] `dotnet test` → SC-10 通過。
 - [ ] Application coverage gate 維持 >80%。
 
-**依賴：** Task 11b, Task 10e
+**依賴：** Task 11b, Task 10f
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Integration/Plugins/PluginWorkflowTests.cs`

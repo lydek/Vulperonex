@@ -18,10 +18,11 @@
 - [ ] 任務 10c：實作 `SendChatMessageAction` executor、platform routing 與 SC-9
 - [ ] 任務 10d：實作 WorkflowEngine 訂閱、rule matching、priority ordering 與 serial execution
 - [ ] 任務 10e：補齊 timeout、retry/backoff、parallel mode 與 ErrorBehavior
+- [ ] 任務 10f：實作 `InvokeSubWorkflowAction` executor 與 `InvocationId` dedup
 
 ## 任務 11：Plugin System
 
-- [ ] 任務 11a：建立 `IVulperonexPlugin`、`IPluginContext`、`IPluginActionContext` contracts
+- [ ] 任務 11a：建立 `IVulperonexPlugin`、`IPluginContext`、`IPluginActionContext` contracts 與 plugin event type registration surface
 - [ ] 任務 11b：實作 static plugin registry 與 `InvokePluginAction` executor
 - [ ] 任務 11c：完成 plugin publish custom event -> WorkflowRule -> SendChatMessage scenario（SC-10）
 
@@ -35,6 +36,8 @@
 - [ ] SC-9：SendChatMessage platform routing 通過
 - [ ] SC-10：Plugin 發布事件觸發 WorkflowRule 通過
 - [ ] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` 端到端通過
+- [ ] `InvokeSubWorkflowAction` 使用穩定 `InvocationId` dedup，TDQ replay 不重複執行子工作流
+- [ ] `IStreamEventTypeRegistry.IsKnownForWorkflow` 排除 system events 且允許 plugin custom events
 - [ ] Plugin context reflection test 確認不暴露 `IServiceProvider`
 - [ ] Domain coverage gate >90% 通過
 - [ ] Application coverage gate >80% 通過
