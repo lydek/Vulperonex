@@ -108,6 +108,10 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         var capacity = ResolveCapacity(rule);
         // Cache key includes capacity + execution mode so an edited rule
         // does not reuse a semaphore sized for the previous configuration.
+        // Note: superseded semaphores remain in the dictionary; leak is
+        // bounded by (rule count × edits per rule × engine lifetime) and
+        // is acceptable for the MVP in-process engine. A persistent
+        // engine should evict entries keyed by inactive rule ids.
         var semaphoreKey = $"{rule.Id}|{rule.ExecutionMode}|{capacity}";
         var semaphore = _ruleSemaphores.GetOrAdd(semaphoreKey, _ => new SemaphoreSlim(capacity));
 
