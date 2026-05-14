@@ -51,4 +51,4 @@
 - [x] AES-256-GCM tamper 與 AAD cross-key copy 測試通過
 - [x] 架構測試確認 Domain/Application 無 Infrastructure/EF 洩漏
 - [x] Git 狀態乾淨（忽略的本地檔案除外）
-- [ ] 第三階段開始前完成第二階段審查
+- [x] 第三階段開始前完成第二階段審查

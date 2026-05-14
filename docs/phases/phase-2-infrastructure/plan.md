@@ -54,7 +54,7 @@
 **驗收準則：**
 - [ ] `IStreamEventBus` 位於 `Vulperonex.Application`。
 - [ ] `PublishAsync(IStreamEvent, CancellationToken)` 表達 fire-and-forget 入隊語意。
-- [ ] `Subscribe<TEvent>(Func<TEvent, CancellationToken, Task>)` 支援 `TEvent : IStreamEvent`。
+- [ ] `IDisposable Subscribe<TEvent>(Func<TEvent, CancellationToken, Task>)` 支援 `TEvent : IStreamEvent`，回傳的 subscription 供模組 `StopAsync` 清理。
 - [ ] `WaitForIdleAsync(CancellationToken)` 僅作為測試/驗證 hook，不向 caller 暴露 handler error count。
 
 **驗證：**
