@@ -307,16 +307,16 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 
 **驗收準則：**
 - [ ] `IVulperonexPlugin.Name` 為 lowercase-kebab plugin id。
-- [ ] `IPluginContext` 只暴露 `IStreamEventBus` 與 logger 等明確服務，不暴露 `IServiceProvider`。
-- [ ] `IPluginContext` 提供明確的 event type registration surface，讓 plugin 在 `InitializeAsync` 註冊自訂 `EventTypeKey` 到 `IStreamEventTypeRegistry`。
+- [ ] `IPluginContext` 只暴露 `IStreamEventBus`、logger、`IPluginEventTypeRegistrar` 等明確服務，不暴露 `IServiceProvider` 或完整 `IStreamEventTypeRegistry`。
+- [ ] `IPluginEventTypeRegistrar` 是 plugin 專用的最小 registration surface，讓 plugin 在 `InitializeAsync` 註冊自訂 `EventTypeKey`，但不能查詢或覆寫既有 registry metadata。
 - [ ] `IPluginActionContext` 包含 `ActionExecutionKey`、event/rule/action metadata、`Params: IReadOnlyDictionary<string, JsonElement>`。
 - [ ] contracts 不引用 Infrastructure、Hosts 或 adapter implementations。
 
 **驗證：**
 - [ ] Architecture test：`Plugins.Abstractions` 只依賴 Domain + Application。
-- [ ] Reflection test：plugin context interfaces property types 不含 `IServiceProvider`。
+- [ ] Reflection test：plugin context interfaces property types 不含 `IServiceProvider` 或完整 `IStreamEventTypeRegistry`。
 - [ ] Unit test：JsonElement params 可用 `.GetString()` / `.GetInt32()` / `.GetBoolean()` 讀取。
-- [ ] Unit test：plugin 可透過 `IPluginContext` 註冊 custom workflow-visible event type。
+- [ ] Unit test：plugin 可透過 `IPluginContext.EventTypes` / `IPluginEventTypeRegistrar` 註冊 custom workflow-visible event type。
 
 **依賴：** Task 10a, Task 9a
 
@@ -324,6 +324,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - `src/Vulperonex.Plugins.Abstractions/IVulperonexPlugin.cs`
 - `src/Vulperonex.Plugins.Abstractions/IPluginContext.cs`
 - `src/Vulperonex.Plugins.Abstractions/IPluginActionContext.cs`
+- `src/Vulperonex.Plugins.Abstractions/IPluginEventTypeRegistrar.cs`
 - `tests/Vulperonex.Tests.Unit/Plugins/`
 - `tests/Vulperonex.Tests.Architecture/Plugins/`
 

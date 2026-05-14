@@ -22,7 +22,7 @@
 
 ## 任務 11：Plugin System
 
-- [ ] 任務 11a：建立 `IVulperonexPlugin`、`IPluginContext`、`IPluginActionContext` contracts 與 plugin event type registration surface
+- [ ] 任務 11a：建立 `IVulperonexPlugin`、`IPluginContext`、`IPluginActionContext` contracts 與最小 `IPluginEventTypeRegistrar`
 - [ ] 任務 11b：實作 static plugin registry 與 `InvokePluginAction` executor
 - [ ] 任務 11c：完成 plugin publish custom event -> WorkflowRule -> SendChatMessage scenario（SC-10）
 
