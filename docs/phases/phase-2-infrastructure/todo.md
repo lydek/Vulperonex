@@ -15,7 +15,7 @@
 
 - [x] 任務 5a：建立 EF Core / SQLite 基礎與 `VulperonexDbContext`
 - [x] 任務 5b：新增 `InitialSchema` migration 與資料表配置
-- [ ] 任務 5c：實作 DB bootstrap、`PRAGMA auto_vacuum = FULL` 與 `MigrationClassifier`
+- [x] 任務 5c：實作 DB bootstrap、`PRAGMA auto_vacuum = FULL` 與 `MigrationClassifier`
 
 ## 任務 6：TDQ + at-least-once 保證
 
@@ -40,8 +40,8 @@
 - [ ] 全方案編譯通過
 - [ ] 全方案測試通過
 - [x] 事件 publish → bus → handler 端到端通過
-- [ ] `MigrationClassifier` raw SQL destructive/review-required tests 通過
-- [ ] DB bootstrap `PRAGMA auto_vacuum = 2` 通過
+- [x] `MigrationClassifier` raw SQL destructive/review-required tests 通過
+- [x] DB bootstrap `PRAGMA auto_vacuum = 2` 通過
 - [ ] TDQ overflow → replay → delete 通過
 - [ ] `ActionExecutionLog` Completed/Failed/Pending retry semantics 通過
 - [ ] `MemberResolver` 並行測試通過
