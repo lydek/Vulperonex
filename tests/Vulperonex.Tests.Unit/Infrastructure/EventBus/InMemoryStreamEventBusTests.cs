@@ -102,6 +102,69 @@ public sealed class InMemoryStreamEventBusTests
         await bus.WaitForIdleAsync();
     }
 
+    [Fact]
+    public async Task Given_PublishedEvent_When_WaitingForIdle_Then_WaitCompletesAfterHandlerCompletes()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var releaseHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handlerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        bus.Subscribe<UserSentMessageEvent>(async (_, _) =>
+        {
+            handlerStarted.SetResult();
+            await releaseHandler.Task;
+        });
+
+        await bus.PublishAsync(NewMessageEvent("user-1"));
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var waitForIdleTask = bus.WaitForIdleAsync();
+        await Task.Yield();
+        waitForIdleTask.IsCompleted.Should().BeFalse();
+
+        releaseHandler.SetResult();
+        await waitForIdleTask.WaitAsync(TimeSpan.FromSeconds(1));
+    }
+
+    [Fact]
+    public async Task Given_HandlerThrows_When_WaitingForIdle_Then_WaitStillCompletes()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+
+        bus.Subscribe<UserSentMessageEvent>((_, _) => throw new InvalidOperationException("Handler failed."));
+
+        await bus.PublishAsync(NewMessageEvent("user-1"));
+        var act = async () => await bus.WaitForIdleAsync();
+
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task Given_WaitForIdleCancellation_When_HandlerIsStillRunning_Then_WaitIsCanceled()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        using var cancellationTokenSource = new CancellationTokenSource();
+        var releaseHandler = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handlerStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        bus.Subscribe<UserSentMessageEvent>(async (_, _) =>
+        {
+            handlerStarted.SetResult();
+            await releaseHandler.Task;
+        });
+
+        await bus.PublishAsync(NewMessageEvent("user-1"));
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+
+        var waitForIdleTask = bus.WaitForIdleAsync(cancellationTokenSource.Token);
+        await cancellationTokenSource.CancelAsync();
+
+        await FluentActions.Awaiting(() => waitForIdleTask).Should().ThrowAsync<OperationCanceledException>();
+
+        releaseHandler.SetResult();
+        await bus.WaitForIdleAsync();
+    }
+
     private static UserSentMessageEvent NewMessageEvent(string userId)
     {
         return new UserSentMessageEvent

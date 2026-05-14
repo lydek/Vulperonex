@@ -9,7 +9,7 @@
 
 - [x] 任務 4a：定義 `IStreamEventBus` 契約
 - [x] 任務 4b：實作 `InMemoryStreamEventBus` dispatch、assignable match 與 handler 隔離
-- [ ] 任務 4c：穩定 `WaitForIdleAsync` 與 dispatch lifecycle
+- [x] 任務 4c：穩定 `WaitForIdleAsync` 與 dispatch lifecycle
 
 ## 任務 5：EF Core + SQLite 基礎設施
 
@@ -39,7 +39,7 @@
 
 - [ ] 全方案編譯通過
 - [ ] 全方案測試通過
-- [ ] 事件 publish → bus → handler 端到端通過
+- [x] 事件 publish → bus → handler 端到端通過
 - [ ] `MigrationClassifier` raw SQL destructive/review-required tests 通過
 - [ ] DB bootstrap `PRAGMA auto_vacuum = 2` 通過
 - [ ] TDQ overflow → replay → delete 通過
