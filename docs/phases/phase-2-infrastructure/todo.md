@@ -33,7 +33,7 @@
 
 - [x] 任務 8a：實作 `ISystemSettingsService` SQLite-backed Get/Set
 - [x] 任務 8b：實作設定熱重載 `Changes` observable，並接上 bus capacity / display cache capacity+TTL 覆寫
-- [ ] 任務 8c：實作 OAuth token 加密、`machine.key` 與 `IOAuthTokenStore`
+- [x] 任務 8c：實作 OAuth token 加密、`machine.key` 與 `IOAuthTokenStore`
 
 ## 第二階段檢查點
 
@@ -48,7 +48,7 @@
 - [x] `IPlatformUserInfoCache.UpdateAsync` cache miss → default row 通過
 - [x] `bus.channel_capacity` 可覆寫 EventBus 預設 10,000 通過
 - [x] `overlay.display_cache_l1_capacity` / `overlay.display_cache_ttl_hours` 可覆寫 display cache 預設 500 / 24h 通過
-- [ ] AES-256-GCM tamper 與 AAD cross-key copy 測試通過
+- [x] AES-256-GCM tamper 與 AAD cross-key copy 測試通過
 - [ ] 架構測試確認 Domain/Application 無 Infrastructure/EF 洩漏
 - [ ] Git 狀態乾淨（忽略的本地檔案除外）
 - [ ] 第三階段開始前完成第二階段審查
