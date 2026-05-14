@@ -33,10 +33,10 @@ public sealed class InMemoryStreamEventBusTests
 
         for (var index = 1; index <= 5; index++)
         {
-            await bus.PublishAsync(NewMessageEvent($"user-{index}"));
+            await bus.PublishAsync(NewMessageEvent($"user-{index}"), TestContext.Current.CancellationToken);
         }
 
-        await bus.WaitForIdleAsync();
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         received.Should().BeEquivalentTo("user-1", "user-2", "user-3", "user-4", "user-5");
     }
@@ -54,8 +54,8 @@ public sealed class InMemoryStreamEventBusTests
             return Task.CompletedTask;
         });
 
-        await bus.PublishAsync(streamEvent);
-        await bus.WaitForIdleAsync();
+        await bus.PublishAsync(streamEvent, TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         received.Should().ContainSingle().Which.Should().Be(streamEvent);
     }
@@ -72,8 +72,10 @@ public sealed class InMemoryStreamEventBusTests
             return Task.CompletedTask;
         });
 
-        await bus.PublishAsync(new UserFollowedEvent { Platform = "twitch", User = NewUser("user-1") });
-        await bus.WaitForIdleAsync();
+        await bus.PublishAsync(
+            new UserFollowedEvent { Platform = "twitch", User = NewUser("user-1") },
+            TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         received.Should().BeEmpty();
     }
@@ -92,14 +94,14 @@ public sealed class InMemoryStreamEventBusTests
         });
 
         var stopwatch = Stopwatch.StartNew();
-        await bus.PublishAsync(NewMessageEvent("user-1"));
+        await bus.PublishAsync(NewMessageEvent("user-1"), TestContext.Current.CancellationToken);
         stopwatch.Stop();
 
         stopwatch.Elapsed.Should().BeLessThan(TimeSpan.FromMilliseconds(10));
 
-        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
         releaseHandler.SetResult();
-        await bus.WaitForIdleAsync();
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -115,15 +117,15 @@ public sealed class InMemoryStreamEventBusTests
             await releaseHandler.Task;
         });
 
-        await bus.PublishAsync(NewMessageEvent("user-1"));
-        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await bus.PublishAsync(NewMessageEvent("user-1"), TestContext.Current.CancellationToken);
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
-        var waitForIdleTask = bus.WaitForIdleAsync();
+        var waitForIdleTask = bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
         await Task.Yield();
         waitForIdleTask.IsCompleted.Should().BeFalse();
 
         releaseHandler.SetResult();
-        await waitForIdleTask.WaitAsync(TimeSpan.FromSeconds(1));
+        await waitForIdleTask.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -133,8 +135,8 @@ public sealed class InMemoryStreamEventBusTests
 
         bus.Subscribe<UserSentMessageEvent>((_, _) => throw new InvalidOperationException("Handler failed."));
 
-        await bus.PublishAsync(NewMessageEvent("user-1"));
-        var act = async () => await bus.WaitForIdleAsync();
+        await bus.PublishAsync(NewMessageEvent("user-1"), TestContext.Current.CancellationToken);
+        var act = async () => await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         await act.Should().NotThrowAsync();
     }
@@ -153,8 +155,8 @@ public sealed class InMemoryStreamEventBusTests
             await releaseHandler.Task;
         });
 
-        await bus.PublishAsync(NewMessageEvent("user-1"));
-        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await bus.PublishAsync(NewMessageEvent("user-1"), TestContext.Current.CancellationToken);
+        await handlerStarted.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
 
         var waitForIdleTask = bus.WaitForIdleAsync(cancellationTokenSource.Token);
         await cancellationTokenSource.CancelAsync();
@@ -162,7 +164,7 @@ public sealed class InMemoryStreamEventBusTests
         await FluentActions.Awaiting(() => waitForIdleTask).Should().ThrowAsync<OperationCanceledException>();
 
         releaseHandler.SetResult();
-        await bus.WaitForIdleAsync();
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
     }
 
     private static UserSentMessageEvent NewMessageEvent(string userId)
