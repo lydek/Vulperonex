@@ -5,6 +5,7 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
     <ProjectReference Include="..\Vulperonex.Application\Vulperonex.Application.csproj" />
     <ProjectReference Include="..\Vulperonex.Domain\Vulperonex.Domain.csproj" />
   </ItemGroup>

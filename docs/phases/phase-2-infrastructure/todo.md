@@ -26,7 +26,7 @@
 ## 任務 7：MemberResolver + PlatformUserDisplayCache
 
 - [x] 任務 7a：實作 `IMemberResolver` port 與 atomic resolver
-- [ ] 任務 7b：實作 `PlatformUserDisplayCache` L1/L2
+- [x] 任務 7b：實作 `PlatformUserDisplayCache` L1/L2
 - [ ] 任務 7c：完成 display cache `UpdateAsync` default row 與 TTL cleanup
 
 ## 任務 8：SystemSettings + token 安全儲存
