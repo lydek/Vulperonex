@@ -14,24 +14,68 @@ public sealed class InvokeSubWorkflowActionExecutorTests
     {
         var invoker = new RecordingWorkflowRuleInvoker();
         var executor = new InvokeSubWorkflowActionExecutor(invoker);
-        var streamEvent = new UserSentMessageEvent
-        {
-            Platform = "twitch",
-            User = new StreamUser("twitch", "alice", "Alice"),
-        };
-        var context = new ActionExecutionContext(
-            streamEvent,
-            new WorkflowRule { Id = "parent", Name = "Parent", EventTypeKey = StreamEventKeys.UserSentMessage },
-            ActionIndex: 0,
-            InvocationId: "stable-invocation");
+        var streamEvent = NewEvent(eventId: "event-1");
+        var context = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 0);
 
         await executor.ExecuteAsync(
             new InvokeSubWorkflowAction { WorkflowId = "child" },
             context,
             TestContext.Current.CancellationToken);
 
-        invoker.Invocations.Should().ContainSingle()
-            .Which.Should().Be(("child", "event:" + streamEvent.EventId, "stable-invocation"));
+        invoker.Invocations.Should().ContainSingle();
+        invoker.Invocations[0].WorkflowRuleId.Should().Be("child");
+        invoker.Invocations[0].EventId.Should().Be("event-1");
+        invoker.Invocations[0].InvocationId.Should().MatchRegex("^[0-9a-f]{32}$");
+    }
+
+    [Fact]
+    public async Task Given_SameEventRuleAndActionIndex_When_ExecutedTwice_Then_InvocationIdIsDeterministic()
+    {
+        var invoker = new RecordingWorkflowRuleInvoker();
+        var executor = new InvokeSubWorkflowActionExecutor(invoker);
+        var streamEvent = NewEvent(eventId: "event-1");
+        var context = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 0);
+        var action = new InvokeSubWorkflowAction { WorkflowId = "child" };
+
+        await executor.ExecuteAsync(action, context, TestContext.Current.CancellationToken);
+        await executor.ExecuteAsync(action, context, TestContext.Current.CancellationToken);
+
+        invoker.Invocations.Should().HaveCount(2);
+        invoker.Invocations[0].InvocationId.Should().Be(invoker.Invocations[1].InvocationId);
+    }
+
+    [Fact]
+    public async Task Given_DifferentActionIndex_When_Executed_Then_InvocationIdDiffers()
+    {
+        var invoker = new RecordingWorkflowRuleInvoker();
+        var executor = new InvokeSubWorkflowActionExecutor(invoker);
+        var streamEvent = NewEvent(eventId: "event-1");
+        var firstContext = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 0);
+        var secondContext = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 1);
+        var action = new InvokeSubWorkflowAction { WorkflowId = "child" };
+
+        await executor.ExecuteAsync(action, firstContext, TestContext.Current.CancellationToken);
+        await executor.ExecuteAsync(action, secondContext, TestContext.Current.CancellationToken);
+
+        invoker.Invocations[0].InvocationId.Should().NotBe(invoker.Invocations[1].InvocationId);
+    }
+
+    private static UserSentMessageEvent NewEvent(string eventId)
+    {
+        return new UserSentMessageEvent
+        {
+            EventId = eventId,
+            Platform = "twitch",
+            User = new StreamUser("twitch", "alice", "Alice"),
+        };
+    }
+
+    private static ActionExecutionContext NewContext(IStreamEvent streamEvent, string parentRuleId, int actionIndex)
+    {
+        return new ActionExecutionContext(
+            streamEvent,
+            new WorkflowRule { Id = parentRuleId, Name = parentRuleId, EventTypeKey = StreamEventKeys.UserSentMessage },
+            actionIndex);
     }
 
     private sealed class RecordingWorkflowRuleInvoker : IWorkflowRuleInvoker
@@ -44,7 +88,7 @@ public sealed class InvokeSubWorkflowActionExecutorTests
             string invocationId,
             CancellationToken cancellationToken = default)
         {
-            Invocations.Add((workflowRuleId, "event:" + streamEvent.EventId, invocationId));
+            Invocations.Add((workflowRuleId, streamEvent.EventId, invocationId));
             return Task.CompletedTask;
         }
     }
