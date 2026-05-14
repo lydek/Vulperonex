@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Simulation\Vulperonex.Adapters.Simulation.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Domain\Vulperonex.Domain.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Plugins.Abstractions\Vulperonex.Plugins.Abstractions.csproj" />
   </ItemGroup>
 </Project>
