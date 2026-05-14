@@ -183,6 +183,68 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_TerminalActionFailure_When_EventIsReplayed_Then_FailedActionIsSkipped()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var executor = new RecordingActionExecutor(failFirstExecution: true);
+        var rule = NewRule(actions:
+        [
+            new TestAction { ErrorBehavior = ErrorBehavior.ContinueOnError },
+        ]);
+        await using var engine = NewEngine(bus, [rule], [executor]);
+        var streamEvent = NewMessageEvent(eventId: "event-1");
+
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+
+        // First call records a failure; second call must NOT re-run the action because
+        // SPEC §4.2 requires Completed/Failed entries to skip on replay.
+        executor.Executions.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Given_RetryExhausted_When_EventIsReplayed_Then_FailedActionIsSkipped()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var executor = new AlwaysFailingActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new TestAction
+            {
+                ErrorBehavior = ErrorBehavior.RetryOnError,
+                MaxRetries = 2,
+                BackoffMs = 0,
+            },
+        ]);
+        await using var engine = NewEngine(bus, [rule], [executor]);
+        var streamEvent = NewMessageEvent(eventId: "event-2");
+
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+        var attemptsAfterFirstCall = executor.Attempts;
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+
+        attemptsAfterFirstCall.Should().Be(3); // initial attempt + 2 retries
+        executor.Attempts.Should().Be(attemptsAfterFirstCall); // replay skipped after Failed
+    }
+
+    [Fact]
+    public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
+    {
+        var executor = new ConcurrencyTrackingActionExecutor();
+        var rule = NewRule(actions: Enumerable.Range(0, 100).Select(_ => (WorkflowAction)new TestAction()).ToArray()) with
+        {
+            ExecutionMode = WorkflowExecutionMode.Parallel,
+            MaxParallelism = 10_000,
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.MaxObservedConcurrency.Should().BeLessThanOrEqualTo(64);
+    }
+
+    [Fact]
     public async Task Given_ParallelRule_When_ExecutingActions_Then_MaxParallelismIsRespected()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -286,6 +348,21 @@ public sealed class WorkflowEngineTests
             }
 
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class AlwaysFailingActionExecutor : IWorkflowActionExecutor
+    {
+        public string ActionType => TestAction.TestActionType;
+        public int Attempts { get; private set; }
+
+        public Task ExecuteAsync(
+            WorkflowAction action,
+            ActionExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+            throw new InvalidOperationException("Always fails.");
         }
     }
 

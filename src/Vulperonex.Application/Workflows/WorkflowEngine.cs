@@ -9,6 +9,9 @@ namespace Vulperonex.Application.Workflows;
 
 public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 {
+    private const int MinParallelism = 1;
+    private const int MaxParallelismCap = 64;
+
     private readonly IStreamEventBus _eventBus;
     private readonly IWorkflowRuleQueryService _ruleQueryService;
     private readonly WorkflowConditionEvaluator _conditionEvaluator;
@@ -56,9 +59,10 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
     private async Task HandleEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
     {
+        // Query contract: ListEnabledByEventTypeAsync returns only enabled rules whose
+        // EventTypeKey matches. No additional filtering here.
         var rules = await _ruleQueryService.ListEnabledByEventTypeAsync(streamEvent.EventTypeKey, cancellationToken);
         var orderedRules = rules
-            .Where(rule => rule.IsEnabled && rule.EventTypeKey == streamEvent.EventTypeKey)
             .OrderBy(rule => rule.Priority)
             .ThenBy(rule => rule.CreatedAt)
             .ThenBy(rule => rule.Id, StringComparer.Ordinal)
@@ -101,9 +105,11 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             return;
         }
 
-        var semaphore = _ruleSemaphores.GetOrAdd(
-            rule.Id,
-            _ => new SemaphoreSlim(rule.ExecutionMode is WorkflowExecutionMode.Parallel ? Math.Max(1, rule.MaxParallelism) : 1));
+        var capacity = ResolveCapacity(rule);
+        // Cache key includes capacity + execution mode so an edited rule
+        // does not reuse a semaphore sized for the previous configuration.
+        var semaphoreKey = $"{rule.Id}|{rule.ExecutionMode}|{capacity}";
+        var semaphore = _ruleSemaphores.GetOrAdd(semaphoreKey, _ => new SemaphoreSlim(capacity));
 
         await semaphore.WaitAsync(cancellationToken);
         try
@@ -121,6 +127,13 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         {
             semaphore.Release();
         }
+    }
+
+    private static int ResolveCapacity(WorkflowRule rule)
+    {
+        return rule.ExecutionMode is WorkflowExecutionMode.Parallel
+            ? Math.Clamp(rule.MaxParallelism, MinParallelism, MaxParallelismCap)
+            : 1;
     }
 
     private bool MatchesConditions(WorkflowRule rule, IStreamEvent streamEvent)
@@ -151,7 +164,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         string? invocationId,
         CancellationToken cancellationToken)
     {
-        using var throttle = new SemaphoreSlim(Math.Max(1, rule.MaxParallelism));
+        var capacity = ResolveCapacity(rule);
+        using var throttle = new SemaphoreSlim(capacity);
         var tasks = rule.Actions.Select(async (_, index) =>
         {
             await throttle.WaitAsync(cancellationToken);
@@ -180,6 +194,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
         if (!await _executionStore.TryBeginAsync(key, cancellationToken))
         {
+            // Already terminal (Completed or Failed) — SPEC §4.2 says replay must skip.
             return true;
         }
 
@@ -207,10 +222,14 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             }
             catch
             {
+                // Terminal failure: record Failed so replay skips.
+                await _executionStore.MarkFailedAsync(key, cancellationToken);
                 return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
             }
         }
 
+        // Retries exhausted without success.
+        await _executionStore.MarkFailedAsync(key, cancellationToken);
         return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
     }
 
