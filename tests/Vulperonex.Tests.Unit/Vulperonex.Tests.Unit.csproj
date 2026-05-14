@@ -15,5 +15,6 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Vulperonex.Application\Vulperonex.Application.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Domain\Vulperonex.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
