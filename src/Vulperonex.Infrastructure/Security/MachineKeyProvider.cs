@@ -12,6 +12,7 @@ public sealed class MachineKeyProvider(IFileSystem fileSystem, string? rootPath 
             var key = RandomNumberGenerator.GetBytes(32);
             fileSystem.CreateDirectory(Path.GetDirectoryName(path)!);
             fileSystem.WriteAllBytes(path, key);
+            fileSystem.ApplyUserOnlyPermissions(path);
         }
 
         var bytes = fileSystem.ReadAllBytes(path);

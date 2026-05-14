@@ -9,4 +9,6 @@ public interface IFileSystem
     void WriteAllBytes(string path, byte[] bytes);
 
     void CreateDirectory(string path);
+
+    void ApplyUserOnlyPermissions(string path);
 }
