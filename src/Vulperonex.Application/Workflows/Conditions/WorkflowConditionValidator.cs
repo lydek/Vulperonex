@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace Vulperonex.Application.Workflows.Conditions;
@@ -10,6 +11,9 @@ public sealed class WorkflowConditionValidator
     public const string InvalidRegexPattern = "INVALID_REGEX_PATTERN";
     public const string InvalidActionConfig = "INVALID_ACTION_CONFIG";
     public const string UnknownConditionType = "UNKNOWN_CONDITION_TYPE";
+
+    private static readonly TimeSpan RegexCompileTimeout = TimeSpan.FromMilliseconds(500);
+    private static readonly ConcurrentDictionary<string, bool> RegexValidityCache = new(StringComparer.Ordinal);
 
     public ConditionValidationResult Validate(WorkflowCondition condition)
     {
@@ -34,15 +38,25 @@ public sealed class WorkflowConditionValidator
             return new ConditionValidationResult(false, InvalidRegexPattern);
         }
 
-        try
+        return IsRegexCompilable(condition.Pattern)
+            ? ConditionValidationResult.Valid
+            : new ConditionValidationResult(false, InvalidRegexPattern);
+    }
+
+    private static bool IsRegexCompilable(string pattern)
+    {
+        return RegexValidityCache.GetOrAdd(pattern, static p =>
         {
-            _ = new Regex(condition.Pattern, RegexOptions.None, TimeSpan.FromMilliseconds(500));
-            return ConditionValidationResult.Valid;
-        }
-        catch (ArgumentException)
-        {
-            return new ConditionValidationResult(false, InvalidRegexPattern);
-        }
+            try
+            {
+                _ = new Regex(p, RegexOptions.None, RegexCompileTimeout);
+                return true;
+            }
+            catch (ArgumentException)
+            {
+                return false;
+            }
+        });
     }
 
     private static ConditionValidationResult ValidateCooldown(CooldownCondition condition)
