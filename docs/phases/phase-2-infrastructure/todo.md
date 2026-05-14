@@ -27,7 +27,7 @@
 
 - [x] 任務 7a：實作 `IMemberResolver` port 與 atomic resolver
 - [x] 任務 7b：實作 `PlatformUserDisplayCache` L1/L2
-- [ ] 任務 7c：完成 display cache `UpdateAsync` default row 與 TTL cleanup
+- [x] 任務 7c：完成 display cache `UpdateAsync` default row 與 TTL cleanup
 
 ## 任務 8：SystemSettings + token 安全儲存
 
@@ -45,7 +45,7 @@
 - [x] TDQ overflow → replay → delete 通過
 - [x] `ActionExecutionLog` Completed/Failed/Pending retry semantics 通過
 - [x] `MemberResolver` 並行測試通過
-- [ ] `IPlatformUserInfoCache.UpdateAsync` cache miss → default row 通過
+- [x] `IPlatformUserInfoCache.UpdateAsync` cache miss → default row 通過
 - [ ] `bus.channel_capacity` 可覆寫 EventBus 預設 10,000 通過
 - [ ] `overlay.display_cache_l1_capacity` / `overlay.display_cache_ttl_hours` 可覆寫 display cache 預設 500 / 24h 通過
 - [ ] AES-256-GCM tamper 與 AAD cross-key copy 測試通過

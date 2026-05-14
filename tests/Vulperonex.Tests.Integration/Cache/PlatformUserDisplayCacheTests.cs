@@ -68,4 +68,58 @@ public sealed class PlatformUserDisplayCacheTests
 
         updated.TotalBitsGiven.Should().Be(20);
     }
+
+    [Fact]
+    public async Task Given_CacheMiss_When_UpdateAsyncRuns_Then_DefaultRowIsCreatedAndUpdaterIsApplied()
+    {
+        await using var fixture = new Infrastructure.SqliteFixture();
+        await using var context = await fixture.CreateContextAsync();
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        var cache = new PlatformUserDisplayCache(context);
+
+        var updated = await cache.UpdateAsync("twitch", "user-1", displayInfo => displayInfo with
+        {
+            DisplayName = "Created",
+        }, TestContext.Current.CancellationToken);
+
+        updated.DisplayName.Should().Be("Created");
+        updated.AvatarUrl.Should().BeNull();
+        updated.ColorHex.Should().BeNull();
+        updated.Badges.Should().BeEmpty();
+        updated.IsSubscriber.Should().BeFalse();
+        updated.SubscriptionTier.Should().BeNull();
+        updated.TotalBitsGiven.Should().Be(0);
+        updated.FetchedAt.Should().BeAfter(DateTimeOffset.MinValue);
+    }
+
+    [Fact]
+    public async Task Given_ExpiredRows_When_CleanupRuns_Then_ExpiredRowsAreDeletedAndFreshRowsRemain()
+    {
+        await using var fixture = new Infrastructure.SqliteFixture();
+        await using var context = await fixture.CreateContextAsync();
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        context.PlatformUserDisplayInfo.AddRange(
+            new PlatformUserDisplayInfoEntity
+            {
+                Platform = "twitch",
+                PlatformUserId = "expired",
+                BadgesJson = "[]",
+                FetchedAt = DateTimeOffset.UtcNow.AddHours(-25),
+            },
+            new PlatformUserDisplayInfoEntity
+            {
+                Platform = "twitch",
+                PlatformUserId = "fresh",
+                BadgesJson = "[]",
+                FetchedAt = DateTimeOffset.UtcNow,
+            });
+        await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        var worker = new PlatformUserDisplayCacheCleanupWorker(context);
+
+        var deleted = await worker.CleanupExpiredAsync(TestContext.Current.CancellationToken);
+
+        deleted.Should().Be(1);
+        (await context.PlatformUserDisplayInfo.FindAsync(["twitch", "expired"], TestContext.Current.CancellationToken)).Should().BeNull();
+        (await context.PlatformUserDisplayInfo.FindAsync(["twitch", "fresh"], TestContext.Current.CancellationToken)).Should().NotBeNull();
+    }
 }
