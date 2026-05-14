@@ -26,6 +26,14 @@ public sealed class InMemoryWorkflowActionExecutionStore : IWorkflowActionExecut
         return Task.CompletedTask;
     }
 
+    public Task MarkAbandonedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _statusByKey.TryRemove(
+            new KeyValuePair<ActionExecutionKey, ActionExecutionStatus>(key, ActionExecutionStatus.Running));
+        return Task.CompletedTask;
+    }
+
     private enum ActionExecutionStatus
     {
         Running,

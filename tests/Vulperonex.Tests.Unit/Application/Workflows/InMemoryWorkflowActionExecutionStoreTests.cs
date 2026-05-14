@@ -18,4 +18,17 @@ public sealed class InMemoryWorkflowActionExecutionStoreTests
         firstBegin.Should().BeTrue();
         secondBegin.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task Given_RunningKeyIsAbandoned_When_TryBeginIsCalledAgain_Then_KeyCanBeReserved()
+    {
+        var store = new InMemoryWorkflowActionExecutionStore();
+        var key = new ActionExecutionKey("event-1", "rule-1", 0);
+
+        await store.TryBeginAsync(key, TestContext.Current.CancellationToken);
+        await store.MarkAbandonedAsync(key, TestContext.Current.CancellationToken);
+        var replayBegin = await store.TryBeginAsync(key, TestContext.Current.CancellationToken);
+
+        replayBegin.Should().BeTrue();
+    }
 }

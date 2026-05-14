@@ -183,6 +183,23 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_ExecutionIsCancelled_When_EventIsReplayed_Then_ActionCanRunAgain()
+    {
+        using var cancellationTokenSource = new CancellationTokenSource();
+        var executor = new CancelFirstExecutionActionExecutor(cancellationTokenSource);
+        var rule = NewRule();
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+        var streamEvent = NewMessageEvent(eventId: "event-cancelled");
+
+        var firstRun = async () => await engine.ExecuteRuleAsync(rule, streamEvent, cancellationTokenSource.Token);
+        await firstRun.Should().ThrowAsync<OperationCanceledException>();
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+
+        executor.Attempts.Should().Be(2);
+    }
+
+    [Fact]
     public async Task Given_TerminalActionFailure_When_EventIsReplayed_Then_FailedActionIsSkipped()
     {
         await using var bus = new InMemoryStreamEventBus();
@@ -385,6 +402,29 @@ public sealed class WorkflowEngineTests
                 SawCancellation = true;
                 throw;
             }
+        }
+    }
+
+    private sealed class CancelFirstExecutionActionExecutor(CancellationTokenSource cancellationTokenSource)
+        : IWorkflowActionExecutor
+    {
+        public string ActionType => TestAction.TestActionType;
+        public int Attempts { get; private set; }
+
+        public Task ExecuteAsync(
+            WorkflowAction action,
+            ActionExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Attempts++;
+
+            if (Attempts is 1)
+            {
+                cancellationTokenSource.Cancel();
+                throw new OperationCanceledException(cancellationTokenSource.Token);
+            }
+
+            return Task.CompletedTask;
         }
     }
 

@@ -13,4 +13,6 @@ public interface IWorkflowActionExecutionStore
     Task MarkCompletedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default);
 
     Task MarkFailedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default);
+
+    Task MarkAbandonedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default);
 }

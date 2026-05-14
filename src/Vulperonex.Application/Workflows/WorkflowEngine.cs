@@ -202,39 +202,52 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             return true;
         }
 
-        var maxAttempts = action.ErrorBehavior is ErrorBehavior.RetryOnError
-            ? action.MaxRetries + 1
-            : 1;
-
-        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        try
         {
-            try
+            var maxAttempts = action.ErrorBehavior is ErrorBehavior.RetryOnError
+                ? action.MaxRetries + 1
+                : 1;
+
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
             {
-                await ExecuteActionOnceAsync(
-                    action,
-                    new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId),
-                    cancellationToken);
-                await _executionStore.MarkCompletedAsync(key, cancellationToken);
-                return true;
-            }
-            catch when (action.ErrorBehavior is ErrorBehavior.RetryOnError && attempt < maxAttempts)
-            {
-                if (action.BackoffMs > 0)
+                try
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(action.BackoffMs), cancellationToken);
+                    await ExecuteActionOnceAsync(
+                        action,
+                        new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId),
+                        cancellationToken);
+                    await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
+                    return true;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    await _executionStore.MarkAbandonedAsync(key, CancellationToken.None);
+                    throw;
+                }
+                catch when (action.ErrorBehavior is ErrorBehavior.RetryOnError && attempt < maxAttempts)
+                {
+                    if (action.BackoffMs > 0)
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(action.BackoffMs), cancellationToken);
+                    }
+                }
+                catch
+                {
+                    // Terminal failure: record Failed so replay skips.
+                    await _executionStore.MarkFailedAsync(key, CancellationToken.None);
+                    return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
                 }
             }
-            catch
-            {
-                // Terminal failure: record Failed so replay skips.
-                await _executionStore.MarkFailedAsync(key, cancellationToken);
-                return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
-            }
-        }
 
-        // Retries exhausted without success.
-        await _executionStore.MarkFailedAsync(key, cancellationToken);
-        return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
+            // Retries exhausted without success.
+            await _executionStore.MarkFailedAsync(key, CancellationToken.None);
+            return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            await _executionStore.MarkAbandonedAsync(key, CancellationToken.None);
+            throw;
+        }
     }
 
     private async Task ExecuteActionOnceAsync(
