@@ -109,6 +109,27 @@ public sealed class LayerDependencyTests
         }
     }
 
+    [Fact]
+    public void Given_ApplicationAssembly_When_Inspected_Then_ApplicationDoesNotDependOnInfrastructure()
+    {
+        string[] forbiddenDependencies =
+        [
+            "Vulperonex.Infrastructure",
+            "Microsoft.EntityFrameworkCore",
+        ];
+
+        foreach (var dependency in forbiddenDependencies)
+        {
+            Types.InAssembly(typeof(Vulperonex.Application.AssemblyMarker).Assembly)
+                .Should()
+                .NotHaveDependencyOn(dependency)
+                .GetResult()
+                .IsSuccessful
+                .Should()
+                .BeTrue($"Application must not depend on {dependency}");
+        }
+    }
+
     private static string[] GetProjectReferences(string projectPath)
     {
         var projectFullPath = Path.Combine(GetRepositoryRoot(), NormalizePath(projectPath));
