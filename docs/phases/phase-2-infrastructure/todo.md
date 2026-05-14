@@ -20,7 +20,7 @@
 ## 任務 6：TDQ + at-least-once 保證
 
 - [x] 任務 6a：建立 TDQ 與 `ActionExecutionLog` schema/repository
-- [ ] 任務 6b：實作 Channel overflow 與啟動 replay
+- [x] 任務 6b：實作 Channel overflow 與啟動 replay
 - [ ] 任務 6c：實作 `ActionExecutionLog` dedup 狀態機與 `IClock`
 
 ## 任務 7：MemberResolver + PlatformUserDisplayCache
@@ -42,7 +42,7 @@
 - [x] 事件 publish → bus → handler 端到端通過
 - [x] `MigrationClassifier` raw SQL destructive/review-required tests 通過
 - [x] DB bootstrap `PRAGMA auto_vacuum = 2` 通過
-- [ ] TDQ overflow → replay → delete 通過
+- [x] TDQ overflow → replay → delete 通過
 - [ ] `ActionExecutionLog` Completed/Failed/Pending retry semantics 通過
 - [ ] `MemberResolver` 並行測試通過
 - [ ] `IPlatformUserInfoCache.UpdateAsync` cache miss → default row 通過

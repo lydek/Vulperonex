@@ -9,6 +9,7 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
     public const int DefaultCapacity = 10_000;
 
     private readonly Channel<IStreamEvent> _channel;
+    private readonly TransientDeliveryQueueStore? _overflowStore;
     private readonly CancellationTokenSource _disposeTokenSource = new();
     private readonly Task _dispatchTask;
     private readonly object _gate = new();
@@ -21,13 +22,14 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
     {
     }
 
-    public InMemoryStreamEventBus(int capacity)
+    public InMemoryStreamEventBus(int capacity, TransientDeliveryQueueStore? overflowStore = null)
     {
         if (capacity <= 0)
         {
             throw new ArgumentOutOfRangeException(nameof(capacity), "Capacity must be greater than zero.");
         }
 
+        _overflowStore = overflowStore;
         _channel = Channel.CreateBounded<IStreamEvent>(new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
@@ -46,6 +48,13 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
 
         if (_channel.Writer.TryWrite(streamEvent))
         {
+            return;
+        }
+
+        if (_overflowStore is not null)
+        {
+            await _overflowStore.EnqueueAsync(streamEvent, cancellationToken);
+            MarkDispatchComplete();
             return;
         }
 

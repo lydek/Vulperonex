@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Data.Entities;
+using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Infrastructure.EventBus;
 
@@ -23,6 +24,16 @@ public sealed class TransientDeliveryQueueStore(VulperonexDbContext context)
         context.TransientDeliveryQueue.Add(item);
         await context.SaveChangesAsync(cancellationToken);
         return item;
+    }
+
+    public Task<TransientDeliveryQueueEntity> EnqueueAsync(
+        IStreamEvent streamEvent,
+        CancellationToken cancellationToken = default)
+    {
+        return EnqueueAsync(
+            streamEvent.EventTypeKey,
+            StreamEventJsonSerializer.Serialize(streamEvent),
+            cancellationToken);
     }
 
     public Task<List<TransientDeliveryQueueEntity>> GetPendingAsync(CancellationToken cancellationToken = default)
