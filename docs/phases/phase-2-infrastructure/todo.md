@@ -7,7 +7,7 @@
 
 ## 任務 4：事件匯流排
 
-- [ ] 任務 4a：定義 `IStreamEventBus` 契約
+- [x] 任務 4a：定義 `IStreamEventBus` 契約
 - [ ] 任務 4b：實作 `InMemoryStreamEventBus` dispatch、assignable match 與 handler 隔離
 - [ ] 任務 4c：穩定 `WaitForIdleAsync` 與 dispatch lifecycle
 
