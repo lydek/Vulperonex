@@ -7,9 +7,13 @@
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" PrivateAssets="all" />
     <PackageReference Include="FluentAssertions" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
     <PackageReference Include="NSubstitute" PrivateAssets="all" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" PrivateAssets="all" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
   </ItemGroup>
 </Project>
