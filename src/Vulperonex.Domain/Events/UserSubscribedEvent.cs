@@ -6,5 +6,6 @@ public sealed record UserSubscribedEvent : IStreamEvent
     public string EventTypeKey => StreamEventKeys.UserSubscribed;
     public required string Platform { get; init; }
     public required StreamUser User { get; init; }
+    public string Tier { get; init; } = string.Empty;
     public DateTimeOffset OccurredAt { get; init; } = DateTimeOffset.UtcNow;
 }

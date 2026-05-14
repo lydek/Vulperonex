@@ -6,5 +6,6 @@ public sealed record UserSentMessageEvent : IStreamEvent
     public string EventTypeKey => StreamEventKeys.UserSentMessage;
     public required string Platform { get; init; }
     public required StreamUser User { get; init; }
+    public string MessageText { get; init; } = string.Empty;
     public DateTimeOffset OccurredAt { get; init; } = DateTimeOffset.UtcNow;
 }
