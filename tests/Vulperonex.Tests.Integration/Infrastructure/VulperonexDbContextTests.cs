@@ -36,6 +36,8 @@ public sealed class VulperonexDbContextTests
             nameof(WorkflowRuleEntity),
             nameof(SystemSettingEntity),
             nameof(AppLogEntity),
-            nameof(PlatformUserDisplayInfoEntity));
+            nameof(PlatformUserDisplayInfoEntity),
+            nameof(TransientDeliveryQueueEntity),
+            nameof(ActionExecutionLogEntity));
     }
 }

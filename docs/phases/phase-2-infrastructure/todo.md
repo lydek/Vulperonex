@@ -19,7 +19,7 @@
 
 ## 任務 6：TDQ + at-least-once 保證
 
-- [ ] 任務 6a：建立 TDQ 與 `ActionExecutionLog` schema/repository
+- [x] 任務 6a：建立 TDQ 與 `ActionExecutionLog` schema/repository
 - [ ] 任務 6b：實作 Channel overflow 與啟動 replay
 - [ ] 任務 6c：實作 `ActionExecutionLog` dedup 狀態機與 `IClock`
 

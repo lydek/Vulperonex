@@ -11,9 +11,22 @@ namespace Vulperonex.Infrastructure.Migrations;
 [DbContext(typeof(VulperonexDbContext))]
 partial class VulperonexDbContextModelSnapshot : ModelSnapshot
 {
-    protected override void BuildModel(ModelBuilder modelBuilder)
+    protected override void BuildModel(ModelBuilder modelBuilder) => BuildCurrentModel(modelBuilder);
+
+    internal static void BuildCurrentModel(ModelBuilder modelBuilder)
     {
         modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
+
+        modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.ActionExecutionLogEntity", b =>
+        {
+            b.Property<string>("DedupKey").HasColumnType("TEXT");
+            b.Property<int>("AttemptCount").HasColumnType("INTEGER");
+            b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+            b.Property<string>("Status").IsRequired().HasColumnType("TEXT");
+            b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("TEXT");
+            b.HasKey("DedupKey");
+            b.ToTable("ActionExecutionLogs");
+        });
 
         modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.AppLogEntity", b =>
         {
@@ -70,6 +83,18 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<string>("Value").IsRequired().HasColumnType("TEXT");
             b.HasKey("Key");
             b.ToTable("SystemSettings");
+        });
+
+        modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.TransientDeliveryQueueEntity", b =>
+        {
+            b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+            b.Property<string>("EventType").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("PayloadJson").IsRequired().HasColumnType("TEXT");
+            b.Property<int>("ReplayCount").HasColumnType("INTEGER");
+            b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("TEXT");
+            b.HasKey("Id");
+            b.ToTable("TransientDeliveryQueue");
         });
 
         modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.WorkflowRuleEntity", b =>

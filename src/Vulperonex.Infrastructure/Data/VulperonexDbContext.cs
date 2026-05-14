@@ -17,6 +17,10 @@ public sealed class VulperonexDbContext(DbContextOptions<VulperonexDbContext> op
 
     public DbSet<PlatformUserDisplayInfoEntity> PlatformUserDisplayInfo => Set<PlatformUserDisplayInfoEntity>();
 
+    public DbSet<TransientDeliveryQueueEntity> TransientDeliveryQueue => Set<TransientDeliveryQueueEntity>();
+
+    public DbSet<ActionExecutionLogEntity> ActionExecutionLogs => Set<ActionExecutionLogEntity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(VulperonexDbContext).Assembly);
