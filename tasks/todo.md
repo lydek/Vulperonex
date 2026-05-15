@@ -68,12 +68,14 @@
 
 ## Phase 4：Twitch Adapter + MemberModule
 
+> 詳細切片清單：`docs/phases/phase-4-twitch-member/todo.md`
+
 - [ ] **Task 12** — TwitchAdapter：IRC + EventSub + DisplayHints + 指數退避重連（SC-1, SC-6a WorkflowEngine half）
 - [ ] **Task 13** — MemberModule + OverlayModule DTO 安全過濾（SC-8）
 
 ### ✅ Checkpoint 4
 - [ ] SC-1, SC-6a (Task 12) + SC-6b (Task 13), SC-8 通過
-- [ ] Overlay DTO 欄位白名單正確
+- [ ] Overlay DTO 欄位白名單正確（含 `schemaVersion`，chat/alert 含 platform-provided 優先的 public `eventId`/`timestamp`；member 為 snapshot 不含 event metadata）
 
 ---
 
@@ -145,7 +147,7 @@
 | i18n：後端零 human-readable 字串 | Task 14a |
 | security.* config key 封鎖（GET + PUT）| Task 14b |
 | 兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（永遠 loopback-only，socket bind test 驗証）| Task 15 |
-| Overlay DTO 不洩漏 MemberId/内部欄位 | Task 13 |
+| Overlay DTO 不洩漏 MemberId/内部欄位，且 public metadata 欄位固定 | Task 13 |
 | AES-256-GCM refresh_token 加密（versioned envelope `v1:<Base64>`、per-token nonce randomness、tamper → CredentialDecryptionException）+ machine.key 生命週期 | Task 8 |
 | machine.key 檔案權限（Windows ACL user-only / Unix 0600）；chmod/ACL 失敗 → fail-fast `IOException` | Task 8 |
 | AES-256-GCM AAD = setting key name UTF-8；cross-key copy → CredentialDecryptionException | Task 8 |

@@ -467,42 +467,47 @@ frontend (Vue SPA)
 
 #### Task 12：Twitch Adapter — IRC + EventSub + DisplayHints
 
-**描述：** 實作 `TwitchAdapter`：Twitch IRC WebSocket（chat messages）+ Twitch EventSub WebSocket（follows, subs, bits, raids, rewards）。所有 Twitch payload 對應至 Domain Events（無 Twitch 型別洩漏至 Domain）。Adapter 在 StartAsync 時注冊 EventTypeKey。包含 DisplayHints 豐富化（`display.segments`、`user.avatar` 等），禁止 raw HTML。指數退避重連（最大 60s）。
+**描述：** 實作 `TwitchAdapter`：Twitch IRC WebSocket（chat messages）+ Twitch EventSub WebSocket（follows, subs, bits, raids, rewards）。所有 Twitch payload 對應至 Domain Events（無 Twitch 型別洩漏至 Domain）。Adapter 在 StartAsync 時注冊 EventTypeKey。包含 DisplayHints 豐富化（`display.segments`、`user.avatar` 等），禁止 raw HTML。指數退避重連（最大 60s，含 ±20% jitter）。
 
 **驗收標準：**
 - [ ] SC-1 通過：mock Twitch payload → 7 個 MVP IStreamEvent 全部產生
 - [ ] SC-6（WorkflowEngine half）：SimulationAdapter 與 TwitchAdapter（mock IRC）觸發相同 WorkflowEngine 副作用（`IPlatformChatSender.SendAsync` 收到相同呼叫）
 - [ ] SC-6（MemberRecord half）由 Task 13 補全，本 Task 不驗 DB state
 - [ ] `display.segments` 型別為 `text | emote | badge | mention`，無 raw HTML
-- [ ] 重連：指數退避 1s → 2s → ... max 60s
+- [ ] `display.color` 僅接受 6-digit RGB hex；badge ID/value normalization 有長度與字元限制
+- [ ] `StartAsync` double-start idempotent，不重複註冊 event keys 或開第二組 socket
+- [ ] 重連：指數退避 1s → 2s → ... max 60s，含 ±20% jitter
+- [ ] EventSub duplicate delivery 以 `(platform, sourceEventId)` dedup cache 處理（1000 entries 或 10 分鐘 TTL）；10 分鐘 replay window 內 missed events 不因 replay 標記被過濾
 - [ ] 斷線時發布 `PlatformConnectionChangedEvent { IsConnected: false, Reason: "reconnecting" }`，重連成功後發布 `PlatformConnectionChangedEvent { IsConnected: true }`
 - [ ] OAuth PKCE callback 監聽 `appsettings.json → Auth:CallbackPort`（預設 7979），衝突時嘗試 7980, 7981（最多 3 次）
+- [ ] OAuth callback listener 只接受 loopback remote IP 與 `localhost:{port}` / `127.0.0.1:{port}` / `[::1]:{port}` Host header，且兩者必須同時通過；`state` 10 分鐘 TTL 且 single-use
 - [ ] OAuth PKCE code exchange（mock token endpoint）→ access token 只存 in-memory，不寫 DB 或 log；重啟後 `TwitchAdapter.StartAsync` 從 `IOAuthTokenStore.GetRefreshTokenAsync("twitch")` 讀取 refresh token 換取新 access token（refresh token 存在但 machine.key 遺失 → `CredentialDecryptionException` → 提示重新授權）
 - [ ] OAuth refresh token 透過 `IOAuthTokenStore.StoreRefreshTokenAsync` 加密後持久化；`TwitchAdapter` 不直接呼叫 `ISystemSettingsService`，不自行加密（加密責任在 Task 8 的 `IOAuthTokenStore` 實作）
-- [ ] `appsettings.json` 範例含 `Auth:CallbackPort: 7979` 及 Twitch Redirect URI 設定說明
+- [ ] 新增或更新 `appsettings.json` 範例，包含 `Auth:CallbackPort: 7979` 及 Twitch Redirect URI 設定說明
 
 **驗證步驟：**
 - [ ] `dotnet test` → SC-1, SC-6 WorkflowEngine half 通過
 - [ ] 單元測試：IRC 訊息解析 → UserSentMessageEvent（Platform="twitch"，正確 User）
-- [ ] 單元測試：OAuth PKCE `state` 不符 → callback handler 拒絕並記 warning，不呼叫 token exchange endpoint（CSRF 防護驗証）
-- [ ] 單元測試：OAuth callback listener 邊界 — 非 loopback 請求（模擬 RemoteIpAddress = 192.168.1.x）→ 忽略不處理；非預設 path（如 `/other`）→ 忽略；收到有效 callback 後 listener 關閉（single-use，驗第二次呼叫已無 listener）
+- [ ] 單元測試：OAuth PKCE `state` 不符、超過 10 分鐘 TTL 或已使用 → callback handler 拒絕並記 warning，不呼叫 token exchange endpoint（CSRF 防護驗証）
+- [ ] 單元測試：OAuth callback listener 邊界 — 非 loopback 請求（模擬 RemoteIpAddress = 192.168.1.x）→ 忽略不處理；Host header 非 `localhost:{port}` / `127.0.0.1:{port}` / `[::1]:{port}` → 拒絕；remote IP 與 Host header 需同時通過；非預設 path（如 `/other`）→ 忽略；收到有效 callback 後 listener 關閉（single-use，驗第二次呼叫已無 listener）
 - [ ] 單元測試：OAuth callback port 衝突 → 自動遞增至 7980
 - [ ] 單元測試：7979、7980、7981 全部被占用 → OAuth flow 失敗（拋異常或回傳 error，不 hang）；應提示使用者手動在 Twitch Developer Console 更新 Redirect URI
-- [ ] 單元測試：PKCE exchange mock → access token in-memory only（`ISystemSettingsService.SetAsync` 未以 access_token 類 key 被呼叫；mock logger sink 不含 access_token 字串）
-- [ ] 單元測試：PKCE exchange → `IOAuthTokenStore.StoreRefreshTokenAsync` 被呼叫，且傳入值 **等於** raw refresh token（加密責任在 OAuthTokenStore 實作內，Adapter 傳入明文；DB 持久化值不等於明文，由 Task 8 驗證）；mock logger sink 不含 raw refresh token 字串
+- [ ] 單元測試：PKCE exchange mock → access token in-memory only（`ISystemSettingsService.SetAsync` 未以 access_token 類 key 被呼叫；mock logger sink 不含 access_token、authorization code、code_verifier 字串）
+- [ ] 單元測試：PKCE exchange → `IOAuthTokenStore.StoreRefreshTokenAsync` 被呼叫，且傳入值 **等於** raw refresh token（加密責任在 OAuthTokenStore 實作內，Adapter 傳入明文；DB 持久化值不等於明文，由 Task 8 驗證）；mock logger sink 不含 raw refresh token 或 `refresh_token` plain value
 - [ ] Integration test：TwitchAdapter `StartAsync` 後 `IStreamEventTypeRegistry` 含所有 Twitch EventTypeKeys（SC-1 所需 7 個）；`IsKnown("user.message")` = true；`IsKnownForWorkflow("platform.connection_changed")` = false（確認真實 adapter 而非 FakeTwitchEventTypeRegistrar 正確注冊全部 7 keys + system event）
 - [ ] 單元測試：`TwitchAdapter.StartAsync` 時 `IOAuthTokenStore.GetRefreshTokenAsync("twitch")` 有值 → 呼叫 mock token refresh endpoint → access token in-memory 更新（重啟 refresh flow 驗証）
 - [ ] 單元測試：`TwitchAdapter.StartAsync` 時 `GetRefreshTokenAsync` 拋 `CredentialDecryptionException` → catch 後提示重新授權，不 crash
 - [ ] 單元測試（DisplayHints segment type allowlist）：Twitch IRC payload 含 HTML-like 內容（`<script>alert(1)</script>`）→ 產生的 `display.segments` 所有項目的 `type` 欄位只為 `text | emote | badge | mention`；`text` 片段值保留原始字串（含 `<`、`>`）不應被刪除或轉義 — 安全邊界在 type allowlist 與前端 `textContent` 渲染，不在 value 過濾
-- [ ] 單元測試（DisplayHints `display.color` 格式）：Twitch IRC 帶合法顏色（`#FF4A4A`）→ `display.color` 值符合 `^#[0-9A-Fa-f]{6}$`；Twitch 回傳 CSS named color（如 `red`）或空字串 → adapter 不填入 `display.color`（null / 省略，不帶非法值）
-- [ ] 單元測試（fake clock + fake socket）：IRC WebSocket 斷線 → 第一次重連 delay ≈ 1s，第二次 ≈ 2s，第三次 ≈ 4s（指數退避）；delay 不超過 60s
+- [ ] 單元測試（DisplayHints `display.color` 格式）：Twitch IRC 帶合法顏色（`#FF4A4A`）→ `display.color` 值符合 `^#[0-9A-Fa-f]{6}$`；Twitch 回傳 3-digit shorthand、8-digit alpha、CSS named color（如 `red`）或空字串 → adapter 不填入 `display.color`（null / 省略，不帶非法值）
+- [ ] 單元測試（fake clock + fake socket）：IRC WebSocket 斷線 → 第一次 base delay ≈ 1s，第二次 ≈ 2s，第三次 ≈ 4s（指數退避）；套用 jitter 後落在 ±20% 範圍；delay 不超過 60s
 - [ ] 單元測試：斷線 → 立即 publish `PlatformConnectionChangedEvent { IsConnected: false, Reason: "reconnecting" }`，重連成功後 publish `{ IsConnected: true }`（兩個事件依序驗證）
 - [ ] 單元測試（EventSub replay）：模擬 EventSub 斷線後在 10 分鐘窗口內重連，server 重播 2 個已錯過的事件 → 兩個事件均正常 publish 到 bus（adapter 不過濾 replay events）
+- [ ] 單元測試（EventSub dedup）：同一 `(platform, sourceEventId)` 在 dedup cache 內重複送達時只 publish 一次，且 10 分鐘 TTL 到期後會釋放 cache entry
 - [ ] 單元測試（EventSub replay 超時）：斷線超過 10 分鐘（fake clock）→ 重連後無 replay event → adapter 繼續正常運行（無 crash / deadlock），並記錄 warning log「events may have been lost」
 - [ ] 單元測試（adapter cache update — subscribe）：publish `UserSubscribedEvent` → adapter 事件回調呼叫 `IPlatformUserInfoCache.UpdateAsync`，使 `IsSubscriber = true`（mock cache 驗証）
-- [ ] 單元測試（adapter cache update — donate）：publish `UserDonatedEvent`（含 cumulative `TotalBitsGiven`）→ `IPlatformUserInfoCache.UpdateAsync` 被呼叫，快取 `TotalBitsGiven` **被替換為 event 的絕對值**（非 `+= amount`）；重播同一事件 → `TotalBitsGiven` 不變（idempotent，驗 TDQ 重播不重複累加）
+- [ ] 單元測試（adapter cache update — donate）：publish `UserDonatedEvent`（含 cumulative `TotalBitsGiven`）→ `IPlatformUserInfoCache.UpdateAsync` 被呼叫，快取 `TotalBitsGiven` 使用 `max(existing, incoming)` monotonic absolute replacement（非 `+= amount`）；重播同一事件 → `TotalBitsGiven` 不變；out-of-order 較小 incoming value 不覆蓋較大 existing value；若平台後台人工調整導致需要降低本地值，Phase 4 不自動回退，未來需走明確 admin reset
 - [ ] 單元測試（adapter cache update — follow）：publish `UserFollowedEvent` → `IPlatformUserInfoCache.UpdateAsync` 被呼叫，follower badge 出現於 `Badges`（mock cache 驗証）
-- [ ] 單元測試（badge normalization）：Twitch IRC `badges` tag 含重複項目（如 `subscriber/2000,subscriber/2000,vip`）→ 產生的 `user.badges` 去重後保留首次出現順序（`subscriber/2000,vip`）；badge ID 只含 `[A-Za-z0-9_/\-]` 字元；badge 數量超過 20 → 截斷至前 20
+- [ ] 單元測試（badge normalization）：Twitch IRC `badges` tag 含重複項目（如 `subscriber/2000,subscriber/2000,vip`）→ 產生的 `user.badges` 去重後保留首次出現順序（`subscriber/2000,vip`）；badge ID 只含 `[A-Za-z0-9_/\-]` 字元；badge value 超過 64 字元會截斷或丟棄；badge 數量超過 20 → 截斷至前 20
 
 **依賴：** Task 10, Task 9, Task 8, Task 7
 
@@ -514,7 +519,7 @@ frontend (Vue SPA)
 - `src/Adapters/Vulperonex.Adapters.Twitch/Mapping/`
 - `src/Adapters/Vulperonex.Adapters.Abstractions/IPlatformUserInfoCache.cs`
 - （依賴 Task 8 新增的）`src/Vulperonex.Application/Auth/IOAuthTokenStore.cs`
-- `src/Hosts/Vulperonex.Web/appsettings.json`（加 Auth:CallbackPort）
+- `src/Hosts/Vulperonex.Web/appsettings.json`（若尚不存在則新增範例設定；加 Auth:CallbackPort）
 - `tests/Vulperonex.Tests.Unit/Adapters/Twitch/`
 - `tests/Vulperonex.Tests.Integration/Adapters/`
 
@@ -530,17 +535,19 @@ frontend (Vue SPA)
 - [ ] SC-8 通過：publish `UserSentMessageEvent` → PlatformIdentity 建立，MemberId 為 ULID 格式
 - [ ] SC-6（MemberRecord half）：SimulationAdapter 與 TwitchAdapter（mock IRC）分別 publish 相同 payload → MemberRecord DB state 相同（`WaitForIdleAsync` 後比對）
 - [ ] `UserSubscribedEvent` → MemberRecord 的 IsSubscriber 更新
-- [ ] Overlay DTO `/overlay/chat` 序列化 JSON property set == `{DisplayName, ColorHex, Segments, Badges}` 精確白名單（不含 MemberId、UserId、TotalBitsGiven）
-- [ ] Overlay DTO `/overlay/alerts` 序列化 JSON property set == `{DisplayName, EventType, Tier}` 精確白名單（不含 MemberId、**PlatformUserId**）
-- [ ] Overlay DTO `/overlay/member` 序列化 JSON property set == `{DisplayName, AvatarUrl, CheckInCount}` 精確白名單（不含 MemberId、**TotalLoyalty**、LinkedPlatforms）
+- [ ] Member state replay 使用 `(platform, sourceEventId)` dedup key；TDQ replay 不造成重複 row 或重複累加，且不得以每次處理新產生的 ULID 作為 replay dedup key
+- [ ] Overlay DTO `/overlay/chat` 序列化 JSON property set == `{schemaVersion, eventId, timestamp, displayName, colorHex, segments, badges}` 精確白名單（不含 MemberId、UserId、TotalBitsGiven）
+- [ ] Overlay DTO `/overlay/alerts` 序列化 JSON property set == `{schemaVersion, eventId, timestamp, displayName, eventType, tier}` 精確白名單（不含 MemberId、**PlatformUserId**）
+- [ ] Overlay DTO `/overlay/member` 序列化 JSON property set == `{schemaVersion, displayName, avatarUrl, checkInCount}` 精確白名單（不含 MemberId、**TotalLoyalty**、LinkedPlatforms）
+- [ ] `schemaVersion` 固定為 `1`；`eventId` 是 public delivery id，不得使用 MemberId、PlatformUserId 或其他內部 identity；優先來自 platform-provided id（IRC `msg-id` / EventSub `message_id`），缺值時 adapter 生成 ULID 並標記為 synthetic；`timestamp` 為 UTC ISO-8601 event time
+- [ ] `OverlayMemberPayload` 是狀態快照，不是事件流；因此不含 `eventId` / `timestamp`
 
 **驗證步驟：**
 - [ ] `dotnet test tests/Vulperonex.Tests.Integration` → SC-8 通過
 - [ ] Integration test：SC-6 MemberRecord half — **兩次各使用 fresh SQLite fixture（每次測試前清空或新建 DB）**：Sim run: SimulationAdapter publish payload X → `WaitForIdleAsync` → snapshot S1；Twitch run: TwitchAdapter mock IRC 相同 payload → `WaitForIdleAsync` → snapshot S2；assert S1 == S2（防止共用 DB 時第二次命中既有 member 而掩蓋等價問題）
 - [ ] 單元測試：對每個 DTO 型別，反射取得所有 JSON-serializable properties，assert set 完全等於 SPEC §4.14 允許清單（exact match；新增未知欄位即報錯）
-- [ ] Integration test：`UserSentMessageEvent` 經 SignalR hub 發至 `/overlay/chat` → 序列化 JSON key set **精確等於** `{displayName, colorHex, segments, badges}`（exact match，非僅 denylist）
-- [ ] Integration test：`UserFollowedEvent` 或 `UserSubscribedEvent` → `/overlay/alerts` SignalR payload JSON key set **精確等於** `{displayName, eventType, tier}`；不含 `memberId`、`platformUserId`
-- [ ] 單元測試：`OverlayMemberPayload` JSON key set **精確等於** `{displayName, avatarUrl, checkInCount}`（whitelist 靜態驗証）
+- [ ] SignalR hub serialization exact key-set 驗證移至 Task 15；Task 13 只驗 DTO contract 與 `System.Text.Json` serialization key set
+- [ ] 單元測試：`OverlayMemberPayload` JSON key set **精確等於** `{schemaVersion, displayName, avatarUrl, checkInCount}`（whitelist 靜態驗証）
 
 **依賴：** Task 7, Task 10, Task 12
 
@@ -672,6 +679,7 @@ frontend (Vue SPA)
 **驗收標準：**
 - [ ] SC-5 通過：publish UserSentMessageEvent → `/overlay/chat` client 5 秒內收到 OverlayChatPayload
 - [ ] Overlay port 5001 不需驗證即可連線
+- [ ] Phase 5 implementation 前重評 synthetic `eventId` 去重語意：platform-provided id 可跨 overlay client 識別同一事件；adapter fallback ULID 只保證本機單實例 delivery id。
 - [ ] 埠衝突時自動嘗試 +2 pair（最多到 5008/5009），全部失敗時 `PortPairAllocator.TryAllocate()` 回傳 `null`（不 throw）；呼叫端（Web host 啟動邏輯）檢查 null → 拋 `PortExhaustedException`（含清晰錯誤訊息）；Photino dialog 由 Task 21 catch 並顯示
 - [ ] 兩埠以 `IPAddress.Loopback`（IPv4）+ `IPAddress.IPv6Loopback`（IPv6）雙重繫結（Kestrel 設定驗証；socket bind test 確認非 loopback 連線被拒絕）
 
@@ -681,6 +689,8 @@ frontend (Vue SPA)
 - [ ] 單元測試：fake probe 回報 5001 佔用（5000 閒置）→ allocator 跳過 5000/5001 pair，選 5002/5003
 - [ ] 單元測試（host-level）：Web host 啟動邏輯（`WebHostPortBootstrapper` 或等效類）— `PortPairAllocator.TryAllocate()` 回傳 null → 啟動邏輯拋 `PortExhaustedException`（含清晰錯誤訊息）；不依賴真實 socket，mock allocator
 - [ ] Integration test：`PlatformConnectionChangedEvent` publish to bus → `/hubs/events` SignalR subscribers 收到該事件（UI 連線狀態指示器所需；task 依 SignalR hub 轉寄所有 `IStreamEvent` to management group）
+- [ ] Integration test：`UserSentMessageEvent` 經 SignalR hub 發至 `/overlay/chat` → 序列化 JSON key set **精確等於** `{schemaVersion, eventId, timestamp, displayName, colorHex, segments, badges}`（exact match，非僅 denylist），且 `eventId` 優先沿用 platform-provided id，缺值才使用 synthetic ULID
+- [ ] Integration test：`UserFollowedEvent` 或 `UserSubscribedEvent` → `/overlay/alerts` SignalR payload JSON key set **精確等於** `{schemaVersion, eventId, timestamp, displayName, eventType, tier}`；不含 `memberId`、`platformUserId`
 - [ ] Integration test：SignalR client 連線 `/hubs/overlay/member` group → 連線成功不 crash（group registered as MVP skeleton；server 不 publish 任何 MVP event 至此 group；post-MVP `SystemEvent` 才會驅動它）
 - [ ] 手動：OBS browser source 連線 localhost:5001/overlay/chat
 
@@ -892,7 +902,7 @@ frontend (Vue SPA)
 - [ ] `pnpm lint` → 前端 lint 無錯誤
 - [ ] `pnpm build` → wwwroot 建置成功
 - [ ] Photino 視窗手動測試：模擬 chat → Overlay 顯示
-- [ ] 人工 review 安全性（Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙繫結（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（含 `+`/`/`/`=`），解碼用 `Convert.FromBase64String` 而非 `WebEncoders.Base64UrlDecode`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符 → 拒絕不 exchange code**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ 只接受預設 callback path + single-use**、**plugin context 不暴露 `IServiceProvider`（reflection 架構測試通過 + PR code review 確認）**）
+- [ ] 人工 review 安全性（Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙繫結（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（含 `+`/`/`/`=`），解碼用 `Convert.FromBase64String` 而非 `WebEncoders.Base64UrlDecode`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符、超過 10 分鐘 TTL 或已使用 → 拒絕不 exchange code**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ Host header allowlist，兩者皆需通過 + 只接受預設 callback path + single-use**、**OAuth logger scrub list 包含 access token、authorization code、code_verifier、raw refresh token**、**plugin context 不暴露 `IServiceProvider`（reflection 架構測試通過 + PR code review 確認）**）
 
 ---
 
