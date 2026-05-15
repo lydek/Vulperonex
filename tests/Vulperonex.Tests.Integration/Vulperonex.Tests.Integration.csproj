@@ -15,6 +15,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Simulation\Vulperonex.Adapters.Simulation.csproj" />
+    <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Twitch\Vulperonex.Adapters.Twitch.csproj" />
+    <ProjectReference Include="..\..\src\Vulperonex.Application\Vulperonex.Application.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

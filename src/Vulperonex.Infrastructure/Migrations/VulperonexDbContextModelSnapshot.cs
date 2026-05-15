@@ -50,9 +50,12 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
         modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.PlatformIdentityEntity", b =>
         {
             b.Property<long>("Id").ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            b.Property<bool>("IsFollower").HasColumnType("INTEGER");
+            b.Property<bool>("IsSubscriber").HasColumnType("INTEGER");
             b.Property<string>("MemberId").IsRequired().HasColumnType("TEXT");
             b.Property<string>("Platform").IsRequired().HasColumnType("TEXT");
             b.Property<string>("PlatformUserId").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("SubscriptionTier").HasColumnType("TEXT");
             b.HasKey("Id");
             b.HasIndex("MemberId");
             b.HasIndex("Platform", "PlatformUserId").IsUnique();

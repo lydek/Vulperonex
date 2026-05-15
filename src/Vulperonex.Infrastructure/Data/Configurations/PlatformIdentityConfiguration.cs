@@ -14,6 +14,9 @@ public sealed class PlatformIdentityConfiguration : IEntityTypeConfiguration<Pla
         builder.Property(identity => identity.MemberId).HasColumnType("TEXT");
         builder.Property(identity => identity.Platform).HasColumnType("TEXT");
         builder.Property(identity => identity.PlatformUserId).HasColumnType("TEXT");
+        builder.Property(identity => identity.IsFollower).HasColumnType("INTEGER");
+        builder.Property(identity => identity.IsSubscriber).HasColumnType("INTEGER");
+        builder.Property(identity => identity.SubscriptionTier).HasColumnType("TEXT");
         builder.HasIndex(identity => new { identity.Platform, identity.PlatformUserId }).IsUnique();
         builder.HasOne<MemberEntity>()
             .WithMany()

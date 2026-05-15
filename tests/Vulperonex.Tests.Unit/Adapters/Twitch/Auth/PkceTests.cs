@@ -41,4 +41,23 @@ public sealed class PkceTests
             .Should()
             .BeFalse();
     }
+
+    [Fact]
+    public void Given_FirstCallbackPortIsUnavailable_When_PortSelected_Then_NextConfiguredPortIsUsed()
+    {
+        var selector = new OAuthCallbackPortSelector(port => port is 7980);
+
+        selector.Select().Should().Be(7980);
+    }
+
+    [Fact]
+    public void Given_NoCallbackPortsAreAvailable_When_PortSelected_Then_UserFacingErrorIsReturned()
+    {
+        var selector = new OAuthCallbackPortSelector(_ => false);
+
+        var select = selector.Select;
+
+        select.Should().Throw<InvalidOperationException>()
+            .WithMessage("*7979*7980*7981*");
+    }
 }

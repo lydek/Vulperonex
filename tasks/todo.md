@@ -70,12 +70,12 @@
 
 > 詳細切片清單：`docs/phases/phase-4-twitch-member/todo.md`
 
-- [ ] **Task 12** — TwitchAdapter：IRC + EventSub + DisplayHints + 指數退避重連（SC-1, SC-6a WorkflowEngine half）
-- [ ] **Task 13** — MemberModule + OverlayModule DTO 安全過濾（SC-8）
+- [x] **Task 12** — TwitchAdapter：IRC + EventSub + DisplayHints + 指數退避重連（SC-1, SC-6a WorkflowEngine half）
+- [x] **Task 13** — MemberModule + OverlayModule DTO 安全過濾（SC-8）
 
 ### ✅ Checkpoint 4
-- [ ] SC-1, SC-6a (Task 12) + SC-6b (Task 13), SC-8 通過
-- [ ] Overlay DTO 欄位白名單正確（含 `schemaVersion`，chat/alert 含 platform-provided 優先的 public `eventId`/`timestamp`；member 為 snapshot 不含 event metadata）
+- [x] SC-1, SC-6a (Task 12) + SC-6b (Task 13), SC-8 通過
+- [x] Overlay DTO 欄位白名單正確（含 `schemaVersion`，chat/alert 含 platform-provided 優先的 public `eventId`/`timestamp`；member 為 snapshot 不含 event metadata）
 
 ---
 

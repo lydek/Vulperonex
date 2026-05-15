@@ -8,6 +8,8 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
 
     public string? AccessToken => _accessToken;
 
+    public bool AuthorizationRequired { get; private set; }
+
     public async Task ExchangeCodeAsync(string code, string codeVerifier, CancellationToken cancellationToken = default)
     {
         var response = await tokenEndpoint.ExchangeCodeAsync(code, codeVerifier, cancellationToken);
@@ -17,7 +19,17 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
 
     public async Task RefreshOnStartupAsync(CancellationToken cancellationToken = default)
     {
-        var refreshToken = await tokenStore.GetRefreshTokenAsync("twitch", cancellationToken);
+        string? refreshToken;
+        try
+        {
+            refreshToken = await tokenStore.GetRefreshTokenAsync("twitch", cancellationToken);
+        }
+        catch (CredentialDecryptionException)
+        {
+            AuthorizationRequired = true;
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(refreshToken))
         {
             return;
