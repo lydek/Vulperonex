@@ -83,25 +83,25 @@
 
 > 詳細切片清單：`docs/phases/phase-5-web-signalr-cli/todo.md`
 
-- [ ] **Task 14a** — Minimal API：WorkflowRule CRUD + EventTypes endpoint + i18n 錯誤碼 + 循環引用偵測 + Action schema validation（未知 type / 缺 param / 非法 config）+ CQRS 架構測試
-- [ ] **Task 14b** — Minimal API：Simulate / Config / Member 端點 + security.* / oauth.* protected namespace 封鎖
-- [ ] **Task 15** — SignalR Hub + Overlay Push + 雙埠 Kestrel + 埠配對遞增（SC-5）
-- [ ] **Task 16** — CLI：simulate / config / member / rule 指令（透過 HTTP API，伺服器永遠 loopback-only 無需身分驗證）
+- [x] **Task 14a** — Minimal API：WorkflowRule CRUD + EventTypes endpoint + i18n 錯誤碼 + 循環引用偵測 + Action schema validation（未知 type / 缺 param / 非法 config）+ CQRS 架構測試
+- [x] **Task 14b** — Minimal API：Simulate / Config / Member 端點 + security.* / oauth.* protected namespace 封鎖
+- [x] **Task 15** — SignalR Hub + Overlay Push + 雙埠 Kestrel + 埠配對遞增（SC-5）
+- [x] **Task 16** — CLI：simulate / config / member / rule 指令（透過 HTTP API，伺服器永遠 loopback-only 無需身分驗證）
 
 ### ✅ Checkpoint 5
-- [ ] SC-2, SC-5, SC-8, SC-9 通過
-- [ ] WorkflowRule CRUD + 循環引用偵測通過
-- [ ] `security.*` config key 封鎖（GET + PUT）通過
-- [ ] `oauth.*` config key 封鎖（GET + PUT → 403 + `OAUTH_CREDENTIAL_NAMESPACE`）+ CLI passthrough 至 stderr 通過
-- [ ] Phase 5 error codes centralized + HTTP status mapping table covered
-- [ ] CLI rule / config / member / simulate 全命令 integration test 通過
-- [ ] CLI simulate chat fixture rule + mock sender 驗證通過
-- [ ] Task 13f Phase 4 SC-6a/SC-6b equivalence 強化已完成或明確 waive：新增 follow/sub/donate payload，驗證 cache/member state/TotalBitsGiven/subscriber tier 等副作用細節
-- [ ] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
-- [ ] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
-- [ ] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過
-- [ ] Task 14b：`GET /api/config/oauth.unknown.refresh_token`（未知 key）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry lookup）通過
-- [ ] Task 16：`ASPNETCORE_ENVIRONMENT=Development` + `appsettings.Development.json` + environment variables 不覆蓋 `Database:Path` 通過
+- [x] SC-2, SC-5, SC-8, SC-9 通過
+- [x] WorkflowRule CRUD + 循環引用偵測通過
+- [x] `security.*` config key 封鎖（GET + PUT）通過
+- [x] `oauth.*` config key 封鎖（GET + PUT → 403 + `OAUTH_CREDENTIAL_NAMESPACE`）+ CLI passthrough 至 stderr 通過
+- [x] Phase 5 error codes centralized + HTTP status mapping table covered
+- [x] CLI rule / config / member / simulate 全命令 integration test 通過
+- [x] CLI simulate chat fixture rule + mock sender 驗證通過
+- [x] Task 13f Phase 4 SC-6a/SC-6b equivalence 強化已完成或明確 waive：新增 follow/sub/donate payload，驗證 cache/member state/TotalBitsGiven/subscriber tier 等副作用細節
+- [x] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
+- [x] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
+- [x] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過
+- [x] Task 14b：`GET /api/config/oauth.unknown.refresh_token`（未知 key）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry lookup）通過
+- [x] Task 16：`ASPNETCORE_ENVIRONMENT=Development` + `appsettings.Development.json` + environment variables 不覆蓋 `Database:Path` 通過
 
 ---
 

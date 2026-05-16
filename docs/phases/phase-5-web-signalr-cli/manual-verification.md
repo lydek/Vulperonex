@@ -31,3 +31,13 @@
 - 結果：通過 | 失敗
 - 後續問題/commit：<連結或 commit>
 ```
+
+## 2026-05-16 - CLI 模擬聊天到達 overlay SignalR
+
+- 驗證者：Codex automated integration test
+- 環境：Windows，本機 loopback，Kestrel 隨機測試連接埠
+- 指令/瀏覽器/OBS 設定：`POST /api/simulate/chat` 透過測試 HTTP client 觸發，SignalR client 連線至 `/hubs/overlay/chat`
+- 預期行為：overlay chat hub 在 5 秒內收到包含 `schemaVersion`、`eventId`、`segments[].value` 的聊天 payload。
+- 觀察到的行為：`Given_OverlayChatHub_When_ChatIsSimulated_Then_EventArrivesWithinFiveSeconds` 通過，並驗證本機延遲小於 1 秒。
+- 結果：通過
+- 後續問題/commit：Phase 5 implementation commit

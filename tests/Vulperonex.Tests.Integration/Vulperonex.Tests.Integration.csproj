@@ -7,6 +7,7 @@
   <ItemGroup>
     <PackageReference Include="coverlet.msbuild" PrivateAssets="all" />
     <PackageReference Include="FluentAssertions" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" PrivateAssets="all" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
     <PackageReference Include="NSubstitute" PrivateAssets="all" />
@@ -17,6 +18,8 @@
     <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Simulation\Vulperonex.Adapters.Simulation.csproj" />
     <ProjectReference Include="..\..\src\Adapters\Vulperonex.Adapters.Twitch\Vulperonex.Adapters.Twitch.csproj" />
+    <ProjectReference Include="..\..\src\Hosts\Vulperonex.Cli\Vulperonex.Cli.csproj" />
+    <ProjectReference Include="..\..\src\Hosts\Vulperonex.Web\Vulperonex.Web.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Application\Vulperonex.Application.csproj" />
     <ProjectReference Include="..\..\src\Vulperonex.Infrastructure\Vulperonex.Infrastructure.csproj" />
   </ItemGroup>

@@ -105,8 +105,13 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<string>("Id").HasColumnType("TEXT");
             b.Property<string>("ActionsJson").IsRequired().HasColumnType("TEXT");
             b.Property<string>("ConditionsJson").IsRequired().HasColumnType("TEXT");
+            b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
+            b.Property<string>("EventTypeKey").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("ExecutionMode").IsRequired().HasColumnType("TEXT");
             b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+            b.Property<int>("MaxParallelism").HasColumnType("INTEGER");
             b.Property<string>("Name").IsRequired().HasColumnType("TEXT");
+            b.Property<int>("Priority").HasColumnType("INTEGER");
             b.HasKey("Id");
             b.ToTable("WorkflowRules");
         });

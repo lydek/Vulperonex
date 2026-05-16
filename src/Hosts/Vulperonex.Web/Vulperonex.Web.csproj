@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />
     <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Simulation\Vulperonex.Adapters.Simulation.csproj" />
     <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Twitch\Vulperonex.Adapters.Twitch.csproj" />
