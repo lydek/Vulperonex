@@ -81,6 +81,8 @@
 
 ## Phase 5：Web Host + SignalR + CLI
 
+> 詳細切片清單：`docs/phases/phase-5-web-signalr-cli/todo.md`
+
 - [ ] **Task 14a** — Minimal API：WorkflowRule CRUD + EventTypes endpoint + i18n 錯誤碼 + 循環引用偵測 + Action schema validation（未知 type / 缺 param / 非法 config）+ CQRS 架構測試
 - [ ] **Task 14b** — Minimal API：Simulate / Config / Member 端點 + security.* / oauth.* protected namespace 封鎖
 - [ ] **Task 15** — SignalR Hub + Overlay Push + 雙埠 Kestrel + 埠配對遞增（SC-5）
