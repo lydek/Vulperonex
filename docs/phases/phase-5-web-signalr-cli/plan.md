@@ -85,7 +85,8 @@ Task 16e Phase 5 checkpoint review
 **Description:** Align `WorkflowRuleEntity`, repository, query service, and DTO shape with the REST API contract before endpoint implementation. Keep read DTOs separate from write entities.
 
 **Acceptance Criteria:**
-- [ ] Workflow rules persist the fields needed by API/UI: id, name, event type key, enabled flag, priority/order if required by the engine, conditions, actions, timestamps, and metadata needed by existing workflow execution.
+- [ ] Workflow rules persist the fields needed by API/UI: id, name, event type key, enabled flag, priority, conditions, actions, `CreatedAt`, and metadata needed by existing workflow execution.
+- [ ] Rule list ordering is stable: `Priority ASC, CreatedAt ASC, Id ASC`.
 - [ ] Query path returns DTOs through `IWorkflowRuleQueryService`.
 - [ ] Write path remains behind `IWorkflowRuleRepository` or an application command service.
 - [ ] Existing WorkflowEngine tests continue to pass.
@@ -120,6 +121,7 @@ Task 16e Phase 5 checkpoint review
 **Verification:**
 - [ ] Unit tests cover each error code with Given/When/Then naming.
 - [ ] Validation tests assert error code only, not localized copy.
+- [ ] Template rendering remains covered: unknown placeholders such as `{event.unknown}` are preserved, and null/empty placeholder values render as empty strings.
 
 **Likely Files:**
 - `src/Hosts/Vulperonex.Web/Validation/WorkflowRuleValidator.cs`
@@ -138,9 +140,11 @@ Task 16e Phase 5 checkpoint review
 - [ ] `GET /api/rules` lists rules through the query service.
 - [ ] `GET /api/rules/{id}` returns one rule or `WORKFLOW_RULE_NOT_FOUND`.
 - [ ] `POST /api/rules` creates a rule and returns `201`.
-- [ ] `PUT /api/rules/{id}` updates a rule and returns `204`.
-- [ ] `DELETE /api/rules/{id}` deletes a rule and returns `204`.
-- [ ] Enable/disable endpoints update only enabled state and return `204`.
+- [ ] `POST /api/rules` returns `201 Created` with `Location: /api/rules/{newId}`.
+- [ ] `PUT /api/rules/{id}` updates a rule and returns the updated rule.
+- [ ] `PUT /api/rules/{id}` with body id not equal to route id returns `INVALID_RULE_ID_MISMATCH`.
+- [ ] `DELETE /api/rules/{id}` deletes a rule and returns `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
+- [ ] Enable/disable endpoints update only enabled state and return `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
 - [ ] GET path interaction tests prove the write repository is not called.
 
 **Verification:**
