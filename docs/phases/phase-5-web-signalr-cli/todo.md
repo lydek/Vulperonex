@@ -1,65 +1,66 @@
-# Phase 5 Todo - Web Host + SignalR + CLI
+# 第 5 階段待辦事項 - Web Host + SignalR + CLI
 
-> Plan: `docs/phases/phase-5-web-signalr-cli/plan.md`
-> Parent checklist: `tasks/todo.md`
+> 計畫：`docs/phases/phase-5-web-signalr-cli/plan.md`
+> 父核對清單：`tasks/todo.md`
 
 ---
 
-## Task 14a - Minimal API WorkflowRule CRUD + EventTypes
+## 任務 14a - Minimal API WorkflowRule CRUD + EventTypes
 
-- [ ] Task 14a-0: implement Web host composition, `JsonSerializerDefaults.Web`, endpoint extension registration, OpenAPI JSON, central error code constants/status mapping, `Database:Path` raw-read architecture test, and API integration-test harness.
-- [ ] Task 14a-1: align WorkflowRule persistence, query DTOs, and CQRS read/write paths.
-- [ ] Task 14a-2: implement WorkflowRule validation and machine-readable error codes.
-- [ ] Task 14a-3: implement WorkflowRule CRUD/enable/disable/delete endpoints with CQRS interaction tests.
-- [ ] Task 14a-4: implement `GET /api/event-types` with `isSimulatable` from the shared simulate alias registry.
+- [ ] 任務 14a-0：實作 Web host 組合、`JsonSerializerDefaults.Web`、端點擴充方法註冊、OpenAPI JSON、中央錯誤碼常數/狀態對應、`Database:Path` 原始讀取架構測試，以及 API 整合測試基礎建設。
+- [ ] 任務 14a-1：對齊 WorkflowRule 持久化、查詢 DTO 以及 CQRS 讀取/寫入路徑。
+- [ ] 任務 14a-2：實作 WorkflowRule 驗證與機器可讀的錯誤代碼。
+- [ ] 任務 14a-3：實作 WorkflowRule CRUD/啟用/停用/刪除端點，並附帶 CQRS 互動測試。
+- [ ] 任務 14a-4：實作 `GET /api/event-types`，並包含來自共享模擬別名註冊表的 `isSimulatable`。
 
-## Task 14b - Minimal API Simulate / Config / Member
+## 任務 14b - Minimal API 模擬 / 配置 / 成員
 
-- [ ] Task 14b-1: implement `POST /api/simulate/{alias}` for `chat`, `follow`, and `sub` only.
-- [ ] Task 14b-2: implement `GET|PUT /api/config/{key}` with `security.*` and `oauth.*` prefix denylist before registry lookup.
-- [ ] Task 14b-3: implement member list/show query endpoints through `IMemberQueryService`.
+- [ ] 任務 14b-1：僅針對 `chat`，`follow`，與 `sub` 實作 `POST /api/simulate/{alias}`。
+- [ ] 任務 14b-2：在 registry 查找前實作帶有 `security.*` 與 `oauth.*` 字首拒絕清單的 `GET|PUT /api/config/{key}`。
+- [ ] 任務 14b-3：透過 `IMemberQueryService` 實作成員列表/顯示查詢端點。
 
-## Task 15 - SignalR Hub + Overlay Push + Dual-Port Kestrel
+## 任務 15 - SignalR Hub + Overlay 推送 + 雙連接埠 Kestrel
 
-- [ ] Task 15a: implement SignalR management/overlay hub contracts and host registration.
-- [ ] Task 15b: document synthetic `eventId` semantics, implement overlay event forwarding, exact SignalR JSON key-set tests, and SC-5 latency measurements.
-- [ ] Task 15c: implement dual-port loopback Kestrel binding, `IPortAvailabilityProbe.IsAvailable(int port)`, port-pair allocation, and exhaustion behavior.
+- [ ] 任務 15a：實作 SignalR 管理/overlay hub 合約與 host 註冊。
+- [ ] 任務 15b：記錄合成 `eventId` 語意，實作 overlay 事件轉寄、精確 SignalR JSON 金鑰集測試，以及 SC-5 延遲量測。
+- [ ] 任務 15c：實作雙連接埠 loopback Kestrel 繫結、`IPortAvailabilityProbe.IsAvailable(int port)`、連接埠對分配與耗盡行為。
 
-## Task 16 - CLI
+## 任務 16 - CLI
 
-- [ ] Task 16a: implement CLI HTTP foundation, stdout/stderr rules, and backend error passthrough.
-- [ ] Task 16b: implement CLI `rule list|show|enable|disable|delete`.
-- [ ] Task 16c: implement CLI `config get|set` and `member list|show`.
-- [ ] Task 16d: implement CLI `simulate chat|follow|sub` and shared DB path override guard.
-- [ ] Task 16e: complete Phase 5 checkpoint review and manual overlay handoff.
+- [ ] 任務 16a：實作 CLI HTTP 基礎、stdout/stderr 規則以及後端錯誤透傳。
+- [ ] 任務 16b：實作 CLI `rule list|show|enable|disable|delete`。
+- [ ] 任務 16c：實作 CLI `config get|set` 與 `member list|show`。
+- [ ] 任務 16d：實作 CLI `simulate chat|follow|sub` 與共享資料庫路徑覆蓋保護。
+- [ ] 任務 16e：完成 第 5 階段檢查點審查與手動 overlay 交付。
 
-## Phase 5 Dependencies
+## 第 5 階段依賴項
 
-- [ ] Task 13f: strengthen Phase 4 SC-6a/SC-6b equivalence with follow/sub/donate payloads, or explicitly waive before Phase 5 closes.
+- [ ] 任務 13f：強化第 4 階段 SC-6a/SC-6b 等效性，包含 follow/sub/donate 負載，或在第 5 階段關閉前明確豁免。
 
-## Checkpoint 5
+## 檢查點 5
 
-- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` passes with 0 warnings.
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` passes.
-- [ ] SC-2, SC-5, SC-8, and SC-9 pass.
-- [ ] WorkflowRule CRUD and circular reference detection pass end to end.
-- [ ] `GET /api/event-types` excludes `platform.connection_changed` and reports `isSimulatable` only for `chat`, `follow`, and `sub`.
-- [ ] Phase 5 error codes are centralized and covered by the HTTP status mapping table.
-- [ ] `UNKNOWN_*` and `INVALID_*` error code naming rules are documented and followed.
-- [ ] Config protected namespace checks pass: `security.*` -> `CONFIG_KEY_SECURITY_NAMESPACE`; `oauth.*` -> `OAUTH_CREDENTIAL_NAMESPACE`.
-- [ ] Unknown protected config key such as `oauth.unknown.refresh_token` returns `OAUTH_CREDENTIAL_NAMESPACE`, proving prefix denylist precedes registry lookup.
-- [ ] Member endpoints cover list/show, paging limits, `INVALID_QUERY_PARAM`, and `MEMBER_NOT_FOUND`.
-- [ ] SignalR overlay chat receives an event within 5 seconds for SC-5, and local latency measurements expose the <1s P95 target.
-- [ ] SignalR serialization exact key-set tests cover chat, alert, and member overlay DTOs.
-- [ ] SignalR key-set tests deserialize the wire payload and do not rely on reflection-only DTO inspection.
-- [ ] Synthetic `eventId` decision is recorded in `docs/phases/phase-5-web-signalr-cli/event-id-decision.md` before overlay forwarding implementation.
-- [ ] Two Kestrel ports bind to IPv4 loopback `127.0.0.1` and IPv6 loopback `::1`; non-loopback socket test is rejected.
-- [ ] Port-pair allocation tries `5000/5001` through `5008/5009` and returns null on exhaustion before the host throws `PortExhaustedException`.
-- [ ] CLI rule/config/member/simulate commands pass integration tests.
-- [ ] CLI 4xx/5xx handling writes only backend `error` code to stderr and exits code `1`.
-- [ ] CLI simulate chat fixture rule triggers mock sender through the HTTP API path.
-- [ ] Manual check: CLI simulate chat reaches overlay SignalR, with result recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
-- [ ] `ASPNETCORE_ENVIRONMENT=Development` plus `appsettings.Development.json` and environment variables do not override main `appsettings.json` `Database:Path`.
-- [ ] Architecture test proves raw `Configuration["Database:Path"]` reads are limited to `IDatabasePathResolver`.
-- [ ] Task 13f Phase 4 SC-6a/SC-6b follow-up is complete or explicitly waived.
-- [ ] Git staged set is task-scoped; unrelated untracked files remain uncommitted.
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 以 0 個警告通過。
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` 通過。
+- [ ] SC-2、SC-5、SC-8、SC-9 通過。
+- [ ] WorkflowRule CRUD 與循環引用偵測端到端通過。
+- [ ] `GET /api/event-types` 排除 `platform.connection_changed`，且 `isSimulatable` 只對 `chat`，`follow`，`sub` 回傳 true。
+- [ ] 第五階段錯誤碼已集中管理，並由 HTTP 狀態對應表涵蓋。
+- [ ] `UNKNOWN_*` 與 `INVALID_*` 錯誤碼命名規則已記錄並遵守。
+- [ ] 配置受保護命名空間檢查通過：`security.*` -> `CONFIG_KEY_SECURITY_NAMESPACE`；`oauth.*` -> `OAUTH_CREDENTIAL_NAMESPACE`。
+- [ ] 未知的受保護設定金鑰（如 `oauth.unknown.refresh_token`）回傳 `OAUTH_CREDENTIAL_NAMESPACE`，確認字首拒絕清單優先於 registry 查找。
+- [ ] 成員端點涵蓋列表/顯示、分頁限制、`INVALID_QUERY_PARAM` 與 `MEMBER_NOT_FOUND`。
+- [ ] SignalR overlay 聊天在 5 秒內收到事件以符合 SC-5，且本地延遲測量暴露了 <1s P95 目標。
+- [ ] SignalR 序列化精確金鑰集測試涵蓋聊天、提醒與成員 overlay DTO。
+- [ ] SignalR 金鑰集測試反序列化線路負載，不依賴僅反射的 DTO 檢查。
+- [ ] 合成 `eventId` 決策記錄於 `docs/phases/phase-5-web-signalr-cli/event-id-decision.md`，在 overlay 轉寄實作前完成。
+- [ ] `event-id-decision.md` 審查筆記欄位（審查者/日期/決定）填寫完成，方可進入 Task 15b。
+- [ ] 兩個 Kestrel 連接埠繫結至 IPv4 loopback `127.0.0.1` 與 IPv6 loopback `::1`；非 loopback socket 測試被拒絕。
+- [ ] 連接埠對分配嘗試 `5000/5001` 至 `5008/5009`，耗盡時回傳 null，再由 host 丟出 `PortExhaustedException`。
+- [ ] CLI rule/config/member/simulate 命令通過整合測試。
+- [ ] CLI 4xx/5xx 處理僅將後端 `error` 代碼寫入 stderr 並以退出碼 `1` 退出。
+- [ ] CLI 模擬聊天固定規則透過 HTTP API 路徑觸發虛擬傳送者。
+- [ ] 手動確認：CLI 模擬聊天到達 overlay SignalR，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
+- [ ] `ASPNETCORE_ENVIRONMENT=Development` 加上 `appsettings.Development.json` 與環境變數不會覆蓋主 `appsettings.json` 的 `Database:Path`。
+- [ ] 架構測試證明原始 `Configuration["Database:Path"]` 讀取僅限於 `IDatabasePathResolver`。
+- [ ] 任務 13f 第 4 階段 SC-6a/SC-6b 後續已完成或明確豁免。
+- [ ] Git 暫存集限於任務範圍；無關的未追蹤檔案保持不提交。

@@ -1,20 +1,20 @@
-# Phase 5 Event Id Decision
+# 第 5 階段事件 ID 決定
 
-> Parent task: `docs/phases/phase-5-web-signalr-cli/plan.md` Task 15b
+> 父任務：`docs/phases/phase-5-web-signalr-cli/plan.md` 任務 15b
 
-## Status
+## 狀態
 
-Draft - must be accepted before Task 15b overlay forwarding implementation.
+草案 — 任務 15b overlay 轉寄實作前須確認。
 
-## Decision To Record
+## 待記錄的決定
 
-- Platform-provided event ids identify the same source event across overlay clients.
-- Adapter fallback ULIDs are local single-instance delivery ids only.
-- Overlay public `eventId` must not contain `MemberId`, `PlatformUserId`, or other internal identities.
+- 平台提供的事件 ID 可跨 overlay 用戶端識別同一來源事件。
+- Adapter 後備 ULID 僅作為本機單一實例交付 ID。
+- Overlay 公開 `eventId` 不得包含 `MemberId`、`PlatformUserId` 或其他內部身分識別碼。
 
-## Review Notes
+## 審查筆記
 
-- Reviewer:
-- Date:
-- Decision:
-- Follow-up:
+- 審查者：
+- 日期：
+- 決定：
+- 後續：

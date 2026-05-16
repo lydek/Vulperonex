@@ -1,512 +1,514 @@
-# Phase 5 Plan - Web Host + SignalR + CLI
+# 第 5 階段計畫 - Web Host + SignalR + CLI
 
-> Parent plan: `tasks/plan.md`
-> Parent checklist: `tasks/todo.md`
-> Scope: Tasks 14a, 14b, 15, and 16
-
----
-
-## Planning Rules
-
-- Keep this phase API-first and integration-testable. The CLI and future UI must share the same Minimal API write path.
-- Preserve light CQRS: GET endpoints use query/read services; write endpoints use command/write repositories or application services.
-- Backend error responses expose machine-readable error codes only. Human-readable strings remain a UI/i18n concern.
-- The web host is loopback-only and unauthenticated for MVP. Do not introduce API keys or external bind addresses in this phase.
-- Use BDD/TDD per scenario. Each implementation slice should land with focused tests and a task-scoped commit.
-- Do not add new package dependencies without ask-first approval.
-- Keep unrelated local files out of commits, especially untracked design drafts.
+> 父計畫：`tasks/plan.md`
+> 父核對清單：`tasks/todo.md`
+> 範圍：任務 14a、14b、15、16
 
 ---
 
-## Shared Contracts
+## 規劃規則
 
-### JSON And Endpoint Conventions
+- 保持此階段以 API 為優先且可整合測試。CLI 與未來的 UI 必須共享相同的 Minimal API 寫入路徑。
+- 保留輕量級 CQRS：GET 端點使用查詢/讀取服務；寫入端點使用命令/寫入儲存庫或應用程式服務。
+- 後端錯誤回應僅暴露機器可讀的錯誤碼。人類可讀的字串仍屬於 UI/i18n 的範疇。
+- Web host 僅限 loopback 且 MVP 階段不做身分驗證。在此階段不要引入 API 金鑰或外部繫結位址。
+- 依照場景使用 BDD/TDD。每個實作切片應伴隨重點測試與任務範圍內的 commit。
+- 未經事先核准，不得新增任何套件相依項目。
+- 確保無關的本地文件不進入 commit，特別是未追蹤的設計草案。
 
-- All Web API and SignalR JSON serialization uses `System.Text.Json` with `JsonSerializerDefaults.Web` so REST endpoints, SignalR payloads, and Phase 4 Overlay DTO contracts all use the same camelCase naming policy.
-- Minimal API endpoint registration uses `IEndpointRouteBuilder` extension methods, one extension per feature area. Do not invent a custom endpoint discovery framework in Phase 5.
-- Task 14a-0 exposes `AddOpenApi()` and `/openapi/v1.json` loopback-only. CLI does not need generated clients in MVP, but the OpenAPI artifact must exist for Phase 6 frontend/API alignment.
+---
 
-### Phase 5 Error Codes
+## 共享合約
 
-All Phase 5 API and CLI paths use central constants in `src/Hosts/Vulperonex.Web/Errors/ErrorCodes.cs` or a shared equivalent if implementation proves the constants belong in Application. Error envelopes use `{ "error": "ERROR_CODE", "meta": {...} }`.
-Naming convention: `UNKNOWN_*` means a key or identifier is not in the allowlist/registry; `INVALID_*` means the submitted value is known but fails format, range, schema, or route/body consistency validation.
+### JSON 與端點慣例
 
-| Code | HTTP status | First task | Notes |
+- 所有 Web API 與 SignalR 的 JSON 序列化皆使用 `System.Text.Json` 並配置 `JsonSerializerDefaults.Web`，因此 REST 端點、SignalR 負載與第 4 階段 Overlay DTO 合約皆使用相同的 camelCase 命名原則。
+- Minimal API 端點註冊使用 `IEndpointRouteBuilder` 擴充方法，每個功能區域一個擴充。不要在第 5 階段發明自訂的端點探索框架。
+- 任務 14a-0 僅在 loopback 上暴露 `AddOpenApi()` 與 `/openapi/v1.json`。CLI 在 MVP 中不需要生成的用戶端，但必須存在 OpenAPI 產出物以供第 6 階段前端/API 對齊使用。
+
+### 第 5 階段錯誤碼
+
+所有第 5 階段 API 與 CLI 路徑皆使用 `src/Hosts/Vulperonex.Web/Errors/ErrorCodes.cs` 中的中央常數（或實作證明常數應屬於 Application 時的等效項）。錯誤封裝使用 `{ "error": "ERROR_CODE", "meta": {...} }`。
+命名慣例：`UNKNOWN_*` 表示金鑰或識別碼不在允許清單/註冊表中；`INVALID_*` 表示提交的值已知但格式、範圍、架構或路徑/主體一致性驗證失敗。
+
+| 代碼 | HTTP 狀態 | 首個任務 | 備註 |
 |------|-------------|------------|-------|
-| `WORKFLOW_RULE_NOT_FOUND` | 404 | 14a-3 | Rule show/delete/enable/disable missing id |
-| `UNKNOWN_EVENT_TYPE_KEY` | 400 | 14a-2 | Includes system events rejected as workflow triggers |
-| `CIRCULAR_WORKFLOW_REFERENCE` | 400 | 14a-2 | Static save-time analysis |
-| `UNKNOWN_ACTION_TYPE` | 400 | 14a-2 | Action schema validation |
-| `UNKNOWN_CONDITION_TYPE` | 400 | 14a-2 | Condition schema validation |
-| `ACTION_MISSING_REQUIRED_PARAM` | 400 | 14a-2 | Example: missing `Template` |
-| `INVALID_ACTION_CONFIG` | 400 | 14a-2 | Bounds and enum validation |
-| `INVALID_REGEX_PATTERN` | 400 | 14a-2 | Invalid or overlong regex |
-| `INVALID_RULE_ID_MISMATCH` | 400 | 14a-3 | PUT route/body id mismatch |
-| `UNKNOWN_SIMULATE_EVENT_TYPE` | 400 | 14b-1 | Unknown public simulate alias |
+| `WORKFLOW_RULE_NOT_FOUND` | 404 | 14a-3 | 規則顯示/刪除/啟用/停用時缺少 ID |
+| `UNKNOWN_EVENT_TYPE_KEY` | 400 | 14a-2 | 包含被拒絕作為工作流觸發器的系統事件 |
+| `CIRCULAR_WORKFLOW_REFERENCE` | 400 | 14a-2 | 靜態儲存時分析 |
+| `UNKNOWN_ACTION_TYPE` | 400 | 14a-2 | Action 架構驗證 |
+| `UNKNOWN_CONDITION_TYPE` | 400 | 14a-2 | Condition 架構驗證 |
+| `ACTION_MISSING_REQUIRED_PARAM` | 400 | 14a-2 | 例如：缺少 `Template` |
+| `INVALID_ACTION_CONFIG` | 400 | 14a-2 | 範圍與列舉驗證 |
+| `INVALID_REGEX_PATTERN` | 400 | 14a-2 | 無效或過長的 Regex |
+| `INVALID_RULE_ID_MISMATCH` | 400 | 14a-3 | PUT 路徑/主體 ID 不匹配 |
+| `UNKNOWN_SIMULATE_EVENT_TYPE` | 400 | 14b-1 | 未知的公開模擬別名 |
 | `CONFIG_KEY_SECURITY_NAMESPACE` | 403 | 14b-2 | `security.*` GET/PUT |
 | `OAUTH_CREDENTIAL_NAMESPACE` | 403 | 14b-2 | `oauth.*` GET/PUT |
-| `UNKNOWN_CONFIG_KEY` | 400 | 14b-2 | Unknown non-protected config key |
-| `INVALID_QUERY_PARAM` | 400 | 14b-3 | Member list paging/filter validation |
-| `MEMBER_NOT_FOUND` | 404 | 14b-3 | Member show missing id |
+| `UNKNOWN_CONFIG_KEY` | 400 | 14b-2 | 未知的非保護配置金鑰 |
+| `INVALID_QUERY_PARAM` | 400 | 14b-3 | 成員列表分頁/過濾驗證 |
+| `MEMBER_NOT_FOUND` | 404 | 14b-3 | 成員顯示時缺少 ID |
 
-### Simulate Alias Source Of Truth
+### 模擬別名單一事實來源
 
-- Public simulate aliases live in one injectable `SimulationAliasRegistry` or equivalent singleton: `chat -> user.message`, `follow -> user.followed`, `sub -> user.subscribed`.
-- `GET /api/event-types`, `POST /api/simulate/{alias}`, and CLI simulate commands all consume this shared registry. Do not hard-code the alias map separately in endpoint handlers.
+- 公開模擬別名存在於一個可注入的 `SimulationAliasRegistry` 或等效的 Singleton 中：`chat -> user.message`, `follow -> user.followed`, `sub -> user.subscribed`。
+- `GET /api/event-types`, `POST /api/simulate/{alias}` 以及 CLI 模擬命令皆消耗此共享註冊表。不要在端點處理常式中分別硬編碼別名對照表。
 
-### Manual Verification Records
+### 手動驗證記錄
 
-- Manual Phase 5 checks are recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
-- Each entry includes date, verifier, command/browser/OBS setup, expected behavior, observed behavior, and pass/fail result.
+- 第 5 階段手動檢查記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
+- 每個條目包含日期、驗證者、命令/瀏覽器/OBS 設置、預期行為、觀察到的行為以及通過/失敗結果。
 
-### Phase 5 Open Questions
+### 第 5 階段待議事項
 
-- SignalR overlay reconnect/replay behavior: owner Task 19/Phase 6 frontend. Phase 5 only proves live push; missed-event replay is a Phase 6+ decision.
-- CLI JSON output mode: owner Task 16 implementation review. Phase 5 can return JSON for successful API-shaped data, but a dedicated `--json` contract is Phase 6+ unless required by implementation.
-- Web host shutdown signaling: owner Task 21 Photino shell. Client-visible shutdown semantics for overlay UX are Phase 6+.
-- Phase 4 `TwitchAdapter` lazy `??=` race: owner Task 14a-0/15a integration review if Phase 5 touches real OAuth flow construction.
-- Management/overlay hub auth for non-loopback binding: owner future LAN/remote OBS task. If a future phase allows LAN binding or port forwarding, hub auth becomes mandatory before that change ships.
+- SignalR overlay 重新連線/重播行為：由任務 19/第 6 階段前端負責。第 5 階段僅證明即時推送；遺漏事件重播是第 6 階段以後的決定。
+- CLI JSON 輸出模式：由任務 16 實作審查負責。第 5 階段可針對成功的 API 格式資料回傳 JSON，但專用的 `--json` 合約除非實作需要，否則屬於第 6 階段以後。
+- Web host 關閉訊號：由任務 21 Photino 外殼負責。使用者可見的 overlay UX 關閉語意屬於第 6 階段以後。
+- 第 4 階段 `TwitchAdapter` 延遲 `??=` 競態：若第 5 階段涉及實際 OAuth 流程建構，則由任務 14a-0/15a 整合審查負責。
+- 非 loopback 繫結的管理/overlay hub 驗證：未來 LAN/遠端 OBS 任務。若未來階段允許 LAN 繫結或連接埠轉寄，則在發布該變更前必須強制執行 hub 驗證。
 
-### Phase 5 Pre-Implementation Dependency
+### 第 5 階段實作前相依項目
 
-- Task 13f follow-up: strengthen Phase 4 SC-6a/SC-6b equivalence with follow/sub/donate payloads and assertions for cache state, member state, `TotalBitsGiven`, and subscriber tier. Phase 5 checkpoint depends on this follow-up being done or explicitly waived; it is not a Phase 5 implementation slice.
+- 任務 13f 後續：強化第 4 階段 SC-6a/SC-6b 等效性，包含 follow/sub/donate 負載以及對快取狀態、成員狀態、`TotalBitsGiven` 與訂閱者層級的斷言。第 5 階段檢查點取決於此後續工作完成或明確豁免；這不屬於第 5 階段的實作切片。
 
 ---
 
-## Dependency Graph
+## 依賴圖
 
 ```text
-Task 14a-0 Web host composition and API test harness
-    -> Task 14a-1 WorkflowRule persistence/query alignment
-    -> Task 14a-2 WorkflowRule validation and error codes
-    -> Task 14a-3 WorkflowRule CRUD endpoints and CQRS tests
-    -> Task 14a-4 EventTypes endpoint
+任務 14a-0 Web host 組合與 API 測試工具
+    -> 任務 14a-1 WorkflowRule 持久化/查詢對齊
+    -> 任務 14a-2 WorkflowRule 驗證與錯誤碼
+    -> 任務 14a-3 WorkflowRule CRUD 端點與 CQRS 測試
+    -> 任務 14a-4 EventTypes 端點
 
-Task 14b-1 Simulate endpoints
-    depends on Task 14a-0, Task 9
-Task 14b-2 Config endpoints
-    depends on Task 14a-0, Task 8
-Task 14b-3 Member query endpoints
-    depends on Task 14a-0, Task 7
+任務 14b-1 模擬端點
+    依賴 任務 14a-0, 任務 9
+任務 14b-2 配置端點
+    依賴 任務 14a-0, 任務 8
+任務 14b-3 成員查詢端點
+    依賴 任務 14a-0, 任務 7
 
-Task 15a SignalR hub contracts and host registration
-    depends on Task 14a-0, Task 13
-Task 15b Overlay event forwarding and SC-5
-    depends on Task 15a
-Task 15c Dual-port loopback Kestrel and port allocation
-    depends on Task 15a
+任務 15a SignalR hub 合約與 host 註冊
+    依賴 任務 14a-0, 任務 13
+任務 15b Overlay 事件轉寄與 SC-5
+    依賴 任務 15a
+任務 15c 雙連接埠 loopback Kestrel 與連接埠分配
+    依賴 任務 15a
 
-Task 16a CLI HTTP foundation and error passthrough
-    depends on Task 14b, Task 15c
-Task 16b Rule commands
-    depends on Task 16a, Task 14a-3
-Task 16c Config and member commands
-    depends on Task 16a, Task 14b-2, Task 14b-3
-Task 16d Simulate commands and manual overlay path
-    depends on Task 16a, Task 14b-1, Task 15b
-Task 16e Phase 5 checkpoint review
-    depends on all Phase 5 slices
+任務 16a CLI HTTP 基礎與錯誤透傳
+    依賴 任務 14b, 任務 15c
+任務 16b 規則命令
+    依賴 任務 16a, 任務 14a-3
+任務 16c 配置與成員命令
+    依賴 任務 16a, 任務 14b-2, 任務 14b-3
+任務 16d 模擬命令與手動 overlay 路徑
+    依賴 任務 16a, 任務 14b-1, 任務 15b
+任務 16e 第 5 階段檢查點審查
+    依賴 所有第 5 階段切片
 ```
 
 ---
 
-## Task 14a-0 - Web Host Composition And API Test Harness
+## 任務 14a-0 - Web Host 組合與 API 測試工具
 
-**Description:** Turn `Vulperonex.Web` from an empty host into a testable Minimal API composition root. Register endpoint modules, shared error envelope helpers, JSON options, workflow services, and integration-test hooks without implementing the full endpoint surface yet.
+**說明：** 將 `Vulperonex.Web` 從空 host 轉換為可測試的 Minimal API 組合根。註冊端點模組、共享錯誤封裝小幫手、JSON 選項、工作流服務與整合測試掛鉤，尚不實作完整的端點表面。
 
-**Acceptance Criteria:**
-- [ ] `Program.cs` exposes a composable app builder suitable for integration tests.
-- [ ] Endpoint registration is split by feature using `IEndpointRouteBuilder` extension methods (`MapWorkflowRuleEndpoints`, `MapEventTypeEndpoints`, etc.) rather than kept inline.
-- [ ] `System.Text.Json` is configured with `JsonSerializerDefaults.Web`.
-- [ ] `AddOpenApi()` is registered and `/openapi/v1.json` is exposed on the loopback API surface.
-- [ ] Central Phase 5 error code constants and the status mapping table are available to endpoints and tests.
-- [ ] Error envelopes use stable `error` codes and do not include backend human-readable prose.
-- [ ] Integration tests can boot the web host with in-memory infrastructure/fakes.
-- [ ] No production endpoint binds to non-loopback addresses in this slice.
+**驗收標準：**
+- [ ] `Program.cs` 暴露一個適合整合測試的組合式應用程式建構器。
+- [ ] 端點註冊依功能拆分，使用 `IEndpointRouteBuilder` 擴充方法（`MapWorkflowRuleEndpoints`, `MapEventTypeEndpoints` 等）而非保持內嵌。
+- [ ] `System.Text.Json` 配置為 `JsonSerializerDefaults.Web`。
+- [ ] 註冊 `AddOpenApi()` 並在 loopback API 表面暴露 `/openapi/v1.json`。
+- [ ] 端點與測試可使用中央第 5 階段錯誤碼常數與狀態對應表。
+- [ ] 錯誤封裝使用穩定的 `error` 代碼，且不包含後端人類可讀的說明。
+- [ ] 整合測試可以使用記憶體內基礎架構/虛擬對象啟動 Web host。
+- [ ] 在此切片中，沒有生產端點繫結到非 loopback 地址。
 
-**Verification:**
-- [ ] Web integration smoke test can call a health/smoke endpoint or test-only route through the real host pipeline.
-- [ ] Architecture check confirms Web references Application/Infrastructure but Domain/Application do not reference Web.
-- [ ] Architecture test proves direct reads of `Configuration["Database:Path"]` are allowed only inside `IDatabasePathResolver` or its implementation; endpoints and other startup services must consume the resolver instead of reading the raw key.
+**驗證：**
+- [ ] Web 整合煙霧測試可以透過實際 host 管線呼叫健康/smoke test 端點或測試專用路徑。
+- [ ] 架構檢查確認 Web 引用 Application/Infrastructure，但 Domain/Application 不引用 Web。
+- [ ] 架構測試證明直接讀取 `Configuration["Database:Path"]` 僅允許在 `IDatabasePathResolver` 或其實作中；端點與其他啟動服務必須使用解析器而非讀取原始金鑰。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Program.cs`
 - `src/Hosts/Vulperonex.Web/Endpoints/`
 - `src/Hosts/Vulperonex.Web/Errors/`
+- `src/Hosts/Vulperonex.Web/Configuration/IDatabasePathResolver.cs`
 - `tests/Vulperonex.Tests.Integration/Web/`
 
-**Size:** S
+**規模：** S
 
 ---
 
-## Task 14a-1 - WorkflowRule Persistence And Query Alignment
+## 任務 14a-1 - WorkflowRule 持久化與查詢對齊
 
-**Description:** Align `WorkflowRuleEntity`, repository, query service, and DTO shape with the REST API contract before endpoint implementation. Keep read DTOs separate from write entities.
+**說明：** 在端點實作前，對齊 `WorkflowRuleEntity`、儲存庫、查詢服務與 DTO 形狀以符合 REST API 合約。保持讀取 DTO 與寫入實體分離。
 
-**Acceptance Criteria:**
-- [ ] Workflow rules persist the fields needed by API/UI: id, name, event type key, enabled flag, priority, conditions, actions, `CreatedAt`, and metadata needed by existing workflow execution.
-- [ ] Rule list ordering is stable: `Priority ASC, CreatedAt ASC, Id ASC`.
-- [ ] Query path returns DTOs through `IWorkflowRuleQueryService`.
-- [ ] Write path remains behind `IWorkflowRuleRepository` or an application command service.
-- [ ] Existing WorkflowEngine tests continue to pass.
+**驗收標準：**
+- [ ] 工作流規則持久化 API/UI 所需的欄位：ID、名稱、事件類型金鑰、啟用標籤、優先順序、條件、動作、`CreatedAt`，以及現有工作流執行所需的中繼資料。
+- [ ] 規則列表排序穩定：`Priority ASC, CreatedAt ASC, Id ASC`（優先順序升冪、建立時間升冪、Id 升冪）。
+- [ ] 查詢路徑透過 `IWorkflowRuleQueryService` 返回 DTO。
+- [ ] 寫入路徑保持在 `IWorkflowRuleRepository` 或應用程式命令服務之後。
+- [ ] 現有的 WorkflowEngine 測試持續通過。
 
-**Verification:**
-- [ ] Repository/query service tests cover create, update, delete, list, and show behavior.
-- [ ] CQRS interaction fake proves GET paths do not call write repository methods.
+**驗證：**
+- [ ] 儲存庫/查詢服務測試涵蓋建立、更新、刪除、列表與顯示行為。
+- [ ] CQRS 互動虛擬對象證明 GET 路徑不呼叫寫入儲存庫方法。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflow/`
 - `src/Vulperonex.Infrastructure/Workflow/`
 - `tests/Vulperonex.Tests.Integration/Workflow/`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 14a-2 - WorkflowRule Validation And Error Codes
+## 任務 14a-2 - WorkflowRule 驗證與錯誤碼
 
-**Description:** Implement save-time validation for event keys, system events, circular sub-workflow references, action schemas, condition schemas, regex patterns, config bounds, cooldown bounds, parallel limits, template length, and route/body id mismatch.
+**說明：** 針對事件金鑰、系統事件、循環子工作流引用、Action 架構、Condition 架構、Regex 模式、設定範圍、冷卻範圍、並行限制、範本長度，以及路徑/主體 ID 不符實作儲存時驗證。
 
-**Acceptance Criteria:**
-- [ ] Validation failures use the central Phase 5 error code constants and HTTP status mapping.
-- [ ] Unknown event key returns `UNKNOWN_EVENT_TYPE_KEY`.
-- [ ] `platform.connection_changed` is known but invalid as a workflow trigger.
-- [ ] Circular sub-workflow references return `CIRCULAR_WORKFLOW_REFERENCE`.
-- [ ] Unknown action/condition types return `UNKNOWN_ACTION_TYPE` / `UNKNOWN_CONDITION_TYPE`.
-- [ ] Missing required action params return `ACTION_MISSING_REQUIRED_PARAM`.
-- [ ] Invalid bounds/config return `INVALID_ACTION_CONFIG`.
-- [ ] Invalid regex returns `INVALID_REGEX_PATTERN`.
-- [ ] PUT route/body id mismatch returns `INVALID_RULE_ID_MISMATCH`; the endpoint short-circuits this before invoking the deeper workflow rule validator.
+**驗收標準：**
+- [ ] 驗證失敗使用中央第 5 階段錯誤碼常數與 HTTP 狀態對應。
+- [ ] 未知事件金鑰返回 `UNKNOWN_EVENT_TYPE_KEY`。
+- [ ] `platform.connection_changed` 已知但在作為工作流觸發器時無效。
+- [ ] 循環子工作流引用返回 `CIRCULAR_WORKFLOW_REFERENCE`。
+- [ ] 未知 Action/Condition 類型返回 `UNKNOWN_ACTION_TYPE` / `UNKNOWN_CONDITION_TYPE`。
+- [ ] 缺少必要的 Action 參數返回 `ACTION_MISSING_REQUIRED_PARAM`。
+- [ ] 無效的範圍/配置返回 `INVALID_ACTION_CONFIG`。
+- [ ] 無效的 Regex 返回 `INVALID_REGEX_PATTERN`。
+- [ ] PUT 路徑/主體 ID 不匹配返回 `INVALID_RULE_ID_MISMATCH`；端點在調用更深層的工作流規則驗證器之前會短路處理此問題。
 
-**Verification:**
-- [ ] Unit tests cover each error code with Given/When/Then naming.
-- [ ] Validation tests assert error code only, not localized copy.
-- [ ] Template rendering remains covered: unknown placeholders such as `{event.unknown}` are preserved, and null/empty placeholder values render as empty strings.
+**驗證：**
+- [ ] 單元測試以 Given/When/Then 命名涵蓋每個錯誤碼。
+- [ ] 驗證測試僅斷言錯誤碼，不驗證在地化副本。
+- [ ] 範本渲染持續涵蓋：未知的佔位符（如 `{event.unknown}`）保留原樣，null/空佔位符值渲染為空字串。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Validation/WorkflowRuleValidator.cs`
 - `src/Hosts/Vulperonex.Web/Errors/`
 - `tests/Vulperonex.Tests.Unit/Web/WorkflowRuleValidatorTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 14a-3 - WorkflowRule CRUD Endpoints
+## 任務 14a-3 - WorkflowRule CRUD 端點
 
-**Description:** Implement WorkflowRule REST CRUD over the validated application write/query paths.
+**說明：** 在經過驗證的應用程式寫入/查詢路徑上實作 WorkflowRule REST CRUD。
 
-**Acceptance Criteria:**
-- [ ] `GET /api/rules` lists rules through the query service.
-- [ ] `GET /api/rules/{id}` returns one rule or `WORKFLOW_RULE_NOT_FOUND`.
-- [ ] `POST /api/rules` creates a rule and returns `201 Created` with `Location: /api/rules/{newId}`.
-- [ ] `PUT /api/rules/{id}` updates a rule and returns the updated rule.
-- [ ] `PUT /api/rules/{id}` with body id not equal to route id returns `INVALID_RULE_ID_MISMATCH` from the endpoint layer and does not invoke the validator or repository.
-- [ ] `DELETE /api/rules/{id}` deletes a rule and returns `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
-- [ ] Enable/disable endpoints update only enabled state and return `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
-- [ ] GET path interaction tests prove the write repository is not called.
+**驗收標準：**
+- [ ] `GET /api/rules` 透過查詢服務列出規則。
+- [ ] `GET /api/rules/{id}` 返回單一規則或 `WORKFLOW_RULE_NOT_FOUND`。
+- [ ] `POST /api/rules` 建立規則並返回 `201 Created` 且帶有 `Location: /api/rules/{newId}`。
+- [ ] `PUT /api/rules/{id}` 更新規則並返回更新後的規則。
+- [ ] `PUT /api/rules/{id}` 且主體 ID 不等於路徑 ID 時，從端點層返回 `INVALID_RULE_ID_MISMATCH`，不調用驗證器或儲存庫。
+- [ ] `DELETE /api/rules/{id}` 刪除規則並返回 `204`；缺少規則返回 `WORKFLOW_RULE_NOT_FOUND`。
+- [ ] 啟用/停用端點僅更新啟用狀態並返回 `204`；缺少規則返回 `WORKFLOW_RULE_NOT_FOUND`。
+- [ ] GET 路徑互動測試證明寫入儲存庫未被呼叫。
 
-**Verification:**
-- [ ] In-memory SQLite integration tests cover CRUD, not-found, route/body id mismatch, validation failure, and response status codes.
-- [ ] SC-2 and SC-9 existing workflow behavior remains green.
+**驗證：**
+- [ ] 記憶體內 SQLite 整合測試涵蓋 CRUD、未找到、路徑/主體 ID 不匹配、驗證失敗與回應狀態碼。
+- [ ] SC-2 與 SC-9 現有的工作流行為保持通過（綠色）。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Endpoints/WorkflowRuleEndpoints.cs`
 - `tests/Vulperonex.Tests.Integration/Web/WorkflowRuleEndpointTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 14a-4 - EventTypes Endpoint
+## 任務 14a-4 - EventTypes 端點
 
-**Description:** Implement `GET /api/event-types` for UI dropdowns and CLI discovery.
+**說明：** 為 UI 下拉選單與 CLI 探索實作 `GET /api/event-types`。
 
-**Acceptance Criteria:**
-- [ ] Endpoint returns registered workflow-visible event keys.
-- [ ] `platform.connection_changed` is excluded from workflow-visible results.
-- [ ] `isSimulatable` is derived from the shared `SimulationAliasRegistry` and true only for public aliases: `chat`, `follow`, `sub`.
-- [ ] Endpoint does not require Twitch OAuth/socket startup.
+**驗收標準：**
+- [ ] 端點返回註冊的工作流可見事件金鑰。
+- [ ] `platform.connection_changed` 從工作流可見結果中排除。
+- [ ] `isSimulatable` 源自共享的 `SimulationAliasRegistry`，且僅對公開別名（`chat`, `follow`, `sub`）為 true。
+- [ ] 端點不要求 Twitch OAuth/socket 啟動。
 
-**Verification:**
-- [ ] Integration test uses fake registrars and asserts exact keys plus `isSimulatable`.
+**驗證：**
+- [ ] 整合測試使用虛擬註冊表並斷言精確的金鑰以及 `isSimulatable`。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Endpoints/EventTypeEndpoints.cs`
 - `tests/Vulperonex.Tests.Integration/Web/EventTypeEndpointTests.cs`
 
-**Size:** S
+**規模：** S
 
 ---
 
-## Task 14b-1 - Simulate Endpoints
+## 任務 14b-1 - 模擬端點
 
-**Description:** Implement `POST /api/simulate/{alias}` as the REST surface for CLI/manual testing.
+**說明：** 實作 `POST /api/simulate/{alias}` 作為 CLI/手動測試的 REST 介面。
 
-**Acceptance Criteria:**
-- [ ] Only `chat`, `follow`, and `sub` aliases are accepted.
-- [ ] Raw canonical keys like `user.message` are rejected on this endpoint.
-- [ ] Unknown alias returns `UNKNOWN_SIMULATE_EVENT_TYPE`.
-- [ ] Alias validation uses the shared `SimulationAliasRegistry`.
-- [ ] Endpoint calls `ISimulationAdapter` and publishes through the normal bus path.
+**驗收標準：**
+- [ ] 僅接受 `chat`, `follow`, 與 `sub` 別名。
+- [ ] 原始規範金鑰（如 `user.message`）在此端點會被拒絕。
+- [ ] 未知別名返回 `UNKNOWN_SIMULATE_EVENT_TYPE`。
+- [ ] 別名驗證使用共享的 `SimulationAliasRegistry`。
+- [ ] 端點調用 `ISimulationAdapter` 並透過正常匯流排路徑發布。
 
-**Verification:**
-- [ ] Integration tests cover accepted aliases, unknown alias, canonical-key rejection, and mock sender side effects for chat.
+**驗證：**
+- [ ] 整合測試涵蓋接受的別名、未知別名、規範金鑰拒絕以及聊天室傳送者的模擬副作用。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Endpoints/SimulateEndpoints.cs`
 - `tests/Vulperonex.Tests.Integration/Web/SimulateEndpointTests.cs`
 
-**Size:** S
+**規模：** S
 
 ---
 
-## Task 14b-2 - Config Endpoints
+## 任務 14b-2 - 配置端點
 
-**Description:** Implement `GET|PUT /api/config/{key}` with protected namespace checks before registry lookup.
+**說明：** 在註冊表查找前實作 `GET|PUT /api/config/{key}` 並進行受保護命名空間檢查。
 
-**Acceptance Criteria:**
-- [ ] `security.*` returns `403` + `CONFIG_KEY_SECURITY_NAMESPACE` for GET and PUT.
-- [ ] `oauth.*` returns `403` + `OAUTH_CREDENTIAL_NAMESPACE` for GET and PUT.
-- [ ] Unknown non-protected keys return `400` + `UNKNOWN_CONFIG_KEY`.
-- [ ] Unknown protected keys still return the protected namespace error, not unknown-key.
-- [ ] The denylist is checked before registry lookup even though current OAuth refresh tokens are owned by `IOAuthTokenStore` and do not live in the config registry. This prevents future `oauth.*` registry entries from accidentally becoming readable or writable through `/api/config`.
-- [ ] Allowed keys use `ISystemSettingsService`.
+**驗收標準：**
+- [ ] 對於 GET 與 PUT，`security.*` 返回 `403` + `CONFIG_KEY_SECURITY_NAMESPACE`。
+- [ ] 對於 GET 與 PUT，`oauth.*` 返回 `403` + `OAUTH_CREDENTIAL_NAMESPACE`。
+- [ ] 未知的非保護金鑰返回 `400` + `UNKNOWN_CONFIG_KEY`。
+- [ ] 未知的受保護金鑰仍返回受保護命名空間錯誤，而非未知金鑰錯誤。
+- [ ] 雖然目前的 OAuth 重新整理權杖由 `IOAuthTokenStore` 擁有且不存於配置註冊表中，但在註冊表查找前仍會檢查黑名單。這防止了未來的 `oauth.*` 註冊表條目意外地變得可透過 `/api/config` 讀取或寫入。
+- [ ] 允許的金鑰使用 `ISystemSettingsService`。
 
-**Verification:**
-- [ ] Integration tests cover known protected keys, unknown protected keys, unknown non-protected keys, GET, PUT, and success paths.
+**驗證：**
+- [ ] 整合測試涵蓋已知受保護金鑰、未知受保護金鑰、未知非保護金鑰、GET、PUT 與成功路徑。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Endpoints/ConfigEndpoints.cs`
 - `tests/Vulperonex.Tests.Integration/Web/ConfigEndpointTests.cs`
 
-**Size:** S
+**規模：** S
 
 ---
 
-## Task 14b-3 - Member Query Endpoints
+## 任務 14b-3 - 成員查詢端點
 
-**Description:** Implement read-only member list/show APIs through `IMemberQueryService`.
+**說明：** 透過 `IMemberQueryService` 實作唯讀成員列表/顯示 API。
 
-**Acceptance Criteria:**
-- [ ] `GET /api/members` supports `limit` default 50, max 200, and `offset`.
-- [ ] Member list response includes `total` for paging UI.
-- [ ] Member list ordering is stable, defaulting to `LastSeen DESC, MemberId ASC` when those fields are available from the query service.
-- [ ] Invalid query params return `INVALID_QUERY_PARAM`.
-- [ ] `GET /api/members/{id}` returns one member or `MEMBER_NOT_FOUND`.
-- [ ] Endpoints do not call member write repositories.
+**驗收標準：**
+- [ ] `GET /api/members` 支持 `limit`（預設 50，最大 200）與 `offset`。
+- [ ] 成員列表回應包含用於分頁 UI 的 `total`。
+- [ ] 成員列表排序穩定，當查詢服務提供這些欄位時，預設為 `LastSeen DESC, MemberId ASC`。
+- [ ] 無效的查詢參數返回 `INVALID_QUERY_PARAM`。
+- [ ] `GET /api/members/{id}` 返回單一成員或 `MEMBER_NOT_FOUND`。
+- [ ] 端點不調用成員寫入儲存庫。
 
-**Verification:**
-- [ ] Integration tests seed DB and cover list, paging, invalid paging, show, and missing member.
+**驗證：**
+- [ ] 整合測試植入資料庫資料並涵蓋列表、分頁、無效分頁、顯示與缺少成員的情況。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Vulperonex.Application/Members/IMemberQueryService.cs`
 - `src/Vulperonex.Infrastructure/Members/MemberQueryService.cs`
 - `src/Hosts/Vulperonex.Web/Endpoints/MemberEndpoints.cs`
 - `tests/Vulperonex.Tests.Integration/Web/MemberEndpointTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 15a - SignalR Hub Contracts And Host Registration
+## 任務 15a - SignalR Hub 合約與 Host 註冊
 
-**Description:** Add management and overlay SignalR hubs, register SignalR in the host, and keep hub contracts explicit before forwarding events.
+**說明：** 新增管理與 overlay SignalR hub，在 host 中註冊 SignalR，並在轉寄事件前保持 hub 合約明確。
 
-**Acceptance Criteria:**
-- [ ] `/hubs/events` exists for management clients.
-- [ ] Canonical overlay hub routes are `/hubs/overlay/chat`, `/hubs/overlay/alerts`, and `/hubs/overlay/member` to match SPEC overlay URL naming.
-- [ ] Management hub can receive all `IStreamEvent` categories, including `PlatformConnectionChangedEvent`.
-- [ ] Overlay hub DTOs remain the Phase 4 public payload DTOs, not domain entities.
-- [ ] Phase 5 assumes loopback-only/no-auth. If a future phase allows LAN binding or port forwarding, management and overlay hub authentication must be designed before enabling it.
+**驗收標準：**
+- [ ] 為管理用戶端提供 `/hubs/events`。
+- [ ] 規範的 overlay hub 路徑為 `/hubs/overlay/chat`, `/hubs/overlay/alerts`, 與 `/hubs/overlay/member`，以符合 SPEC overlay URL 命名。
+- [ ] 管理 hub 可以接收所有 `IStreamEvent` 類別，包含 `PlatformConnectionChangedEvent`。
+- [ ] Overlay hub DTO 保持為第 4 階段公開負載 DTO，而非領域實體。
+- [ ] 第 5 階段假設僅限 loopback/無驗證。若未來階段允許 LAN 繫結或連接埠轉寄，則在啟用前必須設計管理與 overlay hub 驗證。
 
-**Verification:**
-- [ ] Hub connection tests prove each route accepts a SignalR connection.
-- [ ] Hub contract tests assert no Domain/Application Twitch symbols leak into hub payloads.
+**驗證：**
+- [ ] Hub 連線測試證明每個路徑皆接受 SignalR 連線。
+- [ ] Hub 合約測試斷言 Domain/Application Twitch 符號不會洩漏到 hub 負載中。
+- [ ] 確認 `event-id-decision.md` 審查筆記欄位（審查者/日期/決定）填寫完成，方可進入 Task 15b。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Hubs/EventHub.cs`
 - `src/Hosts/Vulperonex.Web/Hubs/OverlayChatHub.cs`
 - `src/Hosts/Vulperonex.Web/Hubs/OverlayAlertsHub.cs`
 - `src/Hosts/Vulperonex.Web/Hubs/OverlayMemberHub.cs`
 - `tests/Vulperonex.Tests.Integration/Web/SignalRHubTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 15b - Overlay Event Forwarding And SC-5
+## 任務 15b - Overlay 事件轉寄與 SC-5
 
-**Description:** Subscribe to stream events and forward overlay-safe DTOs through the appropriate overlay hubs.
+**說明：** 訂閱串流事件並透過適當的 overlay hub 轉寄 overlay 安全的 DTO。
 
-**Acceptance Criteria:**
-- [ ] Chat events reach `/hubs/overlay/chat` within 5 seconds for SC-5.
-- [ ] Performance budget is tracked separately from the SC pass/fail timeout: publish-to-hub-send target < 500ms, hub-to-client target < 500ms, full local path P95 target < 1s. SC-5 still uses 5s as the CI-safe upper bound.
-- [ ] Alert-worthy events reach `/hubs/overlay/alerts`.
-- [ ] Member hub is connected as an MVP skeleton but does not invent unsupported events.
-- [ ] SignalR JSON key-set tests exactly match overlay DTO public contracts.
-- [ ] Synthetic `eventId` semantics are documented in `docs/phases/phase-5-web-signalr-cli/event-id-decision.md`: platform-provided ids identify the same event across clients; fallback ULIDs only guarantee local single-instance delivery ids.
+**驗收標準：**
+- [ ] 聊天事件在 5 秒內到達 `/hubs/overlay/chat` 以符合 SC-5。
+- [ ] 效能預算與 SC 通過/失敗逾時分開追蹤：發布至 hub 傳送目標 < 500ms，hub 至用戶端目標 < 500ms，完整本地路徑 P95 目標 < 1s。SC-5 仍使用 5s 作為 CI 安全上限。
+- [ ] 值得提醒的事件（Alert-worthy events）到達 `/hubs/overlay/alerts`。
+- [ ] 成員 hub 作為 MVP 骨架連線，但不發明不受支援的事件。
+- [ ] SignalR JSON 金鑰集測試精確匹配 overlay DTO 公開合約。
+- [ ] 合成 `eventId` 語意記錄於 `docs/phases/phase-5-web-signalr-cli/event-id-decision.md`：平台提供的 ID 跨用戶端識別相同事件；後備 ULID 僅保證本地單一實例交付 ID。
 
-**Verification:**
-- [ ] SC-5 integration test publishes a mock/simulated chat event and observes the overlay hub payload within 5 seconds.
-- [ ] Test output records publish-to-hub-send and hub-to-client elapsed time so regressions above the 1s local target are visible even if the 5s SC timeout still passes.
-- [ ] Exact JSON key-set tests cover chat, alert, and member payloads by deserializing the SignalR wire payload, not by reflection. This is defense-in-depth with Phase 4 DTO `System.Text.Json` key-set tests.
-- [ ] Event id decision doc is reviewed before overlay forwarding is implemented.
+**驗證：**
+- [ ] SC-5 整合測試發布一個 mock/模擬聊天事件，並在 5 秒內觀察到 overlay hub 負載。
+- [ ] 測試輸出記錄從發布到 hub 傳送、以及 hub 到用戶端的耗時，即使 5s SC 逾時仍通過，超過 1s 本地目標的效能退化仍可見。
+- [ ] 精確的 JSON 金鑰集測試透過反序列化 SignalR 線路負載（而非透過反射）涵蓋聊天、提醒與成員負載。這是對第 4 階段 DTO `System.Text.Json` 金鑰集測試的深度防禦。
+- [ ] 在實作 overlay 轉寄前審查事件 ID 決定文件。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Overlay/`
 - `tests/Vulperonex.Tests.Integration/Web/OverlaySignalRTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 15c - Dual-Port Loopback Kestrel And Port Allocation
+## 任務 15c - 雙連接埠 Loopback Kestrel 與連接埠分配
 
-**Description:** Implement API/overlay port-pair allocation and loopback-only Kestrel binding.
+**說明：** 實作 API/overlay 連接埠對分配與僅限 loopback 的 Kestrel 繫結。
 
-**Acceptance Criteria:**
-- [ ] Port pairs try `5000/5001`, then `5002/5003`, through `5008/5009`.
-- [ ] `PortPairAllocator.TryAllocate()` returns `null` when all pairs are exhausted.
-- [ ] Host startup turns null allocation into `PortExhaustedException` with a clear message.
-- [ ] Both ports bind to `IPAddress.Loopback` and `IPAddress.IPv6Loopback`.
-- [ ] Non-loopback socket attempts are rejected by tests.
-- [ ] `PortPairAllocator` and the OAuth callback port selector share `IPortAvailabilityProbe.IsAvailable(int port)` to avoid divergent socket availability behavior.
+**驗收標準：**
+- [ ] 連接埠對嘗試從 `5000/5001` 開始，接著是 `5002/5003`，一直到 `5008/5009`。
+- [ ] 當所有連接埠對耗盡時，`PortPairAllocator.TryAllocate()` 返回 `null`。
+- [ ] Host 啟動時將 null 分配轉換為帶有清晰訊息的 `PortExhaustedException`。
+- [ ] 兩個連接埠皆繫結到 `IPAddress.Loopback` 與 `IPAddress.IPv6Loopback`。
+- [ ] 測試拒絕非 loopback 通訊端（socket）嘗試。
+- [ ] `PortPairAllocator` 與 OAuth 回呼連接埠選擇器共享 `IPortAvailabilityProbe.IsAvailable(int port)` 以避免發散的通訊端可用性行為。
 
-**Verification:**
-- [ ] Unit tests cover first available pair, partial-pair occupation, all-pairs exhaustion, and no throw in allocator.
-- [ ] Integration/socket tests verify IPv4/IPv6 loopback binds and non-loopback rejection.
+**驗證：**
+- [ ] 單元測試涵蓋第一個可用對、部分佔用、全部耗盡，以及配置器中不丟出例外。
+- [ ] 整合/通訊端測試驗證 IPv4/IPv6 loopback 繫結與非 loopback 拒絕。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Web/Infrastructure/PortPairAllocator.cs`
 - `src/Hosts/Vulperonex.Web/Infrastructure/IPortAvailabilityProbe.cs`
 - `src/Hosts/Vulperonex.Web/Infrastructure/PortExhaustedException.cs`
 - `src/Hosts/Vulperonex.Web/Program.cs`
 - `tests/Vulperonex.Tests.Unit/Web/PortPairAllocatorTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 16a - CLI HTTP Foundation And Error Passthrough
+## 任務 16a - CLI HTTP 基礎與錯誤透傳
 
-**Description:** Build the CLI command foundation around HTTP calls to the loopback API. The CLI must not directly access SQLite or application repositories.
+**說明：** 圍繞對 loopback API 的 HTTP 呼叫建構 CLI 命令基礎。CLI 不得直接存取 SQLite 或應用程式儲存庫。
 
-**Acceptance Criteria:**
-- [ ] CLI resolves API base URL from config/default loopback settings.
-- [ ] 2xx responses write success output to stdout only.
-- [ ] 4xx/5xx responses write the response `error` code to stderr and exit code `1`; network/connectivity failures also exit code `1` in MVP.
-- [ ] CLI preserves backend codes such as `WORKFLOW_RULE_NOT_FOUND`, `MEMBER_NOT_FOUND`, and protected namespace errors.
-- [ ] CLI has no direct DB access path.
+**驗收標準：**
+- [ ] CLI 從配置/預設 loopback 設置中解析 API 基本 URL。
+- [ ] 2xx 回應僅將成功輸出寫入 stdout。
+- [ ] 4xx/5xx 回應將回應的 `error` 代碼寫入 stderr 且退出碼為 `1`；網路/連接失敗在 MVP 中退出碼也為 `1`。
+- [ ] CLI 保留後端代碼，例如 `WORKFLOW_RULE_NOT_FOUND`, `MEMBER_NOT_FOUND` 以及受保護命名空間錯誤。
+- [ ] CLI 沒有直接的資料庫存取路徑。
 
-**Verification:**
-- [ ] CLI tests use a fake HTTP server/handler and assert stdout, stderr, and exit code behavior.
-- [ ] Architecture test rejects CLI references to Infrastructure persistence where not allowed.
+**驗證：**
+- [ ] CLI 測試使用虛擬 HTTP 伺服器/處理常式並斷言 stdout、stderr 以及退出碼行為。
+- [ ] 架構測試在不允許的情況下拒絕 CLI 引用 Infrastructure 持久化。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Cli/Program.cs`
 - `src/Hosts/Vulperonex.Cli/Http/`
 - `tests/Vulperonex.Tests.Integration/Cli/`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 16b - CLI Rule Commands
+## 任務 16b - CLI 規則命令
 
-**Description:** Implement `rule list|show|enable|disable|delete` over the WorkflowRule API.
+**說明：** 在 WorkflowRule API 上實作 `rule list|show|enable|disable|delete`。
 
-**Acceptance Criteria:**
-- [ ] `rule list` calls `GET /api/rules`.
-- [ ] `rule show` passes through `WORKFLOW_RULE_NOT_FOUND`.
-- [ ] `rule enable` and `rule disable` call the API state endpoints.
-- [ ] `rule delete` calls DELETE and treats `204` as success.
+**驗收標準：**
+- [ ] `rule list` 呼叫 `GET /api/rules`。
+- [ ] `rule show` 透傳 `WORKFLOW_RULE_NOT_FOUND`。
+- [ ] `rule enable` 與 `rule disable` 呼叫 API 狀態端點。
+- [ ] `rule delete` 呼叫 DELETE 並將 `204` 視為成功。
 
-**Verification:**
-- [ ] CLI integration tests cover each command and error passthrough.
+**驗證：**
+- [ ] CLI 整合測試涵蓋每個命令與錯誤透傳。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Cli/Commands/RuleCommands.cs`
 - `tests/Vulperonex.Tests.Integration/Cli/RuleCommandTests.cs`
 
-**Size:** S
+**規模：** S
 
 ---
 
-## Task 16c - CLI Config And Member Commands
+## 任務 16c - CLI 配置與成員命令
 
-**Description:** Implement `config get|set` and `member list|show` over the REST API.
+**說明：** 在 REST API 上實作 `config get|set` 與 `member list|show`。
 
-**Acceptance Criteria:**
-- [ ] Protected config namespace errors pass through to stderr with non-zero exit.
-- [ ] Unknown config keys pass through as `UNKNOWN_CONFIG_KEY`.
-- [ ] `member list` supports limit/offset arguments.
-- [ ] `member show` passes through `MEMBER_NOT_FOUND`.
+**驗收標準：**
+- [ ] 受保護的配置命名空間錯誤透傳至 stderr 並以非零狀態退出。
+- [ ] 未知的配置金鑰透傳為 `UNKNOWN_CONFIG_KEY`。
+- [ ] `member list` 支持 limit/offset 參數。
+- [ ] `member show` 透傳 `MEMBER_NOT_FOUND`。
 
-**Verification:**
-- [ ] CLI tests cover success and backend error passthrough for config and member commands.
+**驗證：**
+- [ ] CLI 測試涵蓋配置與成員命令的成功與後端錯誤透傳。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Cli/Commands/ConfigCommands.cs`
 - `src/Hosts/Vulperonex.Cli/Commands/MemberCommands.cs`
 - `tests/Vulperonex.Tests.Integration/Cli/ConfigCommandTests.cs`
 - `tests/Vulperonex.Tests.Integration/Cli/MemberCommandTests.cs`
 
-**Size:** S
+**規模：** S
 
 ---
 
-## Task 16d - CLI Simulate Commands And DB Path Rule
+## 任務 16d - CLI 模擬命令與資料庫路徑規則
 
-**Description:** Implement `simulate chat|follow|sub` and verify the shared DB path rule for web host and CLI configuration.
+**說明：** 實作 `simulate chat|follow|sub` 並驗證 web host 與 CLI 配置的共享資料庫路徑規則。
 
-**Acceptance Criteria:**
-- [ ] `simulate chat`, `simulate follow`, and `simulate sub` call the REST simulate endpoint.
-- [ ] Unknown simulate aliases fail before or through the API with `UNKNOWN_SIMULATE_EVENT_TYPE`.
-- [ ] Web host and CLI read `Database:Path` only from main `appsettings.json`.
-- [ ] `appsettings.{Environment}.json` and environment variables cannot override `Database:Path`.
-- [ ] The implementation mechanism is explicit: database path resolution reads main `appsettings.json` through a dedicated resolver that ignores environment-specific providers and environment variables for this key, then supplies the resolved value to Web host and CLI startup.
+**驗收標準：**
+- [ ] `simulate chat`, `simulate follow`, 與 `simulate sub` 呼叫 REST 模擬端點。
+- [ ] 未知的模擬別名在透過 API 前或過程中因 `UNKNOWN_SIMULATE_EVENT_TYPE` 而失敗。
+- [ ] Web host 與 CLI 僅從主 `appsettings.json` 讀取 `Database:Path`。
+- [ ] `appsettings.{Environment}.json` 與環境變數不能覆蓋 `Database:Path`。
+- [ ] 實作機制是明確的：資料庫路徑解析透過專用的解析器讀取主 `appsettings.json`，該解析器會忽略此金鑰的環境特定提供者與環境變數，然後將解析後的值提供給 Web host 與 CLI 啟動。
 
-**Verification:**
-- [ ] CLI simulate chat fixture rule triggers mock sender through the API path.
-- [ ] Manual test: CLI simulate chat reaches the overlay SignalR client, with result recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
-- [ ] Integration test proves `ASPNETCORE_ENVIRONMENT=Development`, `appsettings.Development.json`, and environment variables do not override `Database:Path`.
+**驗證：**
+- [ ] CLI 模擬聊天固定規則透過 API 路徑觸發虛擬傳送者。
+- [ ] 手動測試：CLI 模擬聊天到達 overlay SignalR 用戶端，結果記錄在 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
+- [ ] 整合測試證明 `ASPNETCORE_ENVIRONMENT=Development`, `appsettings.Development.json` 以及環境變數不會覆蓋主 `appsettings.json` 的 `Database:Path`。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `src/Hosts/Vulperonex.Cli/Commands/SimulateCommands.cs`
 - `src/Hosts/Vulperonex.Cli/Configuration/`
 - `src/Hosts/Vulperonex.Web/Configuration/`
 - `tests/Vulperonex.Tests.Integration/Cli/SimulateCommandTests.cs`
 
-**Size:** M
+**規模：** M
 
 ---
 
-## Task 16e - Phase 5 Checkpoint Review
+## 任務 16e - 第 5 階段檢查點審查
 
-**Description:** Run the full Phase 5 verification gate and address review follow-ups before moving to Phase 6.
+**說明：** 執行完整的第 5 階段驗證閘口並在進入第 6 階段前處理審查後續。
 
-**Acceptance Criteria:**
-- [ ] `dotnet test` passes for SC-2, SC-5, SC-8, and SC-9.
-- [ ] WorkflowRule CRUD and circular reference detection pass end to end.
-- [ ] Config protected namespace tests pass for `security.*` and `oauth.*`.
-- [ ] CLI rule/config/member/simulate commands pass integration tests.
-- [ ] CLI simulate chat fixture rule and mock sender pass.
-- [ ] CLI simulate to overlay SignalR manual path is documented.
-- [ ] Loopback-only IPv4/IPv6 dual bind tests pass.
-- [ ] Task 13f Phase 4 SC-6a/SC-6b follow-up is complete or explicitly waived before Phase 5 closes.
+**驗收標準：**
+- [ ] `dotnet test` 通過 SC-2、SC-5、SC-8、SC-9。
+- [ ] WorkflowRule CRUD 與循環引用偵測端到端通過。
+- [ ] 配置受保護命名空間測試通過 `security.*` 與 `oauth.*`。
+- [ ] CLI rule/config/member/simulate 命令通過整合測試。
+- [ ] CLI 模擬聊天固定規則與虛擬傳送者通過。
+- [ ] CLI 模擬到 overlay SignalR 手動路徑已記錄。
+- [ ] 僅限 loopback 的 IPv4/IPv6 雙重繫結測試通過。
+- [ ] 任務 13f 第 4 階段 SC-6a/SC-6b 後續在第 5 階段關閉前完成或明確豁免。
 
-**Verification:**
+**驗證：**
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
 - [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] Manual overlay SignalR check recorded in the phase todo.
-- [ ] Manual verification entries are recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
-- [ ] Git staged set is task-scoped and excludes unrelated untracked files.
+- [ ] 手動 overlay SignalR 檢查記錄在階段待辦事項中。
+- [ ] 手動驗證條目記錄在 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
+- [ ] Git 暫存集限於任務範圍，且排除無關的未追蹤檔案。
 
-**Likely Files:**
+**可能涉及的檔案：**
 - `docs/phases/phase-5-web-signalr-cli/todo.md`
 - `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 - `tasks/todo.md`
-- Phase 5 source/test files from prior slices
+- 來自先前切片的第 5 階段源碼/測試檔案
 
-**Size:** S
+**規模：** S
