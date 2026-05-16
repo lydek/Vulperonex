@@ -29,6 +29,7 @@
 ### Phase 5 Error Codes
 
 All Phase 5 API and CLI paths use central constants in `src/Hosts/Vulperonex.Web/Errors/ErrorCodes.cs` or a shared equivalent if implementation proves the constants belong in Application. Error envelopes use `{ "error": "ERROR_CODE", "meta": {...} }`.
+Naming convention: `UNKNOWN_*` means a key or identifier is not in the allowlist/registry; `INVALID_*` means the submitted value is known but fails format, range, schema, or route/body consistency validation.
 
 | Code | HTTP status | First task | Notes |
 |------|-------------|------------|-------|
@@ -60,11 +61,11 @@ All Phase 5 API and CLI paths use central constants in `src/Hosts/Vulperonex.Web
 
 ### Phase 5 Open Questions
 
-- SignalR overlay reconnect/replay behavior: Phase 5 only proves live push; missed-event replay is a Phase 6+ decision.
-- CLI JSON output mode: Phase 5 can return JSON for successful API-shaped data, but a dedicated `--json` contract is Phase 6+ unless required by implementation.
-- Web host shutdown signaling: client-visible shutdown semantics for overlay UX are Phase 6+.
-- Phase 4 `TwitchAdapter` lazy `??=` race remains a Phase 5 OAuth wiring follow-up if this phase touches real OAuth flow construction.
-- Management hub and overlay hubs are safe only under loopback-only MVP binding. If a future phase allows LAN or port forwarding, hub auth becomes mandatory before that change ships.
+- SignalR overlay reconnect/replay behavior: owner Task 19/Phase 6 frontend. Phase 5 only proves live push; missed-event replay is a Phase 6+ decision.
+- CLI JSON output mode: owner Task 16 implementation review. Phase 5 can return JSON for successful API-shaped data, but a dedicated `--json` contract is Phase 6+ unless required by implementation.
+- Web host shutdown signaling: owner Task 21 Photino shell. Client-visible shutdown semantics for overlay UX are Phase 6+.
+- Phase 4 `TwitchAdapter` lazy `??=` race: owner Task 14a-0/15a integration review if Phase 5 touches real OAuth flow construction.
+- Management/overlay hub auth for non-loopback binding: owner future LAN/remote OBS task. If a future phase allows LAN binding or port forwarding, hub auth becomes mandatory before that change ships.
 
 ### Phase 5 Pre-Implementation Dependency
 
@@ -126,6 +127,7 @@ Task 16e Phase 5 checkpoint review
 **Verification:**
 - [ ] Web integration smoke test can call a health/smoke endpoint or test-only route through the real host pipeline.
 - [ ] Architecture check confirms Web references Application/Infrastructure but Domain/Application do not reference Web.
+- [ ] Architecture test proves direct reads of `Configuration["Database:Path"]` are allowed only inside `IDatabasePathResolver` or its implementation; endpoints and other startup services must consume the resolver instead of reading the raw key.
 
 **Likely Files:**
 - `src/Hosts/Vulperonex.Web/Program.cs`
@@ -174,7 +176,7 @@ Task 16e Phase 5 checkpoint review
 - [ ] Missing required action params return `ACTION_MISSING_REQUIRED_PARAM`.
 - [ ] Invalid bounds/config return `INVALID_ACTION_CONFIG`.
 - [ ] Invalid regex returns `INVALID_REGEX_PATTERN`.
-- [ ] PUT route/body id mismatch returns `INVALID_RULE_ID_MISMATCH`.
+- [ ] PUT route/body id mismatch returns `INVALID_RULE_ID_MISMATCH`; the endpoint short-circuits this before invoking the deeper workflow rule validator.
 
 **Verification:**
 - [ ] Unit tests cover each error code with Given/When/Then naming.
@@ -199,7 +201,7 @@ Task 16e Phase 5 checkpoint review
 - [ ] `GET /api/rules/{id}` returns one rule or `WORKFLOW_RULE_NOT_FOUND`.
 - [ ] `POST /api/rules` creates a rule and returns `201 Created` with `Location: /api/rules/{newId}`.
 - [ ] `PUT /api/rules/{id}` updates a rule and returns the updated rule.
-- [ ] `PUT /api/rules/{id}` with body id not equal to route id returns `INVALID_RULE_ID_MISMATCH`.
+- [ ] `PUT /api/rules/{id}` with body id not equal to route id returns `INVALID_RULE_ID_MISMATCH` from the endpoint layer and does not invoke the validator or repository.
 - [ ] `DELETE /api/rules/{id}` deletes a rule and returns `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
 - [ ] Enable/disable endpoints update only enabled state and return `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
 - [ ] GET path interaction tests prove the write repository is not called.
@@ -348,7 +350,7 @@ Task 16e Phase 5 checkpoint review
 **Verification:**
 - [ ] SC-5 integration test publishes a mock/simulated chat event and observes the overlay hub payload within 5 seconds.
 - [ ] Test output records publish-to-hub-send and hub-to-client elapsed time so regressions above the 1s local target are visible even if the 5s SC timeout still passes.
-- [ ] Exact JSON key-set tests cover chat, alert, and member payloads over SignalR serialization.
+- [ ] Exact JSON key-set tests cover chat, alert, and member payloads by deserializing the SignalR wire payload, not by reflection. This is defense-in-depth with Phase 4 DTO `System.Text.Json` key-set tests.
 - [ ] Event id decision doc is reviewed before overlay forwarding is implemented.
 
 **Likely Files:**
@@ -369,7 +371,7 @@ Task 16e Phase 5 checkpoint review
 - [ ] Host startup turns null allocation into `PortExhaustedException` with a clear message.
 - [ ] Both ports bind to `IPAddress.Loopback` and `IPAddress.IPv6Loopback`.
 - [ ] Non-loopback socket attempts are rejected by tests.
-- [ ] `PortPairAllocator` and the OAuth callback port selector share an `IsPortAvailable` abstraction such as `IPortAvailabilityProbe` to avoid divergent socket availability behavior.
+- [ ] `PortPairAllocator` and the OAuth callback port selector share `IPortAvailabilityProbe.IsAvailable(int port)` to avoid divergent socket availability behavior.
 
 **Verification:**
 - [ ] Unit tests cover first available pair, partial-pair occupation, all-pairs exhaustion, and no throw in allocator.
@@ -377,6 +379,7 @@ Task 16e Phase 5 checkpoint review
 
 **Likely Files:**
 - `src/Hosts/Vulperonex.Web/Infrastructure/PortPairAllocator.cs`
+- `src/Hosts/Vulperonex.Web/Infrastructure/IPortAvailabilityProbe.cs`
 - `src/Hosts/Vulperonex.Web/Infrastructure/PortExhaustedException.cs`
 - `src/Hosts/Vulperonex.Web/Program.cs`
 - `tests/Vulperonex.Tests.Unit/Web/PortPairAllocatorTests.cs`

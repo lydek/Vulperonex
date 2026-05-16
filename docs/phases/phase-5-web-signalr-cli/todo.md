@@ -7,7 +7,7 @@
 
 ## Task 14a - Minimal API WorkflowRule CRUD + EventTypes
 
-- [ ] Task 14a-0: implement Web host composition, `JsonSerializerDefaults.Web`, endpoint extension registration, OpenAPI JSON, central error code constants/status mapping, and API integration-test harness.
+- [ ] Task 14a-0: implement Web host composition, `JsonSerializerDefaults.Web`, endpoint extension registration, OpenAPI JSON, central error code constants/status mapping, `Database:Path` raw-read architecture test, and API integration-test harness.
 - [ ] Task 14a-1: align WorkflowRule persistence, query DTOs, and CQRS read/write paths.
 - [ ] Task 14a-2: implement WorkflowRule validation and machine-readable error codes.
 - [ ] Task 14a-3: implement WorkflowRule CRUD/enable/disable/delete endpoints with CQRS interaction tests.
@@ -23,7 +23,7 @@
 
 - [ ] Task 15a: implement SignalR management/overlay hub contracts and host registration.
 - [ ] Task 15b: document synthetic `eventId` semantics, implement overlay event forwarding, exact SignalR JSON key-set tests, and SC-5 latency measurements.
-- [ ] Task 15c: implement dual-port loopback Kestrel binding, shared port availability abstraction, port-pair allocation, and exhaustion behavior.
+- [ ] Task 15c: implement dual-port loopback Kestrel binding, `IPortAvailabilityProbe.IsAvailable(int port)`, port-pair allocation, and exhaustion behavior.
 
 ## Task 16 - CLI
 
@@ -45,11 +45,13 @@
 - [ ] WorkflowRule CRUD and circular reference detection pass end to end.
 - [ ] `GET /api/event-types` excludes `platform.connection_changed` and reports `isSimulatable` only for `chat`, `follow`, and `sub`.
 - [ ] Phase 5 error codes are centralized and covered by the HTTP status mapping table.
+- [ ] `UNKNOWN_*` and `INVALID_*` error code naming rules are documented and followed.
 - [ ] Config protected namespace checks pass: `security.*` -> `CONFIG_KEY_SECURITY_NAMESPACE`; `oauth.*` -> `OAUTH_CREDENTIAL_NAMESPACE`.
 - [ ] Unknown protected config key such as `oauth.unknown.refresh_token` returns `OAUTH_CREDENTIAL_NAMESPACE`, proving prefix denylist precedes registry lookup.
 - [ ] Member endpoints cover list/show, paging limits, `INVALID_QUERY_PARAM`, and `MEMBER_NOT_FOUND`.
 - [ ] SignalR overlay chat receives an event within 5 seconds for SC-5, and local latency measurements expose the <1s P95 target.
 - [ ] SignalR serialization exact key-set tests cover chat, alert, and member overlay DTOs.
+- [ ] SignalR key-set tests deserialize the wire payload and do not rely on reflection-only DTO inspection.
 - [ ] Synthetic `eventId` decision is recorded in `docs/phases/phase-5-web-signalr-cli/event-id-decision.md` before overlay forwarding implementation.
 - [ ] Two Kestrel ports bind to IPv4 loopback `127.0.0.1` and IPv6 loopback `::1`; non-loopback socket test is rejected.
 - [ ] Port-pair allocation tries `5000/5001` through `5008/5009` and returns null on exhaustion before the host throws `PortExhaustedException`.
@@ -58,5 +60,6 @@
 - [ ] CLI simulate chat fixture rule triggers mock sender through the HTTP API path.
 - [ ] Manual check: CLI simulate chat reaches overlay SignalR, with result recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
 - [ ] `ASPNETCORE_ENVIRONMENT=Development` plus `appsettings.Development.json` and environment variables do not override main `appsettings.json` `Database:Path`.
+- [ ] Architecture test proves raw `Configuration["Database:Path"]` reads are limited to `IDatabasePathResolver`.
 - [ ] Task 13f Phase 4 SC-6a/SC-6b follow-up is complete or explicitly waived.
 - [ ] Git staged set is task-scoped; unrelated untracked files remain uncommitted.

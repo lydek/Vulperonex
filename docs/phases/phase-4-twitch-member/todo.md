@@ -23,6 +23,10 @@
 - [x] Task 13d: implement Overlay DTO exact whitelist contracts.
 - [x] Task 13e: complete Phase 4 checkpoint review.
 
+## Task 13 Follow-up Backlog
+
+- [ ] Task 13f: strengthen SC-6a/SC-6b equivalence with follow/sub/donate payloads and assertions for cache state, member state, `TotalBitsGiven`, and subscriber tier.
+
 ## Checkpoint 4
 
 - [x] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` passes with 0 warnings.

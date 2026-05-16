@@ -17,3 +17,17 @@ Manual checks supplement automated tests for browser, OBS, and local SignalR beh
 - Result: Pass | Fail
 - Follow-up issue/commit:
 ```
+
+## Example Entry
+
+```markdown
+## 2026-05-16 - CLI simulate chat reaches overlay SignalR
+
+- Verifier: <name>
+- Environment: Windows, local loopback, API port <port>, overlay port <port>
+- Command/browser/OBS setup: `vulperonex simulate chat --user test --message "hello"` with overlay chat client connected to `http://localhost:<overlayPort>/overlay/chat`
+- Expected behavior: overlay client receives one chat payload with the expected display name and message.
+- Observed behavior: <observed result>
+- Result: Pass | Fail
+- Follow-up issue/commit: <link or commit>
+```

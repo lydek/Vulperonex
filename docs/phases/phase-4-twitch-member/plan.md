@@ -432,3 +432,24 @@ Task 12 depends on Phase 3 event/workflow contracts and Phase 2 token/cache infr
 - Task 12f 是否需要真實 HTTP listener implementation，還是先以 listener abstraction + unit tests 驗證 single-use/loopback/path/port 行為。建議先做 abstraction，避免 Phase 4 卡在 OS socket 細節。
 - Overlay DTO 是否只放 Application，還是 Phase 5 SignalR hub 需要 host-level DTO。建議 Phase 4 先放 Application contract，Phase 5 hub 只序列化該 DTO。
 - Phase 5 多 overlay client 場景需重評 synthetic `eventId` 去重語意：platform-provided id 可跨 client 識別同一事件；adapter fallback ULID 只保證本機單實例 delivery id。
+---
+
+## Task 13f - SC-6a/SC-6b equivalence strengthening follow-up
+
+**Description:** Phase 5 checkpoint depends on a stronger Phase 4 equivalence gate so Simulation and Twitch paths are compared on more than the chat echo happy path.
+
+**Acceptance Criteria:**
+- [ ] Add follow, sub, and donate payload fixtures for SimulationAdapter and TwitchAdapter equivalence.
+- [ ] Assert cache state and member state side effects, not only emitted chat/action output.
+- [ ] Assert `TotalBitsGiven` is monotonic and subscriber tier state matches across Simulation and Twitch paths.
+- [ ] Keep this as a follow-up backlog item unless Phase 5 checkpoint explicitly waives it.
+
+**Verification:**
+- [ ] Integration tests fail if Simulation and Twitch paths diverge for follow/sub/donate side effects.
+- [ ] Phase 5 checkpoint links to the completed follow-up or records the waiver.
+
+**Likely Files:**
+- `tests/Vulperonex.Tests.Integration/Adapters/TwitchWorkflowEquivalenceTests.cs`
+- `tests/Vulperonex.Tests.Integration/Members/MemberEquivalenceTests.cs`
+
+**Size:** S
