@@ -93,6 +93,7 @@
 - [ ] `oauth.*` config key 封鎖（GET + PUT → 403 + `OAUTH_CREDENTIAL_NAMESPACE`）+ CLI passthrough 至 stderr 通過
 - [ ] CLI rule / config / member / simulate 全命令 integration test 通過
 - [ ] CLI simulate chat fixture rule + mock sender 驗證通過
+- [ ] Phase 4 SC-6a/SC-6b equivalence 強化：新增 follow/sub/donate payload，驗證 cache/member state/TotalBitsGiven/subscriber tier 等副作用細節
 - [ ] CLI simulate → Overlay SignalR 端到端手動測試
 - [ ] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
 - [ ] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過

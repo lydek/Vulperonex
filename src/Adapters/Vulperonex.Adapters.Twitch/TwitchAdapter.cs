@@ -39,14 +39,14 @@ public sealed class TwitchAdapter(
 
     internal string CreateOAuthState()
     {
-        return (pkceStateStore ??= new PkceStateStore(TimeProvider.System)).Create();
+        return GetPkceStateStore().Create();
     }
 
     internal bool ValidateOAuthCallback(OAuthCallbackRequest request, int callbackPort)
     {
         return new OAuthCallbackValidator(
                 callbackPort,
-                pkceStateStore ??= new PkceStateStore(TimeProvider.System))
+                GetPkceStateStore())
             .IsValid(request);
     }
 
@@ -118,6 +118,13 @@ public sealed class TwitchAdapter(
     private bool TryMarkNew(string platform, string sourceEventId)
     {
         return (eventSubDedupCache ??= new EventSubDedupCache(TimeProvider.System)).TryMarkNew(platform, sourceEventId);
+    }
+
+    private PkceStateStore GetPkceStateStore()
+    {
+        return LazyInitializer.EnsureInitialized(
+            ref pkceStateStore,
+            () => new PkceStateStore(TimeProvider.System));
     }
 
     private void EnsureStarted()

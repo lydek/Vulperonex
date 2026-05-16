@@ -9,7 +9,7 @@ public sealed record OverlayChatPayload(
     IReadOnlyCollection<OverlayTextSegment> Segments,
     IReadOnlyCollection<string> Badges);
 
-public sealed record OverlayTextSegment
+public sealed record OverlayTextSegment(string Type, string Value)
 {
     private static readonly HashSet<string> AllowedTypes = new(StringComparer.Ordinal)
     {
@@ -19,18 +19,17 @@ public sealed record OverlayTextSegment
         "mention",
     };
 
-    public OverlayTextSegment(string type, string value)
+    public string Type { get; init; } = ValidateType(Type);
+
+    public string Value { get; init; } = Value;
+
+    private static string ValidateType(string type)
     {
         if (!AllowedTypes.Contains(type))
         {
             throw new ArgumentException("Unsupported overlay text segment type.", nameof(type));
         }
 
-        Type = type;
-        Value = value;
+        return type;
     }
-
-    public string Type { get; }
-
-    public string Value { get; }
 }
