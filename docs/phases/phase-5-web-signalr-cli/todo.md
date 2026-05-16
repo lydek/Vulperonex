@@ -15,19 +15,19 @@
 
 ## 任務 14b - Minimal API 模擬 / 配置 / 成員
 
-- [x] 任務 14b-1：僅針對 `chat`，`follow`，與 `sub` 實作 `POST /api/simulate/{alias}`。
+- [x] 任務 14b-1：僅針對 `chat`，`follow`，與 `sub` 實作 `POST /api/simulate/{alias}`，並固定 chat/follow/sub request body schema。
 - [x] 任務 14b-2：在 registry 查找前實作帶有 `security.*` 與 `oauth.*` 字首拒絕清單的 `GET|PUT /api/config/{key}`。
-- [x] 任務 14b-3：透過 `IMemberQueryService` 實作成員列表/顯示查詢端點。
+- [x] 任務 14b-3：透過 `IMemberQueryService` 實作成員列表/顯示查詢端點；Phase 5 目前以 `MemberId ASC` 作為穩定排序。
 
 ## 任務 15 - SignalR Hub + Overlay 推送 + 雙連接埠 Kestrel
 
 - [x] 任務 15a：實作 SignalR 管理/overlay hub 合約與 host 註冊。
-- [x] 任務 15b：記錄合成 `eventId` 語意，實作 overlay 事件轉寄、精確 SignalR JSON 金鑰集測試，以及 SC-5 延遲量測。
+- [x] 任務 15b：記錄合成 `eventId` 語意，實作 overlay 事件轉寄、明確 alert event 集合、精確 SignalR JSON 金鑰集測試，以及 SC-5 延遲量測。
 - [x] 任務 15c：實作雙連接埠 loopback Kestrel 繫結、`IPortAvailabilityProbe.IsAvailable(int port)`、連接埠對分配與耗盡行為。
 
 ## 任務 16 - CLI
 
-- [x] 任務 16a：實作 CLI HTTP 基礎、stdout/stderr 規則以及後端錯誤透傳。
+- [x] 任務 16a：實作 CLI HTTP 基礎、`VULPERONEX_API_URL` 優先的 base URL 解析、stdout/stderr 規則以及後端錯誤透傳。
 - [x] 任務 16b：實作 CLI `rule list|show|enable|disable|delete`。
 - [x] 任務 16c：實作 CLI `config get|set` 與 `member list|show`。
 - [x] 任務 16d：實作 CLI `simulate chat|follow|sub` 與共享資料庫路徑覆蓋保護。

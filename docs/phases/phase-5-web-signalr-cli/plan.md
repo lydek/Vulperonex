@@ -61,8 +61,8 @@
 
 ### 第 5 階段待議事項
 
-- SignalR overlay 重新連線/重播行為：由任務 19/第 6 階段前端負責。第 5 階段僅證明即時推送；遺漏事件重播是第 6 階段以後的決定。
-- CLI JSON 輸出模式：由任務 16 實作審查負責。第 5 階段可針對成功的 API 格式資料回傳 JSON，但專用的 `--json` 合約除非實作需要，否則屬於第 6 階段以後。
+- SignalR overlay 重新連線/重播行為：由任務 19/第 6 階段前端負責。第 5 階段僅證明即時推送；除非 Task 15b 測試無法穩定驗證即時交付，否則遺漏事件重播延至第 6 階段以後。
+- CLI JSON 輸出模式：由任務 16 實作審查負責。第 5 階段可針對成功的 API 格式資料回傳 JSON；除非 CLI 命令需要同時支援人類可讀與機器可讀兩種輸出，否則專用 `--json` 合約延至第 6 階段以後。
 - Web host 關閉訊號：由任務 21 Photino 外殼負責。使用者可見的 overlay UX 關閉語意屬於第 6 階段以後。
 - 第 4 階段 `TwitchAdapter` 延遲 `??=` 競態：若第 5 階段涉及實際 OAuth 流程建構，則由任務 14a-0/15a 整合審查負責。
 - 非 loopback 繫結的管理/overlay hub 驗證：未來 LAN/遠端 OBS 任務。若未來階段允許 LAN 繫結或連接埠轉寄，則在發布該變更前必須強制執行 hub 驗證。
@@ -125,7 +125,7 @@
 - [ ] 在此切片中，沒有生產端點繫結到非 loopback 地址。
 
 **驗證：**
-- [ ] Web 整合煙霧測試可以透過實際 host 管線呼叫健康/smoke test 端點或測試專用路徑。
+- [ ] Web 整合煙霧測試可以透過實際 host 管線呼叫健康端點或 smoke test 端點。
 - [ ] 架構檢查確認 Web 引用 Application/Infrastructure，但 Domain/Application 不引用 Web。
 - [ ] 架構測試證明直接讀取 `Configuration["Database:Path"]` 僅允許在 `IDatabasePathResolver` 或其實作中；端點與其他啟動服務必須使用解析器而非讀取原始金鑰。
 
@@ -247,6 +247,7 @@
 **驗收標準：**
 - [ ] 僅接受 `chat`, `follow`, 與 `sub` 別名。
 - [ ] 原始規範金鑰（如 `user.message`）在此端點會被拒絕。
+- [ ] Request body schema 固定為：`chat` 接受 `{ platformUserId?, displayName?, roles?, message? }`；`follow` 接受 `{ platformUserId?, displayName?, roles? }`；`sub` 接受 `{ platformUserId?, displayName?, roles?, tier? }`。
 - [ ] 未知別名返回 `UNKNOWN_SIMULATE_EVENT_TYPE`。
 - [ ] 別名驗證使用共享的 `SimulationAliasRegistry`。
 - [ ] 端點調用 `ISimulationAdapter` 並透過正常匯流排路徑發布。
@@ -292,7 +293,7 @@
 **驗收標準：**
 - [ ] `GET /api/members` 支持 `limit`（預設 50，最大 200）與 `offset`。
 - [ ] 成員列表回應包含用於分頁 UI 的 `total`。
-- [ ] 成員列表排序穩定，當查詢服務提供這些欄位時，預設為 `LastSeen DESC, MemberId ASC`。
+- [ ] 成員列表排序穩定。Phase 5 若尚未提供 `LastSeen` 欄位，預設為 `MemberId ASC`；未來加入 `LastSeen` 時改為 `LastSeen DESC, MemberId ASC`。
 - [ ] 無效的查詢參數返回 `INVALID_QUERY_PARAM`。
 - [ ] `GET /api/members/{id}` 返回單一成員或 `MEMBER_NOT_FOUND`。
 - [ ] 端點不調用成員寫入儲存庫。
@@ -319,7 +320,8 @@
 - [ ] 規範的 overlay hub 路徑為 `/hubs/overlay/chat`, `/hubs/overlay/alerts`, 與 `/hubs/overlay/member`，以符合 SPEC overlay URL 命名。
 - [ ] 管理 hub 可以接收所有 `IStreamEvent` 類別，包含 `PlatformConnectionChangedEvent`。
 - [ ] Overlay hub DTO 保持為第 4 階段公開負載 DTO，而非領域實體。
-- [ ] 第 5 階段假設僅限 loopback/無驗證。若未來階段允許 LAN 繫結或連接埠轉寄，則在啟用前必須設計管理與 overlay hub 驗證。
+- [ ] 第 5 階段假設僅限 loopback/無驗證；非 loopback 情境引用前述 open question，不在本階段開放。
+- [ ] 管理 hub 不暴露 client-to-server invokable method；第 5 階段只允許 server push 至 client。
 
 **驗證：**
 - [ ] Hub 連線測試證明每個路徑皆接受 SignalR 連線。
@@ -344,13 +346,13 @@
 **驗收標準：**
 - [ ] 聊天事件在 5 秒內到達 `/hubs/overlay/chat` 以符合 SC-5。
 - [ ] 效能預算與 SC 通過/失敗逾時分開追蹤：發布至 hub 傳送目標 < 500ms，hub 至用戶端目標 < 500ms，完整本地路徑 P95 目標 < 1s。SC-5 仍使用 5s 作為 CI 安全上限。
-- [ ] 值得提醒的事件（Alert-worthy events）到達 `/hubs/overlay/alerts`。
+- [ ] Alert event 集合明確限定為 `user.followed`, `user.subscribed`, `user.donated`, `user.gifted_subscription`, `channel.raided`；第 5 階段至少實作 follow/sub 的 overlay alert 轉寄，其他事件可保留為後續 adapter 覆蓋。
 - [ ] 成員 hub 作為 MVP 骨架連線，但不發明不受支援的事件。
 - [ ] SignalR JSON 金鑰集測試精確匹配 overlay DTO 公開合約。
 - [ ] 合成 `eventId` 語意記錄於 `docs/phases/phase-5-web-signalr-cli/event-id-decision.md`：平台提供的 ID 跨用戶端識別相同事件；後備 ULID 僅保證本地單一實例交付 ID。
 
 **驗證：**
-- [ ] SC-5 整合測試發布一個 mock/模擬聊天事件，並在 5 秒內觀察到 overlay hub 負載。
+- [ ] SC-5 整合測試透過 `SimulationAdapter` 發布聊天事件，走真實 event bus path，並在 5 秒內觀察到 overlay hub 負載。
 - [ ] 測試輸出記錄從發布到 hub 傳送、以及 hub 到用戶端的耗時，即使 5s SC 逾時仍通過，超過 1s 本地目標的效能退化仍可見。
 - [ ] 精確的 JSON 金鑰集測試透過反序列化 SignalR 線路負載（而非透過反射）涵蓋聊天、提醒與成員負載。這是對第 4 階段 DTO `System.Text.Json` 金鑰集測試的深度防禦。
 - [ ] 在實作 overlay 轉寄前審查事件 ID 決定文件。
@@ -395,7 +397,7 @@
 **說明：** 圍繞對 loopback API 的 HTTP 呼叫建構 CLI 命令基礎。CLI 不得直接存取 SQLite 或應用程式儲存庫。
 
 **驗收標準：**
-- [ ] CLI 從配置/預設 loopback 設置中解析 API 基本 URL。
+- [ ] CLI API 基本 URL 解析優先序為 `VULPERONEX_API_URL` 環境變數，否則使用預設 loopback URL `http://localhost:5000`。
 - [ ] 2xx 回應僅將成功輸出寫入 stdout。
 - [ ] 4xx/5xx 回應將回應的 `error` 代碼寫入 stderr 且退出碼為 `1`；網路/連接失敗在 MVP 中退出碼也為 `1`。
 - [ ] CLI 保留後端代碼，例如 `WORKFLOW_RULE_NOT_FOUND`, `MEMBER_NOT_FOUND` 以及受保護命名空間錯誤。
@@ -489,6 +491,7 @@
 **說明：** 執行完整的第 5 階段驗證閘口並在進入第 6 階段前處理審查後續。
 
 **驗收標準：**
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 以 0 warning 通過。
 - [ ] `dotnet test` 通過 SC-2、SC-5、SC-8、SC-9。
 - [ ] WorkflowRule CRUD 與循環引用偵測端到端通過。
 - [ ] 配置受保護命名空間測試通過 `security.*` 與 `oauth.*`。
