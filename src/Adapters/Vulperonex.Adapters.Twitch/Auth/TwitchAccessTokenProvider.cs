@@ -6,14 +6,14 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
 {
     private string? _accessToken;
 
-    public string? AccessToken => _accessToken;
+    public string? AccessToken => Volatile.Read(ref _accessToken);
 
     public bool AuthorizationRequired { get; private set; }
 
     public async Task ExchangeCodeAsync(string code, string codeVerifier, CancellationToken cancellationToken = default)
     {
         var response = await tokenEndpoint.ExchangeCodeAsync(code, codeVerifier, cancellationToken);
-        _accessToken = response.AccessToken;
+        Interlocked.Exchange(ref _accessToken, response.AccessToken);
         await tokenStore.StoreRefreshTokenAsync("twitch", response.RefreshToken, cancellationToken);
     }
 
@@ -36,7 +36,7 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
         }
 
         var response = await tokenEndpoint.RefreshAsync(refreshToken, cancellationToken);
-        _accessToken = response.AccessToken;
+        Interlocked.Exchange(ref _accessToken, response.AccessToken);
         await tokenStore.StoreRefreshTokenAsync("twitch", response.RefreshToken, cancellationToken);
     }
 }

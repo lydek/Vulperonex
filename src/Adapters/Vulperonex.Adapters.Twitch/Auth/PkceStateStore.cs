@@ -4,24 +4,45 @@ namespace Vulperonex.Adapters.Twitch.Auth;
 
 public sealed class PkceStateStore(TimeProvider timeProvider)
 {
+    private readonly object _gate = new();
     private readonly Dictionary<string, DateTimeOffset> _states = [];
 
     public string Create()
     {
         var bytes = RandomNumberGenerator.GetBytes(32);
         var state = Base64UrlEncode(bytes);
-        _states[state] = timeProvider.GetUtcNow();
+        lock (_gate)
+        {
+            var now = timeProvider.GetUtcNow();
+            RemoveExpired(now);
+            _states[state] = now;
+        }
+
         return state;
     }
 
     public bool Consume(string state)
     {
-        if (!_states.Remove(state, out var createdAt))
+        lock (_gate)
         {
-            return false;
-        }
+            var now = timeProvider.GetUtcNow();
+            RemoveExpired(now);
 
-        return timeProvider.GetUtcNow() - createdAt <= TimeSpan.FromMinutes(10);
+            if (!_states.Remove(state, out var createdAt))
+            {
+                return false;
+            }
+
+            return now - createdAt <= TimeSpan.FromMinutes(10);
+        }
+    }
+
+    private void RemoveExpired(DateTimeOffset now)
+    {
+        foreach (var key in _states.Where(pair => now - pair.Value > TimeSpan.FromMinutes(10)).Select(pair => pair.Key).ToArray())
+        {
+            _states.Remove(key);
+        }
     }
 
     private static string Base64UrlEncode(byte[] bytes)

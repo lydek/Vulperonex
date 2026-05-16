@@ -58,4 +58,19 @@ public sealed class TwitchIrcMessageParserTests
         result.DisplayHints.TotalBitsGiven.Should().Be(0);
         TwitchIrcMessageParser.IsAllowedSegmentType("html").Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("#fff")]
+    [InlineData("#ffffff80")]
+    [InlineData("red")]
+    public void Given_UnsupportedColorFormat_When_Parsed_Then_ColorIsDropped(string color)
+    {
+        var message = new TwitchIrcMessage(
+            new Dictionary<string, string> { ["color"] = color },
+            "alice",
+            "channel",
+            "hello");
+
+        TwitchIrcMessageParser.Parse(message).DisplayHints.ColorHex.Should().BeNull();
+    }
 }

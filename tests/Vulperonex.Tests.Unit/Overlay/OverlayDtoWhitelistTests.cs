@@ -31,6 +31,14 @@ public sealed class OverlayDtoWhitelistTests
         SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "displayName", "avatarUrl", "checkInCount");
     }
 
+    [Fact]
+    public void Given_OverlayTextSegmentTypeIsNotAllowed_When_Created_Then_ItIsRejected()
+    {
+        var create = () => new OverlayTextSegment("script", "alert(1)");
+
+        create.Should().Throw<ArgumentException>();
+    }
+
     private static string[] SerializeKeys<T>(T payload)
     {
         using var document = JsonDocument.Parse(JsonSerializer.Serialize(payload, JsonOptions));

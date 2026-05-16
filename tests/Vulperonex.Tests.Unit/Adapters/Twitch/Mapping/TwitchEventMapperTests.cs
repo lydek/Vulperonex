@@ -31,6 +31,22 @@ public sealed class TwitchEventMapperTests
     }
 
     [Fact]
+    public void Given_PayloadWithoutSourceEventId_When_MappedRepeatedly_Then_SyntheticUlidIsStable()
+    {
+        var payload = new TwitchMockPayload(
+            TwitchMockPayloadKind.Message,
+            new StreamUser("twitch", "alice", "Alice"),
+            MessageText: "hello");
+
+        var first = TwitchEventMapper.Map(payload);
+        var second = TwitchEventMapper.Map(payload);
+
+        payload.UsesSyntheticEventId.Should().BeTrue();
+        first.EventId.Should().Be(second.EventId);
+        first.EventId.Should().MatchRegex("^[0-9A-HJKMNP-TV-Z]{26}$");
+    }
+
+    [Fact]
     public async Task Given_MockPayload_When_PublishedThroughAdapter_Then_BusSubscriberReceivesMappedEvent()
     {
         await using var bus = new InMemoryStreamEventBus();
@@ -42,12 +58,26 @@ public sealed class TwitchEventMapperTests
             return Task.CompletedTask;
         });
 
+        await adapter.StartAsync(TestContext.Current.CancellationToken);
         await adapter.PublishMockPayloadAsync(
             new TwitchMockPayload(TwitchMockPayloadKind.Message, new StreamUser("twitch", "alice", "Alice"), MessageText: "hello"),
             TestContext.Current.CancellationToken);
         await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         received.Should().ContainSingle().Subject.MessageText.Should().Be("hello");
+    }
+
+    [Fact]
+    public async Task Given_AdapterIsNotStarted_When_MockPayloadIsPublished_Then_ItIsRejected()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
+
+        var publish = () => adapter.PublishMockPayloadAsync(
+            new TwitchMockPayload(TwitchMockPayloadKind.Message, new StreamUser("twitch", "alice", "Alice")),
+            TestContext.Current.CancellationToken);
+
+        await publish.Should().ThrowAsync<InvalidOperationException>();
     }
 
     private static IEnumerable<TwitchMockPayload> CreateAllPayloads(StreamUser user)

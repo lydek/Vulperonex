@@ -65,4 +65,19 @@ public sealed class MemberModuleIntegrationTests
         identity.IsFollower.Should().BeTrue();
         (await context.Members.CountAsync(TestContext.Current.CancellationToken)).Should().Be(1);
     }
+
+    [Fact]
+    public async Task Given_StreamStateUpdatedBeforeIdentityIsResolved_When_Updated_Then_ItFailsLoudly()
+    {
+        await using var fixture = new Infrastructure.SqliteFixture();
+        await using var context = await fixture.CreateContextAsync();
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        var repository = new MemberStreamStateRepository(context);
+
+        var update = () => repository.MarkFollowerAsync(
+            Domain.Members.PlatformIdentity.Create("twitch", "missing"),
+            TestContext.Current.CancellationToken);
+
+        await update.Should().ThrowAsync<InvalidOperationException>();
+    }
 }

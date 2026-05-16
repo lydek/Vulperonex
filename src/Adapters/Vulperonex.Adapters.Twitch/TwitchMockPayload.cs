@@ -12,7 +12,12 @@ public sealed record TwitchMockPayload(
     int ViewerCount = 0,
     string? RewardId = null,
     string? RewardTitle = null,
-    string? SourceEventId = null);
+    string? SourceEventId = null)
+{
+    public string SyntheticEventId { get; init; } = TwitchSyntheticEventId.New();
+
+    public bool UsesSyntheticEventId => string.IsNullOrWhiteSpace(SourceEventId);
+}
 
 public enum TwitchMockPayloadKind
 {

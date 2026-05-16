@@ -1,9 +1,9 @@
-namespace Vulperonex.Adapters.Twitch.EventSub;
+namespace Vulperonex.Application.Members;
 
-public sealed class EventSubDedupCache(TimeProvider timeProvider, int capacity = 1000, TimeSpan? ttl = null)
+internal sealed class MemberEventDedupCache(TimeProvider timeProvider, int capacity = 1000, TimeSpan? ttl = null)
 {
     private readonly object _gate = new();
-    private readonly Dictionary<(string Platform, string SourceEventId), DateTimeOffset> _seen = [];
+    private readonly Dictionary<(string Platform, string SourceEventId), DateTimeOffset> _seenAtByKey = [];
     private readonly Queue<(string Platform, string SourceEventId)> _insertionOrder = [];
     private readonly TimeSpan _ttl = ttl ?? TimeSpan.FromMinutes(10);
 
@@ -18,17 +18,17 @@ public sealed class EventSubDedupCache(TimeProvider timeProvider, int capacity =
             RemoveExpired(now);
 
             var key = (platform, sourceEventId);
-            if (_seen.ContainsKey(key))
+            if (_seenAtByKey.ContainsKey(key))
             {
                 return false;
             }
 
-            while (_seen.Count >= capacity && _insertionOrder.TryDequeue(out var oldest))
+            while (_seenAtByKey.Count >= capacity && _insertionOrder.TryDequeue(out var oldest))
             {
-                _seen.Remove(oldest);
+                _seenAtByKey.Remove(oldest);
             }
 
-            _seen[key] = now;
+            _seenAtByKey[key] = now;
             _insertionOrder.Enqueue(key);
             return true;
         }
@@ -37,11 +37,11 @@ public sealed class EventSubDedupCache(TimeProvider timeProvider, int capacity =
     private void RemoveExpired(DateTimeOffset now)
     {
         while (_insertionOrder.TryPeek(out var oldest)
-            && _seen.TryGetValue(oldest, out var seenAt)
+            && _seenAtByKey.TryGetValue(oldest, out var seenAt)
             && now - seenAt >= _ttl)
         {
             _insertionOrder.Dequeue();
-            _seen.Remove(oldest);
+            _seenAtByKey.Remove(oldest);
         }
     }
 }

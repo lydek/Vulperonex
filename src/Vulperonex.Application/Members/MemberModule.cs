@@ -7,9 +7,10 @@ namespace Vulperonex.Application.Members;
 public sealed class MemberModule(
     IStreamEventBus eventBus,
     IMemberResolver memberResolver,
-    IMemberStreamStateRepository? streamStateRepository = null) : IDisposable
+    IMemberStreamStateRepository streamStateRepository,
+    TimeProvider? timeProvider = null) : IDisposable
 {
-    private readonly HashSet<(string Platform, string SourceEventId)> _seenEvents = [];
+    private readonly MemberEventDedupCache _seenEvents = new(timeProvider ?? TimeProvider.System);
     private readonly List<IDisposable> _subscriptions = [];
 
     public void Start()
@@ -37,7 +38,7 @@ public sealed class MemberModule(
     private async Task HandleFollowedAsync(UserFollowedEvent streamEvent, CancellationToken cancellationToken)
     {
         var identity = await ResolveIdentityAsync(streamEvent, cancellationToken);
-        if (identity is not null && streamStateRepository is not null)
+        if (identity is not null)
         {
             await streamStateRepository.MarkFollowerAsync(identity, cancellationToken);
         }
@@ -46,7 +47,7 @@ public sealed class MemberModule(
     private async Task HandleSubscribedAsync(UserSubscribedEvent streamEvent, CancellationToken cancellationToken)
     {
         var identity = await ResolveIdentityAsync(streamEvent, cancellationToken);
-        if (identity is not null && streamStateRepository is not null)
+        if (identity is not null)
         {
             await streamStateRepository.MarkSubscriberAsync(identity, streamEvent.Tier, cancellationToken);
         }
@@ -59,8 +60,7 @@ public sealed class MemberModule(
             return null;
         }
 
-        var dedupKey = (streamEvent.Platform, streamEvent.EventId);
-        if (!_seenEvents.Add(dedupKey))
+        if (!_seenEvents.TryMarkNew(streamEvent.Platform, streamEvent.EventId))
         {
             return null;
         }

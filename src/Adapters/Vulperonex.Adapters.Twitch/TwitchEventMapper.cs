@@ -9,7 +9,7 @@ public static class TwitchEventMapper
         ArgumentNullException.ThrowIfNull(payload);
 
         var eventId = string.IsNullOrWhiteSpace(payload.SourceEventId)
-            ? $"twitch-{Guid.NewGuid():N}"
+            ? payload.SyntheticEventId
             : payload.SourceEventId;
 
         return payload.Kind switch

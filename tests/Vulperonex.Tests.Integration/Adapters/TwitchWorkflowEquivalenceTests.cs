@@ -49,6 +49,7 @@ public sealed class TwitchWorkflowEquivalenceTests
         await using var engine = NewEngine(bus, sender);
         await engine.StartAsync();
         var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
+        await adapter.StartAsync(TestContext.Current.CancellationToken);
 
         await adapter.PublishMockPayloadAsync(
             new TwitchMockPayload(TwitchMockPayloadKind.Message, new StreamUser("twitch", "alice", "Alice"), MessageText: "!hello"),

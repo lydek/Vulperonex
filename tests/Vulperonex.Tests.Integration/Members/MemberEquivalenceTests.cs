@@ -49,6 +49,7 @@ public sealed class MemberEquivalenceTests
         using var module = new MemberModule(bus, new MemberResolver(context), new MemberStreamStateRepository(context));
         module.Start();
         var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
+        await adapter.StartAsync(TestContext.Current.CancellationToken);
 
         await adapter.PublishMockPayloadAsync(
             new TwitchMockPayload(TwitchMockPayloadKind.Message, new StreamUser("twitch", "alice", "Alice"), MessageText: "!hello"),

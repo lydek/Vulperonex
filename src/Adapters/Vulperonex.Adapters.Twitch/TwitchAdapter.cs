@@ -1,4 +1,9 @@
 using Vulperonex.Adapters.Abstractions;
+using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Adapters.Twitch.Display;
+using Vulperonex.Adapters.Twitch.EventSub;
+using Vulperonex.Adapters.Twitch.Irc;
+using Vulperonex.Adapters.Twitch.Reconnect;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.EventTypes;
 using Vulperonex.Domain.Events;
@@ -7,7 +12,11 @@ namespace Vulperonex.Adapters.Twitch;
 
 public sealed class TwitchAdapter(
     IStreamEventBus eventBus,
-    IStreamEventTypeRegistry eventTypeRegistry) : IStreamEventSource
+    IStreamEventTypeRegistry eventTypeRegistry,
+    TwitchDisplayCacheUpdater? displayCacheUpdater = null,
+    EventSubDedupCache? eventSubDedupCache = null,
+    ReconnectBackoffPolicy? reconnectBackoffPolicy = null,
+    PkceStateStore? pkceStateStore = null) : IStreamEventSource
 {
     private static readonly StreamEventTypeMetadata[] SupportedEventTypes =
     [
@@ -22,6 +31,24 @@ public sealed class TwitchAdapter(
     ];
 
     private int _started;
+
+    public TimeSpan NextReconnectDelay(int attempt)
+    {
+        return (reconnectBackoffPolicy ?? new ReconnectBackoffPolicy()).GetDelay(attempt);
+    }
+
+    internal string CreateOAuthState()
+    {
+        return (pkceStateStore ??= new PkceStateStore(TimeProvider.System)).Create();
+    }
+
+    internal bool ValidateOAuthCallback(OAuthCallbackRequest request, int callbackPort)
+    {
+        return new OAuthCallbackValidator(
+                callbackPort,
+                pkceStateStore ??= new PkceStateStore(TimeProvider.System))
+            .IsValid(request);
+    }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -47,9 +74,57 @@ public sealed class TwitchAdapter(
         return Task.CompletedTask;
     }
 
-    public Task PublishMockPayloadAsync(TwitchMockPayload payload, CancellationToken cancellationToken = default)
+    internal Task PublishMockPayloadAsync(TwitchMockPayload payload, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(payload);
-        return eventBus.PublishAsync(TwitchEventMapper.Map(payload), cancellationToken);
+        EnsureStarted();
+        return PublishMappedEventAsync(TwitchEventMapper.Map(payload), cancellationToken);
+    }
+
+    internal async Task PublishIrcMessageAsync(TwitchIrcMessage message, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(message);
+        EnsureStarted();
+
+        var parsed = TwitchIrcMessageParser.Parse(message);
+        if (!TryMarkNew(parsed.Event.Platform, parsed.Event.EventId))
+        {
+            return;
+        }
+
+        if (displayCacheUpdater is not null)
+        {
+            await displayCacheUpdater.ApplyChatAsync(parsed.Event, parsed.DisplayHints, cancellationToken);
+        }
+
+        await eventBus.PublishAsync(parsed.Event, cancellationToken);
+    }
+
+    private async Task PublishMappedEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
+    {
+        if (!TryMarkNew(streamEvent.Platform, streamEvent.EventId))
+        {
+            return;
+        }
+
+        if (displayCacheUpdater is not null)
+        {
+            await displayCacheUpdater.ApplyAsync(streamEvent, cancellationToken);
+        }
+
+        await eventBus.PublishAsync(streamEvent, cancellationToken);
+    }
+
+    private bool TryMarkNew(string platform, string sourceEventId)
+    {
+        return (eventSubDedupCache ??= new EventSubDedupCache(TimeProvider.System)).TryMarkNew(platform, sourceEventId);
+    }
+
+    private void EnsureStarted()
+    {
+        if (Volatile.Read(ref _started) is 0)
+        {
+            throw new InvalidOperationException("TwitchAdapter must be started before publishing events.");
+        }
     }
 }

@@ -1,12 +1,7 @@
 namespace Vulperonex.Adapters.Twitch.Reconnect;
 
-public sealed class ReconnectBackoffPolicy(double jitterFactor)
+public sealed class ReconnectBackoffPolicy(Func<double>? jitterProvider = null)
 {
-    public ReconnectBackoffPolicy()
-        : this(jitterFactor: 0)
-    {
-    }
-
     public TimeSpan GetDelay(int attempt)
     {
         if (attempt < 1)
@@ -15,7 +10,12 @@ public sealed class ReconnectBackoffPolicy(double jitterFactor)
         }
 
         var baseSeconds = Math.Min(Math.Pow(2, attempt - 1), 60);
-        var jitter = Math.Clamp(jitterFactor, -0.2, 0.2);
+        var jitter = Math.Clamp((jitterProvider ?? NextRandomJitter)(), -0.2, 0.2);
         return TimeSpan.FromSeconds(Math.Min(baseSeconds * (1 + jitter), 60));
+    }
+
+    private static double NextRandomJitter()
+    {
+        return Random.Shared.NextDouble() * 0.4 - 0.2;
     }
 }

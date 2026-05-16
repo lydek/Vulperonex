@@ -15,7 +15,7 @@ public sealed class MemberModuleTests
     {
         await using var bus = new InMemoryStreamEventBus();
         var resolver = new RecordingMemberResolver();
-        using var module = new MemberModule(bus, resolver);
+        using var module = new MemberModule(bus, resolver, new RecordingMemberStreamStateRepository());
         module.Start();
 
         await bus.PublishAsync(new UserSentMessageEvent

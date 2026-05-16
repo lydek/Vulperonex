@@ -5,6 +5,29 @@ namespace Vulperonex.Adapters.Twitch.Display;
 
 public sealed class TwitchDisplayCacheUpdater(IPlatformUserInfoCache cache)
 {
+    public Task ApplyChatAsync(
+        UserSentMessageEvent streamEvent,
+        TwitchDisplayHints displayHints,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(streamEvent);
+        ArgumentNullException.ThrowIfNull(displayHints);
+
+        return cache.UpdateAsync(
+            streamEvent.Platform,
+            streamEvent.User.UserId,
+            current => current with
+            {
+                DisplayName = streamEvent.User.DisplayName,
+                AvatarUrl = displayHints.AvatarUrl ?? current.AvatarUrl,
+                ColorHex = displayHints.ColorHex ?? current.ColorHex,
+                Badges = displayHints.Badges,
+                IsSubscriber = displayHints.IsSubscriber || current.IsSubscriber,
+                TotalBitsGiven = Math.Max(current.TotalBitsGiven, displayHints.TotalBitsGiven),
+            },
+            cancellationToken);
+    }
+
     public Task ApplyAsync(IStreamEvent streamEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamEvent);

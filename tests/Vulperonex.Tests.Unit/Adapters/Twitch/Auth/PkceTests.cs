@@ -1,6 +1,9 @@
 using System.Net;
 using FluentAssertions;
+using Vulperonex.Adapters.Twitch;
 using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Infrastructure.EventBus;
+using Vulperonex.Infrastructure.EventTypes;
 using Xunit;
 
 namespace Vulperonex.Tests.Unit.Adapters.Twitch.Auth;
@@ -22,9 +25,17 @@ public sealed class PkceTests
     [Fact]
     public void Given_CodeVerifier_When_ChallengeCreated_Then_ItUsesSha256Base64Url()
     {
-        PkceCodeChallenge.FromVerifier("verifier")
+        PkceCodeChallenge.FromVerifier("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
             .Should()
-            .Be("iMnq5o6zALKXGivsnlom_0F5_WYda32GHkxlV7mq7hQ");
+            .Be("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM");
+    }
+
+    [Fact]
+    public void Given_CodeVerifierContainsInvalidCharacters_When_ChallengeCreated_Then_ItIsRejected()
+    {
+        var create = () => PkceCodeChallenge.FromVerifier("non-ascii-\u00e9-verifier-that-is-long-enough-for-rfc7636");
+
+        create.Should().Throw<ArgumentException>();
     }
 
     [Fact]
@@ -38,6 +49,21 @@ public sealed class PkceTests
             .Should()
             .BeTrue();
         validator.IsValid(new OAuthCallbackRequest(IPAddress.Parse("192.168.1.10"), "localhost:7979", "/auth/callback", store.Create(), "code"))
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task Given_AdapterOAuthState_When_CallbackValidated_Then_StateStoreAndValidatorAreUsed()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
+        var state = adapter.CreateOAuthState();
+
+        adapter.ValidateOAuthCallback(new OAuthCallbackRequest(IPAddress.Loopback, "localhost:7979", "/auth/callback", state, "code"), 7979)
+            .Should()
+            .BeTrue();
+        adapter.ValidateOAuthCallback(new OAuthCallbackRequest(IPAddress.Loopback, "localhost:7979", "/auth/callback", state, "code"), 7979)
             .Should()
             .BeFalse();
     }
@@ -59,5 +85,33 @@ public sealed class PkceTests
 
         select.Should().Throw<InvalidOperationException>()
             .WithMessage("*7979*7980*7981*");
+    }
+
+    [Fact]
+    public void Given_StateIsOlderThanTenMinutes_When_Consumed_Then_ItIsRejectedAndRemoved()
+    {
+        var timeProvider = new ManualTimeProvider(new DateTimeOffset(2026, 5, 16, 0, 0, 0, TimeSpan.Zero));
+        var store = new PkceStateStore(timeProvider);
+        var state = store.Create();
+
+        timeProvider.Advance(TimeSpan.FromMinutes(11));
+
+        store.Consume(state).Should().BeFalse();
+        store.Consume(state).Should().BeFalse();
+    }
+
+    private sealed class ManualTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _utcNow;
+        }
+
+        public void Advance(TimeSpan delta)
+        {
+            _utcNow += delta;
+        }
     }
 }

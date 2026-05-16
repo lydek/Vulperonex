@@ -35,7 +35,8 @@ public sealed class MemberStreamStateRepository(VulperonexDbContext context) : I
 
         if (entity is null)
         {
-            return;
+            throw new InvalidOperationException(
+                $"Platform identity '{identity.Platform}:{identity.PlatformUserId}' must be resolved before stream state is updated.");
         }
 
         update(entity);
