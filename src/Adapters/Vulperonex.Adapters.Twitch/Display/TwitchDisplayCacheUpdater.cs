@@ -40,6 +40,7 @@ public sealed class TwitchDisplayCacheUpdater(IPlatformUserInfoCache cache)
                 current => current with
                 {
                     DisplayName = subscribed.User.DisplayName,
+                    Badges = AddBadge(current.Badges, $"subscriber/{subscribed.Tier}"),
                     IsSubscriber = true,
                     SubscriptionTier = subscribed.Tier,
                 },
@@ -59,12 +60,17 @@ public sealed class TwitchDisplayCacheUpdater(IPlatformUserInfoCache cache)
                 current => current with
                 {
                     DisplayName = followed.User.DisplayName,
-                    Badges = current.Badges.Contains("follower", StringComparer.Ordinal)
-                        ? current.Badges
-                        : current.Badges.Concat(["follower"]).ToArray(),
+                    Badges = AddBadge(current.Badges, "follower"),
                 },
                 cancellationToken),
             _ => Task.CompletedTask,
         };
+    }
+
+    private static IReadOnlyCollection<string> AddBadge(IReadOnlyCollection<string> badges, string badge)
+    {
+        return badges.Contains(badge, StringComparer.Ordinal)
+            ? badges
+            : badges.Concat([badge]).ToArray();
     }
 }

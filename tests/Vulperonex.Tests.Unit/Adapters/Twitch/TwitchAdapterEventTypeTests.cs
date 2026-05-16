@@ -88,6 +88,30 @@ public sealed class TwitchAdapterEventTypeTests
         cache.Current.TotalBitsGiven.Should().Be(50);
     }
 
+    [Fact]
+    public async Task Given_SubscriptionPayload_When_PublishedThroughAdapter_Then_DisplayCacheContainsSubscriberBadge()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var cache = new RecordingPlatformUserInfoCache();
+        var adapter = new TwitchAdapter(
+            bus,
+            new InMemoryStreamEventTypeRegistry(),
+            new TwitchDisplayCacheUpdater(cache));
+
+        await adapter.StartAsync(TestContext.Current.CancellationToken);
+        await adapter.PublishMockPayloadAsync(
+            new TwitchMockPayload(
+                TwitchMockPayloadKind.Subscribed,
+                new("twitch", "42", "Alice"),
+                Tier: "1000",
+                SourceEventId: "sub-1"),
+            TestContext.Current.CancellationToken);
+
+        cache.Current.IsSubscriber.Should().BeTrue();
+        cache.Current.SubscriptionTier.Should().Be("1000");
+        cache.Current.Badges.Should().Contain("subscriber/1000");
+    }
+
     private sealed class RecordingPlatformUserInfoCache : IPlatformUserInfoCache
     {
         public PlatformUserDisplayInfo Current { get; private set; } = new(

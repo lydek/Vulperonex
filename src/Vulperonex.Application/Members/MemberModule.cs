@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Hosting;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -8,19 +9,40 @@ public sealed class MemberModule(
     IStreamEventBus eventBus,
     IMemberResolver memberResolver,
     IMemberStreamStateRepository streamStateRepository,
-    TimeProvider? timeProvider = null) : IDisposable
+    TimeProvider? timeProvider = null) : IHostedService, IDisposable
 {
     private readonly MemberEventDedupCache _seenEvents = new(timeProvider ?? TimeProvider.System);
     private readonly List<IDisposable> _subscriptions = [];
 
     public void Start()
     {
-        _subscriptions.Add(eventBus.Subscribe<UserSentMessageEvent>(ResolveAsync));
-        _subscriptions.Add(eventBus.Subscribe<UserFollowedEvent>(HandleFollowedAsync));
-        _subscriptions.Add(eventBus.Subscribe<UserSubscribedEvent>(HandleSubscribedAsync));
+        StartAsync().GetAwaiter().GetResult();
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_subscriptions.Count is 0)
+        {
+            _subscriptions.Add(eventBus.Subscribe<IStreamEvent>(HandleAsync));
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        DisposeSubscriptions();
+        return Task.CompletedTask;
     }
 
     public void Dispose()
+    {
+        DisposeSubscriptions();
+    }
+
+    private void DisposeSubscriptions()
     {
         foreach (var subscription in _subscriptions)
         {
@@ -30,26 +52,29 @@ public sealed class MemberModule(
         _subscriptions.Clear();
     }
 
-    private Task ResolveAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
+    private async Task HandleAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
     {
-        return ResolveIdentityAsync(streamEvent, cancellationToken);
-    }
-
-    private async Task HandleFollowedAsync(UserFollowedEvent streamEvent, CancellationToken cancellationToken)
-    {
-        var identity = await ResolveIdentityAsync(streamEvent, cancellationToken);
-        if (identity is not null)
+        switch (streamEvent)
         {
-            await streamStateRepository.MarkFollowerAsync(identity, cancellationToken);
-        }
-    }
+            case UserFollowedEvent followed:
+                var followedIdentity = await ResolveIdentityAsync(followed, cancellationToken);
+                if (followedIdentity is not null)
+                {
+                    await streamStateRepository.MarkFollowerAsync(followedIdentity, cancellationToken);
+                }
 
-    private async Task HandleSubscribedAsync(UserSubscribedEvent streamEvent, CancellationToken cancellationToken)
-    {
-        var identity = await ResolveIdentityAsync(streamEvent, cancellationToken);
-        if (identity is not null)
-        {
-            await streamStateRepository.MarkSubscriberAsync(identity, streamEvent.Tier, cancellationToken);
+                break;
+            case UserSubscribedEvent subscribed:
+                var subscribedIdentity = await ResolveIdentityAsync(subscribed, cancellationToken);
+                if (subscribedIdentity is not null)
+                {
+                    await streamStateRepository.MarkSubscriberAsync(subscribedIdentity, subscribed.Tier, cancellationToken);
+                }
+
+                break;
+            case { User: not null }:
+                await ResolveIdentityAsync(streamEvent, cancellationToken);
+                break;
         }
     }
 

@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Hosting;
 using Vulperonex.Application.Members;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
@@ -16,7 +17,7 @@ public sealed class MemberModuleTests
         await using var bus = new InMemoryStreamEventBus();
         var resolver = new RecordingMemberResolver();
         using var module = new MemberModule(bus, resolver, new RecordingMemberStreamStateRepository());
-        module.Start();
+        await module.StartAsync(TestContext.Current.CancellationToken);
 
         await bus.PublishAsync(new UserSentMessageEvent
         {
@@ -30,13 +31,34 @@ public sealed class MemberModuleTests
     }
 
     [Fact]
+    public void Given_MemberModule_When_Inspected_Then_ItIsHostedService()
+    {
+        typeof(MemberModule).Should().BeAssignableTo<IHostedService>();
+    }
+
+    [Theory]
+    [MemberData(nameof(UserEventsWithoutStateUpdates))]
+    public async Task Given_MvpUserEvent_When_Published_Then_MemberResolverCreatesPlatformIdentity(IStreamEvent streamEvent)
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var resolver = new RecordingMemberResolver();
+        using var module = new MemberModule(bus, resolver, new RecordingMemberStreamStateRepository());
+        await module.StartAsync(TestContext.Current.CancellationToken);
+
+        await bus.PublishAsync(streamEvent, TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        resolver.Identities.Should().ContainSingle().Subject.Should().Be(PlatformIdentity.Create("twitch", "alice"));
+    }
+
+    [Fact]
     public async Task Given_SubscriptionEvent_When_PublishedTwice_Then_StateUpdateIsAppliedOnceBySourceEventId()
     {
         await using var bus = new InMemoryStreamEventBus();
         var resolver = new RecordingMemberResolver();
         var states = new RecordingMemberStreamStateRepository();
         using var module = new MemberModule(bus, resolver, states);
-        module.Start();
+        await module.StartAsync(TestContext.Current.CancellationToken);
         var streamEvent = new UserSubscribedEvent
         {
             EventId = "event-1",
@@ -80,5 +102,43 @@ public sealed class MemberModuleTests
             Subscriptions.Add((identity, tier));
             return Task.CompletedTask;
         }
+    }
+
+    public static TheoryData<IStreamEvent> UserEventsWithoutStateUpdates()
+    {
+        var user = new StreamUser("twitch", "alice", "Alice");
+        return new TheoryData<IStreamEvent>
+        {
+            new UserDonatedEvent
+            {
+                EventId = "bits-1",
+                Platform = "twitch",
+                User = user,
+                TotalBitsGiven = 100,
+            },
+            new UserGiftedSubscriptionEvent
+            {
+                EventId = "gift-1",
+                Platform = "twitch",
+                User = user,
+                Tier = "1000",
+                GiftCount = 2,
+            },
+            new ChannelRaidedEvent
+            {
+                EventId = "raid-1",
+                Platform = "twitch",
+                User = user,
+                ViewerCount = 25,
+            },
+            new RewardRedeemedEvent
+            {
+                EventId = "reward-1",
+                Platform = "twitch",
+                User = user,
+                RewardId = "highlight",
+                RewardTitle = "Highlight",
+            },
+        };
     }
 }
