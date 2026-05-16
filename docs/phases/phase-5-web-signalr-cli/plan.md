@@ -18,6 +18,60 @@
 
 ---
 
+## Shared Contracts
+
+### JSON And Endpoint Conventions
+
+- All Web API and SignalR JSON serialization uses `System.Text.Json` with `JsonSerializerDefaults.Web` so REST endpoints, SignalR payloads, and Phase 4 Overlay DTO contracts all use the same camelCase naming policy.
+- Minimal API endpoint registration uses `IEndpointRouteBuilder` extension methods, one extension per feature area. Do not invent a custom endpoint discovery framework in Phase 5.
+- Task 14a-0 exposes `AddOpenApi()` and `/openapi/v1.json` loopback-only. CLI does not need generated clients in MVP, but the OpenAPI artifact must exist for Phase 6 frontend/API alignment.
+
+### Phase 5 Error Codes
+
+All Phase 5 API and CLI paths use central constants in `src/Hosts/Vulperonex.Web/Errors/ErrorCodes.cs` or a shared equivalent if implementation proves the constants belong in Application. Error envelopes use `{ "error": "ERROR_CODE", "meta": {...} }`.
+
+| Code | HTTP status | First task | Notes |
+|------|-------------|------------|-------|
+| `WORKFLOW_RULE_NOT_FOUND` | 404 | 14a-3 | Rule show/delete/enable/disable missing id |
+| `UNKNOWN_EVENT_TYPE_KEY` | 400 | 14a-2 | Includes system events rejected as workflow triggers |
+| `CIRCULAR_WORKFLOW_REFERENCE` | 400 | 14a-2 | Static save-time analysis |
+| `UNKNOWN_ACTION_TYPE` | 400 | 14a-2 | Action schema validation |
+| `UNKNOWN_CONDITION_TYPE` | 400 | 14a-2 | Condition schema validation |
+| `ACTION_MISSING_REQUIRED_PARAM` | 400 | 14a-2 | Example: missing `Template` |
+| `INVALID_ACTION_CONFIG` | 400 | 14a-2 | Bounds and enum validation |
+| `INVALID_REGEX_PATTERN` | 400 | 14a-2 | Invalid or overlong regex |
+| `INVALID_RULE_ID_MISMATCH` | 400 | 14a-3 | PUT route/body id mismatch |
+| `UNKNOWN_SIMULATE_EVENT_TYPE` | 400 | 14b-1 | Unknown public simulate alias |
+| `CONFIG_KEY_SECURITY_NAMESPACE` | 403 | 14b-2 | `security.*` GET/PUT |
+| `OAUTH_CREDENTIAL_NAMESPACE` | 403 | 14b-2 | `oauth.*` GET/PUT |
+| `UNKNOWN_CONFIG_KEY` | 400 | 14b-2 | Unknown non-protected config key |
+| `INVALID_QUERY_PARAM` | 400 | 14b-3 | Member list paging/filter validation |
+| `MEMBER_NOT_FOUND` | 404 | 14b-3 | Member show missing id |
+
+### Simulate Alias Source Of Truth
+
+- Public simulate aliases live in one injectable `SimulationAliasRegistry` or equivalent singleton: `chat -> user.message`, `follow -> user.followed`, `sub -> user.subscribed`.
+- `GET /api/event-types`, `POST /api/simulate/{alias}`, and CLI simulate commands all consume this shared registry. Do not hard-code the alias map separately in endpoint handlers.
+
+### Manual Verification Records
+
+- Manual Phase 5 checks are recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
+- Each entry includes date, verifier, command/browser/OBS setup, expected behavior, observed behavior, and pass/fail result.
+
+### Phase 5 Open Questions
+
+- SignalR overlay reconnect/replay behavior: Phase 5 only proves live push; missed-event replay is a Phase 6+ decision.
+- CLI JSON output mode: Phase 5 can return JSON for successful API-shaped data, but a dedicated `--json` contract is Phase 6+ unless required by implementation.
+- Web host shutdown signaling: client-visible shutdown semantics for overlay UX are Phase 6+.
+- Phase 4 `TwitchAdapter` lazy `??=` race remains a Phase 5 OAuth wiring follow-up if this phase touches real OAuth flow construction.
+- Management hub and overlay hubs are safe only under loopback-only MVP binding. If a future phase allows LAN or port forwarding, hub auth becomes mandatory before that change ships.
+
+### Phase 5 Pre-Implementation Dependency
+
+- Task 13f follow-up: strengthen Phase 4 SC-6a/SC-6b equivalence with follow/sub/donate payloads and assertions for cache state, member state, `TotalBitsGiven`, and subscriber tier. Phase 5 checkpoint depends on this follow-up being done or explicitly waived; it is not a Phase 5 implementation slice.
+
+---
+
 ## Dependency Graph
 
 ```text
@@ -61,7 +115,10 @@ Task 16e Phase 5 checkpoint review
 
 **Acceptance Criteria:**
 - [ ] `Program.cs` exposes a composable app builder suitable for integration tests.
-- [ ] Endpoint registration is split by feature (`WorkflowRule`, `EventTypes`, `Simulate`, `Config`, `Member`) rather than kept inline.
+- [ ] Endpoint registration is split by feature using `IEndpointRouteBuilder` extension methods (`MapWorkflowRuleEndpoints`, `MapEventTypeEndpoints`, etc.) rather than kept inline.
+- [ ] `System.Text.Json` is configured with `JsonSerializerDefaults.Web`.
+- [ ] `AddOpenApi()` is registered and `/openapi/v1.json` is exposed on the loopback API surface.
+- [ ] Central Phase 5 error code constants and the status mapping table are available to endpoints and tests.
 - [ ] Error envelopes use stable `error` codes and do not include backend human-readable prose.
 - [ ] Integration tests can boot the web host with in-memory infrastructure/fakes.
 - [ ] No production endpoint binds to non-loopback addresses in this slice.
@@ -109,6 +166,7 @@ Task 16e Phase 5 checkpoint review
 **Description:** Implement save-time validation for event keys, system events, circular sub-workflow references, action schemas, condition schemas, regex patterns, config bounds, cooldown bounds, parallel limits, template length, and route/body id mismatch.
 
 **Acceptance Criteria:**
+- [ ] Validation failures use the central Phase 5 error code constants and HTTP status mapping.
 - [ ] Unknown event key returns `UNKNOWN_EVENT_TYPE_KEY`.
 - [ ] `platform.connection_changed` is known but invalid as a workflow trigger.
 - [ ] Circular sub-workflow references return `CIRCULAR_WORKFLOW_REFERENCE`.
@@ -139,8 +197,7 @@ Task 16e Phase 5 checkpoint review
 **Acceptance Criteria:**
 - [ ] `GET /api/rules` lists rules through the query service.
 - [ ] `GET /api/rules/{id}` returns one rule or `WORKFLOW_RULE_NOT_FOUND`.
-- [ ] `POST /api/rules` creates a rule and returns `201`.
-- [ ] `POST /api/rules` returns `201 Created` with `Location: /api/rules/{newId}`.
+- [ ] `POST /api/rules` creates a rule and returns `201 Created` with `Location: /api/rules/{newId}`.
 - [ ] `PUT /api/rules/{id}` updates a rule and returns the updated rule.
 - [ ] `PUT /api/rules/{id}` with body id not equal to route id returns `INVALID_RULE_ID_MISMATCH`.
 - [ ] `DELETE /api/rules/{id}` deletes a rule and returns `204`; missing rule returns `WORKFLOW_RULE_NOT_FOUND`.
@@ -166,7 +223,7 @@ Task 16e Phase 5 checkpoint review
 **Acceptance Criteria:**
 - [ ] Endpoint returns registered workflow-visible event keys.
 - [ ] `platform.connection_changed` is excluded from workflow-visible results.
-- [ ] `isSimulatable` is static and true only for public aliases: `chat`, `follow`, `sub`.
+- [ ] `isSimulatable` is derived from the shared `SimulationAliasRegistry` and true only for public aliases: `chat`, `follow`, `sub`.
 - [ ] Endpoint does not require Twitch OAuth/socket startup.
 
 **Verification:**
@@ -188,6 +245,7 @@ Task 16e Phase 5 checkpoint review
 - [ ] Only `chat`, `follow`, and `sub` aliases are accepted.
 - [ ] Raw canonical keys like `user.message` are rejected on this endpoint.
 - [ ] Unknown alias returns `UNKNOWN_SIMULATE_EVENT_TYPE`.
+- [ ] Alias validation uses the shared `SimulationAliasRegistry`.
 - [ ] Endpoint calls `ISimulationAdapter` and publishes through the normal bus path.
 
 **Verification:**
@@ -210,6 +268,7 @@ Task 16e Phase 5 checkpoint review
 - [ ] `oauth.*` returns `403` + `OAUTH_CREDENTIAL_NAMESPACE` for GET and PUT.
 - [ ] Unknown non-protected keys return `400` + `UNKNOWN_CONFIG_KEY`.
 - [ ] Unknown protected keys still return the protected namespace error, not unknown-key.
+- [ ] The denylist is checked before registry lookup even though current OAuth refresh tokens are owned by `IOAuthTokenStore` and do not live in the config registry. This prevents future `oauth.*` registry entries from accidentally becoming readable or writable through `/api/config`.
 - [ ] Allowed keys use `ISystemSettingsService`.
 
 **Verification:**
@@ -229,6 +288,8 @@ Task 16e Phase 5 checkpoint review
 
 **Acceptance Criteria:**
 - [ ] `GET /api/members` supports `limit` default 50, max 200, and `offset`.
+- [ ] Member list response includes `total` for paging UI.
+- [ ] Member list ordering is stable, defaulting to `LastSeen DESC, MemberId ASC` when those fields are available from the query service.
 - [ ] Invalid query params return `INVALID_QUERY_PARAM`.
 - [ ] `GET /api/members/{id}` returns one member or `MEMBER_NOT_FOUND`.
 - [ ] Endpoints do not call member write repositories.
@@ -252,9 +313,10 @@ Task 16e Phase 5 checkpoint review
 
 **Acceptance Criteria:**
 - [ ] `/hubs/events` exists for management clients.
-- [ ] `/hubs/overlay/chat`, `/hubs/overlay/alerts`, and `/hubs/overlay/member` exist for OBS/browser clients.
+- [ ] Canonical overlay hub routes are `/hubs/overlay/chat`, `/hubs/overlay/alerts`, and `/hubs/overlay/member` to match SPEC overlay URL naming.
 - [ ] Management hub can receive all `IStreamEvent` categories, including `PlatformConnectionChangedEvent`.
 - [ ] Overlay hub DTOs remain the Phase 4 public payload DTOs, not domain entities.
+- [ ] Phase 5 assumes loopback-only/no-auth. If a future phase allows LAN binding or port forwarding, management and overlay hub authentication must be designed before enabling it.
 
 **Verification:**
 - [ ] Hub connection tests prove each route accepts a SignalR connection.
@@ -277,14 +339,17 @@ Task 16e Phase 5 checkpoint review
 
 **Acceptance Criteria:**
 - [ ] Chat events reach `/hubs/overlay/chat` within 5 seconds for SC-5.
+- [ ] Performance budget is tracked separately from the SC pass/fail timeout: publish-to-hub-send target < 500ms, hub-to-client target < 500ms, full local path P95 target < 1s. SC-5 still uses 5s as the CI-safe upper bound.
 - [ ] Alert-worthy events reach `/hubs/overlay/alerts`.
 - [ ] Member hub is connected as an MVP skeleton but does not invent unsupported events.
 - [ ] SignalR JSON key-set tests exactly match overlay DTO public contracts.
-- [ ] Before implementation, re-evaluate synthetic `eventId`: platform-provided ids identify the same event across clients; fallback ULIDs only guarantee local single-instance delivery ids.
+- [ ] Synthetic `eventId` semantics are documented in `docs/phases/phase-5-web-signalr-cli/event-id-decision.md`: platform-provided ids identify the same event across clients; fallback ULIDs only guarantee local single-instance delivery ids.
 
 **Verification:**
 - [ ] SC-5 integration test publishes a mock/simulated chat event and observes the overlay hub payload within 5 seconds.
+- [ ] Test output records publish-to-hub-send and hub-to-client elapsed time so regressions above the 1s local target are visible even if the 5s SC timeout still passes.
 - [ ] Exact JSON key-set tests cover chat, alert, and member payloads over SignalR serialization.
+- [ ] Event id decision doc is reviewed before overlay forwarding is implemented.
 
 **Likely Files:**
 - `src/Hosts/Vulperonex.Web/Overlay/`
@@ -304,6 +369,7 @@ Task 16e Phase 5 checkpoint review
 - [ ] Host startup turns null allocation into `PortExhaustedException` with a clear message.
 - [ ] Both ports bind to `IPAddress.Loopback` and `IPAddress.IPv6Loopback`.
 - [ ] Non-loopback socket attempts are rejected by tests.
+- [ ] `PortPairAllocator` and the OAuth callback port selector share an `IsPortAvailable` abstraction such as `IPortAvailabilityProbe` to avoid divergent socket availability behavior.
 
 **Verification:**
 - [ ] Unit tests cover first available pair, partial-pair occupation, all-pairs exhaustion, and no throw in allocator.
@@ -326,7 +392,7 @@ Task 16e Phase 5 checkpoint review
 **Acceptance Criteria:**
 - [ ] CLI resolves API base URL from config/default loopback settings.
 - [ ] 2xx responses write success output to stdout only.
-- [ ] 4xx/5xx responses write the response `error` code to stderr and exit non-zero.
+- [ ] 4xx/5xx responses write the response `error` code to stderr and exit code `1`; network/connectivity failures also exit code `1` in MVP.
 - [ ] CLI preserves backend codes such as `WORKFLOW_RULE_NOT_FOUND`, `MEMBER_NOT_FOUND`, and protected namespace errors.
 - [ ] CLI has no direct DB access path.
 
@@ -396,11 +462,12 @@ Task 16e Phase 5 checkpoint review
 - [ ] Unknown simulate aliases fail before or through the API with `UNKNOWN_SIMULATE_EVENT_TYPE`.
 - [ ] Web host and CLI read `Database:Path` only from main `appsettings.json`.
 - [ ] `appsettings.{Environment}.json` and environment variables cannot override `Database:Path`.
+- [ ] The implementation mechanism is explicit: database path resolution reads main `appsettings.json` through a dedicated resolver that ignores environment-specific providers and environment variables for this key, then supplies the resolved value to Web host and CLI startup.
 
 **Verification:**
 - [ ] CLI simulate chat fixture rule triggers mock sender through the API path.
-- [ ] Manual test: CLI simulate chat reaches the overlay SignalR client.
-- [ ] Integration test proves `ASPNETCORE_ENVIRONMENT=Development` plus `appsettings.Development.json` does not override `Database:Path`.
+- [ ] Manual test: CLI simulate chat reaches the overlay SignalR client, with result recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
+- [ ] Integration test proves `ASPNETCORE_ENVIRONMENT=Development`, `appsettings.Development.json`, and environment variables do not override `Database:Path`.
 
 **Likely Files:**
 - `src/Hosts/Vulperonex.Cli/Commands/SimulateCommands.cs`
@@ -424,16 +491,18 @@ Task 16e Phase 5 checkpoint review
 - [ ] CLI simulate chat fixture rule and mock sender pass.
 - [ ] CLI simulate to overlay SignalR manual path is documented.
 - [ ] Loopback-only IPv4/IPv6 dual bind tests pass.
-- [ ] Phase 4 SC-6a/SC-6b equivalence is strengthened with follow/sub/donate payloads and assertions on cache state, member state, `TotalBitsGiven`, and subscriber tier.
+- [ ] Task 13f Phase 4 SC-6a/SC-6b follow-up is complete or explicitly waived before Phase 5 closes.
 
 **Verification:**
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
 - [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
 - [ ] Manual overlay SignalR check recorded in the phase todo.
+- [ ] Manual verification entries are recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`.
 - [ ] Git staged set is task-scoped and excludes unrelated untracked files.
 
 **Likely Files:**
 - `docs/phases/phase-5-web-signalr-cli/todo.md`
+- `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 - `tasks/todo.md`
 - Phase 5 source/test files from prior slices
 
