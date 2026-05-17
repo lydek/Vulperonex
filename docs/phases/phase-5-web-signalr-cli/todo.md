@@ -32,6 +32,30 @@
 - [x] 任務 16c：實作 CLI `config get|set` 與 `member list|show`。
 - [x] 任務 16d：實作 CLI `simulate chat|follow|sub` 與共享資料庫路徑覆蓋保護。
 - [x] 任務 16e：完成 第 5 階段檢查點審查與手動 overlay 交付。
+- [ ] 任務 16f：補齊 CLI 端到端手動測試 gate：Web API 啟動後自動套用 SQLite migration、真實 CLI 程序可打到本機 API/DB、並提供 Twitch OAuth PKCE 授權入口。
+
+## 任務 16f - CLI E2E / Twitch OAuth 收尾
+
+- [x] Web host 啟動時執行 `DatabaseBootstrapper.MigrateAsync()`，新環境第一次執行 `rule list` 不得因缺少 `WorkflowRules` table 回 500。
+- [x] Web startup project 可支援 `dotnet ef database update --project src\Vulperonex.Infrastructure --startup-project src\Hosts\Vulperonex.Web`。
+- [x] 自動化測試覆蓋「未預先 migrate 的 temp SQLite DB 啟動後，`GET /api/rules` 回 200」。
+- [x] 自動化測試覆蓋真實 Web host + `VulperonexCli.RunAsync` 對本機 API 的 rule/config/member/simulate smoke path。
+- [x] CLI 提供 `twitch auth start` 或等效命令，使用 loopback-only OAuth callback、PKCE `state`/`code_verifier`，並把 refresh token 交由 API 透過 `IOAuthTokenStore` 加密保存。
+- [x] Twitch OAuth 授權流程不得透過 `/api/config/oauth.*` 讀寫 token；`oauth.*` protected namespace 規則維持不變。
+- [x] 手動驗證命令與預期結果記錄於 `cli-e2e-verification.md`，包含 build、啟動 API、CLI smoke、Twitch 授權前置設定與 callback URI。
+- [ ] 本機 terminal 實跑 published CLI (`artifacts/cli-manual/Vulperonex.Cli.exe`) 對獨立 Web API process 的 smoke；Codex sandbox 已拒絕背景 Web host 啟動，需人工執行。
+
+## 任務 16g - CLI Interactive REPL
+
+- [x] 抽出 CLI command tree：`IConsoleCommand`、`ICommandDispatcher`、`CompositeConsoleCommand`、`CliExecutionContext`，one-shot 與 REPL 共用 dispatch。
+- [x] 保持既有 one-shot `rule/config/member/simulate/twitch` 行為，並新增 `help` / `?` 內建命令。
+- [x] 新增 `GET /api/twitch/auth/status`，只回傳 `clientIdConfigured` / `hasRefreshToken` boolean，不回傳 client id 或 token。
+- [x] 新增最小 REPL 入口：無參數、`--interactive`、`-i` 讀取 stdin 逐行 dispatch，支援 `exit` / `quit` / EOF。
+- [x] REPL 中 API 錯誤只寫 stderr error code，session 繼續。
+- [ ] REPL 啟動 banner：依 `/api/twitch/auth/status` 提示 ClientId/OAuth 狀態，且不得產生 authorize URL。
+- [ ] REPL `twitch auth start` 支援 Ctrl+C 取消並輸出 `TWITCH_OAUTH_CANCELLED`。
+- [ ] Line editor：TTY 模式 history、Tab prefix completion、Backspace、Ctrl+C 清 buffer；redirected stdin 不走 line editor。
+- [ ] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
 
 ## 第 5 階段依賴項
 
@@ -60,6 +84,8 @@
 - [x] CLI 4xx/5xx 處理僅將後端 `error` 代碼寫入 stderr 並以退出碼 `1` 退出。
 - [x] CLI 模擬聊天固定規則透過 HTTP API 路徑觸發虛擬傳送者。
 - [x] 手動確認：CLI 模擬聊天到達 overlay SignalR，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
+- [x] CLI 端到端 smoke：新 DB 啟動 API 後不需手動 migration，真實 CLI 可成功執行 `rule list`、`config get`、`member list`、`simulate chat|follow|sub`。
+- [x] CLI Twitch OAuth smoke：`twitch auth start` 產生 Twitch authorize URL，loopback callback 收到 code 後由 API exchange token，refresh token 加密保存。
 - [x] `ASPNETCORE_ENVIRONMENT=Development` 加上 `appsettings.Development.json` 與環境變數不會覆蓋主 `appsettings.json` 的 `Database:Path`。
 - [x] 架構測試證明原始 `Configuration["Database:Path"]` 讀取僅限於 `IDatabasePathResolver`。
 - [x] 任務 13f 第 4 階段 SC-6a/SC-6b 後續已完成或明確豁免。

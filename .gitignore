@@ -6,6 +6,7 @@ bin/
 obj/
 dist/
 publish/
+artifacts/
 TestResults/
 coverage/
 coverage.json
