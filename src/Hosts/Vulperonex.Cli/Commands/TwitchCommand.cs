@@ -52,7 +52,13 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
                 }
             }
 
+            var authStatus = await new TwitchAuthStatusProbe(context.Client).ProbeAsync(cancellationToken);
             var noBrowser = args.Contains("--no-browser", StringComparer.Ordinal);
+            if (authStatus.Succeeded && authStatus.ClientIdConfigured && !authStatus.ClientSecretConfigured)
+            {
+                return await RunDeviceAuthorizationAsync(context, noBrowser, cancellationToken);
+            }
+
             var callbackPort = CallbackPortSelector.Select();
             var startResponse = await context.Client.PostAsJsonAsync(
                 "/api/twitch/auth/start",
@@ -103,6 +109,59 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
                 : [];
         }
 
+        private static async Task<int> RunDeviceAuthorizationAsync(
+            CliExecutionContext context,
+            bool noBrowser,
+            CancellationToken cancellationToken)
+        {
+            var startResponse = await context.Client.PostAsJsonAsync("/api/twitch/auth/device/start", new { }, cancellationToken);
+            if (!startResponse.IsSuccessStatusCode)
+            {
+                return await context.WriteResponseAsync(startResponse);
+            }
+
+            var payload = await startResponse.Content.ReadFromJsonAsync<TwitchDeviceAuthorizationResponse>(
+                context.JsonOptions,
+                cancellationToken);
+            if (payload is null)
+            {
+                return await context.FailAsync("INVALID_ACTION_CONFIG");
+            }
+
+            await context.Output.WriteLineAsync("Twitch public-client authorization");
+            await context.Output.WriteLineAsync($"Open: {payload.VerificationUri}");
+            await context.Output.WriteLineAsync($"Code: {payload.UserCode}");
+            if (!noBrowser)
+            {
+                Process.Start(new ProcessStartInfo(payload.VerificationUri) { UseShellExecute = true });
+            }
+
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(payload.ExpiresIn);
+            var interval = TimeSpan.FromSeconds(Math.Max(payload.Interval, 1));
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                await Task.Delay(interval, cancellationToken);
+                var completeResponse = await context.Client.PostAsJsonAsync(
+                    "/api/twitch/auth/device/complete",
+                    new { payload.DeviceCode },
+                    cancellationToken);
+                if (completeResponse.StatusCode == HttpStatusCode.Accepted)
+                {
+                    continue;
+                }
+
+                if (!completeResponse.IsSuccessStatusCode)
+                {
+                    return await context.WriteResponseAsync(completeResponse);
+                }
+
+                await context.Output.WriteLineAsync("Twitch authorization completed.");
+                return 0;
+            }
+
+            return await context.FailAsync("TWITCH_OAUTH_EXCHANGE_FAILED");
+        }
+
         private static async Task WriteCallbackResponseAsync(
             HttpListenerResponse response,
             bool authorizationCompleted,
@@ -124,4 +183,10 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
     }
 
     private sealed record TwitchAuthStartResponse(string AuthorizeUrl, string State, int CallbackPort);
+    private sealed record TwitchDeviceAuthorizationResponse(
+        string DeviceCode,
+        string UserCode,
+        string VerificationUri,
+        int ExpiresIn,
+        int Interval);
 }

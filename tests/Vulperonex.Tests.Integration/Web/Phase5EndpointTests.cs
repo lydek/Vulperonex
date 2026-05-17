@@ -85,17 +85,29 @@ public sealed class Phase5EndpointTests
     }
 
     [Theory]
-    [InlineData(null, false, false)]
-    [InlineData("client-1", false, false)]
-    [InlineData("client-1", true, true)]
+    [InlineData(null, null, false, false, false)]
+    [InlineData("client-1", null, false, false, false)]
+    [InlineData("client-1", "secret-1", false, true, false)]
+    [InlineData("client-1", "secret-1", true, true, true)]
     public async Task Given_TwitchAuthStatus_When_Called_Then_OnlyConfigurationBooleansAreReturned(
         string? clientId,
+        string? clientSecret,
         bool storeRefreshToken,
+        bool expectedClientSecretConfigured,
         bool expectedHasRefreshToken)
     {
-        var configurationPairs = clientId is null
-            ? Array.Empty<string?>()
-            : ["Twitch:ClientId", clientId];
+        var configuration = new List<string?>();
+        if (clientId is not null)
+        {
+            configuration.AddRange(["Twitch:ClientId", clientId]);
+        }
+
+        if (clientSecret is not null)
+        {
+            configuration.AddRange(["Twitch:ClientSecret", clientSecret]);
+        }
+
+        var configurationPairs = configuration.ToArray();
         await using var app = await StartAppAsync(configurationPairs);
         if (storeRefreshToken)
         {
@@ -111,8 +123,10 @@ public sealed class Phase5EndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
         using var document = JsonDocument.Parse(body);
         document.RootElement.GetProperty("clientIdConfigured").GetBoolean().Should().Be(clientId is not null);
+        document.RootElement.GetProperty("clientSecretConfigured").GetBoolean().Should().Be(expectedClientSecretConfigured);
         document.RootElement.GetProperty("hasRefreshToken").GetBoolean().Should().Be(expectedHasRefreshToken);
         body.Should().NotContain("client-1");
+        body.Should().NotContain("secret-1");
         body.Should().NotContain("refresh-secret");
     }
 

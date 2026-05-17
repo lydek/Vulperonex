@@ -78,8 +78,17 @@ public sealed class CliCommandTests
     [Fact]
     public async Task Given_TwitchAuthStartCommand_When_ApiReturnsAuthorizeUrl_Then_UrlIsWrittenToStdout()
     {
+        var requestCount = 0;
         using var client = new HttpClient(new StubHandler(async request =>
         {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                request.Method.Should().Be(HttpMethod.Get);
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"clientSecretConfigured":true,"hasRefreshToken":false}""");
+            }
+
             request.Method.Should().Be(HttpMethod.Post);
             request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/start");
             var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -98,6 +107,52 @@ public sealed class CliCommandTests
         output.ToString().Should().Contain("https://id.twitch.tv/oauth2/authorize");
         output.ToString().Should().Contain("callbackPort");
         error.ToString().Should().BeEmpty();
+        requestCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_TwitchAuthStartCommand_When_PublicClientIsConfigured_Then_DeviceFlowIsUsed()
+    {
+        var requestCount = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                request.Method.Should().Be(HttpMethod.Get);
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"clientSecretConfigured":false,"hasRefreshToken":false}""");
+            }
+
+            if (requestCount == 2)
+            {
+                request.Method.Should().Be(HttpMethod.Post);
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/device/start");
+                return JsonResponse(HttpStatusCode.OK, """{"deviceCode":"device-1","userCode":"ABCD-EFGH","verificationUri":"https://www.twitch.tv/activate","expiresIn":30,"interval":1}""");
+            }
+
+            request.Method.Should().Be(HttpMethod.Post);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/device/complete");
+            return new HttpResponseMessage(HttpStatusCode.NoContent)
+            {
+                Content = new ByteArrayContent([]),
+            };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["twitch", "auth", "start", "--no-browser"], client, output, error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().Contain("Twitch public-client authorization");
+        output.ToString().Should().Contain("https://www.twitch.tv/activate");
+        output.ToString().Should().Contain("ABCD-EFGH");
+        output.ToString().Should().Contain("Twitch authorization completed.");
+        error.ToString().Should().BeEmpty();
+        requestCount.Should().Be(3);
     }
 
     [Fact]
@@ -130,7 +185,7 @@ public sealed class CliCommandTests
             {
                 request.Method.Should().Be(HttpMethod.Get);
                 request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
-                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"hasRefreshToken":true}""");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"clientSecretConfigured":true,"hasRefreshToken":true}""");
             }
 
             request.Method.Should().Be(HttpMethod.Get);
@@ -165,7 +220,7 @@ public sealed class CliCommandTests
             if (requestCount == 1)
             {
                 request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
-                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"hasRefreshToken":true}""");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"clientSecretConfigured":true,"hasRefreshToken":true}""");
             }
 
             if (requestCount == 2)
@@ -200,7 +255,7 @@ public sealed class CliCommandTests
         {
             request.Method.Should().Be(HttpMethod.Get);
             request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
-            return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":false,"hasRefreshToken":false}""");
+            return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":false,"clientSecretConfigured":false,"hasRefreshToken":false}""");
         }))
         {
             BaseAddress = new Uri("http://localhost"),
@@ -227,7 +282,7 @@ public sealed class CliCommandTests
             requestCount++;
             request.Method.Should().Be(HttpMethod.Get);
             request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
-            return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":false,"hasRefreshToken":false}""");
+            return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":false,"clientSecretConfigured":false,"hasRefreshToken":false}""");
         }))
         {
             BaseAddress = new Uri("http://localhost"),
@@ -255,7 +310,7 @@ public sealed class CliCommandTests
             if (requestCount == 1)
             {
                 request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
-                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"hasRefreshToken":true}""");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"clientSecretConfigured":true,"hasRefreshToken":true}""");
             }
 
             if (requestCount == 2)

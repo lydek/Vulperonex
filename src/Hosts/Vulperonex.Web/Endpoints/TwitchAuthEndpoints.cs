@@ -19,8 +19,9 @@ public static class TwitchAuthEndpoints
             CancellationToken cancellationToken) =>
         {
             var clientIdConfigured = !string.IsNullOrWhiteSpace(configuration["Twitch:ClientId"]);
+            var clientSecretConfigured = !string.IsNullOrWhiteSpace(configuration["Twitch:ClientSecret"]);
             var hasRefreshToken = await tokenStore.HasRefreshTokenAsync("twitch", cancellationToken);
-            return Results.Ok(new TwitchAuthStatusResponse(clientIdConfigured, hasRefreshToken));
+            return Results.Ok(new TwitchAuthStatusResponse(clientIdConfigured, clientSecretConfigured, hasRefreshToken));
         });
 
         group.MapPost("/start", (
@@ -89,6 +90,50 @@ public static class TwitchAuthEndpoints
             return Results.NoContent();
         });
 
+        group.MapPost("/device/start", async (
+            IConfiguration configuration,
+            TwitchTokenEndpoint tokenEndpoint,
+            CancellationToken cancellationToken) =>
+        {
+            if (string.IsNullOrWhiteSpace(configuration["Twitch:ClientId"]))
+            {
+                return ApiErrors.ToResult(ErrorCodes.TwitchClientIdMissing, StatusCodes.Status400BadRequest);
+            }
+
+            try
+            {
+                var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit";
+                var authorization = await tokenEndpoint.StartDeviceAuthorizationAsync(scopes, cancellationToken);
+                return Results.Ok(authorization);
+            }
+            catch (TwitchTokenExchangeException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.TwitchOAuthExchangeFailed, StatusCodes.Status400BadRequest);
+            }
+        });
+
+        group.MapPost("/device/complete", async (
+            TwitchDeviceCompleteRequest request,
+            TwitchTokenEndpoint tokenEndpoint,
+            IOAuthTokenStore tokenStore,
+            CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                var token = await tokenEndpoint.CompleteDeviceAuthorizationAsync(request.DeviceCode, cancellationToken);
+                await tokenStore.StoreRefreshTokenAsync("twitch", token.RefreshToken, cancellationToken);
+                return Results.NoContent();
+            }
+            catch (TwitchDeviceAuthorizationPendingException)
+            {
+                return Results.Accepted();
+            }
+            catch (TwitchTokenExchangeException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.TwitchOAuthExchangeFailed, StatusCodes.Status400BadRequest);
+            }
+        });
+
         return endpoints;
     }
 
@@ -113,5 +158,6 @@ public static class TwitchAuthEndpoints
     private sealed record TwitchAuthStartRequest(int? CallbackPort);
     private sealed record TwitchAuthStartResponse(string AuthorizeUrl, string State, int CallbackPort);
     private sealed record TwitchAuthCompleteRequest(string State, string Code);
-    private sealed record TwitchAuthStatusResponse(bool ClientIdConfigured, bool HasRefreshToken);
+    private sealed record TwitchDeviceCompleteRequest(string DeviceCode);
+    private sealed record TwitchAuthStatusResponse(bool ClientIdConfigured, bool ClientSecretConfigured, bool HasRefreshToken);
 }

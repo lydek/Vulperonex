@@ -30,7 +30,7 @@
 
 ## 必要的 Twitch OAuth 手動流程
 
-- 為 Web API 設定本機 Twitch 用戶端識別碼與密鑰（`Twitch:ClientId` / `Twitch:ClientSecret`，可透過 `Twitch__ClientId` / `Twitch__ClientSecret` 環境變數，或本機 ignored 的 `src/Hosts/Vulperonex.Web/appsettings.Development.json`）。
+- 為 Web API 設定本機 Twitch 用戶端識別碼（`Twitch:ClientId`）。若 Twitch App 是 confidential client，可另外設定 `Twitch:ClientSecret` 走 authorization-code callback flow；若 Twitch App 是 public client，請不要設定 secret，CLI 會走 device-code flow。
 - 執行 CLI OAuth 指令。
 - 瀏覽器開啟或 CLI 印出 Twitch 授權 URL。
 - CLI 回呼監聽器（Callback listener）僅接受 `/auth/callback` 上的本機回環（loopback）請求。
@@ -45,6 +45,8 @@
 
 ```powershell
 $env:Twitch__ClientId = "<您的 Twitch 應用程式客戶端識別碼>"
+# Optional：只有 confidential Twitch App 才設定。
+# Public client 請省略，CLI 會使用 device-code flow。
 $env:Twitch__ClientSecret = "<您的 Twitch 應用程式客戶端密鑰>"
 
 # /m:1 /nr:false /p:UseSharedCompilation=false：強制單執行緒 build 且不重用 build server，避免並行 build server 對 SQLite 檔鎖與 rtk sandbox 互動產生間歇性失敗。如不需此緩解，可改用一般 `dotnet build`。
@@ -116,10 +118,11 @@ rtk proxy powershell -NoProfile -Command ".\artifacts\cli-manual\Vulperonex.Cli.
 
 | 步驟 | 預期 |
 |------|------|
-| `twitch auth start`（瀏覽器模式） | 瀏覽器開啟 Twitch 授權頁；CLI 印 `Opened Twitch authorization URL. Waiting on ...` |
+| `twitch auth start`（public client） | CLI 開啟或列出 `https://www.twitch.tv/activate`，並印 user code；授權後 CLI 印 `Twitch authorization completed.` |
+| `twitch auth start`（confidential client） | 瀏覽器開啟 Twitch 授權頁；CLI 印 `Opened Twitch authorization URL. Waiting on ...` |
 | 使用者於瀏覽器同意且 token exchange 成功 | 瀏覽器顯示 `Twitch authorization completed`，並提示回到 CLI |
 | CLI 完成 | exit 0；refresh token 已寫入 SQLite |
-| Twitch token exchange 失敗 | CLI stderr `TWITCH_CLIENT_SECRET_MISSING` 或 `TWITCH_OAUTH_EXCHANGE_FAILED`，瀏覽器顯示授權未完成並要求回 CLI 查看錯誤碼 |
+| Twitch token exchange 失敗 | CLI stderr `TWITCH_OAUTH_EXCHANGE_FAILED`，瀏覽器或 CLI 顯示授權未完成 |
 | 重複 `config get oauth.twitch.refresh_token` | exit 1，stderr `OAUTH_CREDENTIAL_NAMESPACE`（**不**因已授權而開放） |
 
 ### 6. 清理
@@ -137,7 +140,7 @@ Remove-Item Env:VULPERONEX_API_URL
 [Environment]::SetEnvironmentVariable('Twitch__ClientId', '<id>', 'User')
 ```
 
-> **Security：** `Twitch:ClientId` 為 OAuth 公開值；`Twitch:ClientSecret` 是秘密值，只能放在本機 ignored 的開發設定或一次性環境變數。不要 commit 到 repo；Phase 6+ 應改用 DPAPI 或 SQLite credential store。
+> **Security：** `Twitch:ClientId` 為 OAuth 公開值；`Twitch:ClientSecret` 是秘密值，只有 confidential client 需要。Public client 不應設定 secret。若使用 secret，只能放在本機 ignored 的開發設定或一次性環境變數，不能 commit 到 repo。
 
 ## 狀態
 

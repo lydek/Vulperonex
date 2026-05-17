@@ -73,7 +73,8 @@ public static class DependencyInjection
                 serviceProvider.GetRequiredService<IConfiguration>()["Security:RootPath"]));
         services.AddScoped<DatabaseBootstrapper>();
         services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
-        services.AddSingleton<ITwitchTokenEndpoint, TwitchTokenEndpoint>();
+        services.AddSingleton<TwitchTokenEndpoint>();
+        services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
         services.AddScoped<IWorkflowRuleQueryService, WorkflowRuleQueryService>();
         services.AddScoped<IWorkflowRuleRepository, WorkflowRuleRepository>();
