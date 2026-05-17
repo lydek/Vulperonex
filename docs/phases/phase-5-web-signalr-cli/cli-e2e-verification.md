@@ -67,6 +67,8 @@ rtk proxy powershell -NoProfile -Command "dotnet publish src\Hosts\Vulperonex.Cl
 
 將 `<api_port>` 替換為終端機 A console 印出的實際 port。
 
+> **任務 16f L46：** 本表先使用 `dotnet run` 完成功能驗證；通過後重複執行一次改用 `artifacts\cli-manual\Vulperonex.Cli.exe`（步驟 2 的 published 二進位）對相同 Web host 驗證每行命令的 exit code / stdout / stderr 與 `dotnet run` 一致。Codex sandbox 拒絕背景 Web host 啟動，published 路徑必須由本機終端機手動跑過一次才視為 Gate 通過。
+
 ```powershell
 $env:VULPERONEX_API_URL = "http://127.0.0.1:<api_port>"
 
@@ -124,6 +126,100 @@ rtk proxy powershell -NoProfile -Command ".\artifacts\cli-manual\Vulperonex.Cli.
 | CLI 完成 | exit 0；refresh token 已寫入 SQLite |
 | Twitch token exchange 失敗 | CLI stderr `TWITCH_OAUTH_EXCHANGE_FAILED`，瀏覽器或 CLI 顯示授權未完成 |
 | 重複 `config get oauth.twitch.refresh_token` | exit 1，stderr `OAUTH_CREDENTIAL_NAMESPACE`（**不**因已授權而開放） |
+
+### 5b. REPL TTY 互動行為手動驗證（任務 16f L60 / 16g）
+
+自動化整合測試無法覆蓋實體 TTY 按鍵；以下流程需於 **Windows Terminal** + **PowerShell 7** 下執行至少一次。`cmd.exe` 與 PowerShell 5.1 為選擇性。
+
+**前置：** 終端機 A Web host 持續執行（步驟 1）；終端機 B 設妥 `VULPERONEX_API_URL` 並啟 REPL：
+
+```powershell
+$env:VULPERONEX_API_URL = "http://127.0.0.1:<api_port>"
+dotnet run --project src\Hosts\Vulperonex.Cli -- --interactive
+```
+
+或以 published 執行檔（OAuth 取消測試建議使用，避免 `dotnet run` 子程序攔截 Ctrl+C）：
+
+```powershell
+.\artifacts\cli-manual\Vulperonex.Cli.exe --interactive
+```
+
+#### 5b-1 Tab 補全
+
+| 輸入序列 | 預期 |
+|----------|------|
+| `ru<Tab>` | 顯示 `rule ` |
+| `rule li<Tab>` | 顯示 `rule list` |
+| `twitch a<Tab>` | 顯示 `twitch auth ` |
+| `twitch auth st<Tab>` | 顯示 `twitch auth start`（**注意：** 目前因 `--no-browser` 子建議導致多一空白，已開獨立 task；驗證時記錄實際結果即可，不阻擋 Gate） |
+| `xy<Tab>` | buffer 不變、無噪音輸出 |
+
+#### 5b-2 歷史巡覽（↑ / ↓）
+
+1. 連續輸入 `rule list<Enter>`、`member list<Enter>`、`config get log.min_level<Enter>`。
+2. 按 `↑` 一次 → 預期顯示 `config get log.min_level`。
+3. 按 `↑` 兩次 → 預期顯示 `member list`。
+4. 按 `↑` 三次 → 預期顯示 `rule list`。
+5. 再按 `↑` → buffer 不變（已到最舊一筆）。
+6. 按 `↓` → 退回 `member list`、`config get log.min_level`、最後一筆下方為空 buffer。
+7. 輸入新命令時去重規則：連續送出兩次相同 `rule list`，歷史只保留一份（按 `↑` 依序回退 `config ... / member list / rule list`，不重複出現 `rule list`）。
+
+#### 5b-3 Ctrl+C 清 buffer
+
+1. 在 prompt 輸入半行 `rule lis`（**不**按 Enter）。
+2. 按 `Ctrl+C`。
+3. 預期：當前行顯示 `^C`、換到新行、prompt `vulperonex> ` 重印、REPL 仍存活。
+4. 立即輸入 `exit<Enter>` → REPL 正常結束、exit code 0。
+
+#### 5b-4 Ctrl+C 取消 `twitch auth start`
+
+需 `Twitch:ClientId` 設定但 **未**完成授權的環境（或刻意 `Remove-Item Env:Twitch__ClientSecret` 走 device flow / 走 confidential flow 後直接取消瀏覽器）。
+
+**Confidential client 路徑：**
+1. REPL 內輸入 `twitch auth start<Enter>`。
+2. CLI 印 `Opened Twitch authorization URL. Waiting on http://localhost:<port>/auth/callback`，瀏覽器開啟 Twitch 授權頁。
+3. **不要**在瀏覽器同意；切回終端機 B，按 `Ctrl+C`。
+4. 預期：
+   - stderr 出現 `TWITCH_OAUTH_CANCELLED`。
+   - `vulperonex> ` prompt 重印，REPL 繼續存活。
+   - 終端機 A Web host 不出現未處理例外。
+   - 瀏覽器若仍開著、後續完成授權 → callback 已無 listener 在等，瀏覽器顯示 connection refused 屬正常（state 已作廢）。
+
+**Public client (device flow) 路徑：**
+1. REPL 內輸入 `twitch auth start<Enter>`。
+2. CLI 印 `Twitch public-client authorization` + `Open: <url>` + `Code: <user_code>`。
+3. **不要**在瀏覽器輸入 code；終端機 B 按 `Ctrl+C`。
+4. 預期同上 confidential 路徑（`TWITCH_OAUTH_CANCELLED` + REPL 存活）。
+
+#### 5b-5 LineEditor 與 Ctrl+C 分流驗證
+
+**Buffer 有內容時的 Ctrl+C 不得取消 dispatch：** 在 prompt 輸入 `rule lis`、按 `Ctrl+C` 後**不應**有 `TWITCH_OAUTH_CANCELLED` 或其他 dispatch error code 出現於 stderr（因為尚未進入 dispatch）；僅當前 buffer 被清。
+
+**Dispatch 已執行時的 Ctrl+C：** 5b-4 涵蓋。`twitch auth start` 為唯一已實作 Ctrl+C 取消的命令；其他命令（`rule list` 等）回應時間短，Ctrl+C 觀察不到取消行為屬於預期。
+
+#### 5b-6 redirected stdin 後備
+
+```powershell
+"rule list`nexit" | dotnet run --project src\Hosts\Vulperonex.Cli
+```
+
+預期：列出 `rule list` JSON 後 exit 0；不啟動 LineEditor（無 ANSI / 按鍵錯誤）。
+
+#### 5b-7 驗收欄位
+
+於本檔「狀態」段以下列格式追加：
+
+```
+### <YYYY-MM-DD> REPL 互動驗證｜驗證者：<name>
+- 終端機：Windows Terminal vX / PowerShell 7.X
+- 5b-1 Tab：PASS / FAIL（記錄 `twitch auth st` 實際輸出）
+- 5b-2 歷史：PASS / FAIL
+- 5b-3 Ctrl+C 清 buffer：PASS / FAIL
+- 5b-4 Ctrl+C 取消 OAuth：PASS / FAIL（路徑：confidential / device）
+- 5b-5 分流：PASS / FAIL
+- 5b-6 redirected stdin：PASS / FAIL
+- 備註：
+```
 
 ### 6. 清理
 
