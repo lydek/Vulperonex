@@ -220,7 +220,8 @@ group.MapGet("/status", async (
 - [ ] `exit` / `quit` / EOF（Windows: Ctrl+Z+Enter；Unix: Ctrl+D）結束 REPL 並回傳 exit code 0。
 - [ ] 空白行 / 純空白輸入：忽略並重印 prompt，不送 API。
 - [ ] ↑/↓ 在 session 歷史中前後切換；連續輸入相同命令時，僅當**最後一筆**（push 前比對 `_history.Last()`，非 read 時比對）等於新輸入才去重，中間重複的歷史保留，照搬 Omni-Commander `ConsoleCliService` 行為。
-- [ ] Tab：在一級命令位置按下，補出唯一前綴或循環候選；在子命令位置同樣行為。補完葉節點（無子命令）後**不**自動追加空白；補完 Composite 後追加空白以便繼續補子命令。
+- [x] Tab：在一級命令位置按下，補出唯一前綴；在子命令位置同樣行為。補完葉節點（無子命令）後**不**自動追加空白；補完 Composite 後追加空白以便繼續補子命令。
+- [ ] Tab：多候選循環顯示。
 - [ ] `Console.IsInputRedirected == true` 時降級為 `ReadLine` 迴圈（無按鍵處理），讀到 EOF 結束。
 - [ ] REPL 中任何單一命令丟出未預期例外（非 `HttpRequestException` / `CliApiUrlNotLoopbackException`）時，印出 `CLI_UNEXPECTED_ERROR` 至 stderr，REPL 繼續存活（不得讓整個程序崩潰）。
 - [ ] 啟動時 `VULPERONEX_API_URL` 非 loopback → REPL **不啟動**，行為等同單次模式：stderr 印 `CLI_API_URL_NOT_LOOPBACK`、exit 1。

@@ -12,7 +12,9 @@ internal sealed class InteractiveSession(
         {
             cancellationToken.ThrowIfCancellationRequested();
             await context.Output.WriteAsync("vulperonex> ");
-            var line = await input.ReadLineAsync(cancellationToken);
+            var line = ShouldUseLineEditor()
+                ? await new LineEditor(dispatcher, context.Output).ReadLineAsync(cancellationToken)
+                : await input.ReadLineAsync(cancellationToken);
             if (line is null)
             {
                 await context.Output.WriteLineAsync();
@@ -45,6 +47,11 @@ internal sealed class InteractiveSession(
                 await context.Error.WriteLineAsync("HTTP_REQUEST_FAILED");
             }
         }
+    }
+
+    private bool ShouldUseLineEditor()
+    {
+        return ReferenceEquals(input, Console.In) && !Console.IsInputRedirected;
     }
 
     private async Task WriteWelcomeAsync()

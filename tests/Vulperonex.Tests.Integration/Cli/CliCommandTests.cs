@@ -174,6 +174,31 @@ public sealed class CliCommandTests
         error.ToString().Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData("ru", "rule ")]
+    [InlineData("rule l", "rule list")]
+    [InlineData("twitch a", "twitch auth ")]
+    [InlineData("twitch auth st", "twitch auth start")]
+    [InlineData("sim f", "simulate follow")]
+    [InlineData("ex", "exit")]
+    public void Given_CommandPrefix_When_TabCompletionRuns_Then_UniqueMatchIsCompleted(string input, string expected)
+    {
+        var completed = CommandCompletion.Complete(input, CommandTreeFactory.Create());
+
+        completed.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("x")]
+    [InlineData("rule ")]
+    public void Given_AmbiguousPrefix_When_TabCompletionRuns_Then_InputIsUnchanged(string input)
+    {
+        var completed = CommandCompletion.Complete(input, CommandTreeFactory.Create());
+
+        completed.Should().Be(input);
+    }
+
     [Fact]
     public async Task Given_NoArgs_When_StdinContainsCommands_Then_ReplDispatchesEachLineUntilExit()
     {
