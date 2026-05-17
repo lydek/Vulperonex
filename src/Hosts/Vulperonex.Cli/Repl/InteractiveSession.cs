@@ -3,48 +3,110 @@ internal sealed class InteractiveSession(
     CliExecutionContext context,
     TextReader input)
 {
+    private readonly List<string> _history = [];
+    private CancellationTokenSource? currentDispatchCts;
+
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
         await WriteWelcomeAsync();
         await WriteTwitchStatusBannerAsync(cancellationToken);
 
-        while (true)
+        ConsoleCancelEventHandler? cancelHandler = null;
+        var hookConsole = ShouldUseLineEditor();
+        if (hookConsole)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            await context.Output.WriteAsync("vulperonex> ");
-            var line = ShouldUseLineEditor()
-                ? await new LineEditor(dispatcher, context.Output).ReadLineAsync(cancellationToken)
-                : await input.ReadLineAsync(cancellationToken);
-            if (line is null)
+            cancelHandler = (_, e) =>
             {
-                await context.Output.WriteLineAsync();
-                return 0;
-            }
+                var cts = currentDispatchCts;
+                if (cts is null)
+                {
+                    return;
+                }
 
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
+                e.Cancel = true;
+                try
+                {
+                    cts.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
+            };
+            Console.CancelKeyPress += cancelHandler;
+        }
 
-            var args = CommandLineTokenizer.Split(line);
-            if (args.Length == 0)
+        try
+        {
+            while (true)
             {
-                continue;
-            }
+                cancellationToken.ThrowIfCancellationRequested();
+                await context.Output.WriteAsync("vulperonex> ");
+                string? line;
+                if (ShouldUseLineEditor())
+                {
+                    var previousTreatControlCAsInput = Console.TreatControlCAsInput;
+                    Console.TreatControlCAsInput = true;
+                    try
+                    {
+                        line = await new LineEditor(dispatcher, context.Output, _history).ReadLineAsync(cancellationToken);
+                    }
+                    finally
+                    {
+                        Console.TreatControlCAsInput = previousTreatControlCAsInput;
+                    }
+                }
+                else
+                {
+                    line = await input.ReadLineAsync(cancellationToken);
+                }
+                if (line is null)
+                {
+                    await context.Output.WriteLineAsync();
+                    return 0;
+                }
 
-            if (string.Equals(args[0], "exit", StringComparison.Ordinal)
-                || string.Equals(args[0], "quit", StringComparison.Ordinal))
-            {
-                return 0;
-            }
+                if (string.IsNullOrWhiteSpace(line))
+                {
+                    continue;
+                }
 
-            try
-            {
-                await dispatcher.DispatchAsync(args, context, cancellationToken);
+                var args = CommandLineTokenizer.Split(line);
+                if (args.Length == 0)
+                {
+                    continue;
+                }
+
+                if (string.Equals(args[0], "exit", StringComparison.Ordinal)
+                    || string.Equals(args[0], "quit", StringComparison.Ordinal))
+                {
+                    return 0;
+                }
+
+                using var dispatchCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                currentDispatchCts = dispatchCts;
+                try
+                {
+                    await dispatcher.DispatchAsync(args, context, dispatchCts.Token);
+                }
+                catch (HttpRequestException)
+                {
+                    await context.Error.WriteLineAsync("HTTP_REQUEST_FAILED");
+                }
+                catch (OperationCanceledException) when (dispatchCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    // dispatch cancelled by Ctrl+C inside REPL; command already wrote its error code.
+                }
+                finally
+                {
+                    currentDispatchCts = null;
+                }
             }
-            catch (HttpRequestException)
+        }
+        finally
+        {
+            if (cancelHandler is not null)
             {
-                await context.Error.WriteLineAsync("HTTP_REQUEST_FAILED");
+                Console.CancelKeyPress -= cancelHandler;
             }
         }
     }

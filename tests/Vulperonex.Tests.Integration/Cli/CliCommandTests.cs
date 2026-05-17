@@ -362,6 +362,51 @@ public sealed class CliCommandTests
     }
 
     [Fact]
+    public async Task Given_TwitchAuthStartInRepl_When_TokenIsCancelled_Then_OauthCancelledIsWrittenToStderr()
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("API must not be hit after cancellation"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var context = new CliExecutionContext(client, output, error, jsonOptions, isInteractive: true);
+        var dispatcher = CommandTreeFactory.Create();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var exitCode = await dispatcher.DispatchAsync(["twitch", "auth", "start", "--no-browser"], context, cts.Token);
+
+        exitCode.Should().Be(1);
+        output.ToString().Should().BeEmpty();
+        error.ToString().Trim().Should().Be("TWITCH_OAUTH_CANCELLED");
+    }
+
+    [Fact]
+    public async Task Given_TwitchAuthStartOneShot_When_TokenIsCancelled_Then_OauthCancelledIsNotEmitted()
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("API must not be hit after cancellation"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var context = new CliExecutionContext(client, output, error, jsonOptions, isInteractive: false);
+        var dispatcher = CommandTreeFactory.Create();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var act = async () => await dispatcher.DispatchAsync(["twitch", "auth", "start", "--no-browser"], context, cts.Token);
+
+        await act.Should().ThrowAsync<OperationCanceledException>();
+        error.ToString().Should().NotContain("TWITCH_OAUTH_CANCELLED");
+    }
+
+    [Fact]
     public async Task Given_InteractiveFlag_When_FollowedByExtraArgs_Then_InvalidArgsIsReturned()
     {
         using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>

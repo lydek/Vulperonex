@@ -54,9 +54,9 @@
 - [x] REPL 中 API 錯誤只寫 stderr error code，session 繼續。
 - [x] REPL 啟動 banner：依 `/api/twitch/auth/status` 提示 ClientId/OAuth 狀態，且不得產生 authorize URL；缺 `Twitch:ClientId` 時明確以 no-Twitch mode 繼續。
 - [x] REPL 內執行 `twitch auth start` 前重新檢查狀態；`clientIdConfigured == false` 時不打 `/api/twitch/auth/start`，直接提示 `TWITCH_CLIENT_ID_MISSING` 與設定方式。
-- [ ] REPL `twitch auth start` 支援 Ctrl+C 取消並輸出 `TWITCH_OAUTH_CANCELLED`。
+- [x] REPL `twitch auth start` 支援 Ctrl+C 取消並輸出 `TWITCH_OAUTH_CANCELLED`。
 - [x] Line editor：TTY 模式 Tab prefix completion、Backspace；redirected stdin 不走 line editor。
-- [ ] Line editor：TTY 模式 history、Ctrl+C 清 buffer。
+- [x] Line editor：TTY 模式 history、Ctrl+C 清 buffer。
 - [ ] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
 
 ## 第 5 階段依賴項

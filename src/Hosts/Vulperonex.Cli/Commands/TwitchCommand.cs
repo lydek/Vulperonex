@@ -41,6 +41,22 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
             CliExecutionContext context,
             CancellationToken cancellationToken = default)
         {
+            try
+            {
+                return await ExecuteCoreAsync(args, context, cancellationToken);
+            }
+            catch (OperationCanceledException) when (context.IsInteractive && cancellationToken.IsCancellationRequested)
+            {
+                await context.Error.WriteLineAsync("TWITCH_OAUTH_CANCELLED");
+                return 1;
+            }
+        }
+
+        private static async Task<int> ExecuteCoreAsync(
+            string[] args,
+            CliExecutionContext context,
+            CancellationToken cancellationToken)
+        {
             if (context.IsInteractive)
             {
                 var status = await new TwitchAuthStatusProbe(context.Client).ProbeAsync(cancellationToken);
