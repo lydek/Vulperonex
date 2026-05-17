@@ -71,6 +71,11 @@ public sealed class TwitchAccessTokenProviderTests
 
             return Task.FromResult(RefreshToken);
         }
+
+        public Task<bool> HasRefreshTokenAsync(string platform, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(!string.IsNullOrWhiteSpace(RefreshToken));
+        }
     }
 
     private sealed class RecordingTokenEndpoint(TwitchTokenResponse response) : ITwitchTokenEndpoint

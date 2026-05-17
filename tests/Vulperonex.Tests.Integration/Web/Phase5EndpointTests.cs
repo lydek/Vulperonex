@@ -10,10 +10,13 @@ using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Adapters.Simulation;
+using Vulperonex.Application.Auth;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Data.Entities;
+using Vulperonex.Infrastructure.Security;
 using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web;
 using Vulperonex.Web.Configuration;
@@ -24,6 +27,125 @@ namespace Vulperonex.Tests.Integration.Web;
 
 public sealed class Phase5EndpointTests
 {
+    [Fact]
+    public async Task Given_WebHostStartsWithFreshDatabase_When_RulesAreListed_Then_DatabaseIsMigratedAutomatically()
+    {
+        await using var app = await StartAppAsync(manualMigration: false);
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/rules", TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
+    }
+
+    [Fact]
+    public async Task Given_CliRunsAgainstLiveApi_When_SmokeCommandsExecute_Then_TheySucceed()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var ruleList = await VulperonexCli.RunAsync(["rule", "list"], client, output, error);
+        var configGet = await VulperonexCli.RunAsync(["config", "get", "log.min_level"], client, output, error);
+        var memberList = await VulperonexCli.RunAsync(["member", "list"], client, output, error);
+        var simulateChat = await VulperonexCli.RunAsync(["simulate", "chat", "hello"], client, output, error);
+        var simulateFollow = await VulperonexCli.RunAsync(["simulate", "follow"], client, output, error);
+        var simulateSub = await VulperonexCli.RunAsync(["simulate", "sub"], client, output, error);
+
+        ruleList.Should().Be(0);
+        configGet.Should().Be(0);
+        memberList.Should().Be(0);
+        simulateChat.Should().Be(0);
+        simulateFollow.Should().Be(0);
+        simulateSub.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_TwitchOAuthStart_When_ClientIdIsConfigured_Then_AuthorizeUrlUsesPkceAndLoopbackCallback()
+    {
+        await using var app = await StartAppAsync(["Twitch:ClientId", "client-1"]);
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/twitch/auth/start",
+            new { callbackPort = 7979 },
+            TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
+        body.Should().Contain("https://id.twitch.tv/oauth2/authorize");
+        body.Should().Contain("client_id=client-1");
+        body.Should().Contain("redirect_uri=http%3A%2F%2Flocalhost%3A7979%2Fauth%2Fcallback");
+        body.Should().Contain("code_challenge=");
+        body.Should().Contain("state");
+    }
+
+    [Theory]
+    [InlineData(null, false, false)]
+    [InlineData("client-1", false, false)]
+    [InlineData("client-1", true, true)]
+    public async Task Given_TwitchAuthStatus_When_Called_Then_OnlyConfigurationBooleansAreReturned(
+        string? clientId,
+        bool storeRefreshToken,
+        bool expectedHasRefreshToken)
+    {
+        var configurationPairs = clientId is null
+            ? Array.Empty<string?>()
+            : ["Twitch:ClientId", clientId];
+        await using var app = await StartAppAsync(configurationPairs);
+        if (storeRefreshToken)
+        {
+            await using var scope = app.Services.CreateAsyncScope();
+            var tokenStore = scope.ServiceProvider.GetRequiredService<IOAuthTokenStore>();
+            await tokenStore.StoreRefreshTokenAsync("twitch", "refresh-secret", TestContext.Current.CancellationToken);
+        }
+
+        using var client = CreateClient(app);
+        var response = await client.GetAsync("/api/twitch/auth/status", TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
+        using var document = JsonDocument.Parse(body);
+        document.RootElement.GetProperty("clientIdConfigured").GetBoolean().Should().Be(clientId is not null);
+        document.RootElement.GetProperty("hasRefreshToken").GetBoolean().Should().Be(expectedHasRefreshToken);
+        body.Should().NotContain("client-1");
+        body.Should().NotContain("refresh-secret");
+    }
+
+    [Fact]
+    public async Task Given_TwitchOAuthCallback_When_StateMatches_Then_CodeIsExchangedAndRefreshTokenIsStored()
+    {
+        var tokenEndpoint = new RecordingTwitchTokenEndpoint();
+        await using var app = await StartAppAsync(
+            ["Twitch:ClientId", "client-1"],
+            services => services.AddSingleton<ITwitchTokenEndpoint>(tokenEndpoint));
+        using var client = CreateClient(app);
+        var start = await client.PostAsJsonAsync(
+            "/api/twitch/auth/start",
+            new { callbackPort = 7979 },
+            TestContext.Current.CancellationToken);
+        start.EnsureSuccessStatusCode();
+        using var startDocument = JsonDocument.Parse(await start.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var state = startDocument.RootElement.GetProperty("state").GetString();
+
+        var complete = await client.PostAsJsonAsync(
+            "/api/twitch/auth/complete",
+            new { state, code = "code-1" },
+            TestContext.Current.CancellationToken);
+
+        var body = await complete.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        complete.StatusCode.Should().Be(HttpStatusCode.NoContent, "response body was {0}", body);
+        tokenEndpoint.ExchangeCode.Should().Be("code-1");
+        tokenEndpoint.ExchangeVerifier.Should().NotBeNullOrWhiteSpace();
+        await using var scope = app.Services.CreateAsyncScope();
+        var tokenStore = scope.ServiceProvider.GetRequiredService<IOAuthTokenStore>();
+        var refreshToken = await tokenStore.GetRefreshTokenAsync("twitch", TestContext.Current.CancellationToken);
+        refreshToken.Should().Be("refresh-1");
+    }
+
     [Fact]
     public async Task Given_WorkflowRuleEndpoints_When_RuleIsCreatedListedAndDeleted_Then_CrudUsesExpectedHttpSemantics()
     {
@@ -468,7 +590,20 @@ public sealed class Phase5EndpointTests
         }
     }
 
-    private static async Task<WebApplication> StartAppAsync(params string?[] configurationPairs)
+    private static Task<WebApplication> StartAppAsync(params string?[] configurationPairs)
+    {
+        return StartAppAsync(configurationPairs, configureServices: null, manualMigration: true);
+    }
+
+    private static Task<WebApplication> StartAppAsync(string?[] configurationPairs, Action<IServiceCollection> configureServices)
+    {
+        return StartAppAsync(configurationPairs, configureServices, manualMigration: true);
+    }
+
+    private static async Task<WebApplication> StartAppAsync(
+        string?[]? configurationPairs = null,
+        Action<IServiceCollection>? configureServices = null,
+        bool manualMigration = true)
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var builder = VulperonexWebApplication.CreateBuilder(
@@ -480,18 +615,23 @@ public sealed class Phase5EndpointTests
         var configuration = new Dictionary<string, string?>
         {
             ["Database:Path"] = databasePath,
+            ["Security:RootPath"] = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
         };
+        configurationPairs ??= [];
         for (var index = 0; index < configurationPairs.Length; index += 2)
         {
             configuration[configurationPairs[index]!] = configurationPairs[index + 1];
         }
 
         builder.Configuration.AddInMemoryCollection(configuration);
+        builder.Services.AddSingleton<IFileSystem, TestFileSystem>();
+        configureServices?.Invoke(builder.Services);
         builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
 
         var app = VulperonexWebApplication.Build(builder);
-        await using (var scope = app.Services.CreateAsyncScope())
+        if (manualMigration)
         {
+            await using var scope = app.Services.CreateAsyncScope();
             var context = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
             await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
         }
@@ -606,6 +746,42 @@ public sealed class Phase5EndpointTests
             {
                 // SQLite may keep handles briefly after host disposal on Windows; best-effort cleanup is enough here.
             }
+        }
+    }
+
+    private sealed class RecordingTwitchTokenEndpoint : ITwitchTokenEndpoint
+    {
+        public string? ExchangeCode { get; private set; }
+        public string? ExchangeVerifier { get; private set; }
+
+        public Task<TwitchTokenResponse> ExchangeCodeAsync(
+            string code,
+            string codeVerifier,
+            CancellationToken cancellationToken = default)
+        {
+            ExchangeCode = code;
+            ExchangeVerifier = codeVerifier;
+            return Task.FromResult(new TwitchTokenResponse("access-1", "refresh-1"));
+        }
+
+        public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(new TwitchTokenResponse("access-1", "refresh-1"));
+        }
+    }
+
+    private sealed class TestFileSystem : IFileSystem
+    {
+        public bool FileExists(string path) => File.Exists(path);
+
+        public byte[] ReadAllBytes(string path) => File.ReadAllBytes(path);
+
+        public void WriteAllBytes(string path, byte[] bytes) => File.WriteAllBytes(path, bytes);
+
+        public void CreateDirectory(string path) => Directory.CreateDirectory(path);
+
+        public void ApplyUserOnlyPermissions(string path)
+        {
         }
     }
 }

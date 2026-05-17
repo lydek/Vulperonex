@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Vulperonex.Adapters.Simulation;
+using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Application.Auth;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.EventTypes;
 using Vulperonex.Application.Members;
@@ -12,16 +14,19 @@ using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
 using Vulperonex.Infrastructure.Data;
+using Vulperonex.Infrastructure.Auth;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
 using Vulperonex.Infrastructure.Members;
 using Vulperonex.Infrastructure.Settings;
+using Vulperonex.Infrastructure.Security;
 using Vulperonex.Infrastructure.Time;
 using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web.Configuration;
 using Vulperonex.Web.Ports;
 using Vulperonex.Web.Simulation;
 using Vulperonex.Web.SignalR;
+using Vulperonex.Web.TwitchAuth;
 using Vulperonex.Web.Validation;
 
 namespace Vulperonex.Web;
@@ -58,7 +63,17 @@ public static class DependencyInjection
         services.AddSingleton<IStreamEventTypeRegistry, InMemoryStreamEventTypeRegistry>();
         services.AddSingleton<IStreamEventBus, InMemoryStreamEventBus>();
         services.AddSingleton<IClock, SystemClock>();
+        services.AddSingleton(TimeProvider.System);
         services.AddSingleton<SimulationAliasRegistry>();
+        services.AddSingleton<TwitchOAuthSessionStore>();
+        services.AddSingleton<IFileSystem, LocalFileSystem>();
+        services.AddSingleton<MachineKeyProvider>(serviceProvider =>
+            new MachineKeyProvider(
+                serviceProvider.GetRequiredService<IFileSystem>(),
+                serviceProvider.GetRequiredService<IConfiguration>()["Security:RootPath"]));
+        services.AddScoped<DatabaseBootstrapper>();
+        services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
+        services.AddSingleton<ITwitchTokenEndpoint, TwitchTokenEndpoint>();
         services.AddScoped<WorkflowRuleValidator>();
         services.AddScoped<IWorkflowRuleQueryService, WorkflowRuleQueryService>();
         services.AddScoped<IWorkflowRuleRepository, WorkflowRuleRepository>();
@@ -79,6 +94,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
         services.AddHostedService<SimulationAdapterStartupService>();
         services.AddHostedService<OverlayEventForwarder>();
+        services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddDbContext<VulperonexDbContext>((serviceProvider, options) =>
         {
             var databasePath = serviceProvider.GetRequiredService<IDatabasePathResolver>().Resolve();

@@ -40,6 +40,11 @@ public sealed class OAuthTokenStore(
         }
     }
 
+    public async Task<bool> HasRefreshTokenAsync(string platform, CancellationToken cancellationToken = default)
+    {
+        return !string.IsNullOrWhiteSpace(await GetRefreshTokenAsync(platform, cancellationToken));
+    }
+
     private static string SettingKeyForPlatform(string platform)
     {
         if (!string.Equals(platform, TwitchPlatform, StringComparison.OrdinalIgnoreCase))

@@ -19,4 +19,6 @@ public static class ErrorCodes
     public const string UnknownConfigKey = "UNKNOWN_CONFIG_KEY";
     public const string InvalidQueryParam = "INVALID_QUERY_PARAM";
     public const string MemberNotFound = "MEMBER_NOT_FOUND";
+    public const string TwitchClientIdMissing = "TWITCH_CLIENT_ID_MISSING";
+    public const string TwitchOAuthStateInvalid = "TWITCH_OAUTH_STATE_INVALID";
 }

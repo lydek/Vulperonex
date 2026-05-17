@@ -45,6 +45,7 @@ public static partial class VulperonexWebApplication
         app.MapConfigEndpoints();
         app.MapMemberEndpoints();
         app.MapSimulateEndpoints();
+        app.MapTwitchAuthEndpoints();
         app.MapOverlayHubs();
 
         return app;

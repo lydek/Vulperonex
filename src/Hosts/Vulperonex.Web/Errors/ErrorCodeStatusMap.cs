@@ -21,6 +21,8 @@ public static class ErrorCodeStatusMap
         [ErrorCodes.UnknownConfigKey] = StatusCodes.Status400BadRequest,
         [ErrorCodes.InvalidQueryParam] = StatusCodes.Status400BadRequest,
         [ErrorCodes.MemberNotFound] = StatusCodes.Status404NotFound,
+        [ErrorCodes.TwitchClientIdMissing] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.TwitchOAuthStateInvalid] = StatusCodes.Status400BadRequest,
     };
 
     public static int GetStatusCode(string errorCode)

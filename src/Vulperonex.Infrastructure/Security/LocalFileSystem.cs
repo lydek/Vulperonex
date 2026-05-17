@@ -43,7 +43,6 @@ public sealed class LocalFileSystem : IFileSystem
             ?? throw new IOException("Unable to determine the current Windows user.");
 
         var security = new FileSecurity();
-        security.SetOwner(currentUser);
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
         security.AddAccessRule(new FileSystemAccessRule(
             currentUser,
