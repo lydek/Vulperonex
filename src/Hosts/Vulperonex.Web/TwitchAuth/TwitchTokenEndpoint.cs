@@ -20,6 +20,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
             new Dictionary<string, string>
             {
                 ["client_id"] = clientId,
+                ["client_secret"] = GetClientSecret(),
                 ["grant_type"] = "authorization_code",
                 ["code"] = code,
                 ["redirect_uri"] = redirectUri,
@@ -34,6 +35,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
             new Dictionary<string, string>
             {
                 ["client_id"] = GetClientId(),
+                ["client_secret"] = GetClientSecret(),
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = refreshToken,
             },
@@ -50,6 +52,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
             new Dictionary<string, string>
             {
                 ["client_id"] = GetClientId(),
+                ["client_secret"] = GetClientSecret(),
                 ["grant_type"] = "authorization_code",
                 ["code"] = code,
                 ["redirect_uri"] = redirectUri,
@@ -64,7 +67,11 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
     {
         using var httpClient = new HttpClient();
         using var response = await httpClient.PostAsync(TokenEndpoint, new FormUrlEncodedContent(form), cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new TwitchTokenExchangeException(response.StatusCode);
+        }
+
         var token = await response.Content.ReadFromJsonAsync<TwitchTokenJson>(cancellationToken);
         return new TwitchTokenResponse(token!.AccessToken, token.RefreshToken);
     }
@@ -73,6 +80,12 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
     {
         return configuration["Twitch:ClientId"]
             ?? throw new InvalidOperationException("Twitch:ClientId is required.");
+    }
+
+    private string GetClientSecret()
+    {
+        return configuration["Twitch:ClientSecret"]
+            ?? throw new TwitchClientSecretMissingException();
     }
 
     private sealed record TwitchTokenJson(

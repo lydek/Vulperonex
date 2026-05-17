@@ -21,6 +21,7 @@ using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web;
 using Vulperonex.Web.Configuration;
 using Vulperonex.Web.Ports;
+using Vulperonex.Web.TwitchAuth;
 using Xunit;
 
 namespace Vulperonex.Tests.Integration.Web;
@@ -144,6 +145,56 @@ public sealed class Phase5EndpointTests
         var tokenStore = scope.ServiceProvider.GetRequiredService<IOAuthTokenStore>();
         var refreshToken = await tokenStore.GetRefreshTokenAsync("twitch", TestContext.Current.CancellationToken);
         refreshToken.Should().Be("refresh-1");
+    }
+
+    [Fact]
+    public async Task Given_TwitchOAuthCallback_When_TokenExchangeFails_Then_BadRequestErrorIsReturned()
+    {
+        await using var app = await StartAppAsync(
+            ["Twitch:ClientId", "client-1"],
+            services => services.AddSingleton<ITwitchTokenEndpoint>(new FailingTwitchTokenEndpoint()));
+        using var client = CreateClient(app);
+        var start = await client.PostAsJsonAsync(
+            "/api/twitch/auth/start",
+            new { callbackPort = 7979 },
+            TestContext.Current.CancellationToken);
+        start.EnsureSuccessStatusCode();
+        using var startDocument = JsonDocument.Parse(await start.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var state = startDocument.RootElement.GetProperty("state").GetString();
+
+        var complete = await client.PostAsJsonAsync(
+            "/api/twitch/auth/complete",
+            new { state, code = "bad-code" },
+            TestContext.Current.CancellationToken);
+
+        var body = await complete.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        complete.StatusCode.Should().Be(HttpStatusCode.BadRequest, "response body was {0}", body);
+        body.Should().Contain("TWITCH_OAUTH_EXCHANGE_FAILED");
+    }
+
+    [Fact]
+    public async Task Given_TwitchOAuthCallback_When_ClientSecretIsMissing_Then_BadRequestErrorIsReturned()
+    {
+        await using var app = await StartAppAsync(
+            ["Twitch:ClientId", "client-1"],
+            services => services.AddSingleton<ITwitchTokenEndpoint>(new MissingSecretTwitchTokenEndpoint()));
+        using var client = CreateClient(app);
+        var start = await client.PostAsJsonAsync(
+            "/api/twitch/auth/start",
+            new { callbackPort = 7979 },
+            TestContext.Current.CancellationToken);
+        start.EnsureSuccessStatusCode();
+        using var startDocument = JsonDocument.Parse(await start.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var state = startDocument.RootElement.GetProperty("state").GetString();
+
+        var complete = await client.PostAsJsonAsync(
+            "/api/twitch/auth/complete",
+            new { state, code = "code-1" },
+            TestContext.Current.CancellationToken);
+
+        var body = await complete.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        complete.StatusCode.Should().Be(HttpStatusCode.BadRequest, "response body was {0}", body);
+        body.Should().Contain("TWITCH_CLIENT_SECRET_MISSING");
     }
 
     [Fact]
@@ -767,6 +818,38 @@ public sealed class Phase5EndpointTests
         public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new TwitchTokenResponse("access-1", "refresh-1"));
+        }
+    }
+
+    private sealed class FailingTwitchTokenEndpoint : ITwitchTokenEndpoint
+    {
+        public Task<TwitchTokenResponse> ExchangeCodeAsync(
+            string code,
+            string codeVerifier,
+            CancellationToken cancellationToken = default)
+        {
+            throw new TwitchTokenExchangeException(HttpStatusCode.BadRequest);
+        }
+
+        public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            throw new TwitchTokenExchangeException(HttpStatusCode.BadRequest);
+        }
+    }
+
+    private sealed class MissingSecretTwitchTokenEndpoint : ITwitchTokenEndpoint
+    {
+        public Task<TwitchTokenResponse> ExchangeCodeAsync(
+            string code,
+            string codeVerifier,
+            CancellationToken cancellationToken = default)
+        {
+            throw new TwitchClientSecretMissingException();
+        }
+
+        public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            throw new TwitchClientSecretMissingException();
         }
     }
 

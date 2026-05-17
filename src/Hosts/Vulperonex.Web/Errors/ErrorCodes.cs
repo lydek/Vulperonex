@@ -20,5 +20,7 @@ public static class ErrorCodes
     public const string InvalidQueryParam = "INVALID_QUERY_PARAM";
     public const string MemberNotFound = "MEMBER_NOT_FOUND";
     public const string TwitchClientIdMissing = "TWITCH_CLIENT_ID_MISSING";
+    public const string TwitchClientSecretMissing = "TWITCH_CLIENT_SECRET_MISSING";
     public const string TwitchOAuthStateInvalid = "TWITCH_OAUTH_STATE_INVALID";
+    public const string TwitchOAuthExchangeFailed = "TWITCH_OAUTH_EXCHANGE_FAILED";
 }

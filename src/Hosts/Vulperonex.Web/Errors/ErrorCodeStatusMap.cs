@@ -22,7 +22,9 @@ public static class ErrorCodeStatusMap
         [ErrorCodes.InvalidQueryParam] = StatusCodes.Status400BadRequest,
         [ErrorCodes.MemberNotFound] = StatusCodes.Status404NotFound,
         [ErrorCodes.TwitchClientIdMissing] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.TwitchClientSecretMissing] = StatusCodes.Status400BadRequest,
         [ErrorCodes.TwitchOAuthStateInvalid] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.TwitchOAuthExchangeFailed] = StatusCodes.Status400BadRequest,
     };
 
     public static int GetStatusCode(string errorCode)

@@ -61,17 +61,28 @@ public static class TwitchAuthEndpoints
             }
 
             TwitchTokenResponse token;
-            if (tokenEndpoint is TwitchTokenEndpoint concreteEndpoint)
+            try
             {
-                token = await concreteEndpoint.ExchangeCodeAsync(
-                    request.Code,
-                    session.CodeVerifier,
-                    session.RedirectUri,
-                    cancellationToken);
+                if (tokenEndpoint is TwitchTokenEndpoint concreteEndpoint)
+                {
+                    token = await concreteEndpoint.ExchangeCodeAsync(
+                        request.Code,
+                        session.CodeVerifier,
+                        session.RedirectUri,
+                        cancellationToken);
+                }
+                else
+                {
+                    token = await tokenEndpoint.ExchangeCodeAsync(request.Code, session.CodeVerifier, cancellationToken);
+                }
             }
-            else
+            catch (TwitchClientSecretMissingException)
             {
-                token = await tokenEndpoint.ExchangeCodeAsync(request.Code, session.CodeVerifier, cancellationToken);
+                return ApiErrors.ToResult(ErrorCodes.TwitchClientSecretMissing, StatusCodes.Status400BadRequest);
+            }
+            catch (TwitchTokenExchangeException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.TwitchOAuthExchangeFailed, StatusCodes.Status400BadRequest);
             }
 
             await tokenStore.StoreRefreshTokenAsync("twitch", token.RefreshToken, cancellationToken);

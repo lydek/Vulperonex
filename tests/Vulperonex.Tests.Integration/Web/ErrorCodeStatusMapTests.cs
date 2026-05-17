@@ -13,6 +13,8 @@ public sealed class ErrorCodeStatusMapTests
     [InlineData(ErrorCodes.ConfigKeySecurityNamespace, StatusCodes.Status403Forbidden)]
     [InlineData(ErrorCodes.OAuthCredentialNamespace, StatusCodes.Status403Forbidden)]
     [InlineData(ErrorCodes.MemberNotFound, StatusCodes.Status404NotFound)]
+    [InlineData(ErrorCodes.TwitchClientSecretMissing, StatusCodes.Status400BadRequest)]
+    [InlineData(ErrorCodes.TwitchOAuthExchangeFailed, StatusCodes.Status400BadRequest)]
     public void Given_Phase5ErrorCode_When_StatusIsResolved_Then_ExpectedHttpStatusIsReturned(
         string errorCode,
         int expectedStatusCode)

@@ -87,12 +87,12 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
             var callback = await listener.GetContextAsync().WaitAsync(TimeSpan.FromMinutes(5), cancellationToken);
             var state = callback.Request.QueryString["state"];
             var code = callback.Request.QueryString["code"];
-            await WriteCallbackResponseAsync(callback.Response, cancellationToken);
 
             var completeResponse = await context.Client.PostAsJsonAsync(
                 "/api/twitch/auth/complete",
                 new { state, code },
                 cancellationToken);
+            await WriteCallbackResponseAsync(callback.Response, completeResponse.IsSuccessStatusCode, cancellationToken);
             return await context.WriteResponseAsync(completeResponse);
         }
 
@@ -103,9 +103,18 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
                 : [];
         }
 
-        private static async Task WriteCallbackResponseAsync(HttpListenerResponse response, CancellationToken cancellationToken)
+        private static async Task WriteCallbackResponseAsync(
+            HttpListenerResponse response,
+            bool authorizationCompleted,
+            CancellationToken cancellationToken)
         {
-            const string html = "<!doctype html><title>Vulperonex</title><p>Twitch authorization received. You can close this window.</p>";
+            var html = authorizationCompleted
+                ? """
+                  <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Vulperonex Twitch Authorization</title><style>body{font-family:Segoe UI,Arial,sans-serif;margin:48px;color:#1f2937}.status{max-width:560px}.ok{color:#047857}.fail{color:#b91c1c}</style></head><body><main class="status"><h1 class="ok">Twitch authorization completed</h1><p>You can close this browser tab and return to Vulperonex CLI.</p></main></body></html>
+                  """
+                : """
+                  <!doctype html><html lang="en"><head><meta charset="utf-8"><title>Vulperonex Twitch Authorization</title><style>body{font-family:Segoe UI,Arial,sans-serif;margin:48px;color:#1f2937}.status{max-width:560px}.fail{color:#b91c1c}</style></head><body><main class="status"><h1 class="fail">Twitch authorization could not be completed</h1><p>Return to Vulperonex CLI for the error code, then retry after fixing the configuration.</p></main></body></html>
+                  """;
             var bytes = System.Text.Encoding.UTF8.GetBytes(html);
             response.ContentType = "text/html; charset=utf-8";
             response.ContentLength64 = bytes.Length;
