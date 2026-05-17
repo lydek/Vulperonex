@@ -36,6 +36,8 @@
 - API 以 PKCE 驗證器（verifier）交換 `code`，並透過 `IOAuthTokenStore` 儲存重新整理權杖（refresh token）。
 - 由於 `OAUTH_CREDENTIAL_NAMESPACE` 限制，`/api/config/oauth.twitch.refresh_token` 仍維持禁止存取（forbidden）狀態。
 
+若未設定 `Twitch:ClientId`，非 Twitch CLI 指令仍可使用。互動式 REPL 會在啟動時呼叫 `/api/twitch/auth/status`，輸出 no-Twitch mode 警告後繼續；在 REPL 內執行 `twitch auth start` 會先輸出 `TWITCH_CLIENT_ID_MISSING` 與設定提示，且不會建立 OAuth session 或呼叫 `/api/twitch/auth/start`。
+
 ## 手動指令範本
 
 ### 1. 設定環境並啟動 Web host（終端機 A）

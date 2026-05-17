@@ -4,7 +4,8 @@ internal sealed class CliExecutionContext(
     HttpClient client,
     TextWriter output,
     TextWriter error,
-    JsonSerializerOptions jsonOptions)
+    JsonSerializerOptions jsonOptions,
+    bool isInteractive = false)
 {
     public HttpClient Client { get; } = client;
 
@@ -13,6 +14,8 @@ internal sealed class CliExecutionContext(
     public TextWriter Error { get; } = error;
 
     public JsonSerializerOptions JsonOptions { get; } = jsonOptions;
+
+    public bool IsInteractive { get; } = isInteractive;
 
     public async Task<int> WriteResponseAsync(HttpResponseMessage response)
     {

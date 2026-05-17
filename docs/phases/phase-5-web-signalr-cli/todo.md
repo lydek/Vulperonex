@@ -52,7 +52,8 @@
 - [x] 新增 `GET /api/twitch/auth/status`，只回傳 `clientIdConfigured` / `hasRefreshToken` boolean，不回傳 client id 或 token。
 - [x] 新增最小 REPL 入口：無參數、`--interactive`、`-i` 讀取 stdin 逐行 dispatch，支援 `exit` / `quit` / EOF。
 - [x] REPL 中 API 錯誤只寫 stderr error code，session 繼續。
-- [ ] REPL 啟動 banner：依 `/api/twitch/auth/status` 提示 ClientId/OAuth 狀態，且不得產生 authorize URL。
+- [x] REPL 啟動 banner：依 `/api/twitch/auth/status` 提示 ClientId/OAuth 狀態，且不得產生 authorize URL；缺 `Twitch:ClientId` 時明確以 no-Twitch mode 繼續。
+- [x] REPL 內執行 `twitch auth start` 前重新檢查狀態；`clientIdConfigured == false` 時不打 `/api/twitch/auth/start`，直接提示 `TWITCH_CLIENT_ID_MISSING` 與設定方式。
 - [ ] REPL `twitch auth start` 支援 Ctrl+C 取消並輸出 `TWITCH_OAUTH_CANCELLED`。
 - [ ] Line editor：TTY 模式 history、Tab prefix completion、Backspace、Ctrl+C 清 buffer；redirected stdin 不走 line editor。
 - [ ] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。

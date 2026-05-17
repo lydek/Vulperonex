@@ -122,8 +122,17 @@ public sealed class CliCommandTests
     [Fact]
     public async Task Given_NoArgs_When_StdinContainsCommands_Then_ReplDispatchesEachLineUntilExit()
     {
+        var requestCount = 0;
         using var client = new HttpClient(new StubHandler(request =>
         {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                request.Method.Should().Be(HttpMethod.Get);
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"hasRefreshToken":true}""");
+            }
+
             request.Method.Should().Be(HttpMethod.Get);
             request.RequestUri?.PathAndQuery.Should().Be("/api/rules");
             return JsonResponse(HttpStatusCode.OK, """[]""");
@@ -140,6 +149,7 @@ public sealed class CliCommandTests
         exitCode.Should().Be(0);
         output.ToString().Should().Contain("[]");
         error.ToString().Should().BeEmpty();
+        requestCount.Should().Be(2);
     }
 
     [Fact]
@@ -150,6 +160,12 @@ public sealed class CliCommandTests
         {
             requestCount++;
             if (requestCount == 1)
+            {
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"hasRefreshToken":true}""");
+            }
+
+            if (requestCount == 2)
             {
                 request.RequestUri?.PathAndQuery.Should().Be("/api/config/oauth.twitch.refresh_token");
                 return JsonResponse(HttpStatusCode.Forbidden, """{"error":"OAUTH_CREDENTIAL_NAMESPACE"}""");
@@ -170,6 +186,57 @@ public sealed class CliCommandTests
         exitCode.Should().Be(0);
         error.ToString().Should().Contain("OAUTH_CREDENTIAL_NAMESPACE");
         output.ToString().Should().Contain("[]");
+        requestCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_ReplStart_When_TwitchClientIdMissing_Then_NoTwitchModeBannerIsWritten()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            request.Method.Should().Be(HttpMethod.Get);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+            return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":false,"hasRefreshToken":false}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var input = new StringReader("exit\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().BeEmpty();
+        error.ToString().Should().Contain("Twitch:ClientId is not set");
+        error.ToString().Should().Contain("no-Twitch mode");
+    }
+
+    [Fact]
+    public async Task Given_TwitchAuthStartInRepl_When_ClientIdMissing_Then_StartEndpointIsNotCalled()
+    {
+        var requestCount = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requestCount++;
+            request.Method.Should().Be(HttpMethod.Get);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+            return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":false,"hasRefreshToken":false}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var input = new StringReader("twitch auth start\nexit\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().BeEmpty();
+        error.ToString().Should().Contain("TWITCH_CLIENT_ID_MISSING");
+        error.ToString().Should().Contain("non-Twitch commands");
         requestCount.Should().Be(2);
     }
 

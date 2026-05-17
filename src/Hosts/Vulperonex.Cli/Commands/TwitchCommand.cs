@@ -41,6 +41,17 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
             CliExecutionContext context,
             CancellationToken cancellationToken = default)
         {
+            if (context.IsInteractive)
+            {
+                var status = await new TwitchAuthStatusProbe(context.Client).ProbeAsync(cancellationToken);
+                if (status.Succeeded && !status.ClientIdConfigured)
+                {
+                    await context.Error.WriteLineAsync("TWITCH_CLIENT_ID_MISSING");
+                    await context.Error.WriteLineAsync("Set Twitch__ClientId and restart the Web host, or continue using non-Twitch commands in no-Twitch mode.");
+                    return 1;
+                }
+            }
+
             var noBrowser = args.Contains("--no-browser", StringComparer.Ordinal);
             var callbackPort = CallbackPortSelector.Select();
             var startResponse = await context.Client.PostAsJsonAsync(

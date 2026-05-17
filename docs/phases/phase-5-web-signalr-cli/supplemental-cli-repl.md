@@ -208,12 +208,12 @@ group.MapGet("/status", async (
 - [ ] `vulperonex rule list`（既有單次模式）行為與輸出完全未變；`CliCommandTests` 不需修改即通過。
 - [ ] REPL 中輸入 `rule list` 走完整 HTTP 路徑並印出與單次模式相同的 JSON。
 - [ ] REPL 中後端錯誤碼（如 `OAUTH_CREDENTIAL_NAMESPACE`）寫到 stderr、stdout 為空、prompt 繼續可用，**不**結束 REPL。
-- [ ] REPL 啟動時呼叫 `GET /api/twitch/auth/status`：
-  - `clientIdConfigured == false` → 印 ClientId 未設定 banner，提示設定路徑。
+- [x] REPL 啟動時呼叫 `GET /api/twitch/auth/status`：
+  - `clientIdConfigured == false` → 印 ClientId 未設定 banner，提示設定路徑並以 no-Twitch mode 繼續。
   - `clientIdConfigured && !hasRefreshToken` → 印 OAuth 未授權 banner，指示執行 `twitch auth start`（**不**含 authorize URL，原因見設計段）。
   - `clientIdConfigured && hasRefreshToken` → 不印 banner。
   - 端點失敗 → 印警告 + 錯誤碼，繼續進 REPL。
-- [ ] REPL 中執行 `twitch auth start` 前重新檢查狀態；`clientIdConfigured == false` 時不打 `/start`，直接 stderr 印 `TWITCH_CLIENT_ID_MISSING` + 設定提示。
+- [x] REPL 中執行 `twitch auth start` 前重新檢查狀態；`clientIdConfigured == false` 時不打 `/start`，直接 stderr 印 `TWITCH_CLIENT_ID_MISSING` + 設定提示。
 - [ ] 新後端端點 `GET /api/twitch/auth/status` 回 `{ clientIdConfigured, hasRefreshToken }`，不回傳 client_id 字串或 token。
 - [ ] 命令樹採用 `IConsoleCommand` / `CompositeConsoleCommand` / `ICommandDispatcher` 完整遞迴抽象；one-shot 與 REPL 共用同一棵樹，**禁止**保留舊 `switch` 分發路徑。
 - [ ] `help` 列出所有一級命令與其子命令（透過遞迴 `GetAllCommands` + `Description`）；不打 API。
@@ -246,10 +246,10 @@ group.MapGet("/status", async (
   - `Given_HelpCommand_When_Executed_Then_ListsKnownCommandsAndDoesNotCallApi`：注入會 fail 的 `HttpClient`，確認 `help` 不打 API。
   - `Given_BlankLines_When_Entered_Then_DispatchNotCalled`。
   - `Given_NonLoopbackBaseUrl_When_NoArgs_Then_ReplDoesNotStart`。
-  - `Given_ReplStart_When_ClientIdMissing_Then_BannerPrintedAndAuthStartNotProbed`：stub status 端點回 `{ clientIdConfigured: false }`，斷言 banner 含設定提示且未呼叫 `/api/twitch/auth/start`。
+  - `Given_ReplStart_When_ClientIdMissing_Then_BannerPrintedAndAuthStartNotProbed`：stub status 端點回 `{ clientIdConfigured: false }`，斷言 banner 含設定提示且未呼叫 `/api/twitch/auth/start`。（已覆蓋）
   - `Given_ReplStart_When_OAuthNotAuthorized_Then_BannerInstructsAuthStartCommandWithoutCallingStart`：stub status 回 `{ clientIdConfigured: true, hasRefreshToken: false }`，斷言 banner 含 `twitch auth start` 字串、**未**呼叫 `POST /api/twitch/auth/start`。
   - `Given_ReplStart_When_FullyAuthorized_Then_NoBanner`。
-  - `Given_TwitchAuthStartInRepl_When_ClientIdMissing_Then_StderrCodeWithoutCallingStartEndpoint`。
+  - `Given_TwitchAuthStartInRepl_When_ClientIdMissing_Then_StderrCodeWithoutCallingStartEndpoint`。（已覆蓋）
   - `Given_CommandTreeAbstraction_When_HelpExecuted_Then_OutputsAllRegisteredCompositesRecursively`（保護遞迴抽象）。
   - `Given_InteractiveFlag_When_FollowedByExtraArgs_Then_StderrInvalidArgs`。
   - `Given_ExitCommand_When_Executed_Then_ReplExitTokenIsRequested`（直接斷言 token 狀態，不依賴 stdin EOF）。
