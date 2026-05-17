@@ -33,7 +33,7 @@ public static class VulperonexCli
             await error.WriteLineAsync("HTTP_REQUEST_FAILED");
             return 1;
         }
-        catch (InvalidOperationException exception) when (exception.Message == "CLI_API_URL_NOT_LOOPBACK")
+        catch (CliApiUrlNotLoopbackException)
         {
             await error.WriteLineAsync("CLI_API_URL_NOT_LOOPBACK");
             return 1;
@@ -46,7 +46,7 @@ public static class VulperonexCli
         var uri = new Uri(baseUrl);
         if (!IsAllowedLoopbackBaseUrl(uri))
         {
-            throw new InvalidOperationException("CLI_API_URL_NOT_LOOPBACK");
+            throw new CliApiUrlNotLoopbackException();
         }
 
         return new HttpClient { BaseAddress = uri };
@@ -54,7 +54,7 @@ public static class VulperonexCli
 
     private static bool IsAllowedLoopbackBaseUrl(Uri uri)
     {
-        return uri.Scheme == Uri.UriSchemeHttp
+        return (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
             && (uri.IsLoopback
                 || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase));
     }
@@ -188,4 +188,6 @@ public static class VulperonexCli
         await error.WriteLineAsync(code);
         return 1;
     }
+
+    private sealed class CliApiUrlNotLoopbackException : Exception;
 }

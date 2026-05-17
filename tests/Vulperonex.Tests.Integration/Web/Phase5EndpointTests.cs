@@ -265,6 +265,50 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_SimulateEndpoint_When_RolesUseLegacyNumericFlags_Then_RequestIsAccepted()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/follow",
+            new { roles = 1 },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Given_SimulateEndpoint_When_RolesUseStringNames_Then_RequestIsAccepted()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/follow",
+            new { roles = new[] { "subscriber", "moderator" } },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Given_SimulateEndpoint_When_RoleNameIsUnknown_Then_InvalidQueryParamIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/follow",
+            new { roles = new[] { "not-a-role" } },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_QUERY_PARAM");
+    }
+
+    [Fact]
     public async Task Given_MemberEndpoint_When_MemberExists_Then_ShowReturnsReadModel()
     {
         await using var app = await StartAppAsync();
@@ -293,6 +337,27 @@ public sealed class Phase5EndpointTests
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         json.Should().Contain("member-1");
         json.Should().Contain("twitch");
+    }
+
+    [Fact]
+    public void Given_DefaultLoopbackPorts_When_AllPairsAreUnavailable_Then_HostStartupThrowsPortExhaustedException()
+    {
+        var occupiedPorts = OccupyPorts([5000, 5002, 5004, 5006, 5008]);
+        try
+        {
+            var act = () => VulperonexWebApplication.CreateBuilder(
+                new WebApplicationOptions { EnvironmentName = "Development" },
+                configureDefaultLoopbackPorts: true);
+
+            act.Should().Throw<Vulperonex.Web.Ports.PortExhaustedException>();
+        }
+        finally
+        {
+            foreach (var listener in occupiedPorts)
+            {
+                listener.Stop();
+            }
+        }
     }
 
     private static async Task<WebApplication> StartAppAsync()
@@ -385,5 +450,30 @@ public sealed class Phase5EndpointTests
         var port = ((System.Net.IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    private static List<TcpListener> OccupyPorts(IEnumerable<int> ports)
+    {
+        var listeners = new List<TcpListener>();
+        try
+        {
+            foreach (var port in ports)
+            {
+                var listener = new TcpListener(System.Net.IPAddress.Loopback, port);
+                listener.Start();
+                listeners.Add(listener);
+            }
+
+            return listeners;
+        }
+        catch
+        {
+            foreach (var listener in listeners)
+            {
+                listener.Stop();
+            }
+
+            throw;
+        }
     }
 }

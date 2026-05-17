@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
         services.AddScoped<IWorkflowActionExecutor, SendChatMessageActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
+        // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {
             services.AddSingleton<IPlatformChatSender, NoOpPlatformChatSender>();

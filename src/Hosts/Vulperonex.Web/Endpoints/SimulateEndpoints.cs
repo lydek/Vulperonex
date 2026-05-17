@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Vulperonex.Adapters.Simulation;
 using Vulperonex.Domain;
 using Vulperonex.Web.Errors;
@@ -22,21 +23,33 @@ public static class SimulateEndpoints
                 return ApiErrors.ToResult(ErrorCodes.UnknownSimulateEventType, StatusCodes.Status400BadRequest);
             }
 
+            var simulationRequest = ToSimulationRequest(resolved.Kind, request);
+            if (simulationRequest is null)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            }
+
             await adapter.StartAsync(cancellationToken);
-            await adapter.SimulateAsync(ToSimulationRequest(resolved.Kind, request), cancellationToken);
+            await adapter.SimulateAsync(simulationRequest, cancellationToken);
             return Results.Accepted();
         });
 
         return endpoints;
     }
 
-    private static SimulationRequest ToSimulationRequest(SimulationKind kind, SimulateRequest request)
+    private static SimulationRequest? ToSimulationRequest(SimulationKind kind, SimulateRequest request)
     {
+        var roles = ToRoles(request.Roles);
+        if (roles is null)
+        {
+            return null;
+        }
+
         var user = new StreamUser(
             "simulation",
             request.PlatformUserId ?? "sim-user",
             request.DisplayName ?? "Sim User",
-            ToRoles(request.Roles));
+            roles.Value);
 
         return kind switch
         {
@@ -47,29 +60,60 @@ public static class SimulateEndpoints
         };
     }
 
-    private static StreamRole ToRoles(IReadOnlyCollection<string>? roles)
+    private static StreamRole? ToRoles(JsonElement? roles)
     {
-        if (roles is null || roles.Count == 0)
+        if (roles is null || roles.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
             return StreamRole.None;
         }
 
-        var resolved = StreamRole.None;
-        foreach (var role in roles)
+        if (roles.Value.ValueKind == JsonValueKind.Number && roles.Value.TryGetInt32(out var numericRoles))
         {
-            if (Enum.TryParse<StreamRole>(role, ignoreCase: true, out var parsed))
+            return Enum.IsDefined((StreamRole)numericRoles) || IsCompositeRoleValue(numericRoles)
+                ? (StreamRole)numericRoles
+                : null;
+        }
+
+        if (roles.Value.ValueKind == JsonValueKind.String)
+        {
+            return TryParseRole(roles.Value.GetString(), out var singleRole) ? singleRole : null;
+        }
+
+        if (roles.Value.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var resolved = StreamRole.None;
+        foreach (var role in roles.Value.EnumerateArray())
+        {
+            if (role.ValueKind != JsonValueKind.String || !TryParseRole(role.GetString(), out var parsed))
             {
-                resolved |= parsed;
+                return null;
             }
+
+            resolved |= parsed;
         }
 
         return resolved;
     }
 
+    private static bool TryParseRole(string? role, out StreamRole parsed)
+    {
+        return Enum.TryParse(role, ignoreCase: true, out parsed)
+            && Enum.IsDefined(parsed);
+    }
+
+    private static bool IsCompositeRoleValue(int numericRoles)
+    {
+        const int allKnownFlags = (int)(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Vip | StreamRole.Follower);
+        return numericRoles >= 0 && (numericRoles & ~allKnownFlags) == 0;
+    }
+
     private sealed record SimulateRequest(
         string? PlatformUserId,
         string? DisplayName,
-        string[]? Roles = null,
+        JsonElement? Roles = null,
         string? Message = null,
         string? Tier = null);
 }
