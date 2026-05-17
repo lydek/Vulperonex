@@ -70,7 +70,10 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
         services.AddScoped<IWorkflowActionExecutor, SendChatMessageActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
-        services.AddSingleton<IPlatformChatSender, NoOpPlatformChatSender>();
+        if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
+        {
+            services.AddSingleton<IPlatformChatSender, NoOpPlatformChatSender>();
+        }
         services.AddScoped<WorkflowEngine>();
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
         services.AddHostedService<SimulationAdapterStartupService>();

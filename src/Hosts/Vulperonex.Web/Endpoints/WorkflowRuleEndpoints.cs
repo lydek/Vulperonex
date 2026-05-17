@@ -1,6 +1,8 @@
 namespace Vulperonex.Web.Endpoints;
 
+using System.Text.Json;
 using Vulperonex.Application.Workflows;
+using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Web.Errors;
 using Vulperonex.Web.Validation;
 using Vulperonex.Web.Workflows;
@@ -31,6 +33,11 @@ public static class WorkflowRuleEndpoints
             IWorkflowRuleRepository repository,
             CancellationToken cancellationToken) =>
         {
+            if (!string.IsNullOrWhiteSpace(request.Id))
+            {
+                return ApiErrors.ToResult(ErrorCodes.WorkflowRuleIdNotAllowed, StatusCodes.Status400BadRequest);
+            }
+
             var error = validator.Validate(request);
             if (error is not null)
             {
@@ -48,6 +55,7 @@ public static class WorkflowRuleEndpoints
             string id,
             WorkflowRuleUpsertRequest request,
             WorkflowRuleValidator validator,
+            IWorkflowRuleQueryService queryService,
             IWorkflowRuleRepository repository,
             CancellationToken cancellationToken) =>
         {
@@ -56,21 +64,25 @@ public static class WorkflowRuleEndpoints
                 return ApiErrors.ToResult(ErrorCodes.InvalidRuleIdMismatch, StatusCodes.Status400BadRequest);
             }
 
+            var existing = await queryService.GetAsync(id, cancellationToken);
+            if (existing is null)
+            {
+                return ApiErrors.ToResult(ErrorCodes.WorkflowRuleNotFound, StatusCodes.Status404NotFound);
+            }
+
             var error = validator.Validate(request);
             if (error is not null)
             {
                 return ApiErrors.ToResult(error, ErrorCodeStatusMap.GetStatusCode(error));
             }
 
-            var rule = WorkflowRuleJsonMapper.ToRule(request, id);
-            try
+            if (await WouldCreateCycleAsync(id, request.Actions ?? [], queryService, cancellationToken))
             {
-                await repository.UpdateAsync(rule, cancellationToken);
+                return ApiErrors.ToResult(ErrorCodes.CircularWorkflowReference, StatusCodes.Status400BadRequest);
             }
-            catch (KeyNotFoundException)
-            {
-                return ApiErrors.ToResult(ErrorCodes.WorkflowRuleNotFound, StatusCodes.Status404NotFound);
-            }
+
+            var rule = WorkflowRuleJsonMapper.ToRule(request, id, existing.CreatedAt);
+            await repository.UpdateAsync(rule, cancellationToken);
 
             return Results.Ok(WorkflowRuleJsonMapper.ToDto(rule));
         });
@@ -114,5 +126,66 @@ public static class WorkflowRuleEndpoints
         }
 
         return Results.NoContent();
+    }
+
+    private static async Task<bool> WouldCreateCycleAsync(
+        string ruleId,
+        IReadOnlyList<JsonElement> candidateActions,
+        IWorkflowRuleQueryService queryService,
+        CancellationToken cancellationToken)
+    {
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Queue<string>(ExtractInvokedWorkflowIds(candidateActions));
+
+        while (pending.TryDequeue(out var nextId))
+        {
+            if (string.Equals(ruleId, nextId, StringComparison.Ordinal))
+            {
+                return true;
+            }
+
+            if (!visited.Add(nextId))
+            {
+                continue;
+            }
+
+            var nextRule = await queryService.GetAsync(nextId, cancellationToken);
+            if (nextRule is null)
+            {
+                continue;
+            }
+
+            foreach (var invokedId in nextRule.Actions.OfType<InvokeSubWorkflowAction>().Select(action => action.WorkflowId))
+            {
+                pending.Enqueue(invokedId);
+            }
+        }
+
+        return false;
+    }
+
+    private static IEnumerable<string> ExtractInvokedWorkflowIds(IEnumerable<JsonElement> actions)
+    {
+        foreach (var action in actions)
+        {
+            if (!IsInvokeSubWorkflow(action))
+            {
+                continue;
+            }
+
+            if (action.TryGetProperty("workflowId", out var workflowId)
+                && workflowId.ValueKind == JsonValueKind.String
+                && !string.IsNullOrWhiteSpace(workflowId.GetString()))
+            {
+                yield return workflowId.GetString()!;
+            }
+        }
+    }
+
+    private static bool IsInvokeSubWorkflow(JsonElement action)
+    {
+        return action.TryGetProperty("type", out var type)
+            && type.ValueKind == JsonValueKind.String
+            && string.Equals(type.GetString(), InvokeSubWorkflowAction.ActionType, StringComparison.Ordinal);
     }
 }

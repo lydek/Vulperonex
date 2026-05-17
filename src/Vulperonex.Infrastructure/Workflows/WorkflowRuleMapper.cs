@@ -68,7 +68,6 @@ internal static class WorkflowRuleMapper
         entity.ActionsJson = JsonSerializer.Serialize(rule.Actions, JsonOptions);
         entity.IsEnabled = rule.IsEnabled;
         entity.Priority = rule.Priority;
-        entity.CreatedAt = rule.CreatedAt;
         entity.ExecutionMode = rule.ExecutionMode.ToString();
         entity.MaxParallelism = rule.MaxParallelism;
     }

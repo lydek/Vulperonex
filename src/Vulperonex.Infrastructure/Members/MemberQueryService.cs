@@ -31,17 +31,44 @@ public sealed class MemberQueryService(VulperonexDbContext context) : IMemberQue
             .Take(limit)
             .ToArrayAsync(cancellationToken);
 
-        var results = new List<MemberReadModel>(ids.Length);
-        foreach (var id in ids)
+        if (ids.Length == 0)
         {
-            var member = await FindByMemberIdAsync(id, cancellationToken);
-            if (member is not null)
-            {
-                results.Add(member);
-            }
+            return [];
         }
 
-        return results;
+        var members = await context.Members
+            .AsNoTracking()
+            .Where(member => ids.Contains(member.MemberId))
+            .ToDictionaryAsync(member => member.MemberId, cancellationToken);
+
+        var identities = await context.PlatformIdentities
+            .AsNoTracking()
+            .Where(identity => ids.Contains(identity.MemberId))
+            .OrderBy(identity => identity.Platform)
+            .ThenBy(identity => identity.PlatformUserId)
+            .Select(identity => new
+            {
+                identity.MemberId,
+                Identity = new PlatformIdentityReadModel(identity.Platform, identity.PlatformUserId),
+            })
+            .ToArrayAsync(cancellationToken);
+
+        var identitiesByMemberId = identities
+            .GroupBy(identity => identity.MemberId)
+            .ToDictionary(group => group.Key, group => group.Select(identity => identity.Identity).ToArray());
+
+        return ids
+            .Where(members.ContainsKey)
+            .Select(id =>
+            {
+                var member = members[id];
+                identitiesByMemberId.TryGetValue(id, out var memberIdentities);
+                return new MemberReadModel(
+                    member.MemberId,
+                    memberIdentities ?? [],
+                    new LoyaltyReadModel(member.TotalLoyalty, member.CheckInCount));
+            })
+            .ToArray();
     }
 
     public async Task<MemberReadModel?> FindByMemberIdAsync(string memberId, CancellationToken cancellationToken = default)

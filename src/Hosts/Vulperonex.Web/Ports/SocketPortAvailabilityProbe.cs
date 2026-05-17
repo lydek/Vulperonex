@@ -13,6 +13,9 @@ public sealed class SocketPortAvailabilityProbe : IPortAvailabilityProbe
             using var ipv6 = new TcpListener(IPAddress.IPv6Loopback, port);
             ipv4.Start();
             ipv6.Start();
+            // The listener only probes availability. Stop immediately so Kestrel can bind the same port next.
+            ipv6.Stop();
+            ipv4.Stop();
             return true;
         }
         catch (SocketException)

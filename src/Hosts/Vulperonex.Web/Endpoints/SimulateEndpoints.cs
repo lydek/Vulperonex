@@ -36,7 +36,7 @@ public static class SimulateEndpoints
             "simulation",
             request.PlatformUserId ?? "sim-user",
             request.DisplayName ?? "Sim User",
-            request.Roles);
+            ToRoles(request.Roles));
 
         return kind switch
         {
@@ -47,10 +47,29 @@ public static class SimulateEndpoints
         };
     }
 
+    private static StreamRole ToRoles(IReadOnlyCollection<string>? roles)
+    {
+        if (roles is null || roles.Count == 0)
+        {
+            return StreamRole.None;
+        }
+
+        var resolved = StreamRole.None;
+        foreach (var role in roles)
+        {
+            if (Enum.TryParse<StreamRole>(role, ignoreCase: true, out var parsed))
+            {
+                resolved |= parsed;
+            }
+        }
+
+        return resolved;
+    }
+
     private sealed record SimulateRequest(
         string? PlatformUserId,
         string? DisplayName,
-        StreamRole Roles = StreamRole.None,
+        string[]? Roles = null,
         string? Message = null,
         string? Tier = null);
 }

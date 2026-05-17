@@ -37,7 +37,13 @@ public sealed class OverlayEventForwarder(
 
     private Task ForwardManagementEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
     {
-        return eventsHub.Clients.All.SendAsync("event", streamEvent, cancellationToken);
+        var payload = new StreamEventEnvelope(
+            streamEvent.EventTypeKey,
+            streamEvent.EventId,
+            streamEvent.Platform,
+            streamEvent.OccurredAt);
+
+        return eventsHub.Clients.All.SendAsync("event", payload, cancellationToken);
     }
 
     private Task ForwardChatEventAsync(UserSentMessageEvent streamEvent, CancellationToken cancellationToken)
@@ -72,3 +78,9 @@ public sealed class OverlayEventForwarder(
         return alertsHub.Clients.All.SendAsync("event", payload, cancellationToken);
     }
 }
+
+public sealed record StreamEventEnvelope(
+    string Type,
+    string EventId,
+    string Platform,
+    DateTimeOffset OccurredAt);

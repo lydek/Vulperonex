@@ -28,7 +28,7 @@ public static class WorkflowRuleJsonMapper
             rule.MaxParallelism);
     }
 
-    public static WorkflowRule ToRule(WorkflowRuleUpsertRequest request, string id)
+    public static WorkflowRule ToRule(WorkflowRuleUpsertRequest request, string id, DateTimeOffset? createdAt = null)
     {
         return new WorkflowRule
         {
@@ -37,7 +37,7 @@ public static class WorkflowRuleJsonMapper
             EventTypeKey = request.EventTypeKey,
             IsEnabled = request.IsEnabled,
             Priority = request.Priority,
-            CreatedAt = DateTimeOffset.UtcNow,
+            CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
             Conditions = (request.Conditions ?? []).Select(DeserializeCondition).ToArray(),
             Actions = (request.Actions ?? []).Select(DeserializeAction).ToArray(),
             ExecutionMode = request.ExecutionMode,

@@ -3,6 +3,7 @@ namespace Vulperonex.Web.Errors;
 public static class ErrorCodes
 {
     public const string WorkflowRuleNotFound = "WORKFLOW_RULE_NOT_FOUND";
+    public const string WorkflowRuleIdNotAllowed = "WORKFLOW_RULE_ID_NOT_ALLOWED";
     public const string UnknownEventTypeKey = "UNKNOWN_EVENT_TYPE_KEY";
     public const string CircularWorkflowReference = "CIRCULAR_WORKFLOW_REFERENCE";
     public const string UnknownActionType = "UNKNOWN_ACTION_TYPE";

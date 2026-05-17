@@ -1,6 +1,11 @@
+using System.Data.Common;
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Vulperonex.Domain.Members;
+using Vulperonex.Infrastructure.Data;
+using Vulperonex.Infrastructure.Data.Entities;
 using Vulperonex.Infrastructure.Members;
 using Xunit;
 
@@ -26,5 +31,78 @@ public sealed class MemberResolverTests
         var identityCount = await context.PlatformIdentities.CountAsync(TestContext.Current.CancellationToken);
         memberCount.Should().Be(1);
         identityCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_MemberListPage_When_Loaded_Then_RelatedDataIsFetchedInBatches()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync(TestContext.Current.CancellationToken);
+        var counter = new CommandCounterInterceptor();
+        var options = new DbContextOptionsBuilder<VulperonexDbContext>()
+            .UseSqlite(connection)
+            .AddInterceptors(counter)
+            .Options;
+
+        await using (var seedContext = new VulperonexDbContext(options))
+        {
+            await seedContext.Database.MigrateAsync(TestContext.Current.CancellationToken);
+            for (var index = 0; index < 5; index++)
+            {
+                var memberId = $"member-{index}";
+                seedContext.Members.Add(new MemberEntity
+                {
+                    MemberId = memberId,
+                    CheckInCount = index,
+                    TotalLoyalty = index * 10,
+                });
+                seedContext.PlatformIdentities.Add(new PlatformIdentityEntity
+                {
+                    MemberId = memberId,
+                    Platform = "twitch",
+                    PlatformUserId = $"user-{index}",
+                });
+            }
+
+            await seedContext.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        counter.Reset();
+        await using var context = new VulperonexDbContext(options);
+        var service = new MemberQueryService(context);
+
+        var results = await service.ListAsync(limit: 5, cancellationToken: TestContext.Current.CancellationToken);
+
+        results.Should().HaveCount(5);
+        counter.CommandCount.Should().BeLessThanOrEqualTo(3);
+    }
+
+    private sealed class CommandCounterInterceptor : DbCommandInterceptor
+    {
+        public int CommandCount { get; private set; }
+
+        public void Reset()
+        {
+            CommandCount = 0;
+        }
+
+        public override InterceptionResult<DbDataReader> ReaderExecuting(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result)
+        {
+            CommandCount++;
+            return base.ReaderExecuting(command, eventData, result);
+        }
+
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(
+            DbCommand command,
+            CommandEventData eventData,
+            InterceptionResult<DbDataReader> result,
+            CancellationToken cancellationToken = default)
+        {
+            CommandCount++;
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
     }
 }

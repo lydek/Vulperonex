@@ -22,11 +22,10 @@ public static class VulperonexCli
             return 1;
         }
 
-        using var ownedClient = client is null ? CreateClient() : null;
-        client ??= ownedClient!;
-
         try
         {
+            using var ownedClient = client is null ? CreateClient() : null;
+            client ??= ownedClient!;
             return await DispatchAsync(args, client, output, error);
         }
         catch (HttpRequestException)
@@ -34,12 +33,30 @@ public static class VulperonexCli
             await error.WriteLineAsync("HTTP_REQUEST_FAILED");
             return 1;
         }
+        catch (InvalidOperationException exception) when (exception.Message == "CLI_API_URL_NOT_LOOPBACK")
+        {
+            await error.WriteLineAsync("CLI_API_URL_NOT_LOOPBACK");
+            return 1;
+        }
     }
 
     private static HttpClient CreateClient()
     {
         var baseUrl = Environment.GetEnvironmentVariable("VULPERONEX_API_URL") ?? "http://localhost:5000";
-        return new HttpClient { BaseAddress = new Uri(baseUrl) };
+        var uri = new Uri(baseUrl);
+        if (!IsAllowedLoopbackBaseUrl(uri))
+        {
+            throw new InvalidOperationException("CLI_API_URL_NOT_LOOPBACK");
+        }
+
+        return new HttpClient { BaseAddress = uri };
+    }
+
+    private static bool IsAllowedLoopbackBaseUrl(Uri uri)
+    {
+        return uri.Scheme == Uri.UriSchemeHttp
+            && (uri.IsLoopback
+                || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase));
     }
 
     private static async Task<int> DispatchAsync(string[] args, HttpClient client, TextWriter output, TextWriter error)

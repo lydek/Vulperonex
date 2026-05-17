@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -55,47 +56,132 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
-    public async Task Given_WorkflowRuleValidation_When_SystemEventIsSubmitted_Then_UnknownEventTypeKeyIsReturned()
+    public async Task Given_WorkflowRuleEndpoints_When_RuleIsUpdated_Then_CreatedAtIsPreserved()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/rules",
+            ValidRule("Preserved", actions: [new { type = "sendChatMessage", template = "first" }]),
+            TestContext.Current.CancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+        var location = createResponse.Headers.Location!.ToString();
+        var created = JsonDocument.Parse(await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        var createdAt = created.RootElement.GetProperty("createdAt").GetDateTimeOffset();
+
+        await Task.Delay(20, TestContext.Current.CancellationToken);
+        var updateResponse = await client.PutAsJsonAsync(
+            location,
+            ValidRule("Updated", actions: [new { type = "sendChatMessage", template = "second" }]),
+            TestContext.Current.CancellationToken);
+
+        var body = await updateResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
+        var updated = JsonDocument.Parse(body);
+        updated.RootElement.GetProperty("createdAt").GetDateTimeOffset().Should().Be(createdAt);
+    }
+
+    [Fact]
+    public async Task Given_WorkflowRuleCreate_When_ClientProvidesId_Then_StableErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
 
         var response = await client.PostAsJsonAsync(
             "/api/rules",
-            new
-            {
-                name = "Bad rule",
-                eventTypeKey = "platform.connection_changed",
-                isEnabled = true,
-                priority = 0,
-                conditions = Array.Empty<object>(),
-                actions = Array.Empty<object>(),
-            },
+            ValidRule("Client id", id: "client-id"),
             TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        json.Should().Contain("UNKNOWN_EVENT_TYPE_KEY");
+        json.Should().Contain("WORKFLOW_RULE_ID_NOT_ALLOWED");
     }
 
-    [Fact]
-    public async Task Given_WorkflowRuleValidation_When_RuleInvokesItself_Then_CircularReferenceIsReturned()
+    [Theory]
+    [InlineData("platform.connection_changed", null, "UNKNOWN_EVENT_TYPE_KEY")]
+    [InlineData("user.message", "unknownAction", "UNKNOWN_ACTION_TYPE")]
+    [InlineData("user.message", "missingTemplate", "ACTION_MISSING_REQUIRED_PARAM")]
+    [InlineData("user.message", "invalidActionConfig", "INVALID_ACTION_CONFIG")]
+    public async Task Given_WorkflowRuleValidation_When_InvalidActionRequestIsSubmitted_Then_ErrorCodeIsReturned(
+        string eventTypeKey,
+        string? actionCase,
+        string expectedError)
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
 
         var response = await client.PostAsJsonAsync(
             "/api/rules",
-            new
-            {
-                id = "self",
-                name = "Bad rule",
-                eventTypeKey = "user.message",
-                isEnabled = true,
-                priority = 0,
-                conditions = Array.Empty<object>(),
-                actions = new object[] { new { type = "invokeSubWorkflow", workflowId = "self" } },
-            },
+            ValidRule("Bad rule", eventTypeKey: eventTypeKey, actions: InvalidActions(actionCase)),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain(expectedError);
+    }
+
+    [Fact]
+    public async Task Given_WorkflowRuleValidation_When_InvalidConditionIsSubmitted_Then_ErrorCodeIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            ValidRule("Bad condition", conditions: [new { type = "unknownCondition" }]),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("UNKNOWN_CONDITION_TYPE");
+    }
+
+    [Fact]
+    public async Task Given_WorkflowRuleValidation_When_InvalidRegexIsSubmitted_Then_ErrorCodeIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            ValidRule("Bad regex", conditions: [new { type = "messageContent", matchMode = "FullRegex", pattern = "[" }]),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_REGEX_PATTERN");
+    }
+
+    [Fact]
+    public async Task Given_WorkflowRuleValidation_When_PathAndBodyIdsDiffer_Then_ErrorCodeIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var createResponse = await client.PostAsJsonAsync("/api/rules", ValidRule("Rule"), TestContext.Current.CancellationToken);
+        createResponse.EnsureSuccessStatusCode();
+
+        var response = await client.PutAsJsonAsync(
+            createResponse.Headers.Location!.ToString(),
+            ValidRule("Mismatch", id: "different"),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_RULE_ID_MISMATCH");
+    }
+
+    [Fact]
+    public async Task Given_WorkflowRuleValidation_When_RuleCreatesMultiHopCycle_Then_CircularReferenceIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var a = await CreateRuleAsync(client, "A", []);
+        var b = await CreateRuleAsync(client, "B", [new { type = "invokeSubWorkflow", workflowId = a.Id }]);
+
+        var response = await client.PutAsJsonAsync(
+            a.Location,
+            ValidRule("A updated", actions: [new { type = "invokeSubWorkflow", workflowId = b.Id }]),
             TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
@@ -129,6 +215,53 @@ public sealed class Phase5EndpointTests
         response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         json.Should().Contain("OAUTH_CREDENTIAL_NAMESPACE");
+    }
+
+    [Theory]
+    [InlineData("/api/config/security.foo", "CONFIG_KEY_SECURITY_NAMESPACE")]
+    [InlineData("/api/config/SECURITY.foo", "CONFIG_KEY_SECURITY_NAMESPACE")]
+    [InlineData("/api/config/unknown.key", "UNKNOWN_CONFIG_KEY")]
+    public async Task Given_ConfigEndpoint_When_KeyIsRejected_Then_ExpectedErrorCodeIsReturned(string path, string expectedError)
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync(path, TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(path.Contains("unknown", StringComparison.Ordinal)
+            ? HttpStatusCode.BadRequest
+            : HttpStatusCode.Forbidden);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain(expectedError);
+    }
+
+    [Fact]
+    public async Task Given_MemberEndpoint_When_InvalidQueryParamIsSubmitted_Then_ErrorCodeIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/members?limit=201", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_QUERY_PARAM");
+    }
+
+    [Fact]
+    public async Task Given_SimulateEndpoint_When_UnknownAliasIsSubmitted_Then_ErrorCodeIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/user.message",
+            new { },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("UNKNOWN_SIMULATE_EVENT_TYPE");
     }
 
     [Fact]
@@ -198,6 +331,51 @@ public sealed class Phase5EndpointTests
             .Single();
 
         return new HttpClient { BaseAddress = new Uri(address!) };
+    }
+
+    private static object ValidRule(
+        string name,
+        string eventTypeKey = "user.message",
+        string? id = null,
+        object[]? conditions = null,
+        object[]? actions = null)
+    {
+        return new
+        {
+            id,
+            name,
+            eventTypeKey,
+            isEnabled = true,
+            priority = 0,
+            conditions = conditions ?? [],
+            actions = actions ?? [new { type = "sendChatMessage", template = "hi" }],
+            executionMode = "Serial",
+            maxParallelism = 1,
+        };
+    }
+
+    private static object[] InvalidActions(string? actionCase)
+    {
+        return actionCase switch
+        {
+            null => [],
+            "unknownAction" => [new { type = "unknownAction" }],
+            "missingTemplate" => [new { type = "sendChatMessage" }],
+            "invalidActionConfig" => [new { type = "sendChatMessage", template = "hi", timeoutMs = -1 }],
+            _ => throw new ArgumentOutOfRangeException(nameof(actionCase), actionCase, null),
+        };
+    }
+
+    private static async Task<(string Id, string Location)> CreateRuleAsync(HttpClient client, string name, object[] actions)
+    {
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            ValidRule(name, actions: actions.Length == 0 ? [new { type = "sendChatMessage", template = name }] : actions),
+            TestContext.Current.CancellationToken);
+        response.EnsureSuccessStatusCode();
+        var location = response.Headers.Location!.ToString();
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        return (document.RootElement.GetProperty("id").GetString()!, location);
     }
 
     private static int GetAvailablePort()

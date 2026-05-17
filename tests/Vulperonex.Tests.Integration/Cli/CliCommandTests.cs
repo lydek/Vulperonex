@@ -75,6 +75,28 @@ public sealed class CliCommandTests
         error.ToString().Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Given_ApiUrlEnvironmentVariable_When_TargetIsNotLoopback_Then_CliRejectsIt()
+    {
+        var previous = Environment.GetEnvironmentVariable("VULPERONEX_API_URL");
+        Environment.SetEnvironmentVariable("VULPERONEX_API_URL", "http://example.com:5000");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        try
+        {
+            var exitCode = await VulperonexCli.RunAsync(["rule", "list"], output: output, error: error);
+
+            exitCode.Should().Be(1);
+            output.ToString().Should().BeEmpty();
+            error.ToString().Trim().Should().Be("CLI_API_URL_NOT_LOOPBACK");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VULPERONEX_API_URL", previous);
+        }
+    }
+
     private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, string json)
     {
         return new HttpResponseMessage(statusCode)
