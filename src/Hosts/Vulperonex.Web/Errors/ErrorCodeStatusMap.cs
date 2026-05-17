@@ -6,6 +6,7 @@ public static class ErrorCodeStatusMap
     {
         [ErrorCodes.WorkflowRuleNotFound] = StatusCodes.Status404NotFound,
         [ErrorCodes.WorkflowRuleIdNotAllowed] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.WorkflowRuleConflict] = StatusCodes.Status409Conflict,
         [ErrorCodes.UnknownEventTypeKey] = StatusCodes.Status400BadRequest,
         [ErrorCodes.CircularWorkflowReference] = StatusCodes.Status400BadRequest,
         [ErrorCodes.UnknownActionType] = StatusCodes.Status400BadRequest,

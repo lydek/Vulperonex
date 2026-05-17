@@ -11,9 +11,13 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Vulperonex.Adapters.Simulation;
+using Vulperonex.Application.Workflows;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Data.Entities;
+using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web;
+using Vulperonex.Web.Configuration;
+using Vulperonex.Web.Ports;
 using Xunit;
 
 namespace Vulperonex.Tests.Integration.Web;
@@ -154,6 +158,22 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_WorkflowRuleValidation_When_ActionPayloadCannotDeserialize_Then_InvalidActionConfigIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            ValidRule("Bad payload", actions: [new { type = "sendChatMessage", template = new { nested = true } }]),
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_ACTION_CONFIG");
+    }
+
+    [Fact]
     public async Task Given_WorkflowRuleValidation_When_PathAndBodyIdsDiffer_Then_ErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();
@@ -236,12 +256,38 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_ConfigEndpoint_When_KeyCaseDiffers_Then_ResponseUsesCanonicalKey()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/config/LOG.MIN_LEVEL", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("\"key\":\"log.min_level\"");
+    }
+
+    [Fact]
     public async Task Given_MemberEndpoint_When_InvalidQueryParamIsSubmitted_Then_ErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
 
         var response = await client.GetAsync("/api/members?limit=201", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_QUERY_PARAM");
+    }
+
+    [Fact]
+    public async Task Given_MemberEndpoint_When_OffsetExceedsCap_Then_ErrorCodeIsReturned()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/members?offset=1000001", TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -273,6 +319,20 @@ public sealed class Phase5EndpointTests
         var response = await client.PostAsJsonAsync(
             "/api/simulate/follow",
             new { roles = 1 },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Given_SimulateEndpoint_When_Posted_Then_AdapterDoesNotStartPerRequest()
+    {
+        await using var app = await StartAppAsync(["Simulation:Enabled", "false"]);
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new { message = "no start" },
             TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
@@ -342,7 +402,10 @@ public sealed class Phase5EndpointTests
     [Fact]
     public void Given_DefaultLoopbackPorts_When_AllPairsAreUnavailable_Then_HostStartupThrowsPortExhaustedException()
     {
-        var occupiedPorts = OccupyPorts([5000, 5002, 5004, 5006, 5008]);
+        var options = new PortAllocationOptions();
+        var occupiedPorts = OccupyPorts(Enumerable
+            .Range(0, ((options.LastApiPort - options.FirstApiPort) / options.PortStep) + 1)
+            .Select(index => options.FirstApiPort + (index * options.PortStep)));
         try
         {
             var act = () => VulperonexWebApplication.CreateBuilder(
@@ -360,7 +423,52 @@ public sealed class Phase5EndpointTests
         }
     }
 
-    private static async Task<WebApplication> StartAppAsync()
+    [Fact]
+    public void Given_NoDatabasePathConfigured_When_Resolved_Then_PathIsUnderAppContextBaseDirectory()
+    {
+        var configuration = new ConfigurationBuilder().Build();
+
+        var path = new DatabasePathResolver(configuration).Resolve();
+
+        path.Should().Be(Path.Combine(AppContext.BaseDirectory, "vulperonex.db"));
+    }
+
+    [Fact]
+    public async Task Given_WorkflowRuleRepository_When_StaleVersionUpdates_Then_ConcurrencyExceptionIsThrown()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        try
+        {
+            await using (var app = await StartAppAsync(["Database:Path", databasePath]))
+            {
+                await using var scope = app.Services.CreateAsyncScope();
+                var context = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
+                var repository = new WorkflowRuleRepository(context);
+                var rule = new WorkflowRule
+                {
+                    Id = "concurrency",
+                    Name = "Original",
+                    EventTypeKey = "user.message",
+                    Actions = [new Vulperonex.Application.Workflows.Actions.SendChatMessageAction { Template = "hi" }],
+                };
+                await repository.AddAsync(rule, TestContext.Current.CancellationToken);
+
+                var first = rule with { Name = "First", Version = 0 };
+                var second = rule with { Name = "Second", Version = 0 };
+                await repository.UpdateAsync(first, 0, TestContext.Current.CancellationToken);
+
+                var act = () => repository.UpdateAsync(second, 0, TestContext.Current.CancellationToken);
+
+                await act.Should().ThrowAsync<WorkflowRuleConcurrencyException>();
+            }
+        }
+        finally
+        {
+            DeleteSqliteFiles(databasePath);
+        }
+    }
+
+    private static async Task<WebApplication> StartAppAsync(params string?[] configurationPairs)
     {
         var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
         var builder = VulperonexWebApplication.CreateBuilder(
@@ -369,10 +477,16 @@ public sealed class Phase5EndpointTests
                 EnvironmentName = "Development",
             },
             configureDefaultLoopbackPorts: false);
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        var configuration = new Dictionary<string, string?>
         {
             ["Database:Path"] = databasePath,
-        });
+        };
+        for (var index = 0; index < configurationPairs.Length; index += 2)
+        {
+            configuration[configurationPairs[index]!] = configurationPairs[index + 1];
+        }
+
+        builder.Configuration.AddInMemoryCollection(configuration);
         builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
 
         var app = VulperonexWebApplication.Build(builder);
@@ -474,6 +588,24 @@ public sealed class Phase5EndpointTests
             }
 
             throw;
+        }
+    }
+
+    private static void DeleteSqliteFiles(string databasePath)
+    {
+        foreach (var path in new[] { databasePath, $"{databasePath}-shm", $"{databasePath}-wal" })
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch (IOException)
+            {
+                // SQLite may keep handles briefly after host disposal on Windows; best-effort cleanup is enough here.
+            }
         }
     }
 }

@@ -6,4 +6,5 @@ public sealed record WorkflowRuleSummaryDto(
     string EventTypeKey,
     bool IsEnabled,
     int Priority,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    int Version);

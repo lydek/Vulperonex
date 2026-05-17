@@ -64,7 +64,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowRuleRepository, WorkflowRuleRepository>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IMemberQueryService, MemberQueryService>();
-        services.AddScoped<ISimulationAdapter, SimulationAdapter>();
+        services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
         services.AddScoped<WorkflowConditionEvaluator>();
         services.AddScoped<TemplateRenderer>();
         services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();

@@ -52,8 +52,9 @@ public static partial class VulperonexWebApplication
 
     private static void ConfigureDefaultLoopbackPorts(WebApplicationBuilder builder)
     {
-        var ports = new PortPairAllocator(new SocketPortAvailabilityProbe()).TryAllocate()
-            ?? throw new PortExhaustedException();
+        var options = new PortAllocationOptions();
+        var ports = new PortPairAllocator(new SocketPortAvailabilityProbe(), options).TryAllocate()
+            ?? throw new PortExhaustedException(options);
 
         builder.WebHost.ConfigureKestrel(options =>
         {

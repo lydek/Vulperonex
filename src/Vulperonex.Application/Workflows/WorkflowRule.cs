@@ -15,4 +15,5 @@ public sealed record WorkflowRule
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
     public WorkflowExecutionMode ExecutionMode { get; init; } = WorkflowExecutionMode.Serial;
     public int MaxParallelism { get; init; } = 1;
+    public int Version { get; init; }
 }

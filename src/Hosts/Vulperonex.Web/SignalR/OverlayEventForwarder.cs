@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Overlay.Dtos;
+using Vulperonex.Application.Time;
 using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Web.SignalR;
@@ -9,7 +10,8 @@ public sealed class OverlayEventForwarder(
     IStreamEventBus eventBus,
     IHubContext<EventsHub> eventsHub,
     IHubContext<OverlayChatHub> chatHub,
-    IHubContext<OverlayAlertsHub> alertsHub) : IHostedService
+    IHubContext<OverlayAlertsHub> alertsHub,
+    IClock clock) : IHostedService
 {
     private readonly List<IDisposable> _subscriptions = [];
 
@@ -43,7 +45,7 @@ public sealed class OverlayEventForwarder(
             streamEvent.Platform,
             streamEvent.OccurredAt);
 
-        return eventsHub.Clients.All.SendAsync("event", payload, cancellationToken);
+        return SafeSendAsync(() => eventsHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
     }
 
     private Task ForwardChatEventAsync(UserSentMessageEvent streamEvent, CancellationToken cancellationToken)
@@ -51,13 +53,13 @@ public sealed class OverlayEventForwarder(
         var payload = new OverlayChatPayload(
             1,
             streamEvent.EventId,
-            DateTimeOffset.UtcNow,
+            clock.UtcNow,
             streamEvent.User.DisplayName,
             null,
             [new OverlayTextSegment("text", streamEvent.MessageText)],
             []);
 
-        return chatHub.Clients.All.SendAsync("event", payload, cancellationToken);
+        return SafeSendAsync(() => chatHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
     }
 
     private Task ForwardAlertEventAsync(
@@ -70,12 +72,24 @@ public sealed class OverlayEventForwarder(
         var payload = new OverlayAlertPayload(
             1,
             eventId,
-            DateTimeOffset.UtcNow,
+            clock.UtcNow,
             displayName,
             eventType,
             tier);
 
-        return alertsHub.Clients.All.SendAsync("event", payload, cancellationToken);
+        return SafeSendAsync(() => alertsHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
+    }
+
+    private static async Task SafeSendAsync(Func<Task> send, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await send();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Shutdown cancellation should not escape into the event bus subscription path.
+        }
     }
 }
 

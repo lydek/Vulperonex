@@ -29,7 +29,6 @@ public static class SimulateEndpoints
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
 
-            await adapter.StartAsync(cancellationToken);
             await adapter.SimulateAsync(simulationRequest, cancellationToken);
             return Results.Accepted();
         });
@@ -106,6 +105,7 @@ public static class SimulateEndpoints
 
     private static bool IsCompositeRoleValue(int numericRoles)
     {
+        // Numeric legacy payloads may combine known role flags; unknown bits are rejected.
         const int allKnownFlags = (int)(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Vip | StreamRole.Follower);
         return numericRoles >= 0 && (numericRoles & ~allKnownFlags) == 0;
     }

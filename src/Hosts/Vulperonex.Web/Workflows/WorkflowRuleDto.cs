@@ -13,7 +13,8 @@ public sealed record WorkflowRuleDto(
     IReadOnlyList<JsonElement> Conditions,
     IReadOnlyList<JsonElement> Actions,
     WorkflowExecutionMode ExecutionMode,
-    int MaxParallelism);
+    int MaxParallelism,
+    int Version);
 
 public sealed record WorkflowRuleUpsertRequest(
     string? Id,

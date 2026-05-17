@@ -9,6 +9,8 @@ using Vulperonex.Web.Workflows;
 
 public static class WorkflowRuleEndpoints
 {
+    private const int MaxCycleWalkNodes = 1024;
+
     public static IEndpointRouteBuilder MapWorkflowRuleEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/rules");
@@ -38,14 +40,19 @@ public static class WorkflowRuleEndpoints
                 return ApiErrors.ToResult(ErrorCodes.WorkflowRuleIdNotAllowed, StatusCodes.Status400BadRequest);
             }
 
-            var error = validator.Validate(request);
+            var error = ValidateRequest(request, validator);
             if (error is not null)
             {
                 return ApiErrors.ToResult(error, ErrorCodeStatusMap.GetStatusCode(error));
             }
 
             var id = string.IsNullOrWhiteSpace(request.Id) ? Guid.NewGuid().ToString("N") : request.Id;
-            var rule = WorkflowRuleJsonMapper.ToRule(request, id);
+            var rule = ToRuleOrNull(request, id);
+            if (rule is null)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidActionConfig, StatusCodes.Status400BadRequest);
+            }
+
             await repository.AddAsync(rule, cancellationToken);
 
             return Results.Created($"/api/rules/{id}", WorkflowRuleJsonMapper.ToDto(rule));
@@ -70,7 +77,7 @@ public static class WorkflowRuleEndpoints
                 return ApiErrors.ToResult(ErrorCodes.WorkflowRuleNotFound, StatusCodes.Status404NotFound);
             }
 
-            var error = validator.Validate(request);
+            var error = ValidateRequest(request, validator);
             if (error is not null)
             {
                 return ApiErrors.ToResult(error, ErrorCodeStatusMap.GetStatusCode(error));
@@ -81,8 +88,20 @@ public static class WorkflowRuleEndpoints
                 return ApiErrors.ToResult(ErrorCodes.CircularWorkflowReference, StatusCodes.Status400BadRequest);
             }
 
-            var rule = WorkflowRuleJsonMapper.ToRule(request, id, existing.CreatedAt);
-            await repository.UpdateAsync(rule, cancellationToken);
+            var rule = ToRuleOrNull(request, id, existing.CreatedAt, existing.Version);
+            if (rule is null)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidActionConfig, StatusCodes.Status400BadRequest);
+            }
+
+            try
+            {
+                await repository.UpdateAsync(rule, existing.Version, cancellationToken);
+            }
+            catch (WorkflowRuleConcurrencyException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.WorkflowRuleConflict, StatusCodes.Status409Conflict);
+            }
 
             return Results.Ok(WorkflowRuleJsonMapper.ToDto(rule));
         });
@@ -101,11 +120,17 @@ public static class WorkflowRuleEndpoints
             return Results.NoContent();
         });
 
-        group.MapPost("/{id}/enable", (string id, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
-            SetEnabledAsync(id, true, repository, cancellationToken));
+        group.MapPut("/{id}/enable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
+            SetEnabledAsync(id, true, queryService, repository, cancellationToken));
 
-        group.MapPost("/{id}/disable", (string id, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
-            SetEnabledAsync(id, false, repository, cancellationToken));
+        group.MapPut("/{id}/disable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
+            SetEnabledAsync(id, false, queryService, repository, cancellationToken));
+
+        group.MapPost("/{id}/enable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
+            SetEnabledAsync(id, true, queryService, repository, cancellationToken));
+
+        group.MapPost("/{id}/disable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
+            SetEnabledAsync(id, false, queryService, repository, cancellationToken));
 
         return endpoints;
     }
@@ -113,19 +138,62 @@ public static class WorkflowRuleEndpoints
     private static async Task<IResult> SetEnabledAsync(
         string id,
         bool isEnabled,
+        IWorkflowRuleQueryService queryService,
         IWorkflowRuleRepository repository,
         CancellationToken cancellationToken)
     {
         try
         {
-            await repository.SetEnabledAsync(id, isEnabled, cancellationToken);
+            var existing = await queryService.GetAsync(id, cancellationToken);
+            if (existing is null)
+            {
+                return ApiErrors.ToResult(ErrorCodes.WorkflowRuleNotFound, StatusCodes.Status404NotFound);
+            }
+
+            await repository.SetEnabledAsync(id, isEnabled, existing.Version, cancellationToken);
         }
         catch (KeyNotFoundException)
         {
             return ApiErrors.ToResult(ErrorCodes.WorkflowRuleNotFound, StatusCodes.Status404NotFound);
         }
+        catch (WorkflowRuleConcurrencyException)
+        {
+            return ApiErrors.ToResult(ErrorCodes.WorkflowRuleConflict, StatusCodes.Status409Conflict);
+        }
 
         return Results.NoContent();
+    }
+
+    private static string? ValidateRequest(WorkflowRuleUpsertRequest request, WorkflowRuleValidator validator)
+    {
+        try
+        {
+            return validator.Validate(request);
+        }
+        catch (JsonException)
+        {
+            return ErrorCodes.InvalidActionConfig;
+        }
+        catch (InvalidOperationException)
+        {
+            return ErrorCodes.InvalidActionConfig;
+        }
+    }
+
+    private static WorkflowRule? ToRuleOrNull(
+        WorkflowRuleUpsertRequest request,
+        string id,
+        DateTimeOffset? createdAt = null,
+        int version = 0)
+    {
+        try
+        {
+            return WorkflowRuleJsonMapper.ToRule(request, id, createdAt, version);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private static async Task<bool> WouldCreateCycleAsync(
@@ -147,6 +215,11 @@ public static class WorkflowRuleEndpoints
             if (!visited.Add(nextId))
             {
                 continue;
+            }
+
+            if (visited.Count > MaxCycleWalkNodes)
+            {
+                return true;
             }
 
             var nextRule = await queryService.GetAsync(nextId, cancellationToken);

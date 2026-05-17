@@ -5,6 +5,8 @@ namespace Vulperonex.Web.Endpoints;
 
 public static class MemberEndpoints
 {
+    private const int MaxOffset = 1_000_000;
+
     public static IEndpointRouteBuilder MapMemberEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/members");
@@ -18,7 +20,7 @@ public static class MemberEndpoints
         {
             var resolvedLimit = limit ?? 50;
             var resolvedOffset = offset ?? 0;
-            if (resolvedLimit is < 1 or > 200 || resolvedOffset < 0)
+            if (resolvedLimit is < 1 or > 200 || resolvedOffset is < 0 or > MaxOffset)
             {
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }

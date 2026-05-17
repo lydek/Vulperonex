@@ -25,10 +25,15 @@ public static class WorkflowRuleJsonMapper
             rule.Conditions.Select(condition => JsonSerializer.SerializeToElement(condition, JsonOptions)).ToArray(),
             rule.Actions.Select(action => JsonSerializer.SerializeToElement(action, JsonOptions)).ToArray(),
             rule.ExecutionMode,
-            rule.MaxParallelism);
+            rule.MaxParallelism,
+            rule.Version);
     }
 
-    public static WorkflowRule ToRule(WorkflowRuleUpsertRequest request, string id, DateTimeOffset? createdAt = null)
+    public static WorkflowRule ToRule(
+        WorkflowRuleUpsertRequest request,
+        string id,
+        DateTimeOffset? createdAt = null,
+        int version = 0)
     {
         return new WorkflowRule
         {
@@ -42,6 +47,7 @@ public static class WorkflowRuleJsonMapper
             Actions = (request.Actions ?? []).Select(DeserializeAction).ToArray(),
             ExecutionMode = request.ExecutionMode,
             MaxParallelism = request.MaxParallelism,
+            Version = version,
         };
     }
 

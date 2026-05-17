@@ -112,6 +112,7 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<int>("MaxParallelism").HasColumnType("INTEGER");
             b.Property<string>("Name").IsRequired().HasColumnType("TEXT");
             b.Property<int>("Priority").HasColumnType("INTEGER");
+            b.Property<int>("Version").IsConcurrencyToken().HasColumnType("INTEGER");
             b.HasKey("Id");
             b.ToTable("WorkflowRules");
         });

@@ -29,6 +29,7 @@ internal static class WorkflowRuleMapper
             CreatedAt = entity.CreatedAt,
             ExecutionMode = Enum.TryParse<WorkflowExecutionMode>(entity.ExecutionMode, out var mode) ? mode : WorkflowExecutionMode.Serial,
             MaxParallelism = entity.MaxParallelism,
+            Version = entity.Version,
         };
     }
 
@@ -40,7 +41,8 @@ internal static class WorkflowRuleMapper
             entity.EventTypeKey,
             entity.IsEnabled,
             entity.Priority,
-            entity.CreatedAt);
+            entity.CreatedAt,
+            entity.Version);
     }
 
     public static WorkflowRuleEntity ToEntity(WorkflowRule rule)
@@ -57,6 +59,7 @@ internal static class WorkflowRuleMapper
             CreatedAt = rule.CreatedAt,
             ExecutionMode = rule.ExecutionMode.ToString(),
             MaxParallelism = rule.MaxParallelism,
+            Version = rule.Version,
         };
     }
 

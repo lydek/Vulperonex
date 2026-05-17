@@ -5,8 +5,8 @@ namespace Vulperonex.Web.Endpoints;
 
 public static class ConfigEndpoints
 {
-    private static readonly HashSet<string> RegisteredKeys =
-    [
+    private static readonly IReadOnlyDictionary<string, string> RegisteredKeys = new[]
+    {
         SystemSettingKey.StreamingPlatform,
         SystemSettingKey.BusChannelCapacity,
         SystemSettingKey.OverlayDisplayCacheL1Capacity,
@@ -15,7 +15,7 @@ public static class ConfigEndpoints
         SystemSettingKey.LogDbRetentionDays,
         SystemSettingKey.LogDbMaxSizeMb,
         SystemSettingKey.LogFileRetentionDays,
-    ];
+    }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
 
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -23,14 +23,14 @@ public static class ConfigEndpoints
 
         group.MapGet("/{key}", async (string key, ISystemSettingsService settings, CancellationToken cancellationToken) =>
         {
-            var protectedResult = ValidateKey(key);
-            if (protectedResult is not null)
+            var validation = ValidateKey(key);
+            if (validation.Error is not null)
             {
-                return protectedResult;
+                return validation.Error;
             }
 
-            var value = await settings.GetAsync<string?>(key, null, cancellationToken);
-            return Results.Ok(new ConfigValueResponse(key.ToLowerInvariant(), value));
+            var value = await settings.GetAsync<string?>(validation.CanonicalKey!, null, cancellationToken);
+            return Results.Ok(new ConfigValueResponse(validation.CanonicalKey!, value));
         });
 
         group.MapPut("/{key}", async (
@@ -39,35 +39,35 @@ public static class ConfigEndpoints
             ISystemSettingsService settings,
             CancellationToken cancellationToken) =>
         {
-            var protectedResult = ValidateKey(key);
-            if (protectedResult is not null)
+            var validation = ValidateKey(key);
+            if (validation.Error is not null)
             {
-                return protectedResult;
+                return validation.Error;
             }
 
-            await settings.SetAsync(key, request.Value, "user", cancellationToken);
+            await settings.SetAsync(validation.CanonicalKey!, request.Value, "http-api", cancellationToken);
             return Results.NoContent();
         });
 
         return endpoints;
     }
 
-    private static IResult? ValidateKey(string key)
+    private static (string? CanonicalKey, IResult? Error) ValidateKey(string key)
     {
         var normalized = key.Trim().ToLowerInvariant();
         if (normalized.StartsWith("security.", StringComparison.Ordinal))
         {
-            return ApiErrors.ToResult(ErrorCodes.ConfigKeySecurityNamespace, StatusCodes.Status403Forbidden);
+            return (null, ApiErrors.ToResult(ErrorCodes.ConfigKeySecurityNamespace, StatusCodes.Status403Forbidden));
         }
 
         if (normalized.StartsWith("oauth.", StringComparison.Ordinal))
         {
-            return ApiErrors.ToResult(ErrorCodes.OAuthCredentialNamespace, StatusCodes.Status403Forbidden);
+            return (null, ApiErrors.ToResult(ErrorCodes.OAuthCredentialNamespace, StatusCodes.Status403Forbidden));
         }
 
-        return RegisteredKeys.Contains(normalized)
-            ? null
-            : ApiErrors.ToResult(ErrorCodes.UnknownConfigKey, StatusCodes.Status400BadRequest);
+        return RegisteredKeys.TryGetValue(normalized, out var canonicalKey)
+            ? (canonicalKey, null)
+            : (null, ApiErrors.ToResult(ErrorCodes.UnknownConfigKey, StatusCodes.Status400BadRequest));
     }
 
     private sealed record ConfigValueRequest(string Value);

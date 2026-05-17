@@ -4,6 +4,6 @@ public sealed class DatabasePathResolver(IConfiguration configuration) : IDataba
 {
     public string Resolve()
     {
-        return configuration["Database:Path"] ?? "vulperonex.db";
+        return configuration["Database:Path"] ?? Path.Combine(AppContext.BaseDirectory, "vulperonex.db");
     }
 }

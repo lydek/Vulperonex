@@ -21,4 +21,6 @@ public sealed class WorkflowRuleEntity
     public string ExecutionMode { get; set; } = "Serial";
 
     public int MaxParallelism { get; set; } = 1;
+
+    public int Version { get; set; }
 }
