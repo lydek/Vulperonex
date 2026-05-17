@@ -76,6 +76,122 @@ public sealed class CliCommandTests
     }
 
     [Fact]
+    public async Task Given_TwitchAuthStartCommand_When_ApiReturnsAuthorizeUrl_Then_UrlIsWrittenToStdout()
+    {
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            request.Method.Should().Be(HttpMethod.Post);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/start");
+            var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            body.Should().Contain("\"callbackPort\":7979");
+            return JsonResponse(HttpStatusCode.OK, """{"authorizeUrl":"https://id.twitch.tv/oauth2/authorize?client_id=test","state":"state-1","callbackPort":7979}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["twitch", "auth", "start", "--no-browser"], client, output, error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().Contain("https://id.twitch.tv/oauth2/authorize");
+        output.ToString().Should().Contain("callbackPort");
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_HelpCommand_When_Executed_Then_CommandTreeIsWrittenWithoutCallingApi()
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("help must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["help"], client, output, error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().Contain("rule - Manage workflow rules.");
+        output.ToString().Should().Contain("twitch - Manage Twitch integration.");
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_NoArgs_When_StdinContainsCommands_Then_ReplDispatchesEachLineUntilExit()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            request.Method.Should().Be(HttpMethod.Get);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/rules");
+            return JsonResponse(HttpStatusCode.OK, """[]""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var input = new StringReader("rule list\nexit\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().Contain("[]");
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_ReplCommand_When_ApiReturnsError_Then_StderrGetsCodeAndSessionContinues()
+    {
+        var requestCount = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                request.RequestUri?.PathAndQuery.Should().Be("/api/config/oauth.twitch.refresh_token");
+                return JsonResponse(HttpStatusCode.Forbidden, """{"error":"OAUTH_CREDENTIAL_NAMESPACE"}""");
+            }
+
+            request.RequestUri?.PathAndQuery.Should().Be("/api/rules");
+            return JsonResponse(HttpStatusCode.OK, """[]""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var input = new StringReader("config get oauth.twitch.refresh_token\nrule list\nexit\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().Contain("OAUTH_CREDENTIAL_NAMESPACE");
+        output.ToString().Should().Contain("[]");
+        requestCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_InteractiveFlag_When_FollowedByExtraArgs_Then_InvalidArgsIsReturned()
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("invalid args must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["--interactive", "rule"], client, output, error, new StringReader(""));
+
+        exitCode.Should().Be(1);
+        output.ToString().Should().BeEmpty();
+        error.ToString().Trim().Should().Be("INVALID_ARGS");
+    }
+
+    [Fact]
     public async Task Given_ApiUrlEnvironmentVariable_When_TargetIsNotLoopback_Then_CliRejectsIt()
     {
         var previous = Environment.GetEnvironmentVariable("VULPERONEX_API_URL");
