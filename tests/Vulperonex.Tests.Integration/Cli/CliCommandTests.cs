@@ -147,6 +147,9 @@ public sealed class CliCommandTests
         var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
 
         exitCode.Should().Be(0);
+        output.ToString().Should().Contain("Vulperonex CLI interactive mode");
+        output.ToString().Should().Contain("API: http://localhost/");
+        output.ToString().Should().Contain("vulperonex> ");
         output.ToString().Should().Contain("[]");
         error.ToString().Should().BeEmpty();
         requestCount.Should().Be(2);
@@ -185,6 +188,7 @@ public sealed class CliCommandTests
 
         exitCode.Should().Be(0);
         error.ToString().Should().Contain("OAUTH_CREDENTIAL_NAMESPACE");
+        output.ToString().Should().Contain("vulperonex> ");
         output.ToString().Should().Contain("[]");
         requestCount.Should().Be(3);
     }
@@ -208,7 +212,8 @@ public sealed class CliCommandTests
         var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
 
         exitCode.Should().Be(0);
-        output.ToString().Should().BeEmpty();
+        output.ToString().Should().Contain("Vulperonex CLI interactive mode");
+        output.ToString().Should().Contain("vulperonex> ");
         error.ToString().Should().Contain("Twitch:ClientId is not set");
         error.ToString().Should().Contain("no-Twitch mode");
     }
@@ -234,10 +239,46 @@ public sealed class CliCommandTests
         var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
 
         exitCode.Should().Be(0);
-        output.ToString().Should().BeEmpty();
+        output.ToString().Should().Contain("Vulperonex CLI interactive mode");
         error.ToString().Should().Contain("TWITCH_CLIENT_ID_MISSING");
         error.ToString().Should().Contain("non-Twitch commands");
         requestCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_ReplCommand_When_ApiConnectionFails_Then_ErrorIsWrittenAndSessionContinues()
+    {
+        var requestCount = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"hasRefreshToken":true}""");
+            }
+
+            if (requestCount == 2)
+            {
+                throw new HttpRequestException("api unavailable");
+            }
+
+            request.RequestUri?.PathAndQuery.Should().Be("/api/rules");
+            return JsonResponse(HttpStatusCode.OK, """[]""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var input = new StringReader("member list\nrule list\nexit\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().Contain("HTTP_REQUEST_FAILED");
+        output.ToString().Should().Contain("[]");
+        requestCount.Should().Be(3);
     }
 
     [Fact]

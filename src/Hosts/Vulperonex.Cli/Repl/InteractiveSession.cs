@@ -5,14 +5,17 @@ internal sealed class InteractiveSession(
 {
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
+        await WriteWelcomeAsync();
         await WriteTwitchStatusBannerAsync(cancellationToken);
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            await context.Output.WriteAsync("vulperonex> ");
             var line = await input.ReadLineAsync(cancellationToken);
             if (line is null)
             {
+                await context.Output.WriteLineAsync();
                 return 0;
             }
 
@@ -33,8 +36,22 @@ internal sealed class InteractiveSession(
                 return 0;
             }
 
-            await dispatcher.DispatchAsync(args, context, cancellationToken);
+            try
+            {
+                await dispatcher.DispatchAsync(args, context, cancellationToken);
+            }
+            catch (HttpRequestException)
+            {
+                await context.Error.WriteLineAsync("HTTP_REQUEST_FAILED");
+            }
         }
+    }
+
+    private async Task WriteWelcomeAsync()
+    {
+        await context.Output.WriteLineAsync("Vulperonex CLI interactive mode");
+        await context.Output.WriteLineAsync($"API: {context.Client.BaseAddress}");
+        await context.Output.WriteLineAsync("Type 'help' for commands, 'exit' to quit.");
     }
 
     private async Task WriteTwitchStatusBannerAsync(CancellationToken cancellationToken)

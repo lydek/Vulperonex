@@ -9,6 +9,7 @@
 - Windows 11 + PowerShell 7（或 5.1）。
 - .NET SDK 已安裝；專案根目錄可成功 `dotnet restore`。
 - `rtk proxy powershell -NoProfile -Command "..."` 為作者本地 token 代理包裝；非作者環境可直接執行該 `Command` 內的 `dotnet ...` 字串，行為等價。
+- 若需要在 `rtk proxy powershell -Command` 內設定 `$env:...`，外層 PowerShell 必須使用單引號包住 `-Command` 內容，或先在目前 shell 設定環境變數。不要使用 `-Command "$env:VULPERONEX_API_URL='...'; ..."`，外層 PowerShell 會先展開 `$env:VULPERONEX_API_URL`，造成 `http://127.0.0.1:5000=...` 這類錯誤。
 - Twitch 開發者主控台「OAuth Redirect URLs」必須**三條全部**註冊（CLI `SelectCallbackPort` 依序試 7979 → 7980 → 7981 取第一個可用埠；缺其一則該埠回呼會失敗）：
   - `http://localhost:7979/auth/callback`
   - `http://localhost:7980/auth/callback`
@@ -72,6 +73,12 @@ rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulpero
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate chat hello from cli"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate follow"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate sub"
+```
+
+單行設定 API URL 並進入 REPL 時，請使用單引號：
+
+```powershell
+rtk proxy powershell -NoProfile -Command '$env:VULPERONEX_API_URL="http://127.0.0.1:<api_port>"; dotnet run --project src\Hosts\Vulperonex.Cli -- --interactive'
 ```
 
 ### 4. 通過 / 失敗驗收
