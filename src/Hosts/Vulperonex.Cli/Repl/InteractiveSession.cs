@@ -96,6 +96,10 @@ internal sealed class InteractiveSession(
                 {
                     // dispatch cancelled by Ctrl+C inside REPL; command already wrote its error code.
                 }
+                catch (Exception)
+                {
+                    await context.Error.WriteLineAsync("CLI_UNEXPECTED_ERROR");
+                }
                 finally
                 {
                     currentDispatchCts = null;

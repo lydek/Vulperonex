@@ -96,18 +96,11 @@ public sealed class Phase5EndpointTests
         bool expectedClientSecretConfigured,
         bool expectedHasRefreshToken)
     {
-        var configuration = new List<string?>();
-        if (clientId is not null)
+        var configurationPairs = new[]
         {
-            configuration.AddRange(["Twitch:ClientId", clientId]);
-        }
-
-        if (clientSecret is not null)
-        {
-            configuration.AddRange(["Twitch:ClientSecret", clientSecret]);
-        }
-
-        var configurationPairs = configuration.ToArray();
+            "Twitch:ClientId", clientId ?? string.Empty,
+            "Twitch:ClientSecret", clientSecret ?? string.Empty,
+        };
         await using var app = await StartAppAsync(configurationPairs);
         if (storeRefreshToken)
         {

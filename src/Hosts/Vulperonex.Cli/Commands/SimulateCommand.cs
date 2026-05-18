@@ -32,6 +32,11 @@ internal sealed class SimulateCommand : IConsoleCommand
 
     public IReadOnlyList<string> GetSuggestions(string[] args)
     {
+        if (args.Length > 1)
+        {
+            return [];
+        }
+
         var prefix = args.Length == 0 ? string.Empty : args[0];
         return new[] { "chat", "follow", "sub" }
             .Where(name => name.StartsWith(prefix, StringComparison.Ordinal))

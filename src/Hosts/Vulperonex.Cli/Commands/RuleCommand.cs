@@ -10,11 +10,11 @@ internal sealed class RuleCommand : CompositeConsoleCommand
                 : await context.FailAsync("UNKNOWN_COMMAND")));
         AddSubCommand(new DelegateConsoleCommand("enable", "Enable a workflow rule.", async (args, context, ct) =>
             args.Length >= 1
-                ? await context.WriteResponseAsync(await context.Client.PostAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/enable", null, ct))
+                ? await context.WriteResponseAsync(await context.Client.PutAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/enable", null, ct))
                 : await context.FailAsync("UNKNOWN_COMMAND")));
         AddSubCommand(new DelegateConsoleCommand("disable", "Disable a workflow rule.", async (args, context, ct) =>
             args.Length >= 1
-                ? await context.WriteResponseAsync(await context.Client.PostAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/disable", null, ct))
+                ? await context.WriteResponseAsync(await context.Client.PutAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/disable", null, ct))
                 : await context.FailAsync("UNKNOWN_COMMAND")));
         AddSubCommand(new DelegateConsoleCommand("delete", "Delete a workflow rule.", async (args, context, ct) =>
             args.Length >= 1

@@ -151,7 +151,7 @@ dotnet run --project src\Hosts\Vulperonex.Cli -- --interactive
 | `ru<Tab>` | 顯示 `rule ` |
 | `rule li<Tab>` | 顯示 `rule list` |
 | `twitch a<Tab>` | 顯示 `twitch auth ` |
-| `twitch auth st<Tab>` | 顯示 `twitch auth start`（**注意：** 目前因 `--no-browser` 子建議導致多一空白，已開獨立 task；驗證時記錄實際結果即可，不阻擋 Gate） |
+| `twitch auth st<Tab>` | 顯示 `twitch auth start` |
 | `xy<Tab>` | buffer 不變、無噪音輸出 |
 
 #### 5b-2 歷史巡覽（↑ / ↓）

@@ -28,6 +28,62 @@ public sealed class CliCommandTests
         error.ToString().Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(new[] { "rule", "show", "rule-1" }, "GET", "/api/rules/rule-1")]
+    [InlineData(new[] { "rule", "enable", "rule-1" }, "PUT", "/api/rules/rule-1/enable")]
+    [InlineData(new[] { "rule", "disable", "rule-1" }, "PUT", "/api/rules/rule-1/disable")]
+    [InlineData(new[] { "rule", "delete", "rule-1" }, "DELETE", "/api/rules/rule-1")]
+    [InlineData(new[] { "config", "get", "log.min_level" }, "GET", "/api/config/log.min_level")]
+    [InlineData(new[] { "member", "list" }, "GET", "/api/members")]
+    [InlineData(new[] { "member", "show", "user-1" }, "GET", "/api/members/user-1")]
+    [InlineData(new[] { "simulate", "follow" }, "POST", "/api/simulate/follow")]
+    [InlineData(new[] { "simulate", "sub" }, "POST", "/api/simulate/sub")]
+    public async Task Given_CliCommand_When_Executed_Then_ExpectedApiRouteIsUsed(
+        string[] args,
+        string method,
+        string path)
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            request.Method.Method.Should().Be(method);
+            request.RequestUri?.PathAndQuery.Should().Be(path);
+            return JsonResponse(HttpStatusCode.OK, """{}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(args, client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_ConfigSetCommand_When_Executed_Then_ValueIsSentToApi()
+    {
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            request.Method.Should().Be(HttpMethod.Put);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/config/log.min_level");
+            var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            body.Should().Contain("\"value\":\"Debug\"");
+            return JsonResponse(HttpStatusCode.OK, """{}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["config", "set", "log.min_level", "Debug"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+    }
+
     [Fact]
     public async Task Given_ConfigCommand_When_ApiReturnsProtectedNamespaceError_Then_ErrorCodeIsWrittenToStderr()
     {
@@ -170,6 +226,8 @@ public sealed class CliCommandTests
 
         exitCode.Should().Be(0);
         output.ToString().Should().Contain("rule - Manage workflow rules.");
+        output.ToString().Should().Contain("rule list - List workflow rules.");
+        output.ToString().Should().Contain("twitch auth start - Start Twitch OAuth authorization.");
         output.ToString().Should().Contain("twitch - Manage Twitch integration.");
         error.ToString().Should().BeEmpty();
     }
@@ -197,6 +255,19 @@ public sealed class CliCommandTests
         var completed = CommandCompletion.Complete(input, CommandTreeFactory.Create());
 
         completed.Should().Be(input);
+    }
+
+    [Fact]
+    public void Given_AmbiguousPrefix_When_TabCompletionCycles_Then_CandidatesAdvance()
+    {
+        var dispatcher = CommandTreeFactory.Create();
+        var cycle = CommandCompletion.StartCycle(string.Empty, dispatcher);
+
+        var first = CommandCompletion.ApplyCycle(cycle, dispatcher, out var nextCycle);
+        var second = CommandCompletion.ApplyCycle(nextCycle, dispatcher, out _);
+
+        first.Should().Be("config ");
+        second.Should().Be("exit");
     }
 
     [Fact]
@@ -357,6 +428,42 @@ public sealed class CliCommandTests
 
         exitCode.Should().Be(0);
         error.ToString().Should().Contain("HTTP_REQUEST_FAILED");
+        output.ToString().Should().Contain("[]");
+        requestCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_ReplCommand_When_UnexpectedErrorIsThrown_Then_ErrorIsWrittenAndSessionContinues()
+    {
+        var requestCount = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            requestCount++;
+            if (requestCount == 1)
+            {
+                request.RequestUri?.PathAndQuery.Should().Be("/api/twitch/auth/status");
+                return JsonResponse(HttpStatusCode.OK, """{"clientIdConfigured":true,"clientSecretConfigured":true,"hasRefreshToken":true}""");
+            }
+
+            if (requestCount == 2)
+            {
+                throw new InvalidOperationException("unexpected");
+            }
+
+            request.RequestUri?.PathAndQuery.Should().Be("/api/rules");
+            return JsonResponse(HttpStatusCode.OK, """[]""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var input = new StringReader("member list\nrule list\nexit\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync([], client, output, error, input);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().Contain("CLI_UNEXPECTED_ERROR");
         output.ToString().Should().Contain("[]");
         requestCount.Should().Be(3);
     }

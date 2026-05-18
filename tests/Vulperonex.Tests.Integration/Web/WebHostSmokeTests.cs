@@ -41,6 +41,7 @@ public sealed class WebHostSmokeTests
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         json.Should().Contain("\"openapi\"");
         json.Should().Contain("/health");
+        json.Should().Contain("/api/twitch/auth/status");
     }
 
     private static async Task<WebApplication> StartAppAsync()

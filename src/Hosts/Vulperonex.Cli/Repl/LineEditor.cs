@@ -9,6 +9,7 @@ internal sealed class LineEditor(
     {
         var buffer = string.Empty;
         var historyIndex = _history.Count;
+        CompletionCycle? completionCycle = null;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -36,6 +37,7 @@ internal sealed class LineEditor(
 
             if (key.Key == ConsoleKey.Backspace)
             {
+                completionCycle = null;
                 if (buffer.Length > 0)
                 {
                     buffer = buffer[..^1];
@@ -47,7 +49,8 @@ internal sealed class LineEditor(
 
             if (key.Key == ConsoleKey.Tab)
             {
-                var completed = CommandCompletion.Complete(buffer, dispatcher);
+                completionCycle ??= CommandCompletion.StartCycle(buffer, dispatcher);
+                var completed = CommandCompletion.ApplyCycle(completionCycle, dispatcher, out completionCycle);
                 if (!string.Equals(completed, buffer, StringComparison.Ordinal))
                 {
                     await ReplaceCurrentLineAsync(buffer, completed);
@@ -59,6 +62,7 @@ internal sealed class LineEditor(
 
             if (key.Key == ConsoleKey.UpArrow)
             {
+                completionCycle = null;
                 if (_history.Count == 0 || historyIndex == 0)
                 {
                     continue;
@@ -73,6 +77,7 @@ internal sealed class LineEditor(
 
             if (key.Key == ConsoleKey.DownArrow)
             {
+                completionCycle = null;
                 if (_history.Count == 0 || historyIndex >= _history.Count)
                 {
                     continue;
@@ -87,6 +92,7 @@ internal sealed class LineEditor(
 
             if (!char.IsControl(key.KeyChar))
             {
+                completionCycle = null;
                 buffer += key.KeyChar;
                 await output.WriteAsync(key.KeyChar);
             }

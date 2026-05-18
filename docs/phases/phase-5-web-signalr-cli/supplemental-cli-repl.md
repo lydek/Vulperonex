@@ -203,29 +203,29 @@ group.MapGet("/status", async (
 
 ## 驗收標準
 
-- [ ] `vulperonex`（無參數，互動式 TTY）進入 REPL；列印歡迎訊息與第一個 prompt。
-- [ ] `vulperonex --interactive` 與 `vulperonex -i` 行為同上。
-- [ ] `vulperonex rule list`（既有單次模式）行為與輸出完全未變；`CliCommandTests` 不需修改即通過。
-- [ ] REPL 中輸入 `rule list` 走完整 HTTP 路徑並印出與單次模式相同的 JSON。
-- [ ] REPL 中後端錯誤碼（如 `OAUTH_CREDENTIAL_NAMESPACE`）寫到 stderr、stdout 為空、prompt 繼續可用，**不**結束 REPL。
+- [x] `vulperonex`（無參數，互動式 TTY）進入 REPL；列印歡迎訊息與第一個 prompt。
+- [x] `vulperonex --interactive` 與 `vulperonex -i` 行為同上。
+- [x] `vulperonex rule list`（既有單次模式）行為與輸出完全未變；`CliCommandTests` 通過。
+- [x] REPL 中輸入 `rule list` 走完整 HTTP 路徑並印出與單次模式相同的 JSON。
+- [x] REPL 中後端錯誤碼（如 `OAUTH_CREDENTIAL_NAMESPACE`）寫到 stderr、stdout 為空、prompt 繼續可用，**不**結束 REPL。
 - [x] REPL 啟動時呼叫 `GET /api/twitch/auth/status`：
   - `clientIdConfigured == false` → 印 ClientId 未設定 banner，提示設定路徑並以 no-Twitch mode 繼續。
   - `clientIdConfigured && !hasRefreshToken` → 印 OAuth 未授權 banner，指示執行 `twitch auth start`（**不**含 authorize URL，原因見設計段）。
   - `clientIdConfigured && hasRefreshToken` → 不印 banner。
   - 端點失敗 → 印警告 + 錯誤碼，繼續進 REPL。
 - [x] REPL 中執行 `twitch auth start` 前重新檢查狀態；`clientIdConfigured == false` 時不打 `/start`，直接 stderr 印 `TWITCH_CLIENT_ID_MISSING` + 設定提示。
-- [ ] 新後端端點 `GET /api/twitch/auth/status` 回 `{ clientIdConfigured, hasRefreshToken }`，不回傳 client_id 字串或 token。
-- [ ] 命令樹採用 `IConsoleCommand` / `CompositeConsoleCommand` / `ICommandDispatcher` 完整遞迴抽象；one-shot 與 REPL 共用同一棵樹，**禁止**保留舊 `switch` 分發路徑。
-- [ ] `help` 列出所有一級命令與其子命令（透過遞迴 `GetAllCommands` + `Description`）；不打 API。
-- [ ] `exit` / `quit` / EOF（Windows: Ctrl+Z+Enter；Unix: Ctrl+D）結束 REPL 並回傳 exit code 0。
-- [ ] 空白行 / 純空白輸入：忽略並重印 prompt，不送 API。
-- [ ] ↑/↓ 在 session 歷史中前後切換；連續輸入相同命令時，僅當**最後一筆**（push 前比對 `_history.Last()`，非 read 時比對）等於新輸入才去重，中間重複的歷史保留，照搬 Omni-Commander `ConsoleCliService` 行為。
+- [x] 新後端端點 `GET /api/twitch/auth/status` 回 `{ clientIdConfigured, clientSecretConfigured, hasRefreshToken }`，不回傳 client_id 字串、client secret 或 token。
+- [x] 命令樹採用 `IConsoleCommand` / `CompositeConsoleCommand` / `ICommandDispatcher` 完整遞迴抽象；one-shot 與 REPL 共用同一棵樹，**禁止**保留舊 `switch` 分發路徑。
+- [x] `help` 列出所有一級命令與其子命令（透過遞迴 `GetAllCommands` + `Description`）；不打 API。
+- [x] `exit` / `quit` / EOF（Windows: Ctrl+Z+Enter；Unix: Ctrl+D）結束 REPL 並回傳 exit code 0。
+- [x] 空白行 / 純空白輸入：忽略並重印 prompt，不送 API。
+- [x] ↑/↓ 在 session 歷史中前後切換；連續輸入相同命令時，僅當**最後一筆**（push 前比對 `_history.Last()`，非 read 時比對）等於新輸入才去重，中間重複的歷史保留，照搬 Omni-Commander `ConsoleCliService` 行為。
 - [x] Tab：在一級命令位置按下，補出唯一前綴；在子命令位置同樣行為。補完葉節點（無子命令）後**不**自動追加空白；補完 Composite 後追加空白以便繼續補子命令。
-- [ ] Tab：多候選循環顯示。
-- [ ] `Console.IsInputRedirected == true` 時降級為 `ReadLine` 迴圈（無按鍵處理），讀到 EOF 結束。
-- [ ] REPL 中任何單一命令丟出未預期例外（非 `HttpRequestException` / `CliApiUrlNotLoopbackException`）時，印出 `CLI_UNEXPECTED_ERROR` 至 stderr，REPL 繼續存活（不得讓整個程序崩潰）。
-- [ ] 啟動時 `VULPERONEX_API_URL` 非 loopback → REPL **不啟動**，行為等同單次模式：stderr 印 `CLI_API_URL_NOT_LOOPBACK`、exit 1。
-- [ ] 整個 REPL 共用單一 `HttpClient` 實例。
+- [x] Tab：多候選循環顯示。
+- [x] `Console.IsInputRedirected == true` 時降級為 `ReadLine` 迴圈（無按鍵處理），讀到 EOF 結束。
+- [x] REPL 中任何單一命令丟出未預期例外（非 `HttpRequestException` / `CliApiUrlNotLoopbackException`）時，印出 `CLI_UNEXPECTED_ERROR` 至 stderr，REPL 繼續存活（不得讓整個程序崩潰）。
+- [x] 啟動時 `VULPERONEX_API_URL` 非 loopback → REPL **不啟動**，行為等同單次模式：stderr 印 `CLI_API_URL_NOT_LOOPBACK`、exit 1。
+- [x] 整個 REPL 共用單一 `HttpClient` 實例。
 
 ### 新錯誤碼
 
@@ -241,7 +241,7 @@ group.MapGet("/status", async (
 
 ## 驗證
 
-- [ ] **單元/整合測試**（`tests/Vulperonex.Tests.Integration/Cli/`）新增：
+- [x] **單元/整合測試**（`tests/Vulperonex.Tests.Integration/Cli/`）新增：
   - `Given_NoArgs_When_StdinIsRedirectedWithCommands_Then_DispatchesEachLine`：以 `StringReader` 餵 `"rule list\nexit\n"`，斷言兩次 HTTP 呼叫、最終 exit 0。
   - `Given_ReplLine_When_ApiReturnsError_Then_StderrGetsCodeAndReplContinues`：餵 `"config get oauth.x\nexit\n"`，斷言 stderr 出現 `OAUTH_CREDENTIAL_NAMESPACE` 且第二行 `exit` 仍被處理。
   - `Given_HelpCommand_When_Executed_Then_ListsKnownCommandsAndDoesNotCallApi`：注入會 fail 的 `HttpClient`，確認 `help` 不打 API。
@@ -257,16 +257,16 @@ group.MapGet("/status", async (
   - `Given_TwitchAuthStartInRepl_When_CtrlCDuringWait_Then_ListenerClosedAndStderrCancelled`：模擬 listener 啟動後外層 ct 被 cancel，斷言印出 `TWITCH_OAUTH_CANCELLED` 且 `HttpListener` 已 `Stop()`（手動驗證亦覆蓋）。
   - `Given_StatusProbe_When_ApiSlow_Then_TimesOutAt2sAndPrintsWarningBanner`：stub 端點 sleep 5s，斷言 2s 內回 banner、未阻塞後續輸入。
   - 既有 `CliCommandTests` 全部維持綠燈（回歸保護）。
-- [ ] **Web 整合測試**（`tests/Vulperonex.Tests.Integration/Web/Phase5EndpointTests.cs` 或新檔）：
+- [x] **Web 整合測試**（`tests/Vulperonex.Tests.Integration/Web/Phase5EndpointTests.cs` 或新檔）：
   - `Given_StatusEndpoint_When_NoClientId_Then_ClientIdConfiguredFalse`。
   - `Given_StatusEndpoint_When_ClientIdSetAndNoToken_Then_ClientIdConfiguredTrueAndHasRefreshTokenFalse`。
   - `Given_StatusEndpoint_When_ClientIdSetAndTokenStored_Then_BothTrue`。
   - `Given_StatusEndpoint_When_Called_Then_ResponseDoesNotContainClientIdOrTokenStrings`（防洩漏）。
 - [ ] **手動驗證**：新增條目於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`，覆蓋 TTY 下的 ↑/↓、Tab、Ctrl+C 行為（無法以整合測試自動驗證按鍵）。
   - 環境：Windows Terminal、PowerShell 7、cmd.exe 各驗證一次（最低門檻：Windows Terminal）。
-- [ ] **架構檢查**：`Vulperonex.Cli.csproj` 不得新增任何 `<PackageReference>`；允許 `<Folder Include>` / 檔案 glob 等結構性變動。
-- [ ] **OpenAPI**：新增 `Given_OpenApi_When_Fetched_Then_ContainsTwitchAuthStatusEndpoint`，斷言 `/openapi/v1.json` 包含 `/api/twitch/auth/status` 路徑。
-- [ ] **回歸**：`cli-e2e-verification.md` 列出的單次命令仍可獨立執行，並在該文件追加交叉引用「REPL 流程見 `supplemental-cli-repl.md`」。
+- [x] **架構檢查**：`Vulperonex.Cli.csproj` 不得新增任何 `<PackageReference>`；允許 `<Folder Include>` / 檔案 glob 等結構性變動。
+- [x] **OpenAPI**：新增 `Given_OpenApi_When_Fetched_Then_ContainsTwitchAuthStatusEndpoint`，斷言 `/openapi/v1.json` 包含 `/api/twitch/auth/status` 路徑。
+- [x] **回歸**：`cli-e2e-verification.md` 列出的單次命令仍可獨立執行，並在該文件追加交叉引用「REPL 流程見 `supplemental-cli-repl.md`」。
 
 ---
 
