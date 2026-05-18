@@ -101,6 +101,7 @@
 - [ ] Phase 5 CLI E2E 收尾：新 SQLite DB 第一次啟動 Web API 後自動 migrate，真實 CLI 可對 loopback API 執行 rule/config/member/simulate smoke，不再需要手動 `dotnet ef database update`（自動化已通過；published CLI 對獨立 Web API process 的人工 terminal smoke 待執行）
 - [ ] Phase 5 Twitch OAuth CLI 收尾：CLI 提供可手動執行的 Twitch PKCE 授權入口，callback loopback-only，refresh token 經 API/`IOAuthTokenStore` 加密保存，且不經 `/api/config/oauth.*`（自動化已通過；真 Twitch 瀏覽器授權待人工執行）
 - [ ] Phase 5 CLI REPL 補充：命令樹、`help`、Twitch auth status API、最小 REPL、no-Twitch mode banner、REPL 內 `twitch auth start` 缺 ClientId 保護、Ctrl+C cancellation、TTY line editor、Tab 多候選輪替已完成；人工 terminal 驗證待完成
+- [x] 開發者快捷入口：新增 `tools/cli.ps1`，自動偵測 loopback Web host port 並直接進 REPL / 執行 one-shot CLI，降低人工驗證摩擦
 - [x] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
 - [x] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過
 - [x] Task 14b：`GET /api/config/oauth.unknown.refresh_token`（未知 key）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry lookup）通過
