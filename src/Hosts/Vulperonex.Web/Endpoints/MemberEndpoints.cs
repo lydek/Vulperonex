@@ -37,6 +37,20 @@ public static class MemberEndpoints
                 : Results.Ok(member);
         });
 
+        group.MapDelete("/{id}", async (string id, IMemberAdminService adminService, CancellationToken cancellationToken) =>
+        {
+            try
+            {
+                await adminService.DeleteAsync(id, cancellationToken);
+            }
+            catch (KeyNotFoundException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.MemberNotFound, StatusCodes.Status404NotFound);
+            }
+
+            return Results.NoContent();
+        });
+
         return endpoints;
     }
 }

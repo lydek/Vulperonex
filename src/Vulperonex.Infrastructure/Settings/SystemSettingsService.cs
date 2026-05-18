@@ -43,6 +43,21 @@ public class SystemSettingsService(VulperonexDbContext context) : ISystemSetting
         _changes.Publish(new SettingChangedEvent(normalizedKey, oldValue, row.Value));
     }
 
+    public virtual async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+    {
+        var normalizedKey = NormalizeKey(key);
+        var row = await context.SystemSettings.FindAsync([normalizedKey], cancellationToken);
+        if (row is null)
+        {
+            return;
+        }
+
+        var oldValue = row.Value;
+        context.SystemSettings.Remove(row);
+        await context.SaveChangesAsync(cancellationToken);
+        _changes.Publish(new SettingChangedEvent(normalizedKey, oldValue, null));
+    }
+
     protected static string NormalizeKey(string key)
     {
         if (string.IsNullOrWhiteSpace(key))

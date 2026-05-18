@@ -33,7 +33,7 @@
   - 空白行：忽略，僅重印 prompt。
 - 支援：
   - **指令歷史**：↑/↓ 在 session 內前後切換最近輸入；不持久化到磁碟。
-  - **Tab 自動補全**：一級命令（`rule|config|member|simulate|twitch|help|exit`）與已知子命令（`rule list|show|enable|disable|delete` 等）。
+  - **Tab 自動補全**：一級命令（`rule|config|member|simulate|twitch|help|exit`）與已知子命令（`rule list|show|create|update|enable|disable|delete`、`member list|show|seed|delete`、`simulate chat|follow|sub` 等）。
   - **非互動式 stdin 後備**：當 `Console.IsInputRedirected == true`（pipe / redirect），降級為逐行讀取迴圈，不啟用按鍵處理；用於整合測試與 `echo cmd | vulperonex` 場景。實作以 `await Task.Run(() => reader.ReadLine(), ct)` 包裝，避免同步阻塞無視 `CancellationToken`；`reader` 為 `RunAsync` 注入的 `TextReader`（測試可餵 `StringReader`）。
 - 取消鍵：Ctrl+C 中斷目前 REPL 行（清空 buffer 重印 prompt）；連續第二次 Ctrl+C 或無 buffer 時退出整個 REPL。
   - 實作機制：REPL 啟動時設 `Console.TreatControlCAsInput = true`，按鍵迴圈以 `ConsoleKey.C + ConsoleModifiers.Control` 偵測（不依賴 `Console.CancelKeyPress`，避免該事件預設殺 process 的競態）。離開 REPL 時 `try/finally` 還原 `TreatControlCAsInput = false`。
@@ -67,11 +67,11 @@ src/Hosts/Vulperonex.Cli/
     ICommandDispatcher.cs          // DispatchAsync(input, ct) + GetSuggestions(input)
     CommandDispatcher.cs           // 頂層調度器；遞迴呼叫 sub-command 的 GetSuggestions
     CompositeConsoleCommand.cs     // 抽象基底；持有 _subCommands；遞迴 Execute / Suggest
-    Rule/RuleCommand.cs            // Composite：list/show/enable/disable/delete
+    Rule/RuleCommand.cs            // Composite：list/show/create/update/enable/disable/delete
     Config/ConfigCommand.cs        // Composite：get/set
-    Member/MemberCommand.cs        // Composite：list/show
+    Member/MemberCommand.cs        // Composite：list/show/seed/delete
     Simulate/SimulateCommand.cs    // Composite：chat/follow/sub
-    Twitch/TwitchCommand.cs        // Composite：auth (再 Composite：start)
+    Twitch/TwitchCommand.cs        // Composite：auth (再 Composite：start/reset)
     Builtins/HelpCommand.cs        // 純本地；不打 API
     Builtins/ExitCommand.cs        // 純本地；觸發 REPL 退出旗標
   Repl/
@@ -186,6 +186,7 @@ group.MapGet("/status", async (
 - 若狀態端點本身失敗（HTTP 5xx / 連線失敗 / 逾時）：印 `[WARN] 無法取得 Twitch 狀態（<error_code>）。` 並繼續進入 REPL（不阻斷）。狀態 probe **共用** `RunAsync` 注入的 `HttpClient`（同一 stub 可攔截，整合測試可控），timeout 以 `using var cts = CancellationTokenSource.CreateLinkedTokenSource(outerCt); cts.CancelAfter(TimeSpan.FromSeconds(2));` 配合 `client.SendAsync(request, cts.Token)` 實作；**不**修改 `HttpClient.Timeout` 全域屬性，避免污染後續命令。
 - `twitch auth start` 命令 `ExecuteAsync` 入口處再次檢查狀態：若 `clientIdConfigured == false`，直接印 `TWITCH_CLIENT_ID_MISSING` 至 stderr 並指示設定方式，不送 `POST /api/twitch/auth/start`。
 - One-shot 模式（`vulperonex twitch auth start`）行為**不變**：直接打 API，依後端回的錯誤碼透傳。Banner 僅 REPL 使用。
+- `twitch auth reset` / `clear` / `logout` 呼叫 `DELETE /api/twitch/auth/token`，只清除已儲存 refresh token；不修改 `Twitch:ClientId` 或 `Twitch:ClientSecret` 設定。此命令用於重複人工驗證 OAuth start/complete 流程。
 
 #### 安全考量
 
@@ -196,7 +197,7 @@ group.MapGet("/status", async (
 ### CLI help UX 與 i18n
 
 - `help` 不得輸出平鋪 debug dump。全域 help 以分類呈現一級命令，顯示 alias、說明與可用子命令摘要。
-- 輸入 composite 命令但不帶子命令時，例如 `member`、`rule`、`twitch auth`，應顯示該命令群組的局部 help 與 usage，而不是回 `UNKNOWN_COMMAND`。
+- 輸入 composite 命令但不帶子命令時，例如 `member`、`rule`、`simulate`、`twitch auth`，應顯示該命令群組的局部 help 與 usage，而不是回 `UNKNOWN_COMMAND`。
 - CLI 文案不得硬編碼在 command 類別中。命令說明、usage、分類名稱與 help 固定文案皆使用 i18n key。
 - i18n 使用檔案式載入，支援外部擴充：
   - manifest：`src/Hosts/Vulperonex.Cli/Resources/I18n/manifest.json`
@@ -230,6 +231,10 @@ group.MapGet("/status", async (
 - [x] 新後端端點 `GET /api/twitch/auth/status` 回 `{ clientIdConfigured, clientSecretConfigured, hasRefreshToken }`，不回傳 client_id 字串、client secret 或 token。
 - [x] 命令樹採用 `IConsoleCommand` / `CompositeConsoleCommand` / `ICommandDispatcher` 完整遞迴抽象；one-shot 與 REPL 共用同一棵樹，**禁止**保留舊 `switch` 分發路徑。
 - [x] `help` 列出所有一級命令與其子命令（透過遞迴 `GetAllCommands` + `Description`）；不打 API。
+- [x] `simulate` 空參數顯示 `chat|follow|sub` 局部 help，不再回 `UNKNOWN_COMMAND`。
+- [x] `rule create <rule.json>` / `rule update <rule-id> <rule.json>` 允許從檔案建立與更新規則，降低手動驗證規則 CRUD 的摩擦。
+- [x] `member seed <platform-user-id> [display-name]` 透過 simulation pipeline 建立測試會員；`member delete <member-id>` 清除會員與平台身份。
+- [x] `twitch auth reset` 清除已儲存 refresh token，方便重複驗證 Twitch OAuth。
 - [x] `exit` / `quit` / EOF（Windows: Ctrl+Z+Enter；Unix: Ctrl+D）結束 REPL 並回傳 exit code 0。
 - [x] 空白行 / 純空白輸入：忽略並重印 prompt，不送 API。
 - [x] ↑/↓ 在 session 歷史中前後切換；連續輸入相同命令時，僅當**最後一筆**（push 前比對 `_history.Last()`，非 read 時比對）等於新輸入才去重，中間重複的歷史保留，照搬 Omni-Commander `ConsoleCliService` 行為。

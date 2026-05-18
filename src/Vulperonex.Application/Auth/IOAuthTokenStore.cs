@@ -7,4 +7,6 @@ public interface IOAuthTokenStore
     Task<string?> GetRefreshTokenAsync(string platform, CancellationToken cancellationToken = default);
 
     Task<bool> HasRefreshTokenAsync(string platform, CancellationToken cancellationToken = default);
+
+    Task ClearRefreshTokenAsync(string platform, CancellationToken cancellationToken = default);
 }

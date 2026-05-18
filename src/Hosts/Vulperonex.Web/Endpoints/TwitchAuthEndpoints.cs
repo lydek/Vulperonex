@@ -24,6 +24,12 @@ public static class TwitchAuthEndpoints
             return Results.Ok(new TwitchAuthStatusResponse(clientIdConfigured, clientSecretConfigured, hasRefreshToken));
         });
 
+        group.MapDelete("/token", async (IOAuthTokenStore tokenStore, CancellationToken cancellationToken) =>
+        {
+            await tokenStore.ClearRefreshTokenAsync("twitch", cancellationToken);
+            return Results.NoContent();
+        });
+
         group.MapPost("/start", (
             TwitchAuthStartRequest request,
             IConfiguration configuration,

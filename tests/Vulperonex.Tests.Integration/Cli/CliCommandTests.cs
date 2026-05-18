@@ -57,8 +57,10 @@ public sealed class CliCommandTests
     [InlineData(new[] { "config", "get", "log.min_level" }, "GET", "/api/config/log.min_level")]
     [InlineData(new[] { "member", "list" }, "GET", "/api/members")]
     [InlineData(new[] { "member", "show", "user-1" }, "GET", "/api/members/user-1")]
+    [InlineData(new[] { "member", "delete", "user-1" }, "DELETE", "/api/members/user-1")]
     [InlineData(new[] { "simulate", "follow" }, "POST", "/api/simulate/follow")]
     [InlineData(new[] { "simulate", "sub" }, "POST", "/api/simulate/sub")]
+    [InlineData(new[] { "twitch", "auth", "reset" }, "DELETE", "/api/twitch/auth/token")]
     public async Task Given_CliCommand_When_Executed_Then_ExpectedApiRouteIsUsed(
         string[] args,
         string method,
@@ -100,6 +102,90 @@ public sealed class CliCommandTests
         using var error = new StringWriter();
 
         var exitCode = await VulperonexCli.RunAsync(["config", "set", "log.min_level", "Debug"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_RuleCreateAndUpdateCommands_When_JsonFileIsProvided_Then_FilePayloadIsSent()
+    {
+        var requests = new List<(HttpMethod Method, string Path, string Body)>();
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            requests.Add((
+                request.Method,
+                request.RequestUri?.PathAndQuery ?? string.Empty,
+                await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken)));
+            return JsonResponse(HttpStatusCode.OK, """{"id":"rule-1"}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var file = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.json");
+
+        try
+        {
+            await File.WriteAllTextAsync(file, """{"name":"Rule from CLI"}""", TestContext.Current.CancellationToken);
+
+            var createExitCode = await VulperonexCli.RunAsync(["rule", "create", file], client, output, error);
+            var updateExitCode = await VulperonexCli.RunAsync(["rule", "update", "rule-1", file], client, output, error);
+
+            createExitCode.Should().Be(0);
+            updateExitCode.Should().Be(0);
+            requests.Should().ContainSingle(request => request.Method == HttpMethod.Post && request.Path == "/api/rules");
+            requests.Should().ContainSingle(request => request.Method == HttpMethod.Put && request.Path == "/api/rules/rule-1");
+            requests.Should().OnlyContain(request => request.Body.Contains("Rule from CLI", StringComparison.Ordinal));
+            error.ToString().Should().BeEmpty();
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    [Fact]
+    public async Task Given_RuleCreateCommand_When_FileIsMissing_Then_FileNotFoundIsWrittenWithoutCallingApi()
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("missing file must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "create", "missing-rule.json"], client, output, error);
+
+        exitCode.Should().Be(1);
+        output.ToString().Should().BeEmpty();
+        error.ToString().Trim().Should().Be("FILE_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Given_MemberSeedCommand_When_Executed_Then_SimulationPipelineIsUsed()
+    {
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            request.Method.Should().Be(HttpMethod.Post);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/simulate/chat");
+            var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            body.Should().Contain("\"platformUserId\":\"user-123\"");
+            body.Should().Contain("\"displayName\":\"Alice\"");
+            body.Should().Contain("member seed");
+            return new HttpResponseMessage(HttpStatusCode.Accepted)
+            {
+                Content = new ByteArrayContent([]),
+            };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["member", "seed", "user-123", "Alice"], client, TextWriter.Null, error);
 
         exitCode.Should().Be(0);
         error.ToString().Should().BeEmpty();
@@ -150,6 +236,36 @@ public sealed class CliCommandTests
 
         exitCode.Should().Be(0);
         error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_SimulateCommandWithoutArgs_When_Executed_Then_SubcommandHelpIsWritten()
+    {
+        var previousLanguage = Environment.GetEnvironmentVariable("VULPERONEX_CLI_LANG");
+        Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", "en");
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("command help must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        try
+        {
+            var exitCode = await VulperonexCli.RunAsync(["simulate"], client, output, error);
+
+            exitCode.Should().Be(0);
+            output.ToString().Should().Contain("simulate commands");
+            output.ToString().Should().Contain("chat/message/msg");
+            output.ToString().Should().Contain("follow");
+            output.ToString().Should().Contain("sub");
+            error.ToString().Should().BeEmpty();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", previousLanguage);
+        }
     }
 
     [Fact]
@@ -253,7 +369,7 @@ public sealed class CliCommandTests
             output.ToString().Should().Contain("Vulperonex CLI Help");
             output.ToString().Should().Contain("[Workflow]");
             output.ToString().Should().Contain("rule/r");
-            output.ToString().Should().Contain("Manage workflow rules. (list|show|enable|disable|delete)");
+            output.ToString().Should().Contain("Manage workflow rules. (list|show|create|update|enable|disable|delete)");
             output.ToString().Should().Contain("member/m/user/members");
             output.ToString().Should().Contain("twitch/tw");
             error.ToString().Should().BeEmpty();
@@ -284,8 +400,8 @@ public sealed class CliCommandTests
             exitCode.Should().Be(0);
             output.ToString().Should().Contain("Vulperonex CLI 說明");
             output.ToString().Should().Contain("[工作流程]");
-            output.ToString().Should().Contain("管理工作流程規則。");
-            output.ToString().Should().Contain("輸入命令群組名稱");
+            output.ToString().Should().Contain("管理工作流程規則");
+            output.ToString().Should().Contain("輸入指令群組名稱");
             error.ToString().Should().BeEmpty();
         }
         finally
@@ -313,9 +429,11 @@ public sealed class CliCommandTests
 
             exitCode.Should().Be(0);
             output.ToString().Should().Contain("member commands");
-            output.ToString().Should().Contain("Usage: member <list|show>");
+            output.ToString().Should().Contain("Usage: member <list|show|seed|delete>");
             output.ToString().Should().Contain("list/ls");
             output.ToString().Should().Contain("show/status/info/get/find");
+            output.ToString().Should().Contain("seed/add/mock");
+            output.ToString().Should().Contain("delete/remove/rm");
             error.ToString().Should().BeEmpty();
         }
         finally

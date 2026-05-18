@@ -22,6 +22,16 @@
   - `http://localhost:7980/auth/callback`
   - `http://localhost:7981/auth/callback`
 
+### PowerShell UTF-8 output note
+
+If localized CLI help or Chinese documentation appears garbled in PowerShell, configure UTF-8 output before diagnosing the i18n JSON files:
+
+```powershell
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()
+$OutputEncoding = [System.Text.UTF8Encoding]::new()
+chcp 65001
+```
+
 ## 必要的自動化測試覆蓋範圍
 
 - 使用全新的 SQLite 資料庫啟動 `Vulperonex.Web`，且不進行手動 EF 遷移（EF migration）。
@@ -30,9 +40,13 @@
   - `rule list`
   - `config get log.min_level`
   - `member list`
+  - `member seed <platform-user-id> [display-name]`
+  - `member delete <member-id>`
   - `simulate chat <message>`
   - `simulate follow`
   - `simulate sub`
+  - `simulate`（局部 help，不打 API）
+  - `rule create <rule.json>` / `rule update <rule-id> <rule.json>` / `rule delete <rule-id>`
 - 驗證當 CLI 發生錯誤時，仍僅將後端 `error` 代碼寫入 stderr，並以代碼 `1` 退出（exit code 1）。
 
 ## 必要的 Twitch OAuth 手動流程
@@ -82,9 +96,11 @@ $env:VULPERONEX_API_URL = "http://127.0.0.1:<api_port>"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- rule list"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- config get log.min_level"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- member list"
+rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- member seed manual-user ManualUser"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate chat hello from cli"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate follow"
 rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate sub"
+rtk proxy powershell -NoProfile -Command "dotnet run --project src\Hosts\Vulperonex.Cli -- simulate"
 ```
 
 單行設定 API URL 並進入 REPL 時，請使用單引號：
@@ -101,9 +117,15 @@ rtk proxy powershell -NoProfile -Command '$env:VULPERONEX_API_URL="http://127.0.
 | `config get log.min_level` | 0 | JSON 物件含 `value` 欄位 | 空 |
 | `config get oauth.twitch.refresh_token` | 1 | 空 | `OAUTH_CREDENTIAL_NAMESPACE` |
 | `member list` | 0 | JSON array（依分頁預設） | 空 |
+| `member seed manual-user ManualUser` | 0 | 空或 JSON ack | 空 |
+| `member delete <member-id>` | 0 | 空 | 空 |
+| `simulate` | 0 | 局部 help，列出 `chat`、`follow`、`sub` | 空 |
 | `simulate chat hello from cli` | 0 | 空（端點 204）或 JSON ack | 空 |
 | `simulate follow` | 0 | 同上 | 空 |
 | `simulate sub` | 0 | 同上（端點接受空 body） | 空 |
+| `rule create <rule.json>` | 0 | 建立後的 rule JSON | 空 |
+| `rule update <rule-id> <rule.json>` | 0 | 更新後的 rule JSON | 空 |
+| `rule delete <rule-id>` | 0 | 空 | 空 |
 | 任意命令對非 loopback `VULPERONEX_API_URL` | 1 | 空 | `CLI_API_URL_NOT_LOOPBACK` |
 
 任何一行失敗即視為 Gate 阻擋，於下方「狀態」段以 `FAIL` 紀錄並開 task 修復。
@@ -132,6 +154,7 @@ rtk proxy powershell -NoProfile -Command ".\artifacts\cli-manual\Vulperonex.Cli.
 | 使用者於瀏覽器同意且 token exchange 成功 | 瀏覽器顯示 `Twitch authorization completed`，並提示回到 CLI |
 | CLI 完成 | exit 0；refresh token 已寫入 SQLite |
 | Twitch token exchange 失敗 | CLI stderr `TWITCH_OAUTH_EXCHANGE_FAILED`，瀏覽器或 CLI 顯示授權未完成 |
+| `twitch auth reset` | exit 0；已儲存 refresh token 被清除，後續 status 顯示未授權，可重複執行 `twitch auth start` |
 | 重複 `config get oauth.twitch.refresh_token` | exit 1，stderr `OAUTH_CREDENTIAL_NAMESPACE`（**不**因已授權而開放） |
 
 ### 5b. REPL TTY 互動行為手動驗證（任務 16f L60 / 16g）
@@ -264,3 +287,4 @@ Remove-Item Env:VULPERONEX_API_URL
 - 2026-05-17 ｜ 紀錄者：lydek ｜ 動作：Gate 文件初版建立 ｜ 結果：N/A（僅文件）
 - 2026-05-17 ｜ 紀錄者：lydek ｜ 動作：為啟動遷移（startup migration）、執行中 API 的 CLI 冒煙測試、Twitch OAuth 啟動 URL、Twitch OAuth 完成權杖儲存新增自動化的階段 5/Cli 測試覆蓋 ｜ 結果：自動化測試 PASS
 - 2026-05-17 ｜ 紀錄者：lydek ｜ 待辦：CLI 已發布至 `artifacts/cli-manual/`，沙盒政策拒絕背景 Web 主機啟動，已發布程式的冒煙測試仍待本機終端機執行 ｜ Owner：lydek ｜ Due：開始 Phase 6 之前
+- 2026-05-19 ｜ 紀錄者：Codex ｜ 動作：補齊 CLI 手動測試 UX，自動化覆蓋 `simulate` 局部 help、`rule create/update`、`member seed/delete`、`twitch auth reset` ｜ 結果：自動化測試 PASS；published CLI 實機驗證仍待本機終端機執行

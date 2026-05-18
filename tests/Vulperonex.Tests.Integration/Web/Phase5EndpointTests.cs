@@ -124,6 +124,26 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_TwitchRefreshTokenExists_When_AuthTokenIsDeleted_Then_StatusReportsNoToken()
+    {
+        await using var app = await StartAppAsync(["Twitch:ClientId", "client-1"]);
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var tokenStore = scope.ServiceProvider.GetRequiredService<IOAuthTokenStore>();
+            await tokenStore.StoreRefreshTokenAsync("twitch", "refresh-secret", TestContext.Current.CancellationToken);
+        }
+
+        using var client = CreateClient(app);
+        var delete = await client.DeleteAsync("/api/twitch/auth/token", TestContext.Current.CancellationToken);
+        var status = await client.GetAsync("/api/twitch/auth/status", TestContext.Current.CancellationToken);
+
+        delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        status.StatusCode.Should().Be(HttpStatusCode.OK);
+        using var document = JsonDocument.Parse(await status.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        document.RootElement.GetProperty("hasRefreshToken").GetBoolean().Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Given_TwitchOAuthCallback_When_StateMatches_Then_CodeIsExchangedAndRefreshTokenIsStored()
     {
         var tokenEndpoint = new RecordingTwitchTokenEndpoint();
@@ -577,6 +597,36 @@ public sealed class Phase5EndpointTests
         var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         json.Should().Contain("member-1");
         json.Should().Contain("twitch");
+    }
+
+    [Fact]
+    public async Task Given_MemberEndpoint_When_MemberIsDeleted_Then_IdentityCascadeIsRemoved()
+    {
+        await using var app = await StartAppAsync();
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
+            context.Members.Add(new MemberEntity { MemberId = "member-delete" });
+            context.PlatformIdentities.Add(new PlatformIdentityEntity
+            {
+                MemberId = "member-delete",
+                Platform = "twitch",
+                PlatformUserId = "delete-me",
+            });
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var client = CreateClient(app);
+        var delete = await client.DeleteAsync("/api/members/member-delete", TestContext.Current.CancellationToken);
+        var show = await client.GetAsync("/api/members/member-delete", TestContext.Current.CancellationToken);
+        await using var verifyScope = app.Services.CreateAsyncScope();
+        var verifyContext = verifyScope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
+        var identityExists = await verifyContext.PlatformIdentities
+            .AnyAsync(identity => identity.MemberId == "member-delete", TestContext.Current.CancellationToken);
+
+        delete.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        show.StatusCode.Should().Be(HttpStatusCode.NotFound);
+        identityExists.Should().BeFalse();
     }
 
     [Fact]

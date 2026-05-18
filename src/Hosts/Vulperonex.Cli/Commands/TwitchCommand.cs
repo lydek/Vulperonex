@@ -26,6 +26,8 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
         public AuthCommand()
         {
             AddSubCommand(new StartCommand());
+            AddSubCommand(new DelegateConsoleCommand("reset", "command.twitch.auth.reset.description", "command.twitch.auth.reset.usage", Category, async (_, context, ct) =>
+                await context.WriteResponseAsync(await context.Client.DeleteAsync("/api/twitch/auth/token", ct)), ["clear", "logout", "remove"]));
         }
 
         public override string Name => "auth";

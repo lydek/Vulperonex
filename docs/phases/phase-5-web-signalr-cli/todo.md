@@ -59,6 +59,7 @@
 - [x] Line editor：TTY 模式 history、Ctrl+C 清 buffer。
 - [x] CLI help UX：全域 help 依分類列出命令，composite 命令空參數時顯示局部子命令說明。
 - [x] CLI i18n：help/usage/description 由 `Resources/I18n/manifest.json` 與 `<culture>.json` 載入，支援外部新增語系。
+- [x] CLI manual-test UX：`simulate` 空參數顯示局部 help；`rule create/update` 支援 JSON 檔；`member seed/delete` 支援建立與清理測試會員；`twitch auth reset` 支援清除 OAuth refresh token 後重跑授權。
 - [ ] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
 
 ## 第 5 階段依賴項
@@ -90,6 +91,7 @@
 - [x] 手動確認：CLI 模擬聊天到達 overlay SignalR，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
 - [x] CLI 端到端 smoke：新 DB 啟動 API 後不需手動 migration，真實 CLI 可成功執行 `rule list`、`config get`、`member list`、`simulate chat|follow|sub`。
 - [x] CLI Twitch OAuth smoke：`twitch auth start` 產生 Twitch authorize URL，loopback callback 收到 code 後由 API exchange token，refresh token 加密保存。
+- [x] CLI OAuth reset：`twitch auth reset` 只清除 refresh token，讓 `twitch auth start` 可重複人工驗證。
 - [x] `ASPNETCORE_ENVIRONMENT=Development` 加上 `appsettings.Development.json` 與環境變數不會覆蓋主 `appsettings.json` 的 `Database:Path`。
 - [x] 架構測試證明原始 `Configuration["Database:Path"]` 讀取僅限於 `IDatabasePathResolver`。
 - [x] 任務 13f 第 4 階段 SC-6a/SC-6b 後續已完成或明確豁免。
