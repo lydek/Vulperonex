@@ -13,7 +13,13 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
 
     public override string Name => "twitch";
 
-    public override string Description => "Manage Twitch integration.";
+    public override IReadOnlyList<string> Aliases => ["tw"];
+
+    public override string Category => "category.integration";
+
+    public override string Description => CliText.Get("command.twitch.description");
+
+    public override string Usage => CliText.Get("command.twitch.usage");
 
     private sealed class AuthCommand : CompositeConsoleCommand
     {
@@ -24,7 +30,11 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
 
         public override string Name => "auth";
 
-        public override string Description => "Manage Twitch OAuth authorization.";
+        public override string Category => "category.integration";
+
+        public override string Description => CliText.Get("command.twitch.auth.description");
+
+        public override string Usage => CliText.Get("command.twitch.auth.usage");
     }
 
     private sealed class StartCommand : IConsoleCommand
@@ -33,7 +43,11 @@ internal sealed class TwitchCommand : CompositeConsoleCommand
 
         public IReadOnlyList<string> Aliases => [];
 
-        public string Description => "Start Twitch OAuth authorization.";
+        public string Category => "category.integration";
+
+        public string Description => CliText.Get("command.twitch.auth.start.description");
+
+        public string Usage => CliText.Get("command.twitch.auth.start.usage");
 
         public async Task<int> ExecuteAsync(
             string triggerName,

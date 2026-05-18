@@ -4,7 +4,11 @@ internal interface IConsoleCommand
 
     IReadOnlyList<string> Aliases { get; }
 
+    string Category { get; }
+
     string Description { get; }
+
+    string Usage { get; }
 
     Task<int> ExecuteAsync(
         string triggerName,

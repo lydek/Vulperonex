@@ -57,6 +57,8 @@
 - [x] REPL `twitch auth start` 支援 Ctrl+C 取消並輸出 `TWITCH_OAUTH_CANCELLED`。
 - [x] Line editor：TTY 模式 Tab prefix completion、Backspace；redirected stdin 不走 line editor。
 - [x] Line editor：TTY 模式 history、Ctrl+C 清 buffer。
+- [x] CLI help UX：全域 help 依分類列出命令，composite 命令空參數時顯示局部子命令說明。
+- [x] CLI i18n：help/usage/description 由 `Resources/I18n/manifest.json` 與 `<culture>.json` 載入，支援外部新增語系。
 - [ ] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
 
 ## 第 5 階段依賴項

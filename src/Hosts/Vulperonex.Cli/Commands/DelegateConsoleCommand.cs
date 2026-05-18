@@ -1,6 +1,8 @@
 internal sealed class DelegateConsoleCommand(
     string name,
-    string description,
+    string descriptionKey,
+    string usageKey,
+    string category,
     Func<string[], CliExecutionContext, CancellationToken, Task<int>> execute,
     IReadOnlyList<string>? aliases = null) : IConsoleCommand
 {
@@ -8,7 +10,11 @@ internal sealed class DelegateConsoleCommand(
 
     public IReadOnlyList<string> Aliases { get; } = aliases ?? [];
 
-    public string Description { get; } = description;
+    public string Category { get; } = category;
+
+    public string Description => CliText.Get(descriptionKey);
+
+    public string Usage => CliText.Get(usageKey);
 
     public Task<int> ExecuteAsync(
         string triggerName,

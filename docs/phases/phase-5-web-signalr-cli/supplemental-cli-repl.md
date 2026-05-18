@@ -193,6 +193,19 @@ group.MapGet("/status", async (
 - Banner 不含 authorize URL（見上節），因此無 `client_id` / `state` 印出。
 - **FYI（後續階段）**：`/api/twitch/auth/status` 揭露「機器是否已授權」事實。Phase 5 受 loopback 限制（`plan.md` 規定）可接受；若未來開放 LAN/遠端繫結（plan.md 已警告），此端點需與 hub 一同加 auth gate。
 
+### CLI help UX 與 i18n
+
+- `help` 不得輸出平鋪 debug dump。全域 help 以分類呈現一級命令，顯示 alias、說明與可用子命令摘要。
+- 輸入 composite 命令但不帶子命令時，例如 `member`、`rule`、`twitch auth`，應顯示該命令群組的局部 help 與 usage，而不是回 `UNKNOWN_COMMAND`。
+- CLI 文案不得硬編碼在 command 類別中。命令說明、usage、分類名稱與 help 固定文案皆使用 i18n key。
+- i18n 使用檔案式載入，支援外部擴充：
+  - manifest：`src/Hosts/Vulperonex.Cli/Resources/I18n/manifest.json`
+  - 語系檔：`src/Hosts/Vulperonex.Cli/Resources/I18n/<culture>.json`
+  - `manifest.json` 的 `supportedCultures` 必須和實際檔名一一對應，例如 `zh-TW` 對應 `zh-TW.json`。
+  - 新增語系時，只新增 `<culture>.json` 並把 culture 加入 manifest；不需要修改 C# command 類別。
+  - 缺少當前語系 key 時 fallback 到 `defaultCulture`；預設語系也缺 key 時才顯示 key 本身，方便開發期發現遺漏。
+- 語系選擇順序：`VULPERONEX_CLI_LANG` -> `CultureInfo.CurrentUICulture` -> manifest 的 `defaultCulture`。
+
 ### Prompt 與輸出
 
 - Prompt 字串：`vulperonex> `（ASCII，避免 Windows code page 顯示問題）。

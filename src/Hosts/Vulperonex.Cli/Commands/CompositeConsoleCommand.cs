@@ -6,7 +6,11 @@ internal abstract class CompositeConsoleCommand : IConsoleCommand, ICommandDispa
 
     public virtual IReadOnlyList<string> Aliases => [];
 
+    public abstract string Category { get; }
+
     public abstract string Description { get; }
+
+    public abstract string Usage { get; }
 
     protected void AddSubCommand(IConsoleCommand command)
     {
@@ -29,7 +33,8 @@ internal abstract class CompositeConsoleCommand : IConsoleCommand, ICommandDispa
     {
         if (args.Length == 0)
         {
-            return await context.FailAsync("UNKNOWN_COMMAND");
+            await CliHelpFormatter.WriteCommandHelpAsync(context.Output, this);
+            return 0;
         }
 
         var command = Find(args[0]);

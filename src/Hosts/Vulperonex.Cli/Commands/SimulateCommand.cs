@@ -4,9 +4,13 @@ internal sealed class SimulateCommand : IConsoleCommand
 {
     public string Name => "simulate";
 
-    public IReadOnlyList<string> Aliases => [];
+    public IReadOnlyList<string> Aliases => ["sim", "test", "mock"];
 
-    public string Description => "Simulate stream events.";
+    public string Category => "category.stream";
+
+    public string Description => CliText.Get("command.simulate.description");
+
+    public string Usage => CliText.Get("command.simulate.usage");
 
     public async Task<int> ExecuteAsync(
         string triggerName,

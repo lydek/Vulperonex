@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FluentAssertions;
 using Xunit;
 
@@ -6,6 +7,26 @@ namespace Vulperonex.Tests.Integration.Cli;
 
 public sealed class CliCommandTests
 {
+    [Fact]
+    public void Given_CliI18nManifest_When_Loaded_Then_SupportedCulturesHaveMatchingFiles()
+    {
+        var root = FindRepositoryRoot();
+        var i18nDirectory = Path.Combine(root, "src", "Hosts", "Vulperonex.Cli", "Resources", "I18n");
+        using var manifest = JsonDocument.Parse(File.ReadAllText(Path.Combine(i18nDirectory, "manifest.json")));
+        var defaultCulture = manifest.RootElement.GetProperty("defaultCulture").GetString();
+        var supportedCultures = manifest.RootElement
+            .GetProperty("supportedCultures")
+            .EnumerateArray()
+            .Select(element => element.GetString())
+            .ToArray();
+
+        supportedCultures.Should().Contain(defaultCulture);
+        foreach (var culture in supportedCultures)
+        {
+            File.Exists(Path.Combine(i18nDirectory, $"{culture}.json")).Should().BeTrue();
+        }
+    }
+
     [Fact]
     public async Task Given_RuleListCommand_When_ApiReturnsJson_Then_ResponseIsWrittenToStdout()
     {
@@ -214,6 +235,8 @@ public sealed class CliCommandTests
     [Fact]
     public async Task Given_HelpCommand_When_Executed_Then_CommandTreeIsWrittenWithoutCallingApi()
     {
+        var previousLanguage = Environment.GetEnvironmentVariable("VULPERONEX_CLI_LANG");
+        Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", "en");
         using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
             throw new InvalidOperationException("help must not call the API"))))
         {
@@ -222,14 +245,83 @@ public sealed class CliCommandTests
         using var output = new StringWriter();
         using var error = new StringWriter();
 
-        var exitCode = await VulperonexCli.RunAsync(["help"], client, output, error);
+        try
+        {
+            var exitCode = await VulperonexCli.RunAsync(["help"], client, output, error);
 
-        exitCode.Should().Be(0);
-        output.ToString().Should().Contain("rule - Manage workflow rules.");
-        output.ToString().Should().Contain("rule list - List workflow rules.");
-        output.ToString().Should().Contain("twitch auth start - Start Twitch OAuth authorization.");
-        output.ToString().Should().Contain("twitch - Manage Twitch integration.");
-        error.ToString().Should().BeEmpty();
+            exitCode.Should().Be(0);
+            output.ToString().Should().Contain("Vulperonex CLI Help");
+            output.ToString().Should().Contain("[Workflow]");
+            output.ToString().Should().Contain("rule/r");
+            output.ToString().Should().Contain("Manage workflow rules. (list|show|enable|disable|delete)");
+            output.ToString().Should().Contain("member/m/user/members");
+            output.ToString().Should().Contain("twitch/tw");
+            error.ToString().Should().BeEmpty();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", previousLanguage);
+        }
+    }
+
+    [Fact]
+    public async Task Given_HelpCommand_When_LanguageIsChinese_Then_LocalizedHelpIsWritten()
+    {
+        var previousLanguage = Environment.GetEnvironmentVariable("VULPERONEX_CLI_LANG");
+        Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", "zh-TW");
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("help must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        try
+        {
+            var exitCode = await VulperonexCli.RunAsync(["help"], client, output, error);
+
+            exitCode.Should().Be(0);
+            output.ToString().Should().Contain("Vulperonex CLI 說明");
+            output.ToString().Should().Contain("[工作流程]");
+            output.ToString().Should().Contain("管理工作流程規則。");
+            output.ToString().Should().Contain("輸入命令群組名稱");
+            error.ToString().Should().BeEmpty();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", previousLanguage);
+        }
+    }
+
+    [Fact]
+    public async Task Given_CompositeCommandWithoutArgs_When_Executed_Then_SubcommandHelpIsWritten()
+    {
+        var previousLanguage = Environment.GetEnvironmentVariable("VULPERONEX_CLI_LANG");
+        Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", "en");
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("command help must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        try
+        {
+            var exitCode = await VulperonexCli.RunAsync(["member"], client, output, error);
+
+            exitCode.Should().Be(0);
+            output.ToString().Should().Contain("member commands");
+            output.ToString().Should().Contain("Usage: member <list|show>");
+            output.ToString().Should().Contain("list/ls");
+            output.ToString().Should().Contain("show/status/info/get/find");
+            error.ToString().Should().BeEmpty();
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("VULPERONEX_CLI_LANG", previousLanguage);
+        }
     }
 
     [Theory]
@@ -559,6 +651,17 @@ public sealed class CliCommandTests
         {
             Content = new StringContent(json, System.Text.Encoding.UTF8, "application/json"),
         };
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Vulperonex.sln")))
+        {
+            directory = directory.Parent;
+        }
+
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root was not found.");
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler
