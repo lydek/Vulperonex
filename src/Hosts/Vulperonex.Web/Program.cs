@@ -13,7 +13,11 @@ public static partial class VulperonexWebApplication
 {
     public static WebApplicationBuilder CreateBuilder(string[] args)
     {
-        return CreateBuilder(new WebApplicationOptions { Args = args });
+        return CreateBuilder(new WebApplicationOptions
+        {
+            Args = args,
+            ContentRootPath = AppContext.BaseDirectory,
+        });
     }
 
     public static WebApplicationBuilder CreateBuilder(WebApplicationOptions options, bool configureDefaultLoopbackPorts = true)

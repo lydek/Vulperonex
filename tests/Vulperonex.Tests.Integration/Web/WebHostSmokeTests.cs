@@ -15,6 +15,20 @@ namespace Vulperonex.Tests.Integration.Web;
 public sealed class WebHostSmokeTests
 {
     [Fact]
+    public void Given_DevelopmentCreateBuilder_When_DevelopmentSettingsExist_Then_TwitchClientIdIsLoaded()
+    {
+        var builder = VulperonexWebApplication.CreateBuilder(new WebApplicationOptions
+        {
+            EnvironmentName = "Development",
+            ContentRootPath = AppContext.BaseDirectory,
+        });
+
+        builder.Environment.EnvironmentName.Should().Be("Development");
+        builder.Environment.ContentRootPath.Should().Be(AppContext.BaseDirectory);
+        builder.Configuration["Twitch:ClientId"].Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
     public async Task Given_WebHost_When_HealthEndpointIsCalled_Then_ResponseUsesWebJsonDefaults()
     {
         await using var app = await StartAppAsync();
