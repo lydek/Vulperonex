@@ -1,8 +1,9 @@
 using Vulperonex.Adapters.Abstractions;
+using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Adapters.Simulation;
 
 public interface ISimulationAdapter : IStreamEventSource
 {
-    Task SimulateAsync(SimulationRequest request, CancellationToken cancellationToken = default);
+    Task<IStreamEvent> SimulateAsync(SimulationRequest request, CancellationToken cancellationToken = default);
 }

@@ -62,9 +62,10 @@ public sealed class Phase5EndpointTests
         simulateFollow.Should().Be(0);
         simulateSub.Should().Be(0);
         error.ToString().Should().BeEmpty();
-        output.ToString().Should().Contain("OK simulated chat");
-        output.ToString().Should().Contain("OK simulated follow");
-        output.ToString().Should().Contain("OK simulated sub");
+        output.ToString().Should().Contain("\"eventTypeKey\": \"user.message\"");
+        output.ToString().Should().Contain("\"eventTypeKey\": \"user.followed\"");
+        output.ToString().Should().Contain("\"eventTypeKey\": \"user.subscribed\"");
+        output.ToString().Should().Contain("\"eventId\"");
         await EventuallyMemberListContainsAsync(client, "cli-smoke-user");
     }
 
@@ -526,6 +527,33 @@ public sealed class Phase5EndpointTests
             TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.Accepted);
+    }
+
+    [Fact]
+    public async Task Given_SimulateEndpoint_When_ChatIsAccepted_Then_ResponseContainsTraceableEventAck()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new
+            {
+                platformUserId = "trace-user",
+                displayName = "Trace User",
+                message = "hello from cli",
+            },
+            TestContext.Current.CancellationToken);
+
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.Accepted, "response body was {0}", json);
+        using var document = JsonDocument.Parse(json);
+        document.RootElement.GetProperty("accepted").GetBoolean().Should().BeTrue();
+        document.RootElement.GetProperty("eventTypeKey").GetString().Should().Be("user.message");
+        document.RootElement.GetProperty("eventId").GetString().Should().NotBeNullOrWhiteSpace();
+        document.RootElement.GetProperty("platform").GetString().Should().Be("simulation");
+        document.RootElement.GetProperty("platformUserId").GetString().Should().Be("trace-user");
+        document.RootElement.GetProperty("displayName").GetString().Should().Be("Trace User");
     }
 
     [Fact]

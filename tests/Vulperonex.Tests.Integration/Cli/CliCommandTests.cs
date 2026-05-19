@@ -264,10 +264,9 @@ public sealed class CliCommandTests
             request.RequestUri?.PathAndQuery.Should().Be("/api/simulate/chat");
             var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
             body.Should().Contain("hello from cli");
-            return new HttpResponseMessage(HttpStatusCode.Accepted)
-            {
-                Content = new ByteArrayContent([]),
-            };
+            return JsonResponse(HttpStatusCode.Accepted, """
+                {"accepted":true,"eventTypeKey":"user.message","eventId":"01H_TRACE","platform":"simulation","platformUserId":"sim-user","displayName":"Sim User"}
+                """);
         }))
         {
             BaseAddress = new Uri("http://localhost"),
@@ -278,7 +277,8 @@ public sealed class CliCommandTests
         var exitCode = await VulperonexCli.RunAsync(["simulate", "chat", "hello", "from", "cli"], client, output, error);
 
         exitCode.Should().Be(0);
-        output.ToString().Trim().Should().Be("OK simulated chat");
+        output.ToString().Should().Contain("\"eventId\": \"01H_TRACE\"");
+        output.ToString().Should().Contain("\"eventTypeKey\": \"user.message\"");
         error.ToString().Should().BeEmpty();
     }
 

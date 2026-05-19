@@ -37,11 +37,13 @@ public sealed class SimulationAdapter(
         return Task.CompletedTask;
     }
 
-    public Task SimulateAsync(SimulationRequest request, CancellationToken cancellationToken = default)
+    public async Task<IStreamEvent> SimulateAsync(SimulationRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        return eventBus.PublishAsync(CreateEvent(request), cancellationToken);
+        var streamEvent = CreateEvent(request);
+        await eventBus.PublishAsync(streamEvent, cancellationToken);
+        return streamEvent;
     }
 
     private static IStreamEvent CreateEvent(SimulationRequest request)

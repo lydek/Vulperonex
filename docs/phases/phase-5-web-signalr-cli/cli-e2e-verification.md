@@ -120,9 +120,9 @@ rtk proxy powershell -NoProfile -Command '$env:VULPERONEX_API_URL="http://127.0.
 | `member seed manual-user ManualUser` | 0 | `OK member seed requested: manual-user` and `OK member available: <member-id>` | 空 |
 | `member delete <member-id>` | 0 | `OK member deleted: <member-id>` | 空 |
 | `simulate` | 0 | 局部 help，列出 `chat`、`follow`、`sub` | 空 |
-| `simulate chat hello from cli` | 0 | `OK simulated chat` | 空 |
-| `simulate follow` | 0 | `OK simulated follow` | 空 |
-| `simulate sub` | 0 | `OK simulated sub` | 空 |
+| `simulate chat hello from cli` | 0 | JSON ack，含 `accepted: true`、`eventTypeKey: user.message`、`eventId` | 空 |
+| `simulate follow` | 0 | JSON ack，含 `eventTypeKey: user.followed`、`eventId` | 空 |
+| `simulate sub` | 0 | JSON ack，含 `eventTypeKey: user.subscribed`、`eventId` | 空 |
 | `rule create <rule.json>` | 0 | 建立後的 rule JSON | 空 |
 | `rule update <rule-id> <rule.json>` | 0 | 更新後的 rule JSON | 空 |
 | `rule disable <rule-id>` | 0 | `OK rule disabled: <rule-id>` | 空 |
@@ -291,3 +291,4 @@ Remove-Item Env:VULPERONEX_API_URL
 - 2026-05-17 ｜ 紀錄者：lydek ｜ 待辦：CLI 已發布至 `artifacts/cli-manual/`，沙盒政策拒絕背景 Web 主機啟動，已發布程式的冒煙測試仍待本機終端機執行 ｜ Owner：lydek ｜ Due：開始 Phase 6 之前
 - 2026-05-19 ｜ 紀錄者：Codex ｜ 動作：補齊 CLI 手動測試 UX，自動化覆蓋 `simulate` 局部 help、`rule create/update`、`member seed/delete`、`twitch auth reset` ｜ 結果：自動化測試 PASS；published CLI 實機驗證仍待本機終端機執行
 - 2026-05-19 ｜ 紀錄者：Codex ｜ 動作：補齊空成功回應的 `OK ...` 輸出，並註冊 Web host member event consumer，讓 `member seed` 後可由 `member list` 查到資料 ｜ 結果：自動化測試 PASS
+- 2026-05-19 ｜ 紀錄者：Codex ｜ 動作：`POST /api/simulate/{alias}` 回傳可追蹤 JSON ack，CLI 顯示 `eventId` / `eventTypeKey` 以確認 Web API 已發布事件 ｜ 結果：自動化測試 PASS

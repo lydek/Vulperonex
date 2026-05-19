@@ -46,7 +46,8 @@ public sealed class SimulationAdapterTests
 
         foreach (var request in CreateAllRequests())
         {
-            await adapter.SimulateAsync(request, TestContext.Current.CancellationToken);
+            var streamEvent = await adapter.SimulateAsync(request, TestContext.Current.CancellationToken);
+            streamEvent.EventId.Should().NotBeNullOrWhiteSpace();
         }
 
         await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
@@ -74,10 +75,11 @@ public sealed class SimulationAdapterTests
             return Task.CompletedTask;
         });
 
-        await adapter.SimulateAsync(SimulationRequest.Message("twitch", user, "hello"), TestContext.Current.CancellationToken);
+        var returned = await adapter.SimulateAsync(SimulationRequest.Message("twitch", user, "hello"), TestContext.Current.CancellationToken);
         await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         var streamEvent = received.Should().ContainSingle().Subject;
+        returned.Should().BeSameAs(streamEvent);
         streamEvent.Platform.Should().Be("twitch");
         streamEvent.User.Should().Be(user);
         streamEvent.MessageText.Should().Be("hello");

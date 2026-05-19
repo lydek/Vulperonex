@@ -29,8 +29,17 @@ public static class SimulateEndpoints
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
 
-            await adapter.SimulateAsync(simulationRequest, cancellationToken);
-            return Results.Accepted();
+            var streamEvent = await adapter.SimulateAsync(simulationRequest, cancellationToken);
+            return Results.Accepted(
+                $"/api/simulate/events/{streamEvent.EventId}",
+                new SimulateResponse(
+                    true,
+                    streamEvent.EventTypeKey,
+                    streamEvent.EventId,
+                    streamEvent.Platform,
+                    streamEvent.User?.UserId,
+                    streamEvent.User?.DisplayName,
+                    streamEvent.OccurredAt));
         });
 
         return endpoints;
@@ -116,4 +125,13 @@ public static class SimulateEndpoints
         JsonElement? Roles = null,
         string? Message = null,
         string? Tier = null);
+
+    private sealed record SimulateResponse(
+        bool Accepted,
+        string EventTypeKey,
+        string EventId,
+        string Platform,
+        string? PlatformUserId,
+        string? DisplayName,
+        DateTimeOffset OccurredAt);
 }

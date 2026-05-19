@@ -43,7 +43,7 @@ Required checks:
 - `rule disable <rule-id>` prints `OK rule disabled: <rule-id>`.
 - `rule enable <rule-id>` prints `OK rule enabled: <rule-id>`.
 - `rule delete <rule-id>` prints `OK rule deleted: <rule-id>` and removes the rule for cleanup.
-- `simulate chat|follow|sub` prints `OK simulated <event>` when the API returns an empty success response.
+- `simulate chat|follow|sub` prints a JSON acknowledgement containing `accepted`, `eventTypeKey`, `eventId`, `platformUserId`, and `displayName`; use `eventId` to correlate Web/SignalR logs.
 - `member seed <platform-user-id> [display-name]` creates test member data through the simulation pipeline and prints `OK member available: <member-id>` once the member can be listed.
 - `member list` shows the seeded member.
 - `member delete <member-id>` prints `OK member deleted: <member-id>` and removes the seeded member and its platform identities.
@@ -76,7 +76,17 @@ Required checks:
 - Verifier: Codex automated integration tests
 - Environment: Windows, Release test build
 - Commands: `simulate chat`, `simulate follow`, `simulate sub`, `member seed`, `rule enable`, `rule disable`, `rule delete`, `twitch auth reset`
-- Expected result: commands with empty HTTP success bodies print explicit `OK ...` output; member simulation events are consumed by the Web host and become visible in `member list`.
+- Expected result: simulate commands print a traceable JSON acknowledgement with `eventId`; other commands with empty HTTP success bodies print explicit `OK ...` output; member simulation events are consumed by the Web host and become visible in `member list`.
 - Actual result: `CliCommandTests` passed 49 tests; `Phase5EndpointTests` excluding fixed-port exhaustion passed 40 tests.
+- Result: PASS
+- Evidence / commit: pending
+
+## 2026-05-19 - Simulate event acknowledgement
+
+- Verifier: Codex automated integration tests
+- Environment: Windows, Release test build
+- Commands: `simulate chat hello from cli`
+- Expected result: Web API returns `202 Accepted` with JSON acknowledgement containing `accepted`, `eventTypeKey`, `eventId`, `platformUserId`, `displayName`, and `occurredAt`.
+- Actual result: `CliCommandTests` and `Phase5EndpointTests` verify traceable simulate output.
 - Result: PASS
 - Evidence / commit: pending

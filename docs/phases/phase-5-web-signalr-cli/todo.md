@@ -94,6 +94,7 @@
 - [x] CLI OAuth reset：`twitch auth reset` 只清除 refresh token，讓 `twitch auth start` 可重複人工驗證。
 - [x] CLI 空成功回應有明確輸出：`simulate`、`rule enable/disable/delete`、`member seed/delete`、`twitch auth reset` 皆印出 `OK ...`，手動測試不再靜默。
 - [x] Web host 註冊 member event consumer，`member seed` 透過 simulation pipeline 建立的會員可由 `member list` 查到。
+- [x] Simulate API 回傳可追蹤 ack：`accepted`、`eventTypeKey`、`eventId`、`platformUserId`、`displayName`，CLI 可直接看到 Web API 已發布的事件。
 - [x] `ASPNETCORE_ENVIRONMENT=Development` 加上 `appsettings.Development.json` 與環境變數不會覆蓋主 `appsettings.json` 的 `Database:Path`。
 - [x] 架構測試證明原始 `Configuration["Database:Path"]` 讀取僅限於 `IDatabasePathResolver`。
 - [x] 任務 13f 第 4 階段 SC-6a/SC-6b 後續已完成或明確豁免。
