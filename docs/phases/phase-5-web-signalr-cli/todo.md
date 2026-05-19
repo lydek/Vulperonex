@@ -92,6 +92,8 @@
 - [x] CLI 端到端 smoke：新 DB 啟動 API 後不需手動 migration，真實 CLI 可成功執行 `rule list`、`config get`、`member list`、`simulate chat|follow|sub`。
 - [x] CLI Twitch OAuth smoke：`twitch auth start` 產生 Twitch authorize URL，loopback callback 收到 code 後由 API exchange token，refresh token 加密保存。
 - [x] CLI OAuth reset：`twitch auth reset` 只清除 refresh token，讓 `twitch auth start` 可重複人工驗證。
+- [x] CLI 空成功回應有明確輸出：`simulate`、`rule enable/disable/delete`、`member seed/delete`、`twitch auth reset` 皆印出 `OK ...`，手動測試不再靜默。
+- [x] Web host 註冊 member event consumer，`member seed` 透過 simulation pipeline 建立的會員可由 `member list` 查到。
 - [x] `ASPNETCORE_ENVIRONMENT=Development` 加上 `appsettings.Development.json` 與環境變數不會覆蓋主 `appsettings.json` 的 `Database:Path`。
 - [x] 架構測試證明原始 `Configuration["Database:Path"]` 讀取僅限於 `IDatabasePathResolver`。
 - [x] 任務 13f 第 4 階段 SC-6a/SC-6b 後續已完成或明確豁免。

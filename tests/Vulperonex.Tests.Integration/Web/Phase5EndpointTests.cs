@@ -51,7 +51,7 @@ public sealed class Phase5EndpointTests
         var ruleList = await VulperonexCli.RunAsync(["rule", "list"], client, output, error);
         var configGet = await VulperonexCli.RunAsync(["config", "get", "log.min_level"], client, output, error);
         var memberList = await VulperonexCli.RunAsync(["member", "list"], client, output, error);
-        var simulateChat = await VulperonexCli.RunAsync(["simulate", "chat", "hello"], client, output, error);
+        var simulateChat = await VulperonexCli.RunAsync(["simulate", "chat", "hello", "--user-id", "cli-smoke-user"], client, output, error);
         var simulateFollow = await VulperonexCli.RunAsync(["simulate", "follow"], client, output, error);
         var simulateSub = await VulperonexCli.RunAsync(["simulate", "sub"], client, output, error);
 
@@ -62,6 +62,10 @@ public sealed class Phase5EndpointTests
         simulateFollow.Should().Be(0);
         simulateSub.Should().Be(0);
         error.ToString().Should().BeEmpty();
+        output.ToString().Should().Contain("OK simulated chat");
+        output.ToString().Should().Contain("OK simulated follow");
+        output.ToString().Should().Contain("OK simulated sub");
+        await EventuallyMemberListContainsAsync(client, "cli-smoke-user");
     }
 
     [Fact]
@@ -758,6 +762,27 @@ public sealed class Phase5EndpointTests
             .Single();
 
         return new HttpClient { BaseAddress = new Uri(address!) };
+    }
+
+    private static async Task EventuallyMemberListContainsAsync(HttpClient client, string platformUserId)
+    {
+        string body = string.Empty;
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            if (attempt > 0)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+            }
+
+            var response = await client.GetAsync("/api/members", TestContext.Current.CancellationToken);
+            body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            if (body.Contains(platformUserId, StringComparison.Ordinal))
+            {
+                return;
+            }
+        }
+
+        body.Should().Contain(platformUserId);
     }
 
     private static object ValidRule(

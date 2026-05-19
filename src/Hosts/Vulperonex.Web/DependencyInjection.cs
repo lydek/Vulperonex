@@ -23,6 +23,7 @@ using Vulperonex.Infrastructure.Security;
 using Vulperonex.Infrastructure.Time;
 using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web.Configuration;
+using Vulperonex.Web.Members;
 using Vulperonex.Web.Ports;
 using Vulperonex.Web.Simulation;
 using Vulperonex.Web.SignalR;
@@ -81,6 +82,8 @@ public static class DependencyInjection
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IMemberQueryService, MemberQueryService>();
         services.AddScoped<IMemberAdminService, MemberAdminService>();
+        services.AddScoped<IMemberResolver, MemberResolver>();
+        services.AddScoped<IMemberStreamStateRepository, MemberStreamStateRepository>();
         services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
         services.AddScoped<WorkflowConditionEvaluator>();
         services.AddScoped<TemplateRenderer>();
@@ -95,6 +98,7 @@ public static class DependencyInjection
         services.AddScoped<WorkflowEngine>();
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
         services.AddHostedService<SimulationAdapterStartupService>();
+        services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<OverlayEventForwarder>();
         services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddDbContext<VulperonexDbContext>((serviceProvider, options) =>

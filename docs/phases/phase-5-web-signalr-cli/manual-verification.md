@@ -30,6 +30,8 @@ $env:VULPERONEX_API_URL = "http://127.0.0.1:<api_port>"
 .\artifacts\cli-manual\Vulperonex.Cli.exe --interactive
 ```
 
+When using `tools/cli.ps1`, set `$env:VULPERONEX_API_PORT = "<api_port>"` to force a single port probe, or pass `-ApiUrl http://127.0.0.1:<api_port>`.
+
 If localized CLI help shows garbled Chinese in PowerShell, verify again after the UTF-8 setup above before treating the i18n JSON as corrupted.
 
 Required checks:
@@ -38,12 +40,15 @@ Required checks:
 - `simulate` with no subcommand shows local `chat|follow|sub` help, not `UNKNOWN_COMMAND`.
 - `rule create <rule.json>` creates a workflow rule from a JSON file.
 - `rule update <rule-id> <rule.json>` updates the same rule from a JSON file.
-- `rule delete <rule-id>` removes the rule for cleanup.
-- `member seed <platform-user-id> [display-name]` creates test member data through the simulation pipeline.
+- `rule disable <rule-id>` prints `OK rule disabled: <rule-id>`.
+- `rule enable <rule-id>` prints `OK rule enabled: <rule-id>`.
+- `rule delete <rule-id>` prints `OK rule deleted: <rule-id>` and removes the rule for cleanup.
+- `simulate chat|follow|sub` prints `OK simulated <event>` when the API returns an empty success response.
+- `member seed <platform-user-id> [display-name]` creates test member data through the simulation pipeline and prints `OK member available: <member-id>` once the member can be listed.
 - `member list` shows the seeded member.
-- `member delete <member-id>` removes the seeded member and its platform identities.
+- `member delete <member-id>` prints `OK member deleted: <member-id>` and removes the seeded member and its platform identities.
 - `twitch auth start` starts Twitch OAuth when `Twitch:ClientId` is configured.
-- `twitch auth reset` clears the stored refresh token so `twitch auth start` can be repeated.
+- `twitch auth reset` prints `OK Twitch authorization reset` and clears the stored refresh token so `twitch auth start` can be repeated.
 - `config get oauth.twitch.refresh_token` still returns `OAUTH_CREDENTIAL_NAMESPACE`.
 
 ## 2026-05-16 - CLI simulate chat to overlay SignalR
@@ -60,8 +65,18 @@ Required checks:
 
 - Verifier: Codex automated integration tests
 - Environment: Windows, Release test build
-- Commands: `simulate`, `rule create/update`, `member seed/delete`, `twitch auth reset`
+- Commands: `simulate`, `rule create/update/enable/disable/delete`, `member seed/delete`, `twitch auth reset`
 - Expected result: local help and manual-test commands route correctly without calling unintended endpoints.
 - Actual result: `CliCommandTests` passed 45 tests; `Phase5EndpointTests` excluding fixed-port exhaustion passed 40 tests.
+- Result: PASS
+- Evidence / commit: pending
+
+## 2026-05-19 - CLI empty-success feedback and member seed fix
+
+- Verifier: Codex automated integration tests
+- Environment: Windows, Release test build
+- Commands: `simulate chat`, `simulate follow`, `simulate sub`, `member seed`, `rule enable`, `rule disable`, `rule delete`, `twitch auth reset`
+- Expected result: commands with empty HTTP success bodies print explicit `OK ...` output; member simulation events are consumed by the Web host and become visible in `member list`.
+- Actual result: `CliCommandTests` passed 49 tests; `Phase5EndpointTests` excluding fixed-port exhaustion passed 40 tests.
 - Result: PASS
 - Evidence / commit: pending

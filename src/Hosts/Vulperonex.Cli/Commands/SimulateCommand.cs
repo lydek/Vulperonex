@@ -21,6 +21,14 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
 
     private sealed class ChatCommand : IConsoleCommand
     {
+        private const string DefaultChatMessage = "hello";
+
+        private static readonly IReadOnlySet<string> AllowedFlags = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "--user-id",
+            "--display-name",
+        };
+
         public string Name => "chat";
 
         public IReadOnlyList<string> Aliases => ["message", "msg"];
@@ -37,7 +45,7 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
             CliExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            var options = SimulateOptions.Parse(args);
+            var options = SimulateOptions.Parse(args, AllowedFlags);
             if (options is null)
             {
                 return await context.FailAsync("INVALID_ARGS");
@@ -49,13 +57,13 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
                 {
                     platformUserId = options.PlatformUserId,
                     displayName = options.DisplayName,
-                    message = string.IsNullOrWhiteSpace(options.Message) ? "hello" : options.Message,
+                    message = string.IsNullOrWhiteSpace(options.Message) ? DefaultChatMessage : options.Message,
                 },
                 cancellationToken);
-            return await context.WriteResponseAsync(response);
+            return await context.WriteResponseAsync(response, "OK simulated chat");
         }
 
-        public IReadOnlyList<string> GetSuggestions(string[] args) => SimulateOptions.GetSuggestions(args);
+        public IReadOnlyList<string> GetSuggestions(string[] args) => SimulateOptions.GetSuggestions(args, AllowedFlags);
     }
 
     private sealed class EventCommand(
@@ -63,6 +71,13 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
         string descriptionKey,
         string usageKey) : IConsoleCommand
     {
+        private static readonly IReadOnlySet<string> AllowedFlags = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "--user-id",
+            "--display-name",
+            "--tier",
+        };
+
         public string Name { get; } = name;
 
         public IReadOnlyList<string> Aliases => [];
@@ -79,7 +94,7 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
             CliExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            var options = SimulateOptions.Parse(args);
+            var options = SimulateOptions.Parse(args, AllowedFlags);
             if (options is null)
             {
                 return await context.FailAsync("INVALID_ARGS");
@@ -94,15 +109,15 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
                     tier = options.Tier,
                 },
                 cancellationToken);
-            return await context.WriteResponseAsync(response);
+            return await context.WriteResponseAsync(response, $"OK simulated {Name}");
         }
 
-        public IReadOnlyList<string> GetSuggestions(string[] args) => SimulateOptions.GetSuggestions(args);
+        public IReadOnlyList<string> GetSuggestions(string[] args) => SimulateOptions.GetSuggestions(args, AllowedFlags);
     }
 
     private sealed record SimulateOptions(string? PlatformUserId, string? DisplayName, string? Tier, string Message)
     {
-        public static SimulateOptions? Parse(string[] args)
+        public static SimulateOptions? Parse(string[] args, IReadOnlySet<string> allowedFlags)
         {
             string? userId = null;
             string? displayName = null;
@@ -112,33 +127,33 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
             for (var index = 0; index < args.Length; index++)
             {
                 var arg = args[index];
-                if (arg is "--user-id" or "--display-name" or "--tier")
+                if (arg.StartsWith("--", StringComparison.Ordinal))
                 {
+                    if (!allowedFlags.Contains(arg))
+                    {
+                        return null;
+                    }
+
                     if (index + 1 >= args.Length)
                     {
                         return null;
                     }
 
                     var value = args[++index];
-                    if (arg == "--user-id")
+                    switch (arg)
                     {
-                        userId = value;
-                    }
-                    else if (arg == "--display-name")
-                    {
-                        displayName = value;
-                    }
-                    else
-                    {
-                        tier = value;
+                        case "--user-id":
+                            userId = value;
+                            break;
+                        case "--display-name":
+                            displayName = value;
+                            break;
+                        case "--tier":
+                            tier = value;
+                            break;
                     }
 
                     continue;
-                }
-
-                if (arg.StartsWith("--", StringComparison.Ordinal))
-                {
-                    return null;
                 }
 
                 message.Add(arg);
@@ -147,10 +162,10 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
             return new SimulateOptions(userId, displayName, tier, string.Join(' ', message));
         }
 
-        public static IReadOnlyList<string> GetSuggestions(string[] args)
+        public static IReadOnlyList<string> GetSuggestions(string[] args, IReadOnlySet<string> allowedFlags)
         {
             var prefix = args.Length == 0 ? string.Empty : args[^1];
-            return new[] { "--user-id", "--display-name", "--tier" }
+            return allowedFlags
                 .Where(name => name.StartsWith(prefix, StringComparison.Ordinal))
                 .Order(StringComparer.Ordinal)
                 .ToArray();

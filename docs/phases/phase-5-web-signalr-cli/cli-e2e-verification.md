@@ -117,15 +117,17 @@ rtk proxy powershell -NoProfile -Command '$env:VULPERONEX_API_URL="http://127.0.
 | `config get log.min_level` | 0 | JSON 物件含 `value` 欄位 | 空 |
 | `config get oauth.twitch.refresh_token` | 1 | 空 | `OAUTH_CREDENTIAL_NAMESPACE` |
 | `member list` | 0 | JSON array（依分頁預設） | 空 |
-| `member seed manual-user ManualUser` | 0 | 空或 JSON ack | 空 |
-| `member delete <member-id>` | 0 | 空 | 空 |
+| `member seed manual-user ManualUser` | 0 | `OK member seed requested: manual-user` and `OK member available: <member-id>` | 空 |
+| `member delete <member-id>` | 0 | `OK member deleted: <member-id>` | 空 |
 | `simulate` | 0 | 局部 help，列出 `chat`、`follow`、`sub` | 空 |
-| `simulate chat hello from cli` | 0 | 空（端點 204）或 JSON ack | 空 |
-| `simulate follow` | 0 | 同上 | 空 |
-| `simulate sub` | 0 | 同上（端點接受空 body） | 空 |
+| `simulate chat hello from cli` | 0 | `OK simulated chat` | 空 |
+| `simulate follow` | 0 | `OK simulated follow` | 空 |
+| `simulate sub` | 0 | `OK simulated sub` | 空 |
 | `rule create <rule.json>` | 0 | 建立後的 rule JSON | 空 |
 | `rule update <rule-id> <rule.json>` | 0 | 更新後的 rule JSON | 空 |
-| `rule delete <rule-id>` | 0 | 空 | 空 |
+| `rule disable <rule-id>` | 0 | `OK rule disabled: <rule-id>` | 空 |
+| `rule enable <rule-id>` | 0 | `OK rule enabled: <rule-id>` | 空 |
+| `rule delete <rule-id>` | 0 | `OK rule deleted: <rule-id>` | 空 |
 | 任意命令對非 loopback `VULPERONEX_API_URL` | 1 | 空 | `CLI_API_URL_NOT_LOOPBACK` |
 
 任何一行失敗即視為 Gate 阻擋，於下方「狀態」段以 `FAIL` 紀錄並開 task 修復。
@@ -288,3 +290,4 @@ Remove-Item Env:VULPERONEX_API_URL
 - 2026-05-17 ｜ 紀錄者：lydek ｜ 動作：為啟動遷移（startup migration）、執行中 API 的 CLI 冒煙測試、Twitch OAuth 啟動 URL、Twitch OAuth 完成權杖儲存新增自動化的階段 5/Cli 測試覆蓋 ｜ 結果：自動化測試 PASS
 - 2026-05-17 ｜ 紀錄者：lydek ｜ 待辦：CLI 已發布至 `artifacts/cli-manual/`，沙盒政策拒絕背景 Web 主機啟動，已發布程式的冒煙測試仍待本機終端機執行 ｜ Owner：lydek ｜ Due：開始 Phase 6 之前
 - 2026-05-19 ｜ 紀錄者：Codex ｜ 動作：補齊 CLI 手動測試 UX，自動化覆蓋 `simulate` 局部 help、`rule create/update`、`member seed/delete`、`twitch auth reset` ｜ 結果：自動化測試 PASS；published CLI 實機驗證仍待本機終端機執行
+- 2026-05-19 ｜ 紀錄者：Codex ｜ 動作：補齊空成功回應的 `OK ...` 輸出，並註冊 Web host member event consumer，讓 `member seed` 後可由 `member list` 查到資料 ｜ 結果：自動化測試 PASS

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Net;
 
 internal sealed class CliExecutionContext(
     HttpClient client,
@@ -17,7 +18,12 @@ internal sealed class CliExecutionContext(
 
     public bool IsInteractive { get; } = isInteractive;
 
-    public async Task<int> WriteResponseAsync(HttpResponseMessage response)
+    public Task<int> WriteResponseAsync(HttpResponseMessage response)
+    {
+        return WriteResponseAsync(response, null);
+    }
+
+    public async Task<int> WriteResponseAsync(HttpResponseMessage response, string? successMessage)
     {
         if (!response.IsSuccessStatusCode)
         {
@@ -27,6 +33,7 @@ internal sealed class CliExecutionContext(
             return 1;
         }
 
+        var wrotePayload = false;
         if (response.Content.Headers.ContentLength is not 0)
         {
             var payload = await response.Content.ReadAsStringAsync();
@@ -34,7 +41,13 @@ internal sealed class CliExecutionContext(
             {
                 var json = JsonSerializer.Deserialize<JsonElement>(payload, JsonOptions);
                 await Output.WriteLineAsync(JsonSerializer.Serialize(json, JsonOptions));
+                wrotePayload = true;
             }
+        }
+
+        if (!wrotePayload)
+        {
+            await Output.WriteLineAsync(successMessage ?? SuccessMessage(response.StatusCode));
         }
 
         return 0;
@@ -57,5 +70,15 @@ internal sealed class CliExecutionContext(
         return document.RootElement.TryGetProperty("error", out var error)
             ? error.GetString()
             : null;
+    }
+
+    private static string SuccessMessage(HttpStatusCode statusCode)
+    {
+        return statusCode switch
+        {
+            HttpStatusCode.Accepted => "OK ACCEPTED",
+            HttpStatusCode.NoContent => "OK NO_CONTENT",
+            _ => $"OK {(int)statusCode}",
+        };
     }
 }

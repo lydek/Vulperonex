@@ -167,27 +167,69 @@ public sealed class CliCommandTests
     [Fact]
     public async Task Given_MemberSeedCommand_When_Executed_Then_SimulationPipelineIsUsed()
     {
+        var requestCount = 0;
         using var client = new HttpClient(new StubHandler(async request =>
         {
-            request.Method.Should().Be(HttpMethod.Post);
-            request.RequestUri?.PathAndQuery.Should().Be("/api/simulate/chat");
-            var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
-            body.Should().Contain("\"platformUserId\":\"user-123\"");
-            body.Should().Contain("\"displayName\":\"Alice\"");
-            body.Should().Contain("member seed");
-            return new HttpResponseMessage(HttpStatusCode.Accepted)
+            requestCount++;
+            if (requestCount == 1)
             {
-                Content = new ByteArrayContent([]),
-            };
+                request.Method.Should().Be(HttpMethod.Post);
+                request.RequestUri?.PathAndQuery.Should().Be("/api/simulate/chat");
+                var body = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
+                body.Should().Contain("\"platformUserId\":\"user-123\"");
+                body.Should().Contain("\"displayName\":\"Alice\"");
+                body.Should().Contain("member seed");
+                return new HttpResponseMessage(HttpStatusCode.Accepted)
+                {
+                    Content = new ByteArrayContent([]),
+                };
+            }
+
+            request.Method.Should().Be(HttpMethod.Get);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/members");
+            return JsonResponse(HttpStatusCode.OK, """
+                [{"memberId":"member-1","identities":[{"platform":"simulation","platformUserId":"user-123"}]}]
+                """);
         }))
         {
             BaseAddress = new Uri("http://localhost"),
         };
+        using var output = new StringWriter();
         using var error = new StringWriter();
 
-        var exitCode = await VulperonexCli.RunAsync(["member", "seed", "user-123", "Alice"], client, TextWriter.Null, error);
+        var exitCode = await VulperonexCli.RunAsync(["member", "seed", "user-123", "Alice"], client, output, error);
 
         exitCode.Should().Be(0);
+        output.ToString().Should().Contain("OK member seed requested: user-123");
+        output.ToString().Should().Contain("OK member available: member-1");
+        error.ToString().Should().BeEmpty();
+        requestCount.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(new[] { "rule", "enable", "rule-1" }, "OK rule enabled: rule-1")]
+    [InlineData(new[] { "rule", "disable", "rule-1" }, "OK rule disabled: rule-1")]
+    [InlineData(new[] { "rule", "delete", "rule-1" }, "OK rule deleted: rule-1")]
+    [InlineData(new[] { "twitch", "auth", "reset" }, "OK Twitch authorization reset")]
+    public async Task Given_EmptySuccessResponse_When_CommandCompletes_Then_SuccessMessageIsWritten(
+        string[] args,
+        string expectedOutput)
+    {
+        using var client = new HttpClient(new StubHandler(_ =>
+            new HttpResponseMessage(HttpStatusCode.NoContent)
+            {
+                Content = new ByteArrayContent([]),
+            }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(args, client, output, error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Trim().Should().Be(expectedOutput);
         error.ToString().Should().BeEmpty();
     }
 
@@ -230,11 +272,13 @@ public sealed class CliCommandTests
         {
             BaseAddress = new Uri("http://localhost"),
         };
+        using var output = new StringWriter();
         using var error = new StringWriter();
 
-        var exitCode = await VulperonexCli.RunAsync(["simulate", "chat", "hello", "from", "cli"], client, TextWriter.Null, error);
+        var exitCode = await VulperonexCli.RunAsync(["simulate", "chat", "hello", "from", "cli"], client, output, error);
 
         exitCode.Should().Be(0);
+        output.ToString().Trim().Should().Be("OK simulated chat");
         error.ToString().Should().BeEmpty();
     }
 

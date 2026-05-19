@@ -44,15 +44,21 @@ internal sealed class RuleCommand : CompositeConsoleCommand
         }, ["set"]));
         AddSubCommand(new DelegateConsoleCommand("enable", "command.rule.enable.description", "command.rule.enable.usage", Category, async (args, context, ct) =>
             args.Length >= 1
-                ? await context.WriteResponseAsync(await context.Client.PutAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/enable", null, ct))
+                ? await context.WriteResponseAsync(
+                    await context.Client.PutAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/enable", null, ct),
+                    $"OK rule enabled: {args[0]}")
                 : await context.FailAsync("UNKNOWN_COMMAND")));
         AddSubCommand(new DelegateConsoleCommand("disable", "command.rule.disable.description", "command.rule.disable.usage", Category, async (args, context, ct) =>
             args.Length >= 1
-                ? await context.WriteResponseAsync(await context.Client.PutAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/disable", null, ct))
+                ? await context.WriteResponseAsync(
+                    await context.Client.PutAsync($"/api/rules/{Uri.EscapeDataString(args[0])}/disable", null, ct),
+                    $"OK rule disabled: {args[0]}")
                 : await context.FailAsync("UNKNOWN_COMMAND")));
         AddSubCommand(new DelegateConsoleCommand("delete", "command.rule.delete.description", "command.rule.delete.usage", Category, async (args, context, ct) =>
             args.Length >= 1
-                ? await context.WriteResponseAsync(await context.Client.DeleteAsync($"/api/rules/{Uri.EscapeDataString(args[0])}", ct))
+                ? await context.WriteResponseAsync(
+                    await context.Client.DeleteAsync($"/api/rules/{Uri.EscapeDataString(args[0])}", ct),
+                    $"OK rule deleted: {args[0]}")
                 : await context.FailAsync("UNKNOWN_COMMAND")));
     }
 
