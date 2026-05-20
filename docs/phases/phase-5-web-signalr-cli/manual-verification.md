@@ -34,6 +34,12 @@ When using `tools/cli.ps1`, set `$env:VULPERONEX_API_PORT = "<api_port>"` to for
 
 If localized CLI help shows garbled Chinese in PowerShell, verify again after the UTF-8 setup above before treating the i18n JSON as corrupted.
 
+Rule CRUD manual verification can use the checked-in sample payload:
+
+```text
+docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json
+```
+
 Required checks:
 
 - `help` shows categorized command groups and aliases.
@@ -90,3 +96,13 @@ Required checks:
 - Actual result: `CliCommandTests` and `Phase5EndpointTests` verify traceable simulate output.
 - Result: PASS
 - Evidence / commit: pending
+
+## 2026-05-20 - Phase 5 CLI manual verification
+
+- Verifier: lydek
+- Environment: Windows PowerShell, local `Vulperonex.Web` on `http://127.0.0.1:5000`, in-app browser open at `http://127.0.0.1:5000/`
+- Commands: `help`, `simulate`, `simulate chat hello from cli`, `simulate follow`, `simulate sub`, `member seed manual-user ManualUser`, `member list`, `rule create docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json`, `rule disable <rule-id>`, `rule enable <rule-id>`, `rule delete <rule-id>`, `twitch auth reset`, `twitch auth start`
+- Expected result: CLI commands provide visible success output or JSON acknowledgements, simulation events include traceable `eventId`, member seed becomes visible through `member list`, rule lifecycle commands complete successfully, and Twitch OAuth can start after `Twitch:ClientId` is loaded from development settings.
+- Actual result: User reported all current functions look correct after CLI success feedback, member event consumer registration, Development settings load fix, and simulate event acknowledgement fixes.
+- Result: PASS
+- Evidence / commit: `6ff0ace`, `2d9fe4e`, `00cfe8b`

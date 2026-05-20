@@ -1,0 +1,13 @@
+{
+  "name": "Manual CLI Rule",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 10,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "sendChatMessage",
+      "template": "hello from rule"
+    }
+  ]
+}
