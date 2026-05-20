@@ -111,6 +111,8 @@
 
 ## Phase 6：日誌 + 前端 + Photino
 
+> 詳細切片清單：`docs/phases/phase-6-web-ui/todo.md`
+
 - ~~**Task 17**~~ — 已移除（原 MockYouTube Adapter，推遲出 MVP scope）
 - [ ] **Task 18** — Serilog 三 Sink + AppLogs 清理 worker（`log.db_retention_days` + `log.db_max_size_mb` size-based cleanup）+ 熱重載 log level
 - [ ] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 + Pinia + useStreamEvents + Overlay 路由

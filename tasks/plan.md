@@ -766,6 +766,8 @@ frontend (Vue SPA)
 
 ### Phase 6：Serilog + 日誌 + 前端 Vue SPA
 
+> 詳細切片計畫：`docs/phases/phase-6-web-ui/plan.md`
+
 > **Task 17：已移除** — 原 MockYouTube Adapter，推遲出 MVP scope（對應 todo.md SC-7 removed）。Task 18 直接接續 Task 16。
 
 #### Task 18：Serilog 三 Sink + AppLogs 表格
