@@ -28,6 +28,19 @@
 - [ ] 任務 17c-3：測試斷言 `SendChatMessageActionExecutor` 被觸發（記數或 Test Double）。
 - [ ] 任務 17c-4：不打 Twitch IRC 出口；僅驗 domain → SignalR 鏈完整。
 
+## 任務 17e - CLI ID 解析 + 缺 arg UX + 破壞性操作確認
+
+> 設計凍結：`docs/phases/phase-5_5-rapid-test/cli-id-resolution-decision.md`
+
+- [x] 任務 17e-1：新增 error codes `MISSING_ARGS` / `AMBIGUOUS_ID` / `NOT_FOUND` / `CONFIRMATION_REQUIRED` / `CANCELLED`；i18n catalog 追加 missing-args / confirm 文案 keys。
+- [x] 任務 17e-2：`RuleIdentifierResolver` / `MemberIdentifierResolver` 支援完整 id / prefix；`rule` 群組另支援 `--name`。多重命中印候選表（≤10）走 `AMBIGUOUS_ID`，零命中走 `NOT_FOUND`。
+- [x] 任務 17e-3：`CliExecutionContext` 加 `ConfirmAsync(messageKey, summaryLines, hasYesFlag)`：互動模式從 `Input` 讀 `[y/N]`，非互動需 `--yes`，否則寫 `CONFIRMATION_REQUIRED` + 摘要 + hint。
+- [x] 任務 17e-4：`RuleCommand` `disable` / `enable` / `delete` / `show` / `update` 與 `MemberCommand` `show` / `delete` 改走 resolver；缺 arg 印 usage + hint，exit `MISSING_ARGS`。
+- [x] 任務 17e-5：破壞性子命令（`rule disable` / `rule delete` / `member delete`）統一走 `ConfirmAsync`，接受 `--yes` / `-y`。
+- [x] 任務 17e-6：整合測試覆蓋缺 arg / 完整 id / prefix 唯一 / prefix 多重 / prefix 零命中 / name exact / `--name` + positional 互斥 / `--yes` / 無 `--yes` 非互動 / 互動 y / 互動 n。
+- [x] 任務 17e-7：`cli-e2e-verification.md` 表格擴充 prefix / `--name` / `--yes` / `[y/N]` 路徑 PASS 條件。
+- [x] 任務 17e-8：SPEC §4.12 / §5 / §10 (D6a) 補上 `--name` / `--yes` 旗標與新 error codes 引用本文件。
+
 ## 任務 17d - Cookbook 文件
 
 - [ ] 任務 17d-1：`cookbook-chat-reply.md` 逐步章節（起 host → CLI rule create → simulate chat → 瀏覽器觀察 → 清理）。
@@ -39,6 +52,7 @@
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 0 警告通過。
 - [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` 通過，含 17c 新 fixture。
 - [ ] CLI `rule create` / `rule update` 整合測試成功與 4xx 透傳兩條路徑皆綠。
+- [x] 任務 17e 全測試路徑綠（缺 arg / prefix / `--name` / `--yes` / 互動 prompt）。
 - [ ] `chat.html` 架構測試通過。
 - [ ] Cookbook 至少一次外部 PASS 記錄。
 - [ ] `tasks/todo.md` 同步更新。

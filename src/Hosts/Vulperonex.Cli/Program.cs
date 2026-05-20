@@ -24,11 +24,12 @@ public static class VulperonexCli
         {
             using var ownedClient = client is null ? CreateClient() : null;
             client ??= ownedClient!;
+            var resolvedInput = input ?? Console.In;
             var dispatcher = CommandTreeFactory.Create();
             if (args.Length == 0)
             {
-                var interactiveContext = new CliExecutionContext(client, output, error, JsonOptions, isInteractive: true);
-                return await new InteractiveSession(dispatcher, interactiveContext, input ?? Console.In).RunAsync();
+                var interactiveContext = new CliExecutionContext(client, output, error, resolvedInput, JsonOptions, isInteractive: true);
+                return await new InteractiveSession(dispatcher, interactiveContext, resolvedInput).RunAsync();
             }
 
             if (args[0] is "--interactive" or "-i")
@@ -39,11 +40,11 @@ public static class VulperonexCli
                     return 1;
                 }
 
-                var interactiveContext = new CliExecutionContext(client, output, error, JsonOptions, isInteractive: true);
-                return await new InteractiveSession(dispatcher, interactiveContext, input ?? Console.In).RunAsync();
+                var interactiveContext = new CliExecutionContext(client, output, error, resolvedInput, JsonOptions, isInteractive: true);
+                return await new InteractiveSession(dispatcher, interactiveContext, resolvedInput).RunAsync();
             }
 
-            var context = new CliExecutionContext(client, output, error, JsonOptions);
+            var context = new CliExecutionContext(client, output, error, resolvedInput, JsonOptions);
             return await dispatcher.DispatchAsync(args, context);
         }
         catch (HttpRequestException)

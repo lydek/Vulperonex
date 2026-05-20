@@ -50,14 +50,8 @@ public sealed class CliCommandTests
     }
 
     [Theory]
-    [InlineData(new[] { "rule", "show", "rule-1" }, "GET", "/api/rules/rule-1")]
-    [InlineData(new[] { "rule", "enable", "rule-1" }, "PUT", "/api/rules/rule-1/enable")]
-    [InlineData(new[] { "rule", "disable", "rule-1" }, "PUT", "/api/rules/rule-1/disable")]
-    [InlineData(new[] { "rule", "delete", "rule-1" }, "DELETE", "/api/rules/rule-1")]
     [InlineData(new[] { "config", "get", "log.min_level" }, "GET", "/api/config/log.min_level")]
     [InlineData(new[] { "member", "list" }, "GET", "/api/members")]
-    [InlineData(new[] { "member", "show", "user-1" }, "GET", "/api/members/user-1")]
-    [InlineData(new[] { "member", "delete", "user-1" }, "DELETE", "/api/members/user-1")]
     [InlineData(new[] { "simulate", "follow" }, "POST", "/api/simulate/follow")]
     [InlineData(new[] { "simulate", "sub" }, "POST", "/api/simulate/sub")]
     [InlineData(new[] { "twitch", "auth", "reset" }, "DELETE", "/api/twitch/auth/token")]
@@ -82,6 +76,420 @@ public sealed class CliCommandTests
 
         exitCode.Should().Be(0);
         error.ToString().Should().BeEmpty();
+    }
+
+    private const string RuleListItemJson = """{"id":"rule-1","name":"echo-rule","isEnabled":true}""";
+
+    private const string MemberListItemJson = """{"memberId":"user-1","identities":[{"platform":"simulation","platformUserId":"sim-user"}]}""";
+
+    [Fact]
+    public async Task Given_RuleShowCommand_When_FullIdProvided_Then_ResolverAndShowHitSameRoute()
+    {
+        var getCount = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            request.Method.Should().Be(HttpMethod.Get);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/rules/rule-1");
+            getCount++;
+            return JsonResponse(HttpStatusCode.OK, RuleListItemJson);
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "show", "rule-1"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        getCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task Given_RuleEnableCommand_When_FullIdProvided_Then_ResolverHitsGetThenPutEnable()
+    {
+        var seenMethods = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seenMethods.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            return request.Method == HttpMethod.Get
+                ? JsonResponse(HttpStatusCode.OK, RuleListItemJson)
+                : new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "enable", "rule-1"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        seenMethods.Should().BeEquivalentTo(new[]
+        {
+            ("GET", "/api/rules/rule-1"),
+            ("PUT", "/api/rules/rule-1/enable"),
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Theory]
+    [InlineData("disable", "PUT", "/api/rules/rule-1/disable", "OK rule disabled: rule-1")]
+    [InlineData("delete", "DELETE", "/api/rules/rule-1", "OK rule deleted: rule-1")]
+    public async Task Given_DestructiveRuleCommand_When_YesFlagProvided_Then_ConfirmationIsSkipped(
+        string verb,
+        string opMethod,
+        string opPath,
+        string expectedOutput)
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            return request.Method == HttpMethod.Get
+                ? JsonResponse(HttpStatusCode.OK, RuleListItemJson)
+                : new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", verb, "rule-1", "--yes"], client, output, error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Trim().Should().Be(expectedOutput);
+        error.ToString().Should().BeEmpty();
+        seen.Should().BeEquivalentTo(new[]
+        {
+            ("GET", "/api/rules/rule-1"),
+            (opMethod, opPath),
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Theory]
+    [InlineData("disable")]
+    [InlineData("delete")]
+    public async Task Given_DestructiveRuleCommand_When_YesFlagOmittedNonInteractive_Then_ConfirmationRequiredIsEmitted(string verb)
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            request.Method.Should().Be(HttpMethod.Get, "destructive op must not fire without confirmation");
+            return JsonResponse(HttpStatusCode.OK, RuleListItemJson);
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", verb, "rule-1"], client, output, error);
+
+        exitCode.Should().Be(1);
+        error.ToString().Should().Contain("CONFIRMATION_REQUIRED");
+        error.ToString().Should().Contain("rule-1");
+        seen.Should().HaveCount(1);
+    }
+
+    [Theory]
+    [InlineData("show")]
+    [InlineData("enable")]
+    [InlineData("disable")]
+    [InlineData("delete")]
+    public async Task Given_RuleCommand_When_IdMissing_Then_MissingArgsIsEmitted(string verb)
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("missing-args path must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", verb], client, output, error);
+
+        exitCode.Should().Be(1);
+        var stderr = error.ToString();
+        stderr.Should().Contain("MISSING_ARGS");
+        stderr.Should().Contain("usage:");
+        stderr.Should().Contain("hint:");
+    }
+
+    [Fact]
+    public async Task Given_RuleShowCommand_When_PrefixMatchesUniqueRule_Then_DirectGetIsUsedAfterFallbackList()
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            if (request.RequestUri?.PathAndQuery == "/api/rules/abc")
+            {
+                return JsonResponse(HttpStatusCode.NotFound, """{"error":"WORKFLOW_RULE_NOT_FOUND"}""");
+            }
+
+            if (request.RequestUri?.PathAndQuery == "/api/rules")
+            {
+                return JsonResponse(HttpStatusCode.OK, """
+                    [{"id":"abc12345","name":"echo","isEnabled":true},{"id":"def00000","name":"other","isEnabled":false}]
+                    """);
+            }
+
+            return JsonResponse(HttpStatusCode.OK, """{"id":"abc12345","name":"echo","isEnabled":true}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "show", "abc"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        seen.Should().BeEquivalentTo(new[]
+        {
+            ("GET", "/api/rules/abc"),
+            ("GET", "/api/rules"),
+            ("GET", "/api/rules/abc12345"),
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task Given_RuleShowCommand_When_PrefixMatchesMultiple_Then_AmbiguousIdAndCandidatesAreWritten()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri?.PathAndQuery == "/api/rules/abc")
+            {
+                return JsonResponse(HttpStatusCode.NotFound, """{"error":"WORKFLOW_RULE_NOT_FOUND"}""");
+            }
+
+            return JsonResponse(HttpStatusCode.OK, """
+                [{"id":"abc11111","name":"echo","isEnabled":true},{"id":"abc22222","name":"echo-v2","isEnabled":false}]
+                """);
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "show", "abc"], client, output, error);
+
+        exitCode.Should().Be(1);
+        var stderr = error.ToString();
+        stderr.Should().Contain("AMBIGUOUS_ID");
+        stderr.Should().Contain("abc11111");
+        stderr.Should().Contain("abc22222");
+    }
+
+    [Fact]
+    public async Task Given_RuleShowCommand_When_NoCandidatesMatch_Then_NotFoundIsEmitted()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri?.PathAndQuery == "/api/rules/zzz")
+            {
+                return JsonResponse(HttpStatusCode.NotFound, """{"error":"WORKFLOW_RULE_NOT_FOUND"}""");
+            }
+
+            return JsonResponse(HttpStatusCode.OK, "[]");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "show", "zzz"], client, output, error);
+
+        exitCode.Should().Be(1);
+        error.ToString().Trim().Should().Be("NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task Given_RuleShowCommand_When_NameLookupMatchesUnique_Then_ResolvedRuleIsFetched()
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            if (request.RequestUri?.PathAndQuery == "/api/rules")
+            {
+                return JsonResponse(HttpStatusCode.OK, """
+                    [{"id":"rule-1","name":"echo-rule","isEnabled":true},{"id":"rule-2","name":"other","isEnabled":false}]
+                    """);
+            }
+
+            return JsonResponse(HttpStatusCode.OK, """{"id":"rule-1","name":"echo-rule","isEnabled":true}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "show", "--name", "echo-rule"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        seen.Should().BeEquivalentTo(new[]
+        {
+            ("GET", "/api/rules"),
+            ("GET", "/api/rules/rule-1"),
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task Given_RuleShowCommand_When_NameAndPositionalBothProvided_Then_InvalidArgsIsEmitted()
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("mutual exclusion must short-circuit before API call"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["rule", "show", "rule-1", "--name", "echo"], client, output, error);
+
+        exitCode.Should().Be(1);
+        error.ToString().Trim().Should().Be("INVALID_ARGS");
+    }
+
+    [Fact]
+    public async Task Given_DestructiveRuleCommand_When_ConfirmAsyncReceivesYes_Then_OperationProceeds()
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            return request.Method == HttpMethod.Get
+                ? JsonResponse(HttpStatusCode.OK, RuleListItemJson)
+                : new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var context = new CliExecutionContext(client, output, error, new StringReader("y\n"), jsonOptions, isInteractive: true);
+        var dispatcher = CommandTreeFactory.Create();
+
+        var exitCode = await dispatcher.DispatchAsync(["rule", "delete", "rule-1"], context, TestContext.Current.CancellationToken);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        seen.Should().BeEquivalentTo(new[]
+        {
+            ("GET", "/api/rules/rule-1"),
+            ("DELETE", "/api/rules/rule-1"),
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Fact]
+    public async Task Given_DestructiveRuleCommand_When_ConfirmAsyncReceivesNo_Then_OperationCancelled()
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            request.Method.Should().Be(HttpMethod.Get, "destructive op must not fire when user cancels");
+            return JsonResponse(HttpStatusCode.OK, RuleListItemJson);
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+        var context = new CliExecutionContext(client, output, error, new StringReader("n\n"), jsonOptions, isInteractive: true);
+        var dispatcher = CommandTreeFactory.Create();
+
+        var exitCode = await dispatcher.DispatchAsync(["rule", "delete", "rule-1"], context, TestContext.Current.CancellationToken);
+
+        exitCode.Should().Be(1);
+        error.ToString().Should().Contain("CANCELLED");
+        seen.Should().HaveCount(1);
+    }
+
+    [Fact]
+    public async Task Given_MemberShowCommand_When_FullIdProvided_Then_ResolverAndShowHitSameRoute()
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            return JsonResponse(HttpStatusCode.OK, MemberListItemJson);
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["member", "show", "user-1"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        seen.Should().AllSatisfy(req => req.Method.Should().Be("GET"));
+        seen.Should().AllSatisfy(req => req.Path.Should().Be("/api/members/user-1"));
+        seen.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Given_MemberDeleteCommand_When_YesFlagProvided_Then_DeleteIsCalled()
+    {
+        var seen = new List<(string Method, string Path)>();
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
+            return request.Method == HttpMethod.Get
+                ? JsonResponse(HttpStatusCode.OK, MemberListItemJson)
+                : new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["member", "delete", "user-1", "--yes"], client, output, error);
+
+        exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+        seen.Should().BeEquivalentTo(new[]
+        {
+            ("GET", "/api/members/user-1"),
+            ("DELETE", "/api/members/user-1"),
+        }, options => options.WithStrictOrdering());
+    }
+
+    [Theory]
+    [InlineData("show")]
+    [InlineData("delete")]
+    public async Task Given_MemberCommand_When_IdMissing_Then_MissingArgsIsEmitted(string verb)
+    {
+        using var client = new HttpClient(new StubHandler((Func<HttpRequestMessage, HttpResponseMessage>)(_ =>
+            throw new InvalidOperationException("missing-args path must not call the API"))))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["member", verb], client, output, error);
+
+        exitCode.Should().Be(1);
+        var stderr = error.ToString();
+        stderr.Should().Contain("MISSING_ARGS");
+        stderr.Should().Contain("usage:");
+        stderr.Should().Contain("hint:");
     }
 
     [Fact]
@@ -113,11 +521,11 @@ public sealed class CliCommandTests
         var requests = new List<(HttpMethod Method, string Path, string Body)>();
         using var client = new HttpClient(new StubHandler(async request =>
         {
-            requests.Add((
-                request.Method,
-                request.RequestUri?.PathAndQuery ?? string.Empty,
-                await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken)));
-            return JsonResponse(HttpStatusCode.OK, """{"id":"rule-1"}""");
+            var body = request.Content is null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            requests.Add((request.Method, request.RequestUri?.PathAndQuery ?? string.Empty, body));
+            return JsonResponse(HttpStatusCode.OK, """{"id":"rule-1","name":"echo","isEnabled":true}""");
         }))
         {
             BaseAddress = new Uri("http://localhost"),
@@ -136,8 +544,12 @@ public sealed class CliCommandTests
             createExitCode.Should().Be(0);
             updateExitCode.Should().Be(0);
             requests.Should().ContainSingle(request => request.Method == HttpMethod.Post && request.Path == "/api/rules");
+            requests.Should().ContainSingle(request => request.Method == HttpMethod.Get && request.Path == "/api/rules/rule-1");
             requests.Should().ContainSingle(request => request.Method == HttpMethod.Put && request.Path == "/api/rules/rule-1");
-            requests.Should().OnlyContain(request => request.Body.Contains("Rule from CLI", StringComparison.Ordinal));
+            requests
+                .Where(request => request.Method != HttpMethod.Get)
+                .Should()
+                .OnlyContain(request => request.Body.Contains("Rule from CLI", StringComparison.Ordinal));
             error.ToString().Should().BeEmpty();
         }
         finally
@@ -207,9 +619,6 @@ public sealed class CliCommandTests
     }
 
     [Theory]
-    [InlineData(new[] { "rule", "enable", "rule-1" }, "OK rule enabled: rule-1")]
-    [InlineData(new[] { "rule", "disable", "rule-1" }, "OK rule disabled: rule-1")]
-    [InlineData(new[] { "rule", "delete", "rule-1" }, "OK rule deleted: rule-1")]
     [InlineData(new[] { "twitch", "auth", "reset" }, "OK Twitch authorization reset")]
     public async Task Given_EmptySuccessResponse_When_CommandCompletes_Then_SuccessMessageIsWritten(
         string[] args,
@@ -733,7 +1142,7 @@ public sealed class CliCommandTests
         using var output = new StringWriter();
         using var error = new StringWriter();
         var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
-        var context = new CliExecutionContext(client, output, error, jsonOptions, isInteractive: true);
+        var context = new CliExecutionContext(client, output, error, TextReader.Null, jsonOptions, isInteractive: true);
         var dispatcher = CommandTreeFactory.Create();
         using var cts = new CancellationTokenSource();
         cts.Cancel();
@@ -756,7 +1165,7 @@ public sealed class CliCommandTests
         using var output = new StringWriter();
         using var error = new StringWriter();
         var jsonOptions = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
-        var context = new CliExecutionContext(client, output, error, jsonOptions, isInteractive: false);
+        var context = new CliExecutionContext(client, output, error, TextReader.Null, jsonOptions, isInteractive: false);
         var dispatcher = CommandTreeFactory.Create();
         using var cts = new CancellationTokenSource();
         cts.Cancel();

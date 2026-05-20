@@ -90,9 +90,12 @@ rule update <id> <path-to-json>
 
 任務 17b chat.html 移植 + 架構測試
     -> 任務 17c（共享 fixture 驗證 overlay payload）
+
+任務 17e CLI ID 解析 + 缺 arg UX + 確認流程
+    -> 任務 17d cookbook（cookbook 章節示範 --yes 與 prefix 解析）
 ```
 
-任務 17a 與 17b 可並行；17c 必須在兩者通過後執行。
+任務 17a / 17b / 17e 可並行；17c 必須在 17a + 17b 通過後執行；17d 必須在 17a + 17c + 17e 全綠後撰寫。
 
 ---
 
@@ -125,6 +128,23 @@ rule update <id> <path-to-json>
   - 斷言 `SendChatMessageActionExecutor` 被叫過（透過 Test Double 或記數）。
 - 該測試**不**斷言 IRC 出口（沒有 Twitch live 連線）；僅驗 domain → SignalR 鏈完整。
 - 將 fixture 標為 `Phase5_5_ChatReplyChain`，未來 Phase 6 SystemEvent 鏈會以類似 pattern 擴充。
+
+### 任務 17e - CLI ID 解析 + 缺 arg UX + 破壞性操作確認
+
+> 設計凍結於 [`cli-id-resolution-decision.md`](./cli-id-resolution-decision.md)。
+
+- `RuleCommand` / `MemberCommand` 的 `disable` / `enable` / `delete` / `show` 子命令：
+  - 缺 positional arg → stderr 印 usage + hint，exit code `MISSING_ARGS`。
+  - positional 接受「完整 id | id prefix」；`rule` 群組另支援 `--name <n>` 為替代輸入；兩者互斥（同時提供 → `INVALID_ARGS`）。
+  - prefix / name 多重命中 → `AMBIGUOUS_ID` + stderr 列候選表（至多 10 筆，超出加截斷提示）。
+  - 零命中 → `NOT_FOUND`。
+- 破壞性操作（`rule disable` / `rule delete` / `member delete`）統一走 `CliExecutionContext.ConfirmAsync(summary)`：
+  - 互動 REPL（`!Console.IsInputRedirected && !Console.IsOutputRedirected`）：印「即將 X」摘要 + `[y/N]` prompt；`y` 執行，其餘 → `CANCELLED`。
+  - one-shot / piped：必須帶 `--yes`，否則 `CONFIRMATION_REQUIRED` + 印摘要。
+- 新 error codes：`MISSING_ARGS` / `AMBIGUOUS_ID` / `NOT_FOUND` / `CONFIRMATION_REQUIRED` / `CANCELLED`。
+- i18n catalog（`en-US.json` / `zh-TW.json`）追加 missing-args usage / hint、confirm prompt / summary 文案。
+- 整合測試覆蓋 decision doc 「測試門檻」全部路徑。
+- 與 17a CLI `rule create` / `update` 共用 `ConfirmAsync`（兩者非破壞，但 update 可選 opt-in 確認，列為 stretch）。
 
 ### 任務 17d - Cookbook 文件
 

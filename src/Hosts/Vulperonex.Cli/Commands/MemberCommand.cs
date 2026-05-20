@@ -6,41 +6,9 @@ internal sealed class MemberCommand : CompositeConsoleCommand
     {
         AddSubCommand(new DelegateConsoleCommand("list", "command.member.list.description", "command.member.list.usage", Category, async (_, context, ct) =>
             await context.WriteResponseAsync(await context.Client.GetAsync("/api/members", ct)), ["ls"]));
-        AddSubCommand(new DelegateConsoleCommand("show", "command.member.show.description", "command.member.show.usage", Category, async (args, context, ct) =>
-            args.Length >= 1
-                ? await context.WriteResponseAsync(await context.Client.GetAsync($"/api/members/{Uri.EscapeDataString(args[0])}", ct))
-                : await context.FailAsync("UNKNOWN_COMMAND"), ["status", "info", "get", "find"]));
-        AddSubCommand(new DelegateConsoleCommand("seed", "command.member.seed.description", "command.member.seed.usage", Category, async (args, context, ct) =>
-        {
-            if (args.Length < 1)
-            {
-                return await context.FailAsync("UNKNOWN_COMMAND");
-            }
-
-            var displayName = args.Length >= 2 ? string.Join(' ', args.Skip(1)) : args[0];
-            var response = await context.Client.PostAsJsonAsync(
-                "/api/simulate/chat",
-                new
-                {
-                    platformUserId = args[0],
-                    displayName,
-                    message = "member seed",
-                },
-                ct);
-            var exitCode = await context.WriteResponseAsync(response, $"OK member seed requested: {args[0]}");
-            if (exitCode != 0)
-            {
-                return exitCode;
-            }
-
-            return await TryWriteSeededMemberAsync(args[0], context, ct);
-        }, ["add", "mock"]));
-        AddSubCommand(new DelegateConsoleCommand("delete", "command.member.delete.description", "command.member.delete.usage", Category, async (args, context, ct) =>
-            args.Length >= 1
-                ? await context.WriteResponseAsync(
-                    await context.Client.DeleteAsync($"/api/members/{Uri.EscapeDataString(args[0])}", ct),
-                    $"OK member deleted: {args[0]}")
-                : await context.FailAsync("UNKNOWN_COMMAND"), ["remove", "rm"]));
+        AddSubCommand(new DelegateConsoleCommand("show", "command.member.show.description", "command.member.show.usage", Category, ShowAsync, ["status", "info", "get", "find"]));
+        AddSubCommand(new DelegateConsoleCommand("seed", "command.member.seed.description", "command.member.seed.usage", Category, SeedAsync, ["add", "mock"]));
+        AddSubCommand(new DelegateConsoleCommand("delete", "command.member.delete.description", "command.member.delete.usage", Category, DeleteAsync, ["remove", "rm"]));
     }
 
     public override string Name => "member";
@@ -52,6 +20,87 @@ internal sealed class MemberCommand : CompositeConsoleCommand
     public override string Description => CliText.Get("command.member.description");
 
     public override string Usage => CliText.Get("command.member.usage");
+
+    private static async Task<int> ShowAsync(string[] args, CliExecutionContext context, CancellationToken ct)
+    {
+        var resolved = await MemberIdentifierResolver.ResolveAsync(
+            args,
+            context,
+            "command.member.show.usage",
+            "command.member.show.hint",
+            ct);
+        if (resolved is null)
+        {
+            return 1;
+        }
+
+        return await context.WriteResponseAsync(
+            await context.Client.GetAsync($"/api/members/{Uri.EscapeDataString(resolved.Member.MemberId)}", ct));
+    }
+
+    private static async Task<int> SeedAsync(string[] args, CliExecutionContext context, CancellationToken ct)
+    {
+        if (args.Length < 1)
+        {
+            return await context.MissingArgsAsync("command.member.seed.usage", "command.member.show.hint");
+        }
+
+        var displayName = args.Length >= 2 ? string.Join(' ', args.Skip(1)) : args[0];
+        var response = await context.Client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new
+            {
+                platformUserId = args[0],
+                displayName,
+                message = "member seed",
+            },
+            ct);
+        var exitCode = await context.WriteResponseAsync(response, $"OK member seed requested: {args[0]}");
+        if (exitCode != 0)
+        {
+            return exitCode;
+        }
+
+        return await TryWriteSeededMemberAsync(args[0], context, ct);
+    }
+
+    private static async Task<int> DeleteAsync(string[] args, CliExecutionContext context, CancellationToken ct)
+    {
+        var resolved = await MemberIdentifierResolver.ResolveAsync(
+            args,
+            context,
+            "command.member.delete.usage",
+            "command.member.delete.hint",
+            ct);
+        if (resolved is null)
+        {
+            return 1;
+        }
+
+        if (!await context.ConfirmAsync(
+            "command.member.delete.confirm",
+            BuildMemberSummary(resolved.Member),
+            resolved.Yes))
+        {
+            return 1;
+        }
+
+        return await context.WriteResponseAsync(
+            await context.Client.DeleteAsync($"/api/members/{Uri.EscapeDataString(resolved.Member.MemberId)}", ct),
+            $"OK member deleted: {resolved.Member.MemberId}");
+    }
+
+    private static IReadOnlyList<string> BuildMemberSummary(ResolvedMember member)
+    {
+        var identity = member.FirstPlatform is null
+            ? "-"
+            : $"{member.FirstPlatform}:{member.FirstPlatformUserId}";
+        return
+        [
+            $"id:       {member.MemberId}",
+            $"identity: {identity}",
+        ];
+    }
 
     private static async Task<int> TryWriteSeededMemberAsync(
         string platformUserId,

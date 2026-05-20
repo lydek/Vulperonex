@@ -130,6 +130,32 @@ rtk proxy powershell -NoProfile -Command '$env:VULPERONEX_API_URL="http://127.0.
 | `rule delete <rule-id>` | 0 | `OK rule deleted: <rule-id>` | 空 |
 | 任意命令對非 loopback `VULPERONEX_API_URL` | 1 | 空 | `CLI_API_URL_NOT_LOOPBACK` |
 
+### 4b. Phase 5.5 CLI resolver 驗證
+
+這些檢查覆蓋 Phase 5 CLI smoke 之後新增的 resolver contract。Phase 6 Web UI 若要沿用 CLI 行為作為人工驗證參考，需先確認下列路徑可用。
+
+| 命令 | 預期 exit | 預期 stdout | 預期 stderr |
+|------|-----------|-------------|-------------|
+| `rule show <full-rule-id>` | 0 | Rule JSON | 空 |
+| `rule show <unique-rule-id-prefix>` | 0 | 解析後的 Rule JSON | 空 |
+| `rule show <ambiguous-prefix>` | 1 | 空 | `AMBIGUOUS_ID` 與候選表 |
+| `rule show <missing-prefix>` | 1 | 空 | `NOT_FOUND` |
+| `rule show --name <exact-rule-name>` | 0 | 解析後的 Rule JSON | 空 |
+| `rule show <id> --name <name>` | 1 | 空 | `INVALID_ARGS` |
+| `rule disable <id>`（one-shot） | 1 | 空 | `CONFIRMATION_REQUIRED` 與 rule 摘要 |
+| `rule disable <id> --yes` | 0 | `OK rule disabled: <id>` | 空 |
+| `rule delete <id>`（one-shot） | 1 | 空 | `CONFIRMATION_REQUIRED` 與 rule 摘要 |
+| `rule delete <id> --yes` | 0 | `OK rule deleted: <id>` | 空 |
+| `member show <full-member-id>` | 0 | Member JSON | 空 |
+| `member show <unique-member-id-prefix>` | 0 | 解析後的 Member JSON | 空 |
+| `member show <ambiguous-prefix>` | 1 | 空 | `AMBIGUOUS_ID` 與候選表 |
+| `member delete <id>`（one-shot） | 1 | 空 | `CONFIRMATION_REQUIRED` 與 member 摘要 |
+| `member delete <id> --yes` | 0 | `OK member deleted: <id>` | 空 |
+| 互動 `rule delete <id>` 後輸入 `y` | 0 | confirm prompt 與 success output | 空 |
+| 互動 `rule delete <id>` 後輸入 `n` | 1 | confirm prompt | `CANCELLED` |
+
+自動化證據：2026-05-20 執行 `dotnet test tests\Vulperonex.Tests.Integration\Vulperonex.Tests.Integration.csproj --filter FullyQualifiedName~CliCommandTests /m:1 /nr:false /p:UseSharedCompilation=false`，61 個測試通過。
+
 任何一行失敗即視為 Gate 阻擋，於下方「狀態」段以 `FAIL` 紀錄並開 task 修復。
 
 ### 5. Twitch OAuth 流程（任務 16f 已實作）

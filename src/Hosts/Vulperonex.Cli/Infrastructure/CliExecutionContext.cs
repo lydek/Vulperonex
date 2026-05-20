@@ -5,6 +5,7 @@ internal sealed class CliExecutionContext(
     HttpClient client,
     TextWriter output,
     TextWriter error,
+    TextReader input,
     JsonSerializerOptions jsonOptions,
     bool isInteractive = false)
 {
@@ -13,6 +14,8 @@ internal sealed class CliExecutionContext(
     public TextWriter Output { get; } = output;
 
     public TextWriter Error { get; } = error;
+
+    public TextReader Input { get; } = input;
 
     public JsonSerializerOptions JsonOptions { get; } = jsonOptions;
 
@@ -57,6 +60,67 @@ internal sealed class CliExecutionContext(
     {
         await Error.WriteLineAsync(code);
         return 1;
+    }
+
+    public async Task<int> MissingArgsAsync(string usageKey, string hintKey)
+    {
+        await Error.WriteLineAsync("MISSING_ARGS");
+        await Error.WriteLineAsync($"usage: {CliText.Get(usageKey)}");
+        await Error.WriteLineAsync($"hint: {CliText.Get(hintKey)}");
+        return 1;
+    }
+
+    /// <summary>
+    /// Prompts the user to confirm a destructive operation. Returns true if the operation should proceed.
+    /// In interactive mode, reads a line from <see cref="Input"/>; "y"/"yes" (case-insensitive) confirms.
+    /// In non-interactive mode, requires <paramref name="hasYesFlag"/>; otherwise writes
+    /// CONFIRMATION_REQUIRED and returns false.
+    /// </summary>
+    public async Task<bool> ConfirmAsync(string confirmMessageKey, IReadOnlyList<string> summaryLines, bool hasYesFlag)
+    {
+        if (hasYesFlag)
+        {
+            return true;
+        }
+
+        if (!IsInteractive)
+        {
+            await Error.WriteLineAsync("CONFIRMATION_REQUIRED");
+            await Error.WriteLineAsync(CliText.Get(confirmMessageKey));
+            foreach (var line in summaryLines)
+            {
+                await Error.WriteLineAsync($"  {line}");
+            }
+
+            await Error.WriteLineAsync($"hint: {CliText.Get("resolver.confirm.yes-flag-hint")}");
+            return false;
+        }
+
+        await Output.WriteLineAsync(CliText.Get(confirmMessageKey));
+        foreach (var line in summaryLines)
+        {
+            await Output.WriteLineAsync($"  {line}");
+        }
+
+        await Output.WriteAsync(CliText.Get("resolver.confirm.prompt"));
+        await Output.FlushAsync();
+
+        var response = await Input.ReadLineAsync();
+        if (response is null)
+        {
+            await Error.WriteLineAsync("CANCELLED");
+            return false;
+        }
+
+        var trimmed = response.Trim();
+        if (string.Equals(trimmed, "y", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(trimmed, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        await Error.WriteLineAsync("CANCELLED");
+        return false;
     }
 
     private static string? TryReadErrorCode(string payload)

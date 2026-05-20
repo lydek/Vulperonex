@@ -778,11 +778,15 @@ REST API  ← 唯一寫入點，強制執行所有驗證
 相關 CLI 指令：
 ```bash
 vulperonex rule list
-vulperonex rule show <ruleId>
-vulperonex rule enable <ruleId>
-vulperonex rule disable <ruleId>
-vulperonex rule delete <ruleId>
+vulperonex rule show    <ruleId|prefix|--name <name>>
+vulperonex rule enable  <ruleId|prefix|--name <name>>
+vulperonex rule disable <ruleId|prefix|--name <name>> [--yes]
+vulperonex rule delete  <ruleId|prefix|--name <name>> [--yes]
 ```
+
+- `<ruleId>` 接受完整 id、唯一 id prefix 或 `--name <name>`（互斥於 positional id）。多重命中 → `AMBIGUOUS_ID` + 候選表；零命中 → `NOT_FOUND`。
+- 破壞性操作（`disable` / `delete`）於互動 REPL 印 `[y/N]` prompt；非互動模式需帶 `--yes`，否則 `CONFIRMATION_REQUIRED`。
+- CLI 解析與確認流程設計凍結於 [`docs/phases/phase-5_5-rapid-test/cli-id-resolution-decision.md`](phases/phase-5_5-rapid-test/cli-id-resolution-decision.md)。新增 error codes：`MISSING_ARGS` / `AMBIGUOUS_ID` / `NOT_FOUND` / `CONFIRMATION_REQUIRED` / `CANCELLED`。
 
 複雜規則創建（多條件、多操作）在 MVP 階段僅限 UI。CLI 負責列出/顯示/啟用/禁用/刪除。
 
@@ -982,12 +986,14 @@ vulperonex simulate sub    --user alice --tier 1000
 vulperonex config get streaming.platform
 vulperonex config set streaming.platform twitch
 vulperonex member list --platform twitch --limit 20
-vulperonex member show <memberId>
+vulperonex member show   <memberId|prefix>
+vulperonex member delete <memberId|prefix> [--yes]
 vulperonex rule list
-vulperonex rule show <ruleId>
-vulperonex rule enable <ruleId>
-vulperonex rule disable <ruleId>
-vulperonex rule delete <ruleId>
+vulperonex rule show    <ruleId|prefix|--name <name>>
+vulperonex rule enable  <ruleId|prefix|--name <name>>
+vulperonex rule disable <ruleId|prefix|--name <name>> [--yes]
+vulperonex rule delete  <ruleId|prefix|--name <name>> [--yes]
+# 解析與確認流程：docs/phases/phase-5_5-rapid-test/cli-id-resolution-decision.md
 
 # --- 前端 ---
 cd src/frontend
@@ -1301,6 +1307,7 @@ dotnet test tests/Vulperonex.Tests.Unit \
 | D4 | 外掛程式範圍：**外掛程式可以同時發布和訂閱**事件（充當完整的適配器）。 |
 | D5 | 前端發行：**Web 主機提供 `wwwroot` 服務**，Desktop = Web 主機 + Photino 窗口。 |
 | D6 | CLI 範圍 (MVP)：**模擬 + 配置 + 規則 + 成員指令**。 |
+| D6a | CLI 識別碼解析 (Phase 5.5)：`rule` positional 接受**完整 id / id prefix / `--name`**；`member` 接受**完整 id / id prefix**；多重命中 → `AMBIGUOUS_ID` + 候選表；破壞性操作（`rule disable` / `rule delete` / `member delete`）互動 REPL 走 `[y/N]` prompt、非互動需 `--yes` 否則 `CONFIRMATION_REQUIRED`。設計凍結於 `docs/phases/phase-5_5-rapid-test/cli-id-resolution-decision.md`。 |
 | D7 | 成員身分：`MemberId` 為 ULID；`PlatformIdentity (Platform, PlatformUserId)` 複合鍵。 |
 | D8 | 倉儲層的輕量級 CQRS：`IMemberRepository` (命令) 與 `IMemberQueryService` (查詢) 分離。 |
 
