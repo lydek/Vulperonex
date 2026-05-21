@@ -1,13 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import HubStatusChip from "@/components/admin/HubStatusChip.vue";
 import { getHealth, getTwitchAuthStatus, type TwitchAuthStatusResponse } from "@/api/client";
+import { useOverlayHub } from "@/composables/useOverlayHub";
 import { useStreamEvents } from "@/composables/useStreamEvents";
 
 const { t } = useI18n();
 const health = ref<string>("...");
 const twitchStatus = ref<TwitchAuthStatusResponse | null>(null);
 const { events, state, error: streamError, start } = useStreamEvents();
+const chatHub = useOverlayHub("chat");
+const alertsHub = useOverlayHub("alerts");
+const memberHub = useOverlayHub("member");
 
 const twitchLabel = computed(() => {
   if (!twitchStatus.value?.clientIdConfigured) {
@@ -20,7 +25,14 @@ const twitchLabel = computed(() => {
 });
 
 onMounted(async () => {
-  await Promise.all([loadHealth(), loadTwitchStatus(), start()]);
+  await Promise.all([
+    loadHealth(),
+    loadTwitchStatus(),
+    start(),
+    chatHub.start(),
+    alertsHub.start(),
+    memberHub.start()
+  ]);
 });
 
 async function loadHealth(): Promise<void> {
@@ -64,6 +76,18 @@ async function loadTwitchStatus(): Promise<void> {
       <article class="status-card">
         <p class="status-label">{{ t("status.eventCount") }}</p>
         <p class="status-value">{{ events.length }}</p>
+      </article>
+      <article class="status-card">
+        <p class="status-label">{{ t("status.overlayChatHub") }}</p>
+        <HubStatusChip :state="chatHub.state.value" :last-event-at="chatHub.lastEventAt.value" :error="chatHub.error.value" />
+      </article>
+      <article class="status-card">
+        <p class="status-label">{{ t("status.overlayAlertsHub") }}</p>
+        <HubStatusChip :state="alertsHub.state.value" :last-event-at="alertsHub.lastEventAt.value" :error="alertsHub.error.value" />
+      </article>
+      <article class="status-card">
+        <p class="status-label">{{ t("status.overlayMemberHub") }}</p>
+        <HubStatusChip :state="memberHub.state.value" :last-event-at="memberHub.lastEventAt.value" :error="memberHub.error.value" />
       </article>
     </div>
   </section>
