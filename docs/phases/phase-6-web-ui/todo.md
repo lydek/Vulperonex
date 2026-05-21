@@ -59,10 +59,10 @@
 > 設計來源：`ref/Omni-Commander/OmniCommander.Infrastructure/Overlay/ChatHistoryService.cs`（SystemSettings 表單行 JSON 全量寫入 pattern；無新增 EF entity/migration）。
 > 依賴：Task 19（前端骨架）、Task 20a（simulate 便於驗證）。建議排在 Task 20b 之前完成。
 
-- [ ] Task 22a：宣告 `IOverlayHistoryService<TPayload>` (Application 層) 介面：`GetRecent()` / `AddAsync(payload)` / `ClearAllAsync()`；定義三個 SystemSettings key 常數 `Overlay.History.Chat` / `Overlay.History.Alerts` / `Overlay.History.Member` 與 default cap (chat=30, alerts=20, member=20)，cap 可由 `Overlay.History.Cap.{HubName}` 覆寫。
-- [ ] Task 22b：實作 `OverlayHistoryService<TPayload>` (Infrastructure 層)：`ConcurrentQueue<TPayload>` cache + `SemaphoreSlim(1,1)` 寫入鎖；建構時 `LoadFromDb()` rehydrate（DB 缺表 / JSON 壞 → log warn + 空 cache，不 fail-fast）；`AddAsync` enqueue → trim cap → 全量 JSON 寫回對應 SystemSetting row；`ClearAllAsync` 清 cache + 清 SystemSettings row。
-- [ ] Task 22c：DI 註冊三個 typed service：`IOverlayHistoryService<OverlayChatPayload>` / `IOverlayHistoryService<OverlayAlertPayload>` / `IOverlayHistoryService<OverlayMemberPayload>` (Singleton)。
-- [ ] Task 22d：`OverlayAlertPayload` 加 `Replayed: bool` 欄位（default `false`）；OverlayChatPayload / OverlayMemberPayload 不加。
+- [x] Task 22a：宣告 `IOverlayHistoryService<TPayload>` (Application 層) 介面：`GetRecent()` / `AddAsync(payload)` / `ClearAllAsync()`；定義三個 SystemSettings key 常數 `Overlay.History.Chat` / `Overlay.History.Alerts` / `Overlay.History.Member` 與 default cap (chat=30, alerts=20, member=20)，cap 可由 `Overlay.History.Cap.{HubName}` 覆寫。
+- [x] Task 22b：實作 `OverlayHistoryService<TPayload>` (Infrastructure 層)：`ConcurrentQueue<TPayload>` cache + `SemaphoreSlim(1,1)` 寫入鎖；建構時 `LoadFromDb()` rehydrate（DB 缺表 / JSON 壞 → log warn + 空 cache，不 fail-fast）；`AddAsync` enqueue → trim cap → 全量 JSON 寫回對應 SystemSetting row；`ClearAllAsync` 清 cache + 清 SystemSettings row。
+- [x] Task 22c：DI 註冊三個 typed service：`IOverlayHistoryService<OverlayChatPayload>` / `IOverlayHistoryService<OverlayAlertPayload>` / `IOverlayHistoryService<OverlayMemberPayload>` (Singleton)。
+- [x] Task 22d：`OverlayAlertPayload` 加 `Replayed: bool` 欄位（default `false`）；OverlayChatPayload / OverlayMemberPayload 不加。
 - [ ] Task 22e：改寫 `OverlayEventForwarder`：對 chat/alerts payload 先 `history.AddAsync` 再 `Clients.All.SendAsync("event", ...)`。history 寫入失敗以 `log.Warn` 帶過，不阻斷 broadcast。member hub MVP 無事件來源 → 不寫入。
 - [ ] Task 22f：三個 hub override `OnConnectedAsync`，對 `Clients.Caller` 逐筆 `SendAsync("event", payload)` 已有歷史；alerts hub replay 時對每筆 payload `with { Replayed = true }`。
 - [ ] Task 22g：新增 `OverlayHistoryEndpoints`：`DELETE /api/overlay/{chat|alerts|member}/messages` → 呼叫對應 service `ClearAllAsync` → 對應 hub `Clients.All.SendAsync("cleared", new { hubName })` → 回傳 `204 No Content`。

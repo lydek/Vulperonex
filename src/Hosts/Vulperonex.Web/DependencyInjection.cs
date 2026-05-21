@@ -8,6 +8,8 @@ using Vulperonex.Application.Auth;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.EventTypes;
 using Vulperonex.Application.Members;
+using Vulperonex.Application.Overlay;
+using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Settings;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows;
@@ -18,6 +20,7 @@ using Vulperonex.Infrastructure.Auth;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
 using Vulperonex.Infrastructure.Members;
+using Vulperonex.Infrastructure.Overlay;
 using Vulperonex.Infrastructure.Settings;
 using Vulperonex.Infrastructure.Security;
 using Vulperonex.Infrastructure.Time;
@@ -66,6 +69,9 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<SimulationAliasRegistry>();
+        services.AddOverlayHistory<OverlayChatPayload>("chat", defaultCapacity: 30);
+        services.AddOverlayHistory<OverlayAlertPayload>("alerts", defaultCapacity: 20);
+        services.AddOverlayHistory<OverlayMemberPayload>("member", defaultCapacity: 20);
         services.AddSingleton<TwitchOAuthSessionStore>();
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<MachineKeyProvider>(serviceProvider =>
@@ -107,6 +113,23 @@ public static class DependencyInjection
             options.UseSqlite($"Data Source={databasePath}");
         });
 
+        return services;
+    }
+}
+
+internal static class OverlayHistoryServiceCollectionExtensions
+{
+    public static IServiceCollection AddOverlayHistory<TPayload>(
+        this IServiceCollection services,
+        string hubName,
+        int defaultCapacity)
+    {
+        services.AddSingleton(new OverlayHistoryOptions<TPayload>
+        {
+            HubName = hubName,
+            DefaultCapacity = defaultCapacity,
+        });
+        services.AddSingleton<IOverlayHistoryService<TPayload>, OverlayHistoryService<TPayload>>();
         return services;
     }
 }

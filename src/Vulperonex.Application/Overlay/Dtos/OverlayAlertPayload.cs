@@ -6,4 +6,5 @@ public sealed record OverlayAlertPayload(
     DateTimeOffset Timestamp,
     string DisplayName,
     string EventType,
-    string? Tier);
+    string? Tier,
+    bool Replayed = false);
