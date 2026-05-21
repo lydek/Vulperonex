@@ -126,6 +126,90 @@ textarea {
   margin: 6px 0 0;
 }
 
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 32, 0.45);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+}
+
+.confirm-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 380px;
+  width: calc(100% - 32px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+.confirm-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.confirm-message {
+  margin: 0 0 16px;
+  color: #394756;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.secondary-button {
+  border: 1px solid #d6dde5;
+  background: #ffffff;
+  color: #394756;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.danger-button {
+  border: 0;
+  background: #b3261e;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.danger-button:disabled {
+  background: #d68a85;
+  cursor: not-allowed;
+}
+
+.icon-button {
+  border: 1px solid #d6dde5;
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #394756;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: #f4f6f8;
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .hub-chip {
   display: inline-flex;
   align-items: center;
@@ -179,6 +263,37 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
+}
+
+.overlay-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.live-alert {
+  border: 1px solid #f3c97c;
+  background: #fff7e1;
+  color: #6a4500;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-weight: 600;
+}
+
+.event-item[data-replayed="true"] {
+  opacity: 0.7;
+  background: #fafafa;
 }
 
 .simulate-form {

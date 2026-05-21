@@ -41,6 +41,22 @@ export async function getTwitchAuthStatus(signal?: AbortSignal): Promise<TwitchA
   return getJson<TwitchAuthStatusResponse>("/api/twitch/auth/status", signal);
 }
 
+export type OverlayHubName = "chat" | "alerts" | "member";
+
+export async function clearOverlayHistory(
+  hubName: OverlayHubName,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/overlay/${hubName}/messages`, {
+    method: "DELETE",
+    signal
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
 export async function postSimulate(
   alias: SimulateAlias,
   body: SimulateRequestBody,

@@ -4,6 +4,7 @@
   "nav.chatOverlay": "Chat Overlay",
   "nav.alertOverlay": "Alert Overlay",
   "nav.memberOverlay": "Member Overlay",
+  "common.cancel": "Cancel",
   "status.title": "System Status",
   "status.subtitle": "Local API, Twitch authorization, and stream event state.",
   "status.apiHealth": "API Health",
@@ -51,5 +52,10 @@
   "overlay.alerts.title": "Alert Overlay",
   "overlay.member.title": "Member Overlay",
   "overlay.empty": "Waiting for events",
-  "overlay.memberSkeleton": "The MVP member hub does not publish events yet."
+  "overlay.memberSkeleton": "The MVP member hub does not publish events yet.",
+  "overlay.clear": "Clear",
+  "overlay.clearAriaLabel": "Clear {hub} history",
+  "overlay.clearConfirmTitle": "Clear overlay history?",
+  "overlay.clearConfirmMessage": "This permanently deletes every history entry for {hub}. This cannot be undone.",
+  "overlay.clearConfirmAction": "Clear history"
 }

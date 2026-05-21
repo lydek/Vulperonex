@@ -66,13 +66,13 @@
 - [x] Task 22e：改寫 `OverlayEventForwarder`：對 chat/alerts payload 先 `history.AddAsync` 再 `Clients.All.SendAsync("event", ...)`。history 寫入失敗以 `log.Warn` 帶過，不阻斷 broadcast。member hub MVP 無事件來源 → 不寫入。
 - [x] Task 22f：三個 hub override `OnConnectedAsync`，對 `Clients.Caller` 逐筆 `SendAsync("event", payload)` 已有歷史；alerts hub replay 時對每筆 payload `with { Replayed = true }`。
 - [x] Task 22g：新增 `OverlayHistoryEndpoints`：`DELETE /api/overlay/{chat|alerts|member}/messages` → 呼叫對應 service `ClearAllAsync` → 對應 hub `Clients.All.SendAsync("cleared", new { hubName })` → 回傳 `204 No Content`。
-- [ ] Task 22h：前端 `useOverlayHub` 改 dedupe by `eventId` (upsert)；訂閱 hub `cleared` event → reset list；暴露 `clear()` 方法 (內部呼叫 `clearOverlayHistory(hubName)` API)。
-- [ ] Task 22i：`api/client.ts` 新增 `clearOverlayHistory(hubName: OverlayHubName)` (DELETE `/api/overlay/{hubName}/messages`)。
-- [ ] Task 22j：三個 overlay route view (`ChatOverlayView` / `AlertOverlayView` / `MemberOverlayView`) header 加「清空」按鈕（含二次確認 dialog，沿用 Task 20d 確認範式）。AlertOverlay 對 `replayed=true` payload push 進 list 但不觸發動畫/音效 hook（音效 Phase 7 才上）。
-- [ ] Task 22k：`AdminStatusView` 三個 overlay hub card 各加「清空」按鈕（含二次確認）；按下後對應 hub list/card 即時刷新。
-- [ ] Task 22l：i18n 新增 `overlay.clear` / `overlay.clearConfirm` / `overlay.clearConfirmTitle` 等 keys (zh-TW + en-US 同步)。
-- [ ] Task 22m：dotnet unit tests：service AddAsync 超 cap 後 dequeue oldest + SystemSettings JSON 為 cap 內 list；LoadFromDb 異常恢復；Forwarder 寫入/broadcast 序列；Hub OnConnectedAsync replay (alerts `Replayed=true`)；Clear endpoint cache/SystemSettings/broadcast 完整流程。
-- [ ] Task 22n：Vitest：useOverlayHub eventId dedupe、cleared event 清空、AlertOverlay replayed 不觸發動畫 spy 斷言、clear 按鈕二次確認 + API call。
+- [x] Task 22h：前端 `useOverlayHub` 改 dedupe by `eventId` (upsert)；訂閱 hub `cleared` event → reset list；暴露 `clear()` 方法 (內部呼叫 `clearOverlayHistory(hubName)` API)。
+- [x] Task 22i：`api/client.ts` 新增 `clearOverlayHistory(hubName: OverlayHubName)` (DELETE `/api/overlay/{hubName}/messages`)。
+- [x] Task 22j：三個 overlay route view (`ChatOverlayView` / `AlertOverlayView` / `MemberOverlayView`) header 加「清空」按鈕（含二次確認 dialog，沿用 Task 20d 確認範式）。AlertOverlay 對 `replayed=true` payload push 進 list 但不觸發動畫/音效 hook（音效 Phase 7 才上）。
+- [x] Task 22k：`AdminStatusView` 三個 overlay hub card 各加「清空」按鈕（含二次確認）；按下後對應 hub list/card 即時刷新。
+- [x] Task 22l：i18n 新增 `overlay.clear` / `overlay.clearConfirm` / `overlay.clearConfirmTitle` 等 keys (zh-TW + en-US 同步)。
+- [x] Task 22m：dotnet unit tests：service AddAsync 超 cap 後 dequeue oldest + SystemSettings JSON 為 cap 內 list；LoadFromDb 異常恢復；Forwarder 寫入/broadcast 序列；Hub OnConnectedAsync replay (alerts `Replayed=true`)；Clear endpoint cache/SystemSettings/broadcast 完整流程。
+- [x] Task 22n：Vitest：useOverlayHub eventId dedupe、cleared event 清空、AlertOverlay replayed 不觸發動畫 spy 斷言、clear 按鈕二次確認 + API call。
 - [ ] Task 22o：Browser manual：(1) 開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history；(2) admin clear 按鈕 → overlay 即時清空 → 再送一筆即時顯示；(3) alerts F5 後 history 補上但**不**重播動畫；(4) 將結果寫入 `manual-verification.md` § Task 22 區段。
 
 ## Phase 6 Checkpoint

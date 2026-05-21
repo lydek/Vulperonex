@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import HubStatusChip from "@/components/admin/HubStatusChip.vue";
 import { getHealth, getTwitchAuthStatus, type TwitchAuthStatusResponse } from "@/api/client";
-import { useOverlayHub } from "@/composables/useOverlayHub";
+import { useOverlayHub, type OverlayHubName } from "@/composables/useOverlayHub";
 import { useStreamEvents } from "@/composables/useStreamEvents";
 
 const { t } = useI18n();
@@ -13,6 +14,21 @@ const { events, state, error: streamError, start } = useStreamEvents();
 const chatHub = useOverlayHub("chat");
 const alertsHub = useOverlayHub("alerts");
 const memberHub = useOverlayHub("member");
+
+const confirmTarget = ref<OverlayHubName | null>(null);
+const clearing = ref(false);
+
+const overlayHubs = computed(() => [
+  { name: "chat" as const, labelKey: "status.overlayChatHub", titleKey: "overlay.chat.title", hub: chatHub },
+  { name: "alerts" as const, labelKey: "status.overlayAlertsHub", titleKey: "overlay.alerts.title", hub: alertsHub },
+  { name: "member" as const, labelKey: "status.overlayMemberHub", titleKey: "overlay.member.title", hub: memberHub }
+]);
+
+const confirmTitleKey = computed(() => {
+  if (!confirmTarget.value) return "";
+  const entry = overlayHubs.value.find((row) => row.name === confirmTarget.value);
+  return entry?.titleKey ?? "";
+});
 
 const twitchLabel = computed(() => {
   if (!twitchStatus.value?.clientIdConfigured) {
@@ -50,6 +66,29 @@ async function loadTwitchStatus(): Promise<void> {
     twitchStatus.value = null;
   }
 }
+
+function requestClear(name: OverlayHubName): void {
+  confirmTarget.value = name;
+}
+
+async function onConfirm(): Promise<void> {
+  const target = confirmTarget.value;
+  if (!target) return;
+
+  const entry = overlayHubs.value.find((row) => row.name === target);
+  if (!entry) {
+    confirmTarget.value = null;
+    return;
+  }
+
+  clearing.value = true;
+  try {
+    await entry.hub.clear();
+  } finally {
+    clearing.value = false;
+    confirmTarget.value = null;
+  }
+}
 </script>
 
 <template>
@@ -77,18 +116,40 @@ async function loadTwitchStatus(): Promise<void> {
         <p class="status-label">{{ t("status.eventCount") }}</p>
         <p class="status-value">{{ events.length }}</p>
       </article>
-      <article class="status-card">
-        <p class="status-label">{{ t("status.overlayChatHub") }}</p>
-        <HubStatusChip :state="chatHub.state.value" :last-event-at="chatHub.lastEventAt.value" :error="chatHub.error.value" />
-      </article>
-      <article class="status-card">
-        <p class="status-label">{{ t("status.overlayAlertsHub") }}</p>
-        <HubStatusChip :state="alertsHub.state.value" :last-event-at="alertsHub.lastEventAt.value" :error="alertsHub.error.value" />
-      </article>
-      <article class="status-card">
-        <p class="status-label">{{ t("status.overlayMemberHub") }}</p>
-        <HubStatusChip :state="memberHub.state.value" :last-event-at="memberHub.lastEventAt.value" :error="memberHub.error.value" />
+      <article
+        v-for="entry in overlayHubs"
+        :key="entry.name"
+        class="status-card"
+      >
+        <p class="status-label">{{ t(entry.labelKey) }}</p>
+        <HubStatusChip
+          :state="entry.hub.state.value"
+          :last-event-at="entry.hub.lastEventAt.value"
+          :error="entry.hub.error.value"
+        />
+        <div class="status-card-actions">
+          <button
+            type="button"
+            class="icon-button"
+            :aria-label="t('overlay.clearAriaLabel', { hub: t(entry.titleKey) })"
+            :data-testid="`clear-${entry.name}`"
+            @click="requestClear(entry.name)"
+          >
+            {{ t("overlay.clear") }}
+          </button>
+        </div>
       </article>
     </div>
+
+    <ConfirmDialog
+      :open="confirmTarget !== null"
+      :title="t('overlay.clearConfirmTitle')"
+      :message="t('overlay.clearConfirmMessage', { hub: confirmTitleKey ? t(confirmTitleKey) : '' })"
+      :confirm-label="t('overlay.clearConfirmAction')"
+      :cancel-label="t('common.cancel')"
+      :busy="clearing"
+      @confirm="onConfirm"
+      @cancel="confirmTarget = null"
+    />
   </section>
 </template>

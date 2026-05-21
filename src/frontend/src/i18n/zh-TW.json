@@ -4,6 +4,7 @@
   "nav.chatOverlay": "聊天 Overlay",
   "nav.alertOverlay": "提醒 Overlay",
   "nav.memberOverlay": "成員 Overlay",
+  "common.cancel": "取消",
   "status.title": "系統狀態",
   "status.subtitle": "本機 API、Twitch 授權與事件串流狀態。",
   "status.apiHealth": "API Health",
@@ -51,5 +52,10 @@
   "overlay.alerts.title": "提醒 Overlay",
   "overlay.member.title": "成員 Overlay",
   "overlay.empty": "等待事件",
-  "overlay.memberSkeleton": "MVP 階段尚未從 member hub 接收事件。"
+  "overlay.memberSkeleton": "MVP 階段尚未從 member hub 接收事件。",
+  "overlay.clear": "清空",
+  "overlay.clearAriaLabel": "清空 {hub} 歷史",
+  "overlay.clearConfirmTitle": "確認清空 Overlay 歷史",
+  "overlay.clearConfirmMessage": "將永久刪除 {hub} 的所有歷史事件。此操作無法復原。",
+  "overlay.clearConfirmAction": "確定清空"
 }

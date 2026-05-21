@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
 import { computed, onScopeDispose, ref } from "vue";
-import { apiBaseUrl } from "@/api/client";
+import { apiBaseUrl, clearOverlayHistory } from "@/api/client";
 
 export const OVERLAY_BUFFER_SIZE = 20;
 
@@ -12,6 +12,11 @@ export interface OverlayHubEvent {
   displayName?: string;
   eventType?: string;
   segments?: Array<{ kind: string; text: string }>;
+  replayed?: boolean;
+}
+
+export interface OverlayClearedPayload {
+  hubName: OverlayHubName;
 }
 
 export interface OverlayHubOptions {
@@ -21,6 +26,7 @@ export interface OverlayHubOptions {
 export interface OverlayHubConnection {
   state: HubConnectionState;
   on(name: "event", handler: (payload: OverlayHubEvent) => void): void;
+  on(name: "cleared", handler: (payload: OverlayClearedPayload) => void): void;
   onclose(handler: (error?: Error) => void): void;
   onreconnected?(handler: () => void): void;
   onreconnecting?(handler: () => void): void;
@@ -39,8 +45,14 @@ export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOption
   const lastEventAt = ref<number | null>(null);
 
   connection.on("event", (payload: OverlayHubEvent) => {
-    events.value = [payload, ...events.value].slice(0, OVERLAY_BUFFER_SIZE);
-    lastEventAt.value = Date.now();
+    upsertEvent(payload);
+    if (!payload.replayed) {
+      lastEventAt.value = Date.now();
+    }
+  });
+
+  connection.on("cleared", () => {
+    events.value = [];
   });
 
   connection.onreconnected?.(() => {
@@ -54,6 +66,20 @@ export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOption
     state.value = connection.state;
     error.value = closeError?.message ?? null;
   });
+
+  function upsertEvent(payload: OverlayHubEvent): void {
+    const eventId = payload.eventId;
+    if (eventId) {
+      const existingIndex = events.value.findIndex((entry) => entry.eventId === eventId);
+      if (existingIndex !== -1) {
+        const next = events.value.slice();
+        next[existingIndex] = payload;
+        events.value = next;
+        return;
+      }
+    }
+    events.value = [payload, ...events.value].slice(0, OVERLAY_BUFFER_SIZE);
+  }
 
   async function start(): Promise<void> {
     if (connection.state !== HubConnectionState.Disconnected) {
@@ -75,6 +101,10 @@ export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOption
     state.value = connection.state;
   }
 
+  async function clear(): Promise<void> {
+    await clearOverlayHistory(hubName);
+  }
+
   onScopeDispose(() => {
     void stop();
   });
@@ -85,6 +115,7 @@ export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOption
     state: computed(() => state.value),
     lastEventAt: computed(() => lastEventAt.value),
     start,
-    stop
+    stop,
+    clear
   };
 }
