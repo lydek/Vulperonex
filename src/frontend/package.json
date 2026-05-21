@@ -9,7 +9,8 @@
     "test": "vitest run --coverage",
     "build": "vue-tsc --noEmit && vite build",
     "lint": "oxlint --config oxlint.json",
-    "vue-tsc": "vue-tsc"
+    "vue-tsc": "vue-tsc",
+    "postinstall": "simple-git-hooks"
   },
   "dependencies": {
     "@microsoft/signalr": "^9.0.0",
