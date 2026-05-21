@@ -73,7 +73,7 @@
 - [x] Task 22l：i18n 新增 `overlay.clear` / `overlay.clearConfirm` / `overlay.clearConfirmTitle` 等 keys (zh-TW + en-US 同步)。
 - [x] Task 22m：dotnet unit tests：service AddAsync 超 cap 後 dequeue oldest + SystemSettings JSON 為 cap 內 list；LoadFromDb 異常恢復；Forwarder 寫入/broadcast 序列；Hub OnConnectedAsync replay (alerts `Replayed=true`)；Clear endpoint cache/SystemSettings/broadcast 完整流程。
 - [x] Task 22n：Vitest：useOverlayHub eventId dedupe、cleared event 清空、AlertOverlay replayed 不觸發動畫 spy 斷言、clear 按鈕二次確認 + API call。
-- [ ] Task 22o：Browser manual：(1) 開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history；(2) admin clear 按鈕 → overlay 即時清空 → 再送一筆即時顯示；(3) alerts F5 後 history 補上但**不**重播動畫；(4) 將結果寫入 `manual-verification.md` § Task 22 區段。
+- [ ] Task 22o：Browser manual：(1) 開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history；(2) admin clear 按鈕 → overlay 即時清空 → 再送一筆即時顯示；(3) alerts F5 後 history 補上但**不**重播動畫；(4) 將結果寫入 `manual-verification.md` § Task 22 區段。（checklist 已寫入 `manual-verification.md` § Task 22 Overlay History Persistence Checklist；待人工執行後將 PASS 結果填入 Dated Entry）
 
 ## Phase 6 Checkpoint
 

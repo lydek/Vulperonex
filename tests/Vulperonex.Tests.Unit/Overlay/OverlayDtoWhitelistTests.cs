@@ -20,7 +20,7 @@ public sealed class OverlayDtoWhitelistTests
     {
         var payload = new OverlayAlertPayload(1, "evt-1", DateTimeOffset.UnixEpoch, "Alice", "subscription", "1000");
 
-        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "displayName", "eventType", "tier");
+        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "displayName", "eventType", "tier", "replayed");
     }
 
     [Fact]

@@ -49,6 +49,23 @@ Steps:
 
 > ⚠ Full OAuth round-trip (steps 1-4) is required for Phase 6 Gate. `auth start` opening a browser URL alone is insufficient.
 
+## Task 22 Overlay History Persistence Checklist
+
+Run `dotnet run --project src/Hosts/Vulperonex.Web`, open `http://localhost:5000/` in two browser tabs (tab A = `/simulate`, tab B = `/overlay/chat`).
+
+Required checks:
+
+1. **Cross-route persistence**: In tab A submit a chat simulate, then close tab B and reopen `/overlay/chat`. Newly opened tab must show the recently submitted message in the list (replayed via hub `OnConnectedAsync`).
+2. **Cross-restart persistence**: Submit a chat simulate in tab A, stop the Web host (Ctrl+C), restart with `dotnet run --project src/Hosts/Vulperonex.Web`, reload `/overlay/chat`. The message must reappear in the list (rehydrated from `SystemSettings` `overlay.history.chat`).
+3. **Alert replay does not retrigger animation**: With tab `/overlay/alerts` open, submit a `follow` simulate → live banner animates. Close and reopen `/overlay/alerts` → entry appears in list with dimmed (`data-replayed="true"`) style, **no** live banner animation.
+4. **Cap enforcement**: Submit > 30 chat simulates rapidly; only the most recent 30 are visible after a fresh reload.
+5. **Clear from overlay route**: Click "Clear" header button on `/overlay/chat` → confirm dialog → confirm → list empties immediately; reload page → list still empty.
+6. **Clear from admin status**: Click "Clear" on the `Chat Overlay Hub` card in `/` → confirm dialog → confirm → other tabs on `/overlay/chat` receive `cleared` event and list empties without reload.
+7. **Cancel and ESC dismiss confirm dialog**: Both Cancel button click and ESC key dismiss the dialog without clearing.
+8. **Member hub clear**: Even though member hub has no live events during MVP, clearing must succeed and return 204 without errors.
+
+> ⚠ All eight checks must pass for Task 22 to be considered complete and the Phase 6 Gate to clear overlay persistence requirements.
+
 ## Task 21 Desktop Shell Checklist
 
 Run `dotnet run --project src/Hosts/Vulperonex.Desktop`.
