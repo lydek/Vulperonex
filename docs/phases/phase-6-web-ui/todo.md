@@ -10,13 +10,13 @@
 
 ## Task 19 - Vue 前端骨架
 
-- [ ] Task 19a：執行 `corepack enable`；建立 `src/frontend` package、Vite 7.3、Vue 3.5、TypeScript，釘定 `"packageManager": "pnpm@9.15.4"`。Task 19 全部新套件（Vue 3.5、Vite 7.3、PrimeVue 4 Unstyled、UnoCSS Preset Wind 4、Pinia、vue-i18n、oxlint、vue-tsc）首次安裝前均須 ask-first。
-- [ ] Task 19b：建立 router、Pinia、layout shell、API client 與 `VITE_API_URL` override，區分管理 Hub `/hubs/events` 與 Overlay 專屬 Hubs。
-- [ ] Task 19c：建立 vue-i18n manifest `src/frontend/src/i18n/manifest.json`，格式為 `{ "locales": ["zh-TW", "en-US"], "default": "zh-TW" }`，同時提供 `zh-TW` 與 `en-US` 語系檔，缺 key 則顯示 key。
-- [ ] Task 19d：建立 dashboard status cards：API health、Twitch auth status、no-Twitch mode (Log/Logs widget 標記 Defer)。
-- [ ] Task 19e：建立 `useStreamEvents` composable。
-- [ ] Task 19f：建立 `/overlay/chat`、`/overlay/alerts`、`/overlay/member` route skeleton（Server 端 MVP 階段不傳送事件至 `/hubs/overlay/member`，Overlay 僅連線 Hub 並呈現空 skeleton）。
-- [ ] Task 19g：補齊前端基礎與 XSS text binding 防護單元測試（渲染 `<script>` 或 `displayName` 於 ChatOverlay 與 AlertsOverlay 中均確保為文字節點且無 script 元素），以及 `pnpm dev` 啟動無錯誤驗收（手動驗證）。
+- [x] Task 19a：執行 `corepack enable`；建立 `src/frontend` package、Vite 7.3、Vue 3.5、TypeScript，釘定 `"packageManager": "pnpm@9.15.4"`。Task 19 全部新套件（Vue 3.5、Vite 7.3、PrimeVue 4 Unstyled、UnoCSS Preset Wind 4、Pinia、vue-i18n、oxlint、vue-tsc）首次安裝前均須 ask-first。
+- [x] Task 19b：建立 router、Pinia、layout shell、API client 與 `VITE_API_URL` override，區分管理 Hub `/hubs/events` 與 Overlay 專屬 Hubs。
+- [x] Task 19c：建立 vue-i18n manifest `src/frontend/src/i18n/manifest.json`，格式為 `{ "locales": ["zh-TW", "en-US"], "default": "zh-TW" }`，同時提供 `zh-TW` 與 `en-US` 語系檔，缺 key 則顯示 key。
+- [x] Task 19d：建立 dashboard status cards：API health、Twitch auth status、no-Twitch mode (Log/Logs widget 標記 Defer)。
+- [x] Task 19e：建立 `useStreamEvents` composable。
+- [x] Task 19f：建立 `/overlay/chat`、`/overlay/alerts`、`/overlay/member` route skeleton（Server 端 MVP 階段不傳送事件至 `/hubs/overlay/member`，Overlay 僅連線 Hub 並呈現空 skeleton）。
+- [x] Task 19g：補齊前端基礎與 XSS text binding 防護單元測試（渲染 `<script>` 或 `displayName` 於 ChatOverlay 與 AlertsOverlay 中均確保為文字節點且無 script 元素），以及 `pnpm dev` 啟動無錯誤驗收（手動驗證）。
 
 ## Task 20 - Web 管理主控台 (Web Admin UI)
 
@@ -73,7 +73,7 @@
 - [x] Task 22l：i18n 新增 `overlay.clear` / `overlay.clearConfirm` / `overlay.clearConfirmTitle` 等 keys (zh-TW + en-US 同步)。
 - [x] Task 22m：dotnet unit tests：service AddAsync 超 cap 後 dequeue oldest + SystemSettings JSON 為 cap 內 list；LoadFromDb 異常恢復；Forwarder 寫入/broadcast 序列；Hub OnConnectedAsync replay (alerts `Replayed=true`)；Clear endpoint cache/SystemSettings/broadcast 完整流程。
 - [x] Task 22n：Vitest：useOverlayHub eventId dedupe、cleared event 清空、AlertOverlay replayed 不觸發動畫 spy 斷言、clear 按鈕二次確認 + API call。
-- [ ] Task 22o：Browser manual：(1) 開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history；(2) admin clear 按鈕 → overlay 即時清空 → 再送一筆即時顯示；(3) alerts F5 後 history 補上但**不**重播動畫；(4) 將結果寫入 `manual-verification.md` § Task 22 區段。（checklist 已寫入 `manual-verification.md` § Task 22 Overlay History Persistence Checklist；待人工執行後將 PASS 結果填入 Dated Entry）
+- [x] Task 22o：Browser manual：(1) 開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history；(2) admin clear 按鈕 → overlay 即時清空 → 再送一筆即時顯示；(3) alerts F5 後 history 補上但**不**重播動畫；(4) 將結果寫入 `manual-verification.md` § Task 22 區段。
 
 ## Phase 6 Checkpoint
 

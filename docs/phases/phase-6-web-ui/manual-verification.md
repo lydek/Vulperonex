@@ -83,3 +83,27 @@ Required checks:
 ---
 
 <!-- Add verification entries below this line -->
+
+## 2026-05-22 - Task 19 Frontend Skeleton + Overlay Wiring
+
+- Verifier: lydek
+- Environment: Windows 11, .NET 10.0.203, pnpm@9.15.4 via corepack, Chrome
+- Commands / Steps:
+  1. `dotnet run --project src/Hosts/Vulperonex.Web`
+  2. `cd src/frontend; corepack pnpm dev`
+  3. Open `http://localhost:5173/`, walk through `/` (status dashboard) and `/overlay/{chat,alerts,member}`.
+  4. Submit `chat`, `follow`, `sub` from `/simulate`; observe overlay routes and admin status hub cards.
+- Expected result: Vite dev server boots without error; all overlay views mount and SignalR chips show `Connected`; XSS-style payloads render as literal text.
+- Actual result: Dev server ready, overlay hub cards reflect live state, simulate flows reach overlays as expected.
+- Result: PASS
+- Evidence / commit: a75e0b7, 0301b38
+
+## 2026-05-22 - Task 22 Overlay History Persistence
+
+- Verifier: lydek
+- Environment: Windows 11, .NET 10.0.203, pnpm@9.15.4 via corepack, Chrome
+- Commands / Steps: Eight checks under `## Task 22 Overlay History Persistence Checklist` (cross-route persistence, cross-restart rehydrate, alert replay without animation, cap enforcement, clear from overlay header, clear from admin status, dialog dismiss paths, member hub clear).
+- Expected result: All eight checks behave per spec; SystemSettings rows `overlay.history.{chat,alerts,member}` persist across Web host restart; alert replay marks entries with `data-replayed="true"` and skips the live banner.
+- Actual result: Persistence, replay flag gating, and clear surfaces all observed as expected; no console errors.
+- Result: PASS
+- Evidence / commit: c231026, 96668f8, 6b57434, 2adff68
