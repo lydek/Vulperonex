@@ -417,6 +417,51 @@ textarea {
   word-break: break-word;
 }
 
+.monitor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.monitor-count {
+  color: #5f6f80;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.monitor-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #d6dde5;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.monitor-table th,
+.monitor-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #ecf0f4;
+  font-size: 13px;
+}
+
+.monitor-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.monitor-table thead th {
+  background: #f4f6f8;
+  color: #394756;
+  font-weight: 700;
+}
+
+.monitor-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-all;
+}
+
 .event-list {
   display: grid;
   gap: 8px;
