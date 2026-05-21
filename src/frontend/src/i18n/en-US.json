@@ -1,0 +1,20 @@
+{
+  "nav.status": "Status",
+  "nav.chatOverlay": "Chat Overlay",
+  "nav.alertOverlay": "Alert Overlay",
+  "nav.memberOverlay": "Member Overlay",
+  "status.title": "System Status",
+  "status.subtitle": "Local API, Twitch authorization, and stream event state.",
+  "status.apiHealth": "API Health",
+  "status.twitchAuth": "Twitch Auth",
+  "status.eventCount": "Events",
+  "status.connected": "Connected",
+  "status.disconnected": "Disconnected",
+  "status.configured": "Configured",
+  "status.noTwitchMode": "No-Twitch Mode",
+  "overlay.chat.title": "Chat Overlay",
+  "overlay.alerts.title": "Alert Overlay",
+  "overlay.member.title": "Member Overlay",
+  "overlay.empty": "Waiting for events",
+  "overlay.memberSkeleton": "The MVP member hub does not publish events yet."
+}

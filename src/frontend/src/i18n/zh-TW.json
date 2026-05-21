@@ -1,0 +1,20 @@
+{
+  "nav.status": "狀態",
+  "nav.chatOverlay": "聊天 Overlay",
+  "nav.alertOverlay": "提醒 Overlay",
+  "nav.memberOverlay": "成員 Overlay",
+  "status.title": "系統狀態",
+  "status.subtitle": "本機 API、Twitch 授權與事件串流狀態。",
+  "status.apiHealth": "API Health",
+  "status.twitchAuth": "Twitch Auth",
+  "status.eventCount": "事件數",
+  "status.connected": "已連線",
+  "status.disconnected": "未連線",
+  "status.configured": "已設定",
+  "status.noTwitchMode": "No-Twitch Mode",
+  "overlay.chat.title": "聊天 Overlay",
+  "overlay.alerts.title": "提醒 Overlay",
+  "overlay.member.title": "成員 Overlay",
+  "overlay.empty": "等待事件",
+  "overlay.memberSkeleton": "MVP 階段尚未從 member hub 接收事件。"
+}
