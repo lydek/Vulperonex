@@ -2,6 +2,8 @@ import { HubConnectionBuilder } from "@microsoft/signalr";
 import { computed, onScopeDispose, ref } from "vue";
 import { apiBaseUrl } from "@/api/client";
 
+export const OVERLAY_BUFFER_SIZE = 20;
+
 export type OverlayHubName = "chat" | "alerts" | "member";
 
 export interface OverlayHubEvent {
@@ -32,7 +34,7 @@ export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOption
   const error = ref<string | null>(null);
 
   connection.on("event", (payload: OverlayHubEvent) => {
-    events.value = [payload, ...events.value].slice(0, 20);
+    events.value = [payload, ...events.value].slice(0, OVERLAY_BUFFER_SIZE);
   });
 
   connection.onclose((closeError) => {
