@@ -15,7 +15,12 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "json"],
-      include: ["src/api/**/*.ts", "src/composables/**/*.ts", "src/stores/**/*.ts"],
+      include: [
+        "src/api/**/*.ts",
+        "src/composables/**/*.ts",
+        "src/stores/**/*.ts",
+        "src/i18n/**/*.ts"
+      ],
       exclude: ["**/*.test.ts"],
       thresholds: {
         branches: 70,
