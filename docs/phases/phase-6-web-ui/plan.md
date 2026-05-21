@@ -2,7 +2,7 @@
 
 > 父計畫：`tasks/plan.md`
 > 父待辦清單：`tasks/todo.md`
-> 任務範圍：Task 18-21
+> 任務範圍：Task 18-22
 > 前置條件：Phase 5 CLI / Web API / SignalR / Twitch OAuth manual verification 已完成並記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 > [!IMPORTANT]
 > **前置條件 Gate**：父計畫中 Phase 5 Checkpoint 的三項手動驗收（包含 CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權、以及 REPL 手動驗收）必須確認已勾選完成，此 Phase 6 方可開工實作。
@@ -17,14 +17,15 @@
   - Task 19 前端骨架建置與 SignalR/Polling 整合：**2 天**
   - Task 20 五大管理面板 (含 1MB JSON 貼入防護、LWW 去重、指數退避)：**3 天**
   - Task 18 Serilog 三 Sink 與 AppLogs 清理機制：**1 天**
-  - Task 21 Photino 桌面外殼 (含單實例偵測、IPC Bridge、崩潰重啟上限)：**1 天**
+  - Task 22 Overlay 事件歷史持久化 + 清理 surface (複用 SystemSettings + Omni-Commander pattern)：**0.5 天**
+  - Task 21 Photino 桌面外殼 (含單實例偵測、IPC Bridge、崩潰重新啟動上限)：**1 天**
 - **Onboarding 指引**：開發人員啟動專案前，優先執行 `corepack enable` 釘定 pnpm@9.15.4 版本；若 Windows 權限阻止建立全域 pnpm shim，改用 `corepack pnpm@9.15.4 <command>` 執行所有前端命令。執行 `pnpm dev` 或 `corepack pnpm@9.15.4 dev` 啟動 Vite dev server 進行 smoke 測試時，stdout 出現 `VITE ... ready in` 字樣即可視為成功，手動 Ctrl+C 後繼續執行後續步驟。
 
 ---
 
 ## 目標
 
-Phase 6 把 Phase 5 已由 CLI 驗證過的 loopback Web API 能力搬到 Vue Web UI，形成可長時間操作的本機控制台。第一個畫面必須是可用的操作介面，而不是 landing page：使用者可以確認 API/Twitch 狀態、模擬事件、查看成員、管理 WorkflowRule、監看 SignalR 事件，最後由 Photino Desktop Shell 包裝成桌面入口。
+Phase 6 把 Phase 5 已由 CLI 驗證過的 loopback Web API 能力搬到 Vue Web UI，形成可長時間操作的本機控制台。第一個畫面必須是可用的操作介面，而不是 landing page：使用者可以確認 API/Twitch 狀態、模擬事件、檢視成員、管理 WorkflowRule、監看 SignalR 事件，最後由 Photino Desktop Shell 包裝成桌面入口。
 
 ---
 
@@ -70,7 +71,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 - [ ] Console、rolling file、SQLite AppLogs 均可寫入，且不重複設定 `PRAGMA auto_vacuum`（HH11）。
 - [ ] AppLogs rows 含 EventTypeKey、Platform、MemberId、WorkflowRuleId、ActionType 等結構化欄位。
 - [ ] **去識別化與隱私合規 (II24, HH29)**：`MemberId` 欄位僅記錄已去識別化（Pseudonymized）的 ULID，屬於 pseudonymous，程式碼與日誌中必須有明確的非 PII (Non-PII) 註記，嚴格禁止記錄 any PII (如真實姓名、E-mail 或 platform 帳號原始 ID)。
-- [ ] `config set log.min_level Warning` 後 Debug/Information 不再寫入，無需重啟。
+- [ ] `config set log.min_level Warning` 後 Debug/Information 不再寫入，無需重新啟動。
 - [ ] size-based cleanup 與 retention cleanup 整合於單一背景 worker 中，**以先觸發者為準** (HH18)。size-based cleanup 使用 `PRAGMA page_count * page_size` 判斷，清理後明確執行 `VACUUM`。
 - [ ] retention cleanup 與 size cleanup 可單次透過呼叫 `AppLogsCleanupWorker.ExecuteOnce()` 觸發測試，不依賴 background timing。
 
@@ -96,7 +97,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 
 **描述：** 建立可執行的 `src/frontend` Vite/Vue 應用，包含 routing、Pinia、vue-i18n、API client、SignalR composable、overlay route skeleton、管理 admin layout。
 - **Task 19a 啟動與 Lockfile-only 預檢 (II14)**：本任務啟動前，開發人員必須在 `src/frontend` 中執行 `corepack enable` 以確保釘定版本 pnpm@9.15.4 生效；若 Windows 權限阻止建立全域 pnpm shim，改用 `corepack pnpm@9.15.4 <command>`。pnpm 9.15.4 的 `install` 不支援 `--dry-run`，因此預檢命令固定為 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts`，用來驗證 Vite 7.3、PrimeVue 4、UnoCSS 等前端技術棧的版本相容性且不執行 lifecycle scripts。
-- 全部 stack 套件（Vue 3.5、Vite 7.3、PrimeVue 4 Unstyled、UnoCSS Preset Wind 4、Pinia、vue-i18n、oxlint、vue-tsc 以及所有傳遞依賴）首次安裝前須取得使用者同意（ask-first 協議）。
+- 全部 stack 套件（Vue 3.5、Vite 7.3、PrimeVue 4 Unstyled、UnoCSS Preset Wind 4、Pinia、vue-i18n、oxlint、vue-tsc 以及所有傳遞依賴）首次安裝前須取得使用者同意（ask-first 協定）。
 - **Git Scope Auto Gate (II20)**：在 `src/frontend` 中設定 `simple-git-hooks` 或 `husky` 配合 `commitlint`。設置自動化 Hook 在 `commit-msg` 階段執行 scope check，強制阻斷不符合 Conventional Commits 格式的 git commit 提交，從工具鏈層級提供自動化防護。
 
 **驗收標準：**
@@ -150,7 +151,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 
 ## Task 20 - Web 管理主控台 (Web Admin UI)：simulate / member / rule / Twitch auth
 
-**描述：** 實作瀏覽器內可操作的核心工作流。此任務之所有前端主控台 View 與 Component 的路徑均扁平化為 `src/frontend/src/views/admin/` 與 `src/frontend/src/components/admin/`，取代多層 nested 目錄（BB3, CC1, CC2, CC3）。這個任務的目標是讓使用者不用 CLI 也能完成 Phase 5 manual verification 的主要步驟：模擬事件、確認 member side effect、建立/啟用/停用/刪除 rule、重置/啟動 Twitch OAuth，並實作完整的健全性防護機制。
+**描述：** 實作瀏覽器內可操作的核心工作流。此任務之所有前端主控台 View 與 Component 的路徑均扁平化為 `src/frontend/src/views/admin/` 與 `src/frontend/src/components/admin/`，取代多層 nested 目錄（BB3, CC1, CC2, CC3）。本任務讓使用者無需 CLI 即可完成 Phase 5 manual verification 的主要步驟：模擬事件、確認 member side effect、建立/啟用/停用/刪除 rule、重置/啟動 Twitch OAuth，並實作完整的健全性防護機制。
 
 **驗收標準：**
 - [ ] Simulate panel 支援 chat/follow/sub，送出後顯示 ack：accepted、eventTypeKey、eventId、platformUserId、displayName。
@@ -163,12 +164,12 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 - [ ] **JSON Textarea 1MB limit 三重 check (II15)**：
   - 實作 textarea `maxlength` 限制。
   - 長度在貼入（paste）時進行 `300ms` 防抖（debounce）檢查，當資料大小超過 1MB 時，拒絕解析並顯示 toast 警告。
-  - 將貼入的原始大文字存入非響應式變數（如 plain object 或自訂普通 ref/變數），而非直接賦值給 Vue 的響應式 ref，防範 Vue 反覆偵測屬性變化而造成的主執行緒卡死與 OOM 崩潰。
+  - 將貼入的原始大文字存入非響應式變數（如 plain object 或自訂普通 ref/變數），而非直接指派給 Vue 的響應式 ref，防範 Vue 反覆偵測屬性變化而造成的主執行緒卡死與 OOM 崩潰。
 - [ ] Rule enable/disable/delete 成功後畫面立即反映狀態，不靜默。
 - [ ] **a11y ARIA 與 WCAG AA 對比標準 (II16)**：UI 元件與操作均配置 basic a11y ARIA 標籤（如 `aria-label`, `aria-describedby` 等），並符合 WCAG AA 對比標準（前景與背景對比度至少 4.5:1）。
 - [ ] Twitch panel 顯示 `clientIdConfigured` / `hasRefreshToken`；缺 ClientId 顯示 no-Twitch mode，不產生 authorize URL。
 - [ ] Twitch panel 支援 auth start/reset。**Twitch OAuth 302 重導向回根路徑 (II4, II29)**：Twitch OAuth 授權成功或失敗後，OAuth callback endpoint 必須先在後端消費 `code`、完成 token exchange 與 refresh token 加密保存，再以 `302` 重導向回本機 Web UI 根路徑（`/`）。Web UI 不接收 OAuth `code` 或 raw error；授權結果由 `platform.connection_changed`、`GET /api/twitch/status` 與 toast/status card 呈現。
-- [ ] **Twitch Reset 與 emit 變更 (II25)**：執行 Twitch Reset 時，除了清除後端 refresh token，還必須主動斷開與 Twitch 的連線，並向所有訂閱的 Overlay Hubs/Web Clients 發送狀態變更 event 以重置狀態。
+- [ ] **Twitch Reset 與 emit 變更 (II25)**：執行 Twitch Reset 時，除了清除後端 refresh token，還必須主動斷開與 Twitch 的連線，並向所有訂閱的 Overlay Hubs/Web Clients 傳送狀態變更 event 以重置狀態。
 - [ ] **Polling fallback 防瞬斷指數退避序列 (II22, II25)**：
   - SignalR 連線瞬斷時觸發 `HubConnection.onclose`，無法重連時啟動 HTTP Polling 作為 fallback。
   - Polling fallback 序列以 `30s` 為 base delay，每次失敗乘上 `2` 倍乘數，最大退避上限為 `300s`。不可在 0s 立即重複呼叫。
@@ -202,7 +203,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 
 ## Task 21 - Photino Desktop Shell + 靜態 fallback
 
-**描述：** 讓 `Vulperonex.Desktop` 啟動 Web host 並載入 Vue UI。埠衝突、WebView2 缺失、migration 失敗、Web host crash 都要有清楚且可操作的 fallback。因應本專案使用 .NET 10.0 且 Photino 使用 3.x 版本，必須於實作中包含「.NET 10.0 + Photino 3.x 相容性預驗」，並於發生 native runtime 崩潰時提供「切回 WebView2 fallback 或改以獨立 Kestrel 服務運行」之緩解手段 (II30)。
+**描述：** 讓 `Vulperonex.Desktop` 啟動 Web host 並載入 Vue UI。埠衝突、WebView2 缺失、migration 失敗、Web host crash 都要有清楚且可操作的 fallback。因應本專案使用 .NET 10.0 且 Photino 使用 3.x 版本，必須於實作中包含「.NET 10.0 + Photino 3.x 相容性預驗」，並於發生 native runtime 崩潰時提供「切回 WebView2 fallback 或改以獨立 Kestrel 服務執行」之緩解手段 (II30)。
 
 **驗收標準：**
 - [ ] `dotnet run --project src/Hosts/Vulperonex.Desktop` 開啟桌面視窗並載入 Web UI。
@@ -213,11 +214,11 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 - [ ] WebView2 缺失時顯示下載連結與退出選項。
 - [ ] migration 失敗時顯示 Open log folder / Exit。
 - [ ] Web host crash 時顯示內嵌 fallback HTML 與 Restart 按鈕。
-- [ ] **Web Host Crash 重啟上限與 Vitest 斷言 (II13)**：模擬 Web host crash 的重啟行為，前 3 次 crash 會自動 retry 重啟，到第 4 次 crash 時，停止 retry，並在 UI fallback 畫面提示「多次重啟失敗，請手動重啟 Vulperonex 服務」。
+- [ ] **Web Host Crash 重新啟動上限與 Vitest 斷言 (II13)**：模擬 Web host crash 的重新啟動行為，前 3 次 crash 會自動 retry 重新啟動，到第 4 次 crash 時，停止 retry，並在 UI fallback 畫面提示「多次重新啟動失敗，請手動重新啟動 Vulperonex 服務」。
 - [ ] Desktop host 不改變 Web API loopback-only 安全邊界。
 
 **驗證：**
-- [ ] Unit test/Vitest：模擬 Web host crash 重啟，斷言前 3 次自動重啟，第 4 次停止並在 UI fallback 提示「多次重啟失敗，請手動重啟 Vulperonex 服務」之行為符合預期 (II13)。
+- [ ] Unit test/Vitest：模擬 Web host crash 重新啟動，斷言前 3 次自動重新啟動，第 4 次停止並在 UI fallback 提示「多次重新啟動失敗，請手動重新啟動 Vulperonex 服務」之行為符合預期 (II13)。
 - [ ] Unit test/Vitest：驗證 Photino IPC Bridge 符合 `{ type: string, payload: any }` 結構。
 - [ ] Unit test：mock WebView2 detector 回報缺失，dialog callback 被觸發。
 - [ ] Unit test：mock migration failure，dialog 包含 Open log folder / Exit。
@@ -235,6 +236,64 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 - `tests/Vulperonex.Tests.Unit/Desktop/`
 
 **規模：** M
+
+---
+
+## Task 22 - Overlay 事件歷史持久化 + 清理 surface
+
+**描述：** Overlay (chat / alerts / member) 事件目前完全 in-memory，SPA 換 route、F5、應用重開、OBS browser source 重新載入皆會清空。Task 22 引入跨重啟可 rehydrate 的小型 ring buffer，並提供管理端與 overlay 端的清理入口，讓「測試驗證歷史」與「OBS 重連補畫面」可用。設計直接複用 Omni-Commander `ChatHistoryService` pattern (`ref/Omni-Commander/OmniCommander.Infrastructure/Overlay/ChatHistoryService.cs`)：以 `SystemSettings` 表單行 JSON 全量寫入，無需新表/migration/index。
+
+**驗收標準：**
+- [ ] **儲存載體**：複用既有 `SystemSettings` 表，三個 key：`Overlay.History.Chat` / `Overlay.History.Alerts` / `Overlay.History.Member`。`ValueJson` 為對應 payload list 全量序列化（cap 內，序列化大小應 < 10KB）。**不新增 EF entity / migration**。
+- [ ] **Service 介面**：`IOverlayHistoryService<TPayload>` 泛型 service，提供 `GetRecent()` / `AddAsync(payload)` / `ClearAllAsync()`。Vulperonex.Application 層宣告 interface，Vulperonex.Infrastructure 提供實作。
+- [ ] **三個 typed 註冊**：
+  - `IOverlayHistoryService<OverlayChatPayload>` cap **30**
+  - `IOverlayHistoryService<OverlayAlertPayload>` cap **20**
+  - `IOverlayHistoryService<OverlayMemberPayload>` cap **20**（MVP 階段不會被寫入，僅預留 schema 一致性）。
+- [ ] **In-memory cache**：`ConcurrentQueue<TPayload>` + `SemaphoreSlim(1,1)` 寫入鎖，沿用 Omni-Commander pattern。
+- [ ] **啟動 rehydrate**：service 建構時 `LoadFromDb()` 從 SystemSettings 讀回 cache；DB 尚未 ready 或 deserialize 失敗 → log + 空 cache fallback，不 fail-fast。
+- [ ] **`OverlayEventForwarder` 改寫**：對 chat/alerts payload 先 `AddAsync` 再 `Clients.All.SendAsync("event", ...)`。member hub MVP 不寫入。Forwarder 對 history service 寫入失敗以 log warn 帶過，不阻斷 broadcast。
+- [ ] **Hub `OnConnectedAsync` replay**：三個 hub (`OverlayChatHub` / `OverlayAlertsHub` / `OverlayMemberHub`) override `OnConnectedAsync`，對 `Clients.Caller` 逐筆 `SendAsync("event", payload)` 已有歷史。
+- [ ] **Alert replayed flag (避免動畫風暴)**：`OverlayAlertPayload` 加 `Replayed: bool` 欄位（default false）。Replay 路徑送出時 `Replayed=true`。前端 AlertOverlay 收到 `replayed=true` 訊息只 push 進 list、不觸發動畫/音效 hook。Chat overlay 無需此 flag（純文字 list 重播無副作用）。
+- [ ] **Clear API**：
+  - `DELETE /api/overlay/chat/messages`
+  - `DELETE /api/overlay/alerts/messages`
+  - `DELETE /api/overlay/member/messages`
+  - 回傳 `204 No Content`。執行：clear cache → clear SystemSettings row → 對應 hub broadcast `cleared` 事件（前端收到即清畫面/list）。
+- [ ] **Web UI Clear surface (兩處都放)**：
+  - Admin status (`/`)：三個 overlay hub card 各加「清空」按鈕（含二次確認 dialog，沿用 Task 20d 確認 dialog 範式）。
+  - Overlay route header (`/overlay/chat` / `/alerts` / `/member`)：header 加「清空」按鈕（同二次確認）。
+- [ ] **前端 dedupe**：`useOverlayHub` events list 改 by `eventId` upsert，避免 replay + live 雙收同一 event 重複顯示（Forwarder 寫入時 unique eventId 保證）。
+- [ ] **清空事件 contract**：hub `cleared` 訊息為 `{ hubName: "chat"|"alerts"|"member" }`，前端 `useOverlayHub` 訂閱 `cleared` event 即 reset list。
+- [ ] **Capacity 設定可動態**：cap 透過 SystemSettings key `Overlay.History.Cap.{HubName}` 覆寫（缺 key 用 default 30/20/20）。MVP 不提供 UI 編輯入口。
+
+**驗證：**
+- [ ] Unit test：`OverlayHistoryService<T>` `AddAsync` 超過 cap 後 oldest dequeue、SystemSettings JSON 為 cap 內 list。
+- [ ] Unit test：service 建構時 `LoadFromDb` 從現有 SystemSettings row 還原；DB 缺表 / JSON 壞掉時不丟例外、cache 為空。
+- [ ] Unit test：`OverlayEventForwarder` 對 chat/alerts/member event 之 history 寫入與 broadcast 序列正確（history.AddAsync 在 hub.SendAsync 之前）。
+- [ ] Unit test：Hub `OnConnectedAsync` 對 caller send 全部 history payload，alerts hub 的 replay payload `Replayed=true`、chat hub 無此 flag。
+- [ ] Unit test：Clear endpoint 清掉 cache + SystemSettings + broadcast `cleared` 事件，repeat call 不丟例外。
+- [ ] Vitest：`useOverlayHub` 對重複 `eventId` 之 event upsert 不雙列；收到 `cleared` 事件 list 清空。
+- [ ] Vitest：AlertOverlay 收到 `replayed=true` event push 進 list 但不呼叫動畫 hook（透過 spy 斷言）。
+- [ ] Browser manual：開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history → 按 admin 「清空」→ overlay 即時清空 → 再送一筆即時顯示。
+- [ ] Browser manual：alerts overlay tab 開著時送 follow → 動畫播放；F5 後 history 補上但**不**重播動畫。
+
+**依賴：** Task 19 (frontend skeleton)、Task 20a (simulate 已存在便於驗證)。建議在 Task 20b (event monitor) 之前完成，因 history endpoint 與 dedupe 思路 monitor 可沿用。
+
+**預計觸及檔案：**
+- `src/Vulperonex.Application/Overlay/IOverlayHistoryService.cs`（新）
+- `src/Vulperonex.Infrastructure/Overlay/OverlayHistoryService.cs`（新）
+- `src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs`（改）
+- `src/Hosts/Vulperonex.Web/SignalR/OverlayHubs.cs`（改：加 `OnConnectedAsync`）
+- `src/Hosts/Vulperonex.Web/Endpoints/OverlayHistoryEndpoints.cs`（新）
+- `src/Application/Vulperonex.Application/Overlay/Dtos/OverlayAlertPayload.cs`（改：加 `Replayed`）
+- `src/frontend/src/composables/useOverlayHub.ts`（改：dedupe + `cleared`）
+- `src/frontend/src/views/overlay/*.vue`（改：header 加 clear 按鈕；AlertOverlay gating 動畫）
+- `src/frontend/src/views/admin/AdminStatusView.vue`（改：overlay hub card 加 clear 按鈕）
+- `src/frontend/src/api/client.ts`（改：加 `clearOverlayHistory(hubName)`）
+- 對應 unit test / vitest 檔案
+
+**規模：** M（複用既有 SystemSettings + Omni-Commander pattern，無 migration）
 
 ---
 
@@ -263,7 +322,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 | SignalR 測試在 CI flake | 中 | 自動化測試驗 contract/state；時序只在 manual verification 補充 |
 | Desktop/Photino 問題遮蔽 Web UI 問題 | 中 | 先用瀏覽器驗證 Web host，再進 Task 21 Desktop shell |
 | 目前 Phase 5.5 CLI id resolution worktree 尚未收斂 | 低 | Phase 6 docs 不依賴該 dirty diff；實作 Task 20 前再確認 API/CLI 最終命令語意 |
-| **.NET 10.0 + Photino 3.x 兼容性未經驗證 (II30)** | 中 | Task 19 先以瀏覽器驗證 Web UI；Task 21 負責 .NET 10.0 + Photino 3.x compatibility 預驗。若遭遇 native runtime 崩潰，提供「切回 WebView2 fallback 或改以獨立 Kestrel 服務運行」之緩解手段。 |
+| **.NET 10.0 + Photino 3.x 相容性未驗證 (II30)** | 中 | Task 19 先以瀏覽器驗證 Web UI；Task 21 負責 .NET 10.0 + Photino 3.x compatibility 預驗。若遭遇 native runtime 崩潰，提供「切回 WebView2 fallback 或改以獨立 Kestrel 服務執行」之緩解手段。 |
 
 ---
 
@@ -277,7 +336,8 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 6. Task 20c：rule list/show + enable/disable/delete。
 7. Task 20d：rule create/update JSON editor + validation display。
 8. Task 20e：Twitch auth panel。
-9. Task 18：Serilog/AppLogs。
-10. Task 21：Photino Desktop shell。
+9. Task 22：Overlay 歷史持久化 + 清理 surface（建議與 Task 20a 同步或緊接，因影響驗證體感）。
+10. Task 18：Serilog/AppLogs。
+11. Task 21：Photino Desktop shell。
 
 Task 20 建議拆成多個 commit；每個 panel 完成後都可用瀏覽器手動驗證。
