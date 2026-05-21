@@ -7,7 +7,7 @@ import { useStreamEvents } from "@/composables/useStreamEvents";
 const { t } = useI18n();
 const health = ref<string>("...");
 const twitchStatus = ref<TwitchAuthStatusResponse | null>(null);
-const { events, state, start } = useStreamEvents();
+const { events, state, error: streamError, start } = useStreamEvents();
 
 const twitchLabel = computed(() => {
   if (!twitchStatus.value?.clientIdConfigured) {
@@ -59,6 +59,7 @@ async function loadTwitchStatus(): Promise<void> {
       <article class="status-card">
         <p class="status-label">SignalR</p>
         <p class="status-value">{{ state }}</p>
+        <p v-if="streamError" class="status-error" role="alert">{{ streamError }}</p>
       </article>
       <article class="status-card">
         <p class="status-label">{{ t("status.eventCount") }}</p>

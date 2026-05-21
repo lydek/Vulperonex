@@ -120,6 +120,12 @@ textarea {
   margin: 0;
 }
 
+.status-error {
+  color: #b3261e;
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
 .event-list {
   display: grid;
   gap: 8px;
