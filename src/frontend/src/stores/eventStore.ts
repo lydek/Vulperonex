@@ -6,7 +6,6 @@ export interface StreamEventEnvelope {
   eventId: string;
   platform: string;
   occurredAt?: string;
-  timestamp?: string;
 }
 
 export const useEventStore = defineStore("events", () => {
@@ -22,14 +21,13 @@ export const useEventStore = defineStore("events", () => {
       return;
     }
 
-    eventsById.value = {
-      ...eventsById.value,
-      [envelope.eventId]: envelope
-    };
+    eventsById.value[envelope.eventId] = envelope;
   }
 
   function clear(): void {
-    eventsById.value = {};
+    for (const key of Object.keys(eventsById.value)) {
+      delete eventsById.value[key];
+    }
   }
 
   return {
@@ -41,11 +39,11 @@ export const useEventStore = defineStore("events", () => {
 });
 
 function getEnvelopeTime(envelope: StreamEventEnvelope): number {
-  const rawTimestamp = envelope.timestamp ?? envelope.occurredAt;
-  if (!rawTimestamp) {
+  const rawOccurredAt = envelope.occurredAt;
+  if (!rawOccurredAt) {
     return 0;
   }
 
-  const timestamp = Date.parse(rawTimestamp);
-  return Number.isNaN(timestamp) ? 0 : timestamp;
+  const parsed = Date.parse(rawOccurredAt);
+  return Number.isNaN(parsed) ? 0 : parsed;
 }

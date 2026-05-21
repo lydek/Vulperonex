@@ -24,7 +24,7 @@
 > Vitest 測試命名遵守 `should * when *` 格式（如 `should preserve textarea content when API returns 400`）。
 
 - [ ] Task 20a：Simulate 面板支援 chat/follow/sub 短 alias，成功後顯示 ack 響應與 accepted/eventId/platformUserId 資訊。
-- [ ] Task 20b：Event 監看器顯示 SignalR envelope 與最近事件列表。精確鎖定 envelope schema 欄位為 `{ type, schemaVersion, eventId, platform, timestamp, data }`。
+- [ ] Task 20b：Event 監看器顯示 SignalR envelope 與最近事件列表。精確鎖定 envelope schema 欄位為 `{ type, eventId, platform, occurredAt }`（對齊 Phase 5 後端 `StreamEventEnvelope` record）。`schemaVersion` 與 `data` 欄位之擴充延後至 Phase 7。
 - [ ] Task 20c：Member 面板僅支援 list/show 唯讀操作；不提供 seed/delete 按鈕，不新增 member CRUD 端點。成員唯讀負向測試斷言 (Z10)：所有成員欄位（如姓名、平台識別碼等）在 Web UI 內均為唯讀，不允許直接編輯，且 Vitest 需斷言沒有 seed/delete 操作入口。測試資料建立與清理由 CLI/manual test surface 處理。
 - [ ] Task 20d：Rule 面板支援 list/show，顯示 enabled、version、priority、createdAt，刪除等操作導入二次確認對話框。實作樂觀鎖支援 (II17)：前端更新 Rule 時在 DTO 攜帶 `version` 欄位，後端回傳 409 Conflict 時，前端必須捕捉錯誤並彈出專屬樂觀鎖衝突提示，引導重新載入或覆蓋。
 - [ ] Task 20e：EventTypeKey Dropdown 實作：**確實排除過濾** `platform.connection_changed` (isSystemEvent: true)，且 Dropdown 以 badge 標示三種 canonical 可模擬 keys，其餘 keys（`user.donated`、`user.gifted_sub`、`channel.raided`、`reward.redeemed`）確實標示為不支援。

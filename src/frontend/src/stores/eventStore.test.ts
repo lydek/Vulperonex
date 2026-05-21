@@ -34,15 +34,15 @@ describe("useEventStore", () => {
       type: "chat.message",
       eventId: "evt-1",
       platform: "simulation",
-      timestamp: "2026-05-21T10:01:00.000Z"
+      occurredAt: "2026-05-21T10:01:00.000Z"
     });
     store.upsertEvent({
       type: "chat.message",
       eventId: "evt-1",
       platform: "simulation",
-      timestamp: "2026-05-21T09:59:00.000Z"
+      occurredAt: "2026-05-21T09:59:00.000Z"
     });
 
-    expect(store.eventsById["evt-1"].timestamp).toBe("2026-05-21T10:01:00.000Z");
+    expect(store.eventsById["evt-1"].occurredAt).toBe("2026-05-21T10:01:00.000Z");
   });
 });

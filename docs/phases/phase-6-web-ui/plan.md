@@ -111,7 +111,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 - [ ] **useEventStore Setup Store 設計 (II7, II10)**：
   - 前端與後端管理 Hub `/hubs/events` 的通訊由 `useStreamEvents` composable 處理，但接收到的所有事件信封（Envelope）必須轉推並匯流至 Pinia Setup Store `useEventStore` (位於 `src/frontend/src/stores/eventStore.ts`)。
   - **命名與單向數據流規範 (II10)**：Pinia store 統一採用 Setup Store 語法，命名規則必須為 `use[Feature]Store` (例如 `useAuthStore`、`useWorkflowStore`、`useMonitorStore`)。狀態必須以唯讀屬性 (`readonly(state)`) 露出，且僅能透過 Store Actions 進行修改，維持 unidirectional data flow (單向數據流)。
-  - **資料去重與一致性 (Last-write-wins) (II7)**：Store 內以 `eventId` 為 key 進行儲存與維護。由 `useEventStore` 作為 **Last-write-wins reducer** 的實作位置。當 SignalR 與 HTTP Polling fallback 同時傳來相同 `eventId` 的事件時，必須比對 envelope 的 `timestamp`，採用 `last-write-wins` (LWW) 覆蓋策略，將最新 timestamp 的內容寫入 store。
+  - **資料去重與一致性 (Last-write-wins) (II7)**：Store 內以 `eventId` 為 key 進行儲存與維護。由 `useEventStore` 作為 **Last-write-wins reducer** 的實作位置。當 SignalR 與 HTTP Polling fallback 同時傳來相同 `eventId` 的事件時，必須比對 envelope 的 `occurredAt`，採用 `last-write-wins` (LWW) 覆蓋策略，將最新 occurredAt 的內容寫入 store。
   - **Overlay 獨立與解耦設計**：Overlay（`/overlay/chat`, `/overlay/alerts`）不共享 `useEventStore` 的狀態。它們應直接並單獨呼叫各自的 `useOverlayHub(hubName)` composable 連線對應 of `/hubs/overlay/chat` 與 `/hubs/overlay/alerts` 獨立 Hub。這能確保 Overlay 的安全性邊界（僅消費白名單欄位，不將敏感的管理主控台資料帶入 Overlay 頁面，防範 DTO 溢出）。
 - [ ] 管理 admin 首頁僅顯示狀態卡片（API health、Twitch auth status、no-Twitch mode），Dashboard Log Widget 標記為 **Defer (非 MVP 範疇)**。
 - [ ] UI text 走 vue-i18n；至少提供 `zh-TW` 與 `en-US` 語系檔，並由 manifest 檔 `src/frontend/src/i18n/manifest.json` 控制可用語系，其格式為 `{ "locales": ["zh-TW", "en-US"], "default": "zh-TW" }`。缺字串則顯示 key 名稱而不 crash。
@@ -154,7 +154,7 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 
 **驗收標準：**
 - [ ] Simulate panel 支援 chat/follow/sub，送出後顯示 ack：accepted、eventTypeKey、eventId、platformUserId、displayName。
-- [ ] Event monitor 顯示 `/hubs/events` envelope，精確鎖定其 schema 欄位為 `{ type, schemaVersion, eventId, platform, timestamp, data }`。
+- [ ] Event monitor 顯示 `/hubs/events` envelope，精確鎖定其 schema 欄位為 `{ type, eventId, platform, occurredAt }`（Phase 5 後端實際 emit 格式，定義於 `src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs` 之 `StreamEventEnvelope` record）。`schemaVersion` 與 `data` 欄位之擴充延後至 Phase 7 (非 MVP 範疇)。
 - [ ] Member panel 僅支援 list/show 唯讀操作；**不提供 seed/delete 按鈕，不新增 member CRUD 端點**。測試資料建立與清理由 CLI/manual test surface 處理。
 - [ ] **成員唯讀負向測試斷言 (Z10)**：所有成員欄位（如姓名、平台識別碼等）在 Web UI 內均為唯讀，不允許在前端直接編輯，且不可出現 seed/delete 操作入口。
 - [ ] Rule panel 支援 list/show/create/update/enable/disable/delete。
