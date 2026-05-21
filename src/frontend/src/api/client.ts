@@ -8,6 +8,25 @@ export interface TwitchAuthStatusResponse {
   hasRefreshToken: boolean;
 }
 
+export type SimulateAlias = "chat" | "follow" | "sub";
+
+export interface SimulateRequestBody {
+  platformUserId?: string;
+  displayName?: string;
+  message?: string;
+  tier?: string;
+}
+
+export interface SimulateAck {
+  accepted: boolean;
+  eventTypeKey: string;
+  eventId: string;
+  platform: string;
+  platformUserId: string | null;
+  displayName: string | null;
+  occurredAt: string;
+}
+
 const configuredBaseUrl = import.meta.env.VITE_API_URL?.trim();
 
 export const apiBaseUrl = configuredBaseUrl
@@ -20,6 +39,28 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
 
 export async function getTwitchAuthStatus(signal?: AbortSignal): Promise<TwitchAuthStatusResponse> {
   return getJson<TwitchAuthStatusResponse>("/api/twitch/auth/status", signal);
+}
+
+export async function postSimulate(
+  alias: SimulateAlias,
+  body: SimulateRequestBody,
+  signal?: AbortSignal
+): Promise<SimulateAck> {
+  const response = await fetch(`${apiBaseUrl}/api/simulate/${alias}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+
+  return response.json() as Promise<SimulateAck>;
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -49,5 +90,17 @@ export class ApiError extends Error {
     public readonly body: string
   ) {
     super(`API request failed with HTTP ${status}`);
+  }
+
+  public get errorCode(): string | null {
+    if (!this.body) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(this.body) as { error?: unknown };
+      return typeof parsed.error === "string" ? parsed.error : null;
+    } catch {
+      return null;
+    }
   }
 }
