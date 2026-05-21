@@ -63,9 +63,9 @@
 - [x] Task 22b：實作 `OverlayHistoryService<TPayload>` (Infrastructure 層)：`ConcurrentQueue<TPayload>` cache + `SemaphoreSlim(1,1)` 寫入鎖；建構時 `LoadFromDb()` rehydrate（DB 缺表 / JSON 壞 → log warn + 空 cache，不 fail-fast）；`AddAsync` enqueue → trim cap → 全量 JSON 寫回對應 SystemSetting row；`ClearAllAsync` 清 cache + 清 SystemSettings row。
 - [x] Task 22c：DI 註冊三個 typed service：`IOverlayHistoryService<OverlayChatPayload>` / `IOverlayHistoryService<OverlayAlertPayload>` / `IOverlayHistoryService<OverlayMemberPayload>` (Singleton)。
 - [x] Task 22d：`OverlayAlertPayload` 加 `Replayed: bool` 欄位（default `false`）；OverlayChatPayload / OverlayMemberPayload 不加。
-- [ ] Task 22e：改寫 `OverlayEventForwarder`：對 chat/alerts payload 先 `history.AddAsync` 再 `Clients.All.SendAsync("event", ...)`。history 寫入失敗以 `log.Warn` 帶過，不阻斷 broadcast。member hub MVP 無事件來源 → 不寫入。
-- [ ] Task 22f：三個 hub override `OnConnectedAsync`，對 `Clients.Caller` 逐筆 `SendAsync("event", payload)` 已有歷史；alerts hub replay 時對每筆 payload `with { Replayed = true }`。
-- [ ] Task 22g：新增 `OverlayHistoryEndpoints`：`DELETE /api/overlay/{chat|alerts|member}/messages` → 呼叫對應 service `ClearAllAsync` → 對應 hub `Clients.All.SendAsync("cleared", new { hubName })` → 回傳 `204 No Content`。
+- [x] Task 22e：改寫 `OverlayEventForwarder`：對 chat/alerts payload 先 `history.AddAsync` 再 `Clients.All.SendAsync("event", ...)`。history 寫入失敗以 `log.Warn` 帶過，不阻斷 broadcast。member hub MVP 無事件來源 → 不寫入。
+- [x] Task 22f：三個 hub override `OnConnectedAsync`，對 `Clients.Caller` 逐筆 `SendAsync("event", payload)` 已有歷史；alerts hub replay 時對每筆 payload `with { Replayed = true }`。
+- [x] Task 22g：新增 `OverlayHistoryEndpoints`：`DELETE /api/overlay/{chat|alerts|member}/messages` → 呼叫對應 service `ClearAllAsync` → 對應 hub `Clients.All.SendAsync("cleared", new { hubName })` → 回傳 `204 No Content`。
 - [ ] Task 22h：前端 `useOverlayHub` 改 dedupe by `eventId` (upsert)；訂閱 hub `cleared` event → reset list；暴露 `clear()` 方法 (內部呼叫 `clearOverlayHistory(hubName)` API)。
 - [ ] Task 22i：`api/client.ts` 新增 `clearOverlayHistory(hubName: OverlayHubName)` (DELETE `/api/overlay/{hubName}/messages`)。
 - [ ] Task 22j：三個 overlay route view (`ChatOverlayView` / `AlertOverlayView` / `MemberOverlayView`) header 加「清空」按鈕（含二次確認 dialog，沿用 Task 20d 確認範式）。AlertOverlay 對 `replayed=true` payload push 進 list 但不觸發動畫/音效 hook（音效 Phase 7 才上）。

@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Vulperonex.Application.EventBus;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Web;
 using Xunit;
@@ -161,6 +162,114 @@ public sealed class SignalRHubTests
                 await connection.DisposeAsync();
             }
         }
+    }
+
+    [Fact]
+    public async Task Given_PriorChatHistory_When_OverlayChatHubConnects_Then_HistoryReplayedToCaller()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var firstResponse = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new { message = "history-1" },
+            TestContext.Current.CancellationToken);
+        firstResponse.EnsureSuccessStatusCode();
+        var secondResponse = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new { message = "history-2" },
+            TestContext.Current.CancellationToken);
+        secondResponse.EnsureSuccessStatusCode();
+        await app.Services.GetRequiredService<IStreamEventBus>()
+            .WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        var received = new List<string>();
+        var allReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/chat"))
+            .Build();
+        connection.On<JsonElement>("event", payload =>
+        {
+            received.Add(payload.GetProperty("segments")[0].GetProperty("value").GetString()!);
+            if (received.Count >= 2)
+            {
+                allReceived.TrySetResult();
+            }
+        });
+
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+        var completed = await Task.WhenAny(allReceived.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+        completed.Should().Be(allReceived.Task);
+        received.Should().Equal("history-1", "history-2");
+    }
+
+    [Fact]
+    public async Task Given_PriorAlertHistory_When_OverlayAlertsHubConnects_Then_ReplayedFlagIsTrue()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var followResponse = await client.PostAsJsonAsync(
+            "/api/simulate/follow",
+            new { displayName = "ReplayedFollower" },
+            TestContext.Current.CancellationToken);
+        followResponse.EnsureSuccessStatusCode();
+        await app.Services.GetRequiredService<IStreamEventBus>()
+            .WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        var message = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/alerts"))
+            .Build();
+        connection.On<JsonElement>("event", payload => message.TrySetResult(payload));
+
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+        var completed = await Task.WhenAny(message.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+        completed.Should().Be(message.Task);
+        var payload = await message.Task;
+        payload.GetProperty("replayed").GetBoolean().Should().BeTrue();
+        payload.GetProperty("displayName").GetString().Should().Be("ReplayedFollower");
+    }
+
+    [Fact]
+    public async Task Given_HistoryExists_When_ClearEndpointCalled_Then_HubBroadcastsClearedAndNextConnectGetsNothing()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var seedResponse = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new { message = "to-be-cleared" },
+            TestContext.Current.CancellationToken);
+        seedResponse.EnsureSuccessStatusCode();
+        await app.Services.GetRequiredService<IStreamEventBus>()
+            .WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        var cleared = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var listener = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/chat"))
+            .Build();
+        listener.On<JsonElement>("cleared", payload => cleared.TrySetResult(payload));
+        await listener.StartAsync(TestContext.Current.CancellationToken);
+
+        var clearResponse = await client.DeleteAsync("/api/overlay/chat/messages", TestContext.Current.CancellationToken);
+        clearResponse.StatusCode.Should().Be(System.Net.HttpStatusCode.NoContent);
+
+        var clearedCompleted = await Task.WhenAny(cleared.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        clearedCompleted.Should().Be(cleared.Task);
+        (await cleared.Task).GetProperty("hubName").GetString().Should().Be("chat");
+
+        var received = new List<JsonElement>();
+        await using var freshConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/chat"))
+            .Build();
+        freshConnection.On<JsonElement>("event", payload => received.Add(payload));
+        await freshConnection.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+
+        received.Should().BeEmpty();
     }
 
     private static async Task<WebApplication> StartAppAsync()

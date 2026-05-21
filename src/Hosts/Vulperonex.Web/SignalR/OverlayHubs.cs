@@ -1,12 +1,49 @@
+using Microsoft.AspNetCore.SignalR;
+using Vulperonex.Application.Overlay;
+using Vulperonex.Application.Overlay.Dtos;
+
 namespace Vulperonex.Web.SignalR;
 
-public sealed class EventsHub : Microsoft.AspNetCore.SignalR.Hub;
+public sealed class EventsHub : Hub;
 
-public sealed class OverlayChatHub : Microsoft.AspNetCore.SignalR.Hub;
+public sealed class OverlayChatHub(IOverlayHistoryService<OverlayChatPayload> history) : Hub
+{
+    public override async Task OnConnectedAsync()
+    {
+        foreach (var payload in await history.GetRecentAsync(Context.ConnectionAborted))
+        {
+            await Clients.Caller.SendAsync("event", payload, Context.ConnectionAborted);
+        }
 
-public sealed class OverlayAlertsHub : Microsoft.AspNetCore.SignalR.Hub;
+        await base.OnConnectedAsync();
+    }
+}
 
-public sealed class OverlayMemberHub : Microsoft.AspNetCore.SignalR.Hub;
+public sealed class OverlayAlertsHub(IOverlayHistoryService<OverlayAlertPayload> history) : Hub
+{
+    public override async Task OnConnectedAsync()
+    {
+        foreach (var payload in await history.GetRecentAsync(Context.ConnectionAborted))
+        {
+            await Clients.Caller.SendAsync("event", payload with { Replayed = true }, Context.ConnectionAborted);
+        }
+
+        await base.OnConnectedAsync();
+    }
+}
+
+public sealed class OverlayMemberHub(IOverlayHistoryService<OverlayMemberPayload> history) : Hub
+{
+    public override async Task OnConnectedAsync()
+    {
+        foreach (var payload in await history.GetRecentAsync(Context.ConnectionAborted))
+        {
+            await Clients.Caller.SendAsync("event", payload, Context.ConnectionAborted);
+        }
+
+        await base.OnConnectedAsync();
+    }
+}
 
 public static class OverlayHubEndpoints
 {
