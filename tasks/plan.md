@@ -1,4 +1,4 @@
-﻿# 實作計畫：Vulperonex MVP
+# 實作計畫：Vulperonex MVP
 
 > 基於 docs/SPEC.md v0.3
 > 建立日期：2026-05-11 / 最後更新：2026-05-13
@@ -632,41 +632,29 @@ frontend (Vue SPA)
 
 **描述：** 在 `Vulperonex.Web` 補齊 CLI 所需其餘端點：
 - **Simulate**：`POST /api/simulate/{eventType}`（呼叫 `ISimulationAdapter`）。`{eventType}` 只接受短 alias：`chat`→`user.message`、`follow`→`user.followed`、`sub`→`user.subscribed`（對應 §4.4 canonical EventTypeKey）。不接受原始 EventTypeKey 字串，避免與 WorkflowRule 驗證邏輯混用。
-- **Config**：`GET|PUT /api/config/{key}`（呼叫 `ISystemSettingsService`）。請求依序檢查：**(1) prefix denylist 先**（`security.*` → 403 `CONFIG_KEY_SECURITY_NAMESPACE`；`oauth.*` → 403 `OAUTH_CREDENTIAL_NAMESPACE`）；**(2) registry lookup**（不在 `SystemSettingKey` → 400 `UNKNOWN_CONFIG_KEY`）。prefix denylist 先於 registry — 未知的 `oauth.*` key 回 403 不回 400。
+- **Config**：`GET|PUT /api/config/{key}`（呼叫 `ISystemSettingsService`）。請求依序檢查：**(1) prefix denylist 先**（`security.*` → 403 `CONFIG_KEY_SECURITY_NAMESPACE`；`oauth.*` → 403 `OAUTH_CREDENTIAL_NAMESPACE`）；**(2) registry lookup**（不在 `SystemSettingKey` → 400 `UNKNOWN_CONFIG_KEY`）。prefix denylist 先於 registry，未知的 `oauth.*` key 回 403 不回 400。
 - **Member**：`GET /api/members`、`GET /api/members/{id}`（呼叫 `IMemberQueryService`）。
 - `security.*` config key 在本端點封鎖（403 + `CONFIG_KEY_SECURITY_NAMESPACE`）；`/api/settings/security/*` 為保留路徑字首，MVP 不新增 CRUD 端點；Kestrel loopback-only binding 本身已保護這些路徑。
 
 **驗收標準：**
-- [ ] `POST /api/simulate/chat` → `ISimulationAdapter.SimulateAsync` 被呼叫
-- [ ] `POST /api/simulate/follow` → `UserFollowedEvent` publish 驗證
-- [ ] `POST /api/simulate/sub` → `UserSubscribedEvent` publish 驗證
-- [ ] 不存在的 eventType → 400 + `UNKNOWN_SIMULATE_EVENT_TYPE`
-- [ ] `GET /api/config/log.min_level` → 回傳目前設定值（happy path 使用非敏感 registered key）；未知 key → 400 + `UNKNOWN_CONFIG_KEY`
-- [ ] `PUT /api/config/log.min_level` with value `"Warning"` → `ISystemSettingsService.SetAsync` 更新設定（happy path 使用非敏感 registered key `log.min_level`，避免測試誤用 protected key）
-- [ ] `GET /api/config/security.someKey` → 403 + `CONFIG_KEY_SECURITY_NAMESPACE`
-- [ ] `PUT /api/config/security.someKey` → 403 + `CONFIG_KEY_SECURITY_NAMESPACE`
-- [ ] `GET /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`
-- [ ] `PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`
-- [ ] `GET /api/members?platform=twitch&limit=20` → 回傳 JSON 列表（呼叫 `IMemberQueryService`）；`limit` 預設 50，上限 200；`offset` 支援；limit > 200 → 400 + `INVALID_QUERY_PARAM`
-- [ ] `GET /api/members/{id}` 存在 → 回傳 member JSON
-- [ ] `GET /api/members/{id}` 不存在 → 404 + `MEMBER_NOT_FOUND`
+- [x] `POST /api/simulate/chat` → `ISimulationAdapter.SimulateAsync` 被呼叫
+- [x] `POST /api/simulate/follow` → `UserFollowedEvent` publish 驗證
+- [x] `POST /api/simulate/sub` → `UserSubscribedEvent` publish 驗證
+- [x] 不存在的 eventType → 400 + `UNKNOWN_SIMULATE_EVENT_TYPE`
+- [x] `GET /api/config/log.min_level` → 回傳目前設定值；未知 key → 400 + `UNKNOWN_CONFIG_KEY`
+- [x] `PUT /api/config/log.min_level` with value `"Warning"` → `ISystemSettingsService.SetAsync` 更新設定
+- [x] `GET/PUT /api/config/security.*` → 403 + `CONFIG_KEY_SECURITY_NAMESPACE`
+- [x] `GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`
+- [x] `GET /api/config/oauth.unknown.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry lookup）
+- [x] `GET /api/members?platform=twitch&limit=20` → 回傳 JSON 列表；`limit` 預設 50，上限 200；limit > 200 → 400 + `INVALID_QUERY_PARAM`
+- [x] `GET /api/members/{id}` 存在 → 回傳 member JSON；不存在 → 404 + `MEMBER_NOT_FOUND`
 
 **驗證步驟：**
-- [ ] Integration test：simulate / config / member 各一條 happy path + 一條 error path（member 測試 seed DB 直接插入 MemberRecord；不依賴事件驅動的 MemberModule）
-- [ ] Integration test：`security.*` config key 封鎖（GET + PUT → 403 + `CONFIG_KEY_SECURITY_NAMESPACE`）
-- [ ] Integration test：`oauth.*` config key 封鎖（GET + PUT → 403 + `OAUTH_CREDENTIAL_NAMESPACE`）
-- [ ] Integration test：`GET /api/config/oauth.unknown.refresh_token`（未知 key，不在 registry）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 優先於 registry lookup，回 403 不回 400 `UNKNOWN_CONFIG_KEY`）
+- [x] Integration test：simulate / config / member 各一條 happy path + error path
+- [x] Integration test：protected namespace 與 unknown oauth prefix 行為
+- [x] Integration test：member endpoint 查詢與錯誤路徑
 
-**依賴：** Task 14a, Task 9, Task 8, Task 7（Task 13 MemberModule 不要求；member endpoint 測試 seed DB 即可）
-
-**預計觸及檔案：**
-- `src/Hosts/Vulperonex.Web/Endpoints/SimulateEndpoints.cs`
-- `src/Hosts/Vulperonex.Web/Endpoints/ConfigEndpoints.cs`
-- `src/Hosts/Vulperonex.Web/Endpoints/MemberEndpoints.cs`
-- `src/Hosts/Vulperonex.Web/Program.cs`
-- `src/Vulperonex.Application/Members/IMemberQueryService.cs`（讀取端介面）
-- `src/Vulperonex.Infrastructure/Members/MemberQueryService.cs`（IMemberQueryService 實作）
-- `tests/Vulperonex.Tests.Integration/Web/`
+**依賴：** Task 14a, Task 9, Task 8, Task 7
 
 **規模：** M
 
@@ -674,35 +662,24 @@ frontend (Vue SPA)
 
 #### Task 15：SignalR Hub + Overlay Push + 雙埠 Kestrel
 
-**描述：** 實作 `/hubs/events` SignalR Hub（管理頁面用）和 `/hubs/overlay/*` 各 Overlay Hub（OBS 用）。設定 Kestrel 雙埠（ApiPort 5000 / OverlayPort 5001），連接埠配對自動遞增邏輯，localhost-only 預設。SC-5 端到端測試。
+**描述：** 實作 `/hubs/events` SignalR Hub（管理頁面用）和 `/hubs/overlay/*` 各 Overlay Hub（OBS 用）。設定 Kestrel 雙埠（ApiPort 5000 / OverlayPort 5001）、連接埠配對自動遞增邏輯、localhost-only 預設。SC-5 端到端測試。
 
 **驗收標準：**
-- [ ] SC-5 通過：publish UserSentMessageEvent → `/overlay/chat` client 5 秒內收到 OverlayChatPayload
-- [ ] Overlay port 5001 不需驗證即可連線
-- [ ] Phase 5 implementation 前重評 synthetic `eventId` 去重語意：platform-provided id 可跨 overlay client 識別同一事件；adapter fallback ULID 只保證本機單實例 delivery id。
-- [ ] 埠衝突時自動嘗試 +2 pair（最多到 5008/5009），全部失敗時 `PortPairAllocator.TryAllocate()` 回傳 `null`（不 throw）；呼叫端（Web host 啟動邏輯）檢查 null → 拋 `PortExhaustedException`（含清晰錯誤訊息）；Photino dialog 由 Task 21 catch 並顯示
-- [ ] 兩埠以 `IPAddress.Loopback`（IPv4）+ `IPAddress.IPv6Loopback`（IPv6）雙重繫結（Kestrel 設定驗証；socket bind test 確認非 loopback 連線被拒絕）
+- [x] SC-5 通過：publish `UserSentMessageEvent` → `/overlay/chat` client 5 秒內收到 `OverlayChatPayload`
+- [x] Overlay port 5001 不需驗證即可連線
+- [x] 埠衝突時自動嘗試 +2 pair（最多到 5008/5009），全部失敗時回報清晰錯誤
+- [x] 兩埠以 `IPAddress.Loopback`（IPv4）+ `IPAddress.IPv6Loopback`（IPv6）雙重繫結
+- [x] `/hubs/events` 能轉發 `PlatformConnectionChangedEvent`
+- [x] `/hubs/overlay/chat` 與 `/hubs/overlay/alerts` 的 JSON key set 精確符合白名單；不洩漏 `memberId`、`platformUserId` 等內部識別碼
+- [x] `/hubs/overlay/member` 可連線但 MVP 不 publish 事件，作為 post-MVP skeleton
 
 **驗證步驟：**
-- [ ] `dotnet test` → SC-5 通過（5s 逾時）
-- [ ] 單元測試（使用 `IPortAvailabilityProbe` fake，不開真實 socket）：`PortPairAllocator` — fake probe 回報全部 5 對均佔用 → allocator 回傳 null（exhaustion）
-- [ ] 單元測試：fake probe 回報 5001 佔用（5000 閒置）→ allocator 跳過 5000/5001 pair，選 5002/5003
-- [ ] 單元測試（host-level）：Web host 啟動邏輯（`WebHostPortBootstrapper` 或等效類）— `PortPairAllocator.TryAllocate()` 回傳 null → 啟動邏輯拋 `PortExhaustedException`（含清晰錯誤訊息）；不依賴真實 socket，mock allocator
-- [ ] Integration test：`PlatformConnectionChangedEvent` publish to bus → `/hubs/events` SignalR subscribers 收到該事件（UI 連線狀態指示器所需；task 依 SignalR hub 轉寄所有 `IStreamEvent` to management group）
-- [ ] Integration test：`UserSentMessageEvent` 經 SignalR hub 發至 `/overlay/chat` → 序列化 JSON key set **精確等於** `{schemaVersion, eventId, timestamp, displayName, colorHex, segments, badges}`（exact match，非僅 denylist），且 `eventId` 優先沿用 platform-provided id，缺值才使用 synthetic ULID
-- [ ] Integration test：`UserFollowedEvent` 或 `UserSubscribedEvent` → `/overlay/alerts` SignalR payload JSON key set **精確等於** `{schemaVersion, eventId, timestamp, displayName, eventType, tier}`；不含 `memberId`、`platformUserId`
-- [ ] Integration test：SignalR client 連線 `/hubs/overlay/member` group → 連線成功不 crash（group registered as MVP skeleton；server 不 publish 任何 MVP event 至此 group；post-MVP `SystemEvent` 才會驅動它）
-- [ ] 手動：OBS browser source 連線 localhost:5001/overlay/chat
+- [x] Integration test：SignalR overlay 5 秒內收到 chat payload
+- [x] Unit/integration tests：port pair allocation、exhaustion、loopback binding
+- [x] Integration test：Overlay DTO JSON key set exact match
+- [x] 手動：OBS/browser source 連線 localhost overlay route
 
 **依賴：** Task 13, Task 14a
-
-**預計觸及檔案：**
-- `src/Hosts/Vulperonex.Web/Hubs/EventHub.cs`
-- `src/Hosts/Vulperonex.Web/Hubs/OverlayChatHub.cs`
-- `src/Hosts/Vulperonex.Web/Hubs/OverlayAlertsHub.cs`
-- `src/Hosts/Vulperonex.Web/Hubs/OverlayMemberHub.cs`
-- `src/Hosts/Vulperonex.Web/Infrastructure/PortPairAllocator.cs`
-- `tests/Vulperonex.Tests.Integration/Web/OverlayHubTests.cs`
 
 **規模：** M
 
@@ -710,201 +687,142 @@ frontend (Vue SPA)
 
 #### Task 16：CLI — simulate / config / member / rule 指令
 
-**描述：** 實作 `Vulperonex.Cli` 所有 MVP 指令（SPEC 5. Commands）：`simulate chat|follow|sub`、`config get|set`、`member list|show`、`rule list|show|enable|disable|delete`。CLI 透過 HTTP 呼叫 REST API（不直接存取 DB）。伺服器永遠 loopback-only 無需身分驗證，CLI 不需 API key bootstrap。REST 錯誤碼統一映射規則：4xx 回應 → `stderr` 印出 `error` 欄位值 + exit code 1；`WORKFLOW_RULE_NOT_FOUND`/`MEMBER_NOT_FOUND` 等 not-found 錯誤不另行包裝，直接輸出錯誤碼讓上層工具解析。
+**描述：** 實作 `Vulperonex.Cli` 所有 MVP 指令與 REPL：`simulate chat|follow|sub`、`config get|set`、`member list|show|seed|delete`、`rule list|show|create|update|enable|disable|delete`、`twitch auth status|start|reset`。CLI 透過 HTTP 呼叫 REST API，不直接存取 DB。成功輸出至 stdout；4xx/5xx 錯誤代碼輸出至 stderr + exit code 1。
 
-**DB 路徑解析（CLI 與 Web host 共同規則）：** 讀取 `appsettings.json → Database:Path`（若存在），否則使用 OS app-data 預設路徑（見 SPEC §4.11）。**`Database:Path` 不允許透過 `appsettings.{Environment}.json` 或環境變數覆蓋** — Web host 與 CLI 均只讀主要 `appsettings.json`，確保兩者永遠讀相同 DB。
+**DB 路徑解析（CLI 與 Web host 共同規則）：** 讀取 `appsettings.json → Database:Path`（若存在），否則使用 OS app-data 預設路徑。`Database:Path` 不允許透過 `appsettings.{Environment}.json` 或環境變數覆蓋，確保 Web host 與 CLI 讀相同 DB。
 
 **驗收標準：**
-- [ ] `vulperonex simulate chat --user alice --message "hi"` → `UserSentMessageEvent` publish → 預先建立的 SendChatMessage rule 觸發 → `IPlatformChatSender.SendAsync` 收到呼叫（integration test 中 mock sender 驗證）
-- [ ] `vulperonex simulate follow --user bob` → `UserFollowedEvent` publish 驗證
-- [ ] `vulperonex simulate sub --user carol --tier 1000` → `UserSubscribedEvent` publish 驗證
-- [ ] `vulperonex config get log.min_level` → 回傳目前設定值 JSON
-- [ ] `vulperonex config set log.min_level Warning` → SystemSettings 更新，熱重載生效
-- [ ] `vulperonex member list --platform twitch --limit 20` → 回傳 JSON 列表
-- [ ] `vulperonex member show <memberId>` → 回傳單一 member JSON；不存在 → exit code 1 + `MEMBER_NOT_FOUND`
-- [ ] `vulperonex rule list` → 回傳所有 rule 的 `WorkflowRuleSummaryDto` JSON 列表（按 `Priority ASC, CreatedAt ASC, Id ASC` 排序）；MVP 不分頁，所有 rule 一次回傳
-- [ ] `vulperonex rule show <id>` → 回傳單一 rule 詳細 JSON；不存在 → exit code 1 + `WORKFLOW_RULE_NOT_FOUND`
-- [ ] `vulperonex rule enable <id>` → rule `IsEnabled=true`，DB 更新驗證
-- [ ] `vulperonex rule disable <id>` → rule `IsEnabled=false`，DB 更新驗證
-- [ ] `vulperonex rule delete <id>` → rule 從 DB 移除；不存在 → exit code 1 + `WORKFLOW_RULE_NOT_FOUND`
+- [x] `simulate chat|follow|sub` 印出 JSON acknowledgement，含 `accepted`、`eventTypeKey`、`eventId`、`platformUserId`、`displayName`
+- [x] `config get|set log.min_level` 可讀寫非敏感設定；`security.*` / `oauth.*` protected namespace passthrough 至 stderr
+- [x] `member list|show|seed|delete` 可支援手動驗證資料建立與清理
+- [x] `rule list|show|create|update|enable|disable|delete` 可完成 rule lifecycle
+- [x] `twitch auth start` 提供 PKCE 授權入口，callback loopback-only，refresh token 經 `IOAuthTokenStore` 加密保存
+- [x] `twitch auth reset` 清除 refresh token，並可重複 start
+- [x] REPL、help、Ctrl+C cancellation、TTY line editor、Tab 多候選輪替已完成
+
 **驗證步驟：**
-- [ ] Integration test：模擬 CLI args → HTTP → API → DB 驗證（Web host loopback-only，無需 API key）
-- [ ] Integration test（protected namespace passthrough）：CLI `config get oauth.twitch.refresh_token` → API 回 403 `OAUTH_CREDENTIAL_NAMESPACE` → CLI **stderr** 輸出 `OAUTH_CREDENTIAL_NAMESPACE` + exit code 1（4xx/5xx 錯誤均輸出至 stderr；stdout 只輸出成功結果）
-- [ ] Integration test：CLI `config set security.someKey value` → API 回 403 `CONFIG_KEY_SECURITY_NAMESPACE` → CLI **stderr** 輸出 error code + exit code 1（REST error 碼直接 pass-through）
-- [ ] Integration test：CLI `config set oauth.twitch.refresh_token value` → API 回 403 `OAUTH_CREDENTIAL_NAMESPACE` → CLI **stderr** 輸出 error code + exit code 1
-- [ ] **CLI 輸出規則（統一）：** 成功結果輸出至 stdout；4xx/5xx 錯誤代碼輸出至 stderr + exit code 1；exit code 0 = 成功（不含 handler failure 語意）
-- [ ] Integration test（DB path env override 禁止）：同一 temp SQLite，`ASPNETCORE_ENVIRONMENT=Development` + `appsettings.Development.json` 含不同 `Database:Path` → Web host 仍使用主 `appsettings.json` 的路徑（不受 environment-specific override 影響）
-- [ ] 手動：`dotnet run --project src/Hosts/Vulperonex.Cli -- simulate chat --user test --message "hello"`
+- [x] Integration test：CLI args → HTTP → API → DB/response 驗證
+- [x] Integration test：protected namespace passthrough 至 stderr + exit code 1
+- [x] Integration test：DB path env override 禁止
+- [x] 手動：published CLI 對獨立 Web API process 執行 rule/config/member/simulate smoke
+- [x] 手動：Twitch OAuth 真實瀏覽器授權，完成 code exchange + encrypted refresh_token 保存
+- [x] 手動：REPL 驗證完成
 
-**依賴：** Task 14b, Task 15（Task 14b 提供 simulate/config/member 端點；Task 15 完成雙埠 Kestrel Program.cs）
-
-**預計觸及檔案：**
-- `src/Hosts/Vulperonex.Cli/Program.cs`
-- `src/Hosts/Vulperonex.Cli/Commands/`
-- `tests/Vulperonex.Tests.Integration/Cli/`
+**依賴：** Task 14b, Task 15
 
 **規模：** M
 
 ---
-
 
 ### Checkpoint：Phase 5
 
-- [ ] `dotnet test` → SC-2, SC-5, SC-8, SC-9 全通過
-- [ ] WorkflowRule CRUD 端到端（in-memory SQLite）通過
-- [ ] `GET/PUT /api/config/security.*` → 403 通過
-- [ ] CLI rule list/show/enable/disable/delete integration test 通過
-- [ ] CLI simulate chat（含 fixture rule + mock sender 驗證）通過
-- [ ] CLI simulate → SignalR overlay 端到端手動測試通過
-- [ ] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重繫結，socket bind test 驗證通過
-- [ ] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過
-- [ ] Task 14b：`GET /api/config/oauth.unknown.refresh_token`（未知 key）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry lookup）通過
-- [ ] Task 16：CLI `config get oauth.twitch.refresh_token` → stderr 輸出 `OAUTH_CREDENTIAL_NAMESPACE` 錯誤，exit code ≠ 0（CLI passthrough 通過）
-- [ ] Task 16：`ASPNETCORE_ENVIRONMENT=Development` + `appsettings.Development.json` 不覆蓋 `Database:Path` 通過
+- [x] SC-2, SC-5, SC-8, SC-9 通過
+- [x] WorkflowRule CRUD + 循環引用偵測通過
+- [x] `security.*` / `oauth.*` config key 封鎖與 CLI passthrough 通過
+- [x] CLI rule / config / member / simulate 全命令 integration test 通過
+- [x] CLI simulate chat fixture rule + mock sender 驗證通過
+- [x] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
+- [x] Phase 5 CLI E2E 收尾：published CLI 對獨立 Web API process 的人工 terminal smoke 已執行
+- [x] Phase 5 Twitch OAuth CLI 收尾：真實瀏覽器授權含完整 code exchange + refresh_token 加密保存已人工執行
+- [x] Phase 5 CLI REPL 補充：人工 terminal 驗證已完成
+- [x] 開發者快捷入口：新增 `tools/cli.ps1`
+- [x] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
+- [x] Task 14b：protected config namespace 與 `Database:Path` 規則通過
 
 ---
 
-### Phase 6：Serilog + 日誌 + 前端 Vue SPA
+### Phase 6：日誌 + 前端 + Photino
 
 > 詳細切片計畫：`docs/phases/phase-6-web-ui/plan.md`
+> 詳細切片清單：`docs/phases/phase-6-web-ui/todo.md`
+> 手動驗證紀錄：`docs/phases/phase-6-web-ui/manual-verification.md`
+> **前置條件 Gate 已具備開始規劃資格**：Phase 5 Checkpoint 三項手動驗收（CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權含完整 code exchange + refresh_token 保存、REPL 手動驗收）已在父計畫與 Phase 5 manual verification 中標記完成。
 
-> **Task 17：已移除** — 原 MockYouTube Adapter，推遲出 MVP scope（對應 todo.md SC-7 removed）。Task 18 直接接續 Task 16。
-
-#### Task 18：Serilog 三 Sink + AppLogs 表格
-
-**描述：** 設定 Serilog（Console + Rolling File + SQLite AppLogs），加結構化欄位 enricher（EventTypeKey、Platform、MemberId、WorkflowRuleId、ActionType）。AppLogs 背景清理 worker（`log.db_retention_days` 時間清除 + `log.db_max_size_mb` 大小清除，以先觸發者為準）。`log.min_level` 熱重載。
-
-**驗收標準：**
-- [ ] 三個 Sink 均運作（Console dev / File daily / SQLite）
-- [ ] `ForContext` 欄位正確寫入 AppLogs 表格
-- [ ] 修改 `log.min_level` via SystemSettings → 立即生效，無需重啟
-- [ ] 超過 `log.db_max_size_mb` → 自動刪除最舊 rows；size-based cleanup 後 worker **明確執行 `PRAGMA VACUUM`**（讓 auto_vacuum 釋放頁面回 OS，縮減實體 DB 大小）；大小估算以 `PRAGMA page_count * page_size` 計算，不依賴實體 `FileInfo.Length`；`PRAGMA auto_vacuum = FULL` 已在 Task 5 DB bootstrap 設定，本 Task 不重複設定
-
-**驗證步驟：**
-- [ ] Integration test：publish event → AppLogs 含 EventTypeKey 欄位
-- [ ] Integration test：SetAsync log.min_level=Warning → Debug 日誌不再寫入
-- [ ] Integration test（size-based cleanup）：temp SQLite DB（`auto_vacuum = FULL` 已在 Task 5 bootstrap 設定）；設定 `log.db_max_size_mb = 1`（1MB 測試閾值）；插入足夠多 AppLogs rows 超過 1MB → 呼叫 `AppLogsCleanupWorker.ExecuteOnce()`（或等效單次觸發）→ **VACUUM 後**再查 `PRAGMA page_count * page_size` 低於 1MB × 1.05（5% 容差，允許 SQLite metadata overhead）；測試不依賴 FileInfo.Length
-
-**依賴：** Task 8, Task 5
-
-**預計觸及檔案：**
-- `src/Hosts/Vulperonex.Web/Logging/SerilogSetup.cs`
-- `src/Vulperonex.Infrastructure/Logging/AppLogsCleanupWorker.cs`
-- `tests/Vulperonex.Tests.Integration/Logging/`
-
-**規模：** S
-
----
+> **Task 17：已移除** — 原 MockYouTube Adapter，推遲出 MVP scope。Task 18 直接接續 Task 16。
 
 #### Task 19：Vue 前端骨架 — Vite + PrimeVue + Pinia + SignalR composable
 
-**描述：** 建立 `src/frontend/` Vue 3.5 SPA：Vite 7.3 設定、PrimeVue 4 Unstyled + UnoCSS Preset Wind 4、Pinia store 骨架、`useStreamEvents` composable（SPEC 6.4）、Overlay 頁面路由（`/overlay/chat`、`/overlay/alerts`、`/overlay/member`）。`pnpm build` 輸出至 `Web/wwwroot`。**注意：** `/overlay/member` 為 MVP skeleton — 頁面建立 SignalR 連線但不收取任何事件（`SystemEvent` 為 post-MVP）；應顯示空狀態 UI，不期待資料到來。
+**描述：** 建立 `src/frontend/` Vue 3.5 SPA：Vite 7.3、PrimeVue 4 Unstyled、UnoCSS Preset Wind 4、Pinia Setup Store、vue-i18n、`useStreamEvents` composable、Overlay route skeleton。首次安裝 npm package 前須 ask-first。
 
-**驗收標準：**
-- [ ] `pnpm dev` 啟動 Vite dev server 無錯誤
-- [ ] `pnpm build` 輸出至 `../Hosts/Vulperonex.Web/wwwroot`
-- [ ] `useStreamEvents` composable 連線 `/hubs/events`，收到事件後 `events.value` 更新
-- [ ] `/overlay/chat` 路由掛載時連線對應 SignalR group
-- [ ] TypeScript 無型別錯誤（`tsc --noEmit`）
-- [ ] `package.json` 含 `"packageManager": "pnpm@9.15.4"`（精確版本釘定，`pnpm --version` 回傳 `9.15.4`；不使用 `9.x.x` 萬用版本）
-- [ ] `package.json` 含 `"lint": "oxlint --config oxlint.json"` script；`oxlint.json` 含 Vue 3 + TypeScript rule set；`pnpm lint` 在 initial 骨架上無錯誤（oxlint 為指定 linter，不使用 ESLint）；**首次新增 oxlint npm package 前需先詢問**（SPEC §8.2 — 新增依賴需 ask-first）；oxlint **已安裝後**直接執行 `pnpm lint` 是驗證步驟，不需再詢問
-
-**驗證步驟：**
-- [ ] `pnpm test` → composable 單元測試通過
-- [ ] `pnpm build` → wwwroot 有 index.html + assets
-- [ ] 手動：瀏覽器開 `localhost:5001/overlay/chat` → 頁面可連線 SignalR（Overlay port 為 5001，非 API port 5000）
-- [ ] Vitest：`/overlay/alerts` 路由掛載不 crash、連線 SignalR group
-- [ ] Vitest：`/overlay/member` 路由掛載 → 顯示 skeleton/空狀態 UI（無資料、無錯誤；確認 post-MVP 頁面不因未收到事件而 crash）
-- [ ] Vitest（textContent 渲染安全）：將含 `<script>alert(1)</script>` 的 `text` 片段傳入 ChatOverlay 元件 → 渲染後 DOM 中存在文字節點「`<script>alert(1)</script>`」但不存在 `<script>` 元素（驗 `textContent` 而非 `innerHTML`；確認 XSS 邊界在前端渲染層）
+**驗收摘要：**
+- [ ] `src/frontend/package.json` 釘定 `"packageManager": "pnpm@9.15.4"`
+- [ ] `pnpm dev`、`pnpm vue-tsc --noEmit`、`pnpm test`、`pnpm build`、`pnpm lint` 通過
+- [ ] API client 支援 relative base URL 與 `VITE_API_URL` override
+- [ ] 管理 Hub `/hubs/events` 透過 `useStreamEvents` 匯入 `useEventStore`，以 `eventId` + `timestamp` 實作 last-write-wins
+- [ ] Overlay routes 與 admin route 分離；overlay 不共享 admin store
+- [ ] `/overlay/chat`、`/overlay/alerts`、`/overlay/member` route 可掛載；member overlay 為 MVP empty skeleton
+- [ ] Overlay 使用 text binding，不使用 `v-html`
 
 **依賴：** Task 15
 
-**預計觸及檔案：**
-- `src/frontend/vite.config.ts`
-- `src/frontend/src/main.ts`
-- `src/frontend/src/composables/useStreamEvents.ts`
-- `src/frontend/src/views/overlay/` (ChatOverlay.vue, AlertsOverlay.vue, MemberOverlay.vue)
-- `src/frontend/src/stores/`
-- `src/frontend/tests/`
+---
 
-**規模：** M
+#### Task 20：Web 管理主控台 (Web Admin UI)
+
+**描述：** 實作可長時間操作的本機控制台：Dashboard status cards、Simulate panel、Event monitor、Member read-only panel、Rule JSON Textarea CRUD、Twitch auth panel、i18n error handling、SignalR reconnect/polling fallback。
+
+**驗收摘要：**
+- [ ] Member panel 僅支援 list/show 唯讀操作，**不提供 seed/delete 按鈕，不新增 member CRUD 端點**；測試資料建立與清理留給 CLI/manual test surface
+- [ ] Rule panel 支援 list/show/create/update/enable/disable/delete，destructive 操作使用確認 dialog，409 `WORKFLOW_RULE_CONFLICT` 顯示專屬提示
+- [ ] Rule create/update 支援 JSON file/manual textarea；1MB 限制、paste debounce、非響應式大文字暫存、送出失敗保留內容與 refocus
+- [ ] EventTypeKey dropdown 排除 `platform.connection_changed`，並用 badge 標示 `chat|follow|sub` 可模擬 keys
+- [ ] Twitch auth start/reset 透過後端 OAuth endpoints；callback 後端消費 `code` 並完成 token exchange，不把 OAuth `code`/raw error 帶回 Web UI
+- [ ] OAuth 成功/失敗結果由 `platform.connection_changed`、`GET /api/twitch/status` 與 toast/status card 呈現
+- [ ] SignalR 中斷後 HTTP polling fallback 使用 30s base、2x factor、300s max，reconnected 時釋放 timer
+- [ ] `zh-TW` / `en-US` i18n error code coverage 完整，5xx 顯示 `INTERNAL_ERROR` 並 `console.error`
+- [ ] Browser manual E2E 依 `docs/phases/phase-6-web-ui/manual-verification.md` 執行並記錄
+
+**依賴：** Task 19, Task 14a, Task 14b, Task 15
 
 ---
 
-#### Task 20：WorkflowRule UI — 規則建立表單 + 事件類型 Dropdown
+#### Task 18：Serilog 三 Sink + AppLogs 清理 worker
 
-**描述：** 實作 Vue 規則編輯器：事件類型 dropdown（從 API 取已注冊 keys）、Condition 建立（UserRole、MessageContent、Cooldown）、Action 建立（SendChatMessage、InvokePlugin）。Axios 呼叫 REST API。i18n 錯誤碼對應。
+**描述：** 設定 Console、Rolling File、SQLite AppLogs 三個 sink，加入 EventTypeKey、Platform、MemberId、WorkflowRuleId、ActionType 等結構化欄位，並實作 `log.min_level` 熱重載與 AppLogs retention/size cleanup worker。
 
-**驗收標準：**
-- [ ] EventTypeKey dropdown 只顯示 `GET /api/event-types` 回傳的已注冊 keys；`platform.connection_changed`（系統事件）**不出現**在 dropdown 中（`IStreamEventTypeRegistry` 以 `isSystemEvent: true` 注冊此 key；`GetAll()` 排除所有 `isSystemEvent=true` 的 key；`GET /api/event-types` endpoint 因此不含此 key）；REST simulate 只公開 `chat/follow/sub` 三個 alias，dropdown 應以 badge / tooltip 標示哪些 keys 可用 `POST /api/simulate/*` 觸發（防止手動測試選 `donated/raided/reward.redeemed` 後誤判功能壞了）
-- [ ] 填寫並送出表單 → `POST /api/rules` → 規則出現在列表
-- [ ] API 回 400 `UNKNOWN_EVENT_TYPE_KEY` → UI 顯示在地化錯誤訊息（**MVP 只支援 zh-TW**；locale 寫死為 `zh-TW`；vue-i18n fallback locale 設為 `zh-TW`，不存在的 key 顯示 key 名稱而非 crash）
-- [ ] API 回 400 `CIRCULAR_WORKFLOW_REFERENCE` → UI 顯示在地化錯誤訊息
-- [ ] API 回 400 `ACTION_MISSING_REQUIRED_PARAM` → UI 顯示在地化錯誤訊息
-- [ ] `src/frontend/src/i18n/zh-TW.ts` 包含 SPEC §11.OQ4 列出的**所有** MVP error codes（含 `OAUTH_CREDENTIAL_NAMESPACE`、`INVALID_REGEX_PATTERN`、`INVALID_QUERY_PARAM`、`UNKNOWN_CONDITION_TYPE`、`INVALID_RULE_ID_MISMATCH`）；Vitest 從本地 `errorCodes.ts` 常數列表逐一驗 zh-TW key 存在且非空字串（`errorCodes.ts` 需與 SPEC OQ4 表格完整同步，否則 CI 前會漏掉新 code）
-- [ ] `pnpm test` → UI 元件測試通過
+**驗收摘要：**
+- [ ] Console、rolling file、SQLite AppLogs 均可寫入，且不重複設定 `PRAGMA auto_vacuum`
+- [ ] `log.db_max_size_mb` 預設值為 `50`，`log.db_retention_days` 預設值為 `30`
+- [ ] `MemberId` 僅記錄 pseudonymized ULID，註明 Non-PII，禁止真實姓名、E-mail、platform raw ID 等 PII
+- [ ] cleanup worker 以 retention/size 先觸發者為準；size cleanup 使用 `PRAGMA page_count * page_size` 並在清理後執行 `VACUUM`
+- [ ] `AppLogsCleanupWorker.ExecuteOnce()` 可單次觸發測試，不依賴 background timing
 
-**驗證步驟：**
-- [ ] Vitest + Vue Test Utils：表單提交 mock API → 成功回調
-- [ ] Vitest：EventTypeKey dropdown simulate badge — `user.message`、`user.followed`、`user.subscribed` 渲染含 simulate badge；`user.donated`、`user.gifted_sub`、`channel.raided`、`reward.redeemed` 不含 simulate badge（覆蓋全部 3 可模擬 + 4 不可模擬 alias map）
-- [ ] Integration test（Web host level）：`FakeTwitchEventTypeRegistrar`（只呼叫 `_registry.Register(...)` for all Twitch keys，不啟動 OAuth/WebSocket）+ SimulationAdapter 均 StartAsync 後，`GET /api/event-types` 包含全部 Twitch + Simulation canonical keys；**每個 key 只出現一次**；**`platform.connection_changed` 不出現**（使用 Fake 避免 OAuth/socket 副作用）
-- [ ] Vitest：simulate badge flow — 建立 `user.followed` rule，點擊 follow badge → `POST /api/simulate/follow` mock 被呼叫；建立 `user.subscribed` rule，點擊 sub badge → `POST /api/simulate/sub` mock 被呼叫（驗 badge → simulate alias 對應正確）
-- [ ] 手動：全流程測試（建立 `user.message` rule → `POST /api/simulate/chat` → Overlay 顯示）；手動驗收固定使用 `chat/follow/sub` 三個可 simulate alias，不選 `donated/raided/reward.redeemed`（REST 不支援）
-
-**依賴：** Task 19, Task 14a, Task 14b, Task 9（`FakeTwitchEventTypeRegistrar` 定義於 Task 9，供 `GET /api/event-types` integration test 使用，不需啟動真實 OAuth/socket）；手動全流程驗收仍需 Task 12（提供真實 TwitchAdapter EventTypeKey 注冊）
-
-**預計觸及檔案：**
-- `src/frontend/src/views/rules/RuleEditor.vue`
-- `src/frontend/src/components/rule/`
-- `src/frontend/src/i18n/`
-- `src/frontend/tests/rules/`
-
-**規模：** M
+**依賴：** Task 5, Task 8
 
 ---
 
-#### Task 21：Photino 桌面殼 + 埠衝突處理 + 靜態 fallback
+#### Task 21：Photino Desktop Shell + 靜態 fallback
 
-**描述：** 實作 `Vulperonex.Desktop`：Photino window 包裝 Web host、埠衝突自動嘗試 pair（5000/5001 → 5008/5009）、Web host crash → 顯示嵌入靜態 fallback HTML（含 Restart 按鈕）、DB migration 失敗 → Photino dialog。
+**描述：** `Vulperonex.Desktop` 啟動 Web host 並載入 Vue UI，處理 single-instance mutex、port pair allocation、WebView2 缺失、migration 失敗、Web host crash fallback、Photino/Vue IPC bridge。
 
-**驗收標準：**
+**驗收摘要：**
 - [ ] `dotnet run --project src/Hosts/Vulperonex.Desktop` 開啟 Photino 視窗載入 Vue UI
-- [ ] 模擬埠 5000 被佔用 → 自動切換到 5002/5003
-- [ ] 模擬埠 5001 被佔用（5000 閒置）→ 仍跳到 5002/5003（pair 必須同時閒置才能使用）
-- [ ] 所有埠對（5000/5001 → 5008/5009）用盡 → Photino dialog 提示
-- [ ] migration 失敗 → dialog 含 [Open log folder] + [Exit] 按鈕
-- [ ] 啟動時偵測 WebView2 是否安裝；缺失則顯示含下載連結的 dialog（支援 Windows 10 1809+）
-- [ ] `Vulperonex.Desktop.csproj` 標注 `<TargetFramework>net10.0-windows</TargetFramework>`
+- [ ] `<TargetFramework>net10.0-windows</TargetFramework>`，支援 Windows 10 1809+
+- [ ] 啟動時使用 .NET named mutex 防止多實例造成 port/SQLite locking 衝突
+- [ ] 任一 port 被占用時切到下一組 pair；全部 5 組用盡時顯示 no-ports dialog
+- [ ] WebView2 缺失、migration 失敗、Web host crash 均有 dialog/fallback；Web host crash 第 4 次停止自動 retry
+- [ ] IPC DTO schema 精確鎖定 `{ type: string, payload: any }`
 
-**驗證步驟：**
-- [ ] `PortPairAllocator` 單元測試已在 Task 15 補齊；本 Task 只補 Photino 整合驗証
-- [ ] 單元測試（mock `IWebView2Detector`）：detector 回報 WebView2 未安裝 → dialog callback 被觸發（含下載連結字串）；不依賴真實 WebView2 環境
-- [ ] 單元測試（mock Web host）：Web host crash（mock 拋 `InvalidOperationException`）→ Photino shell 顯示嵌入 fallback HTML（含 Restart 按鈕字串）；Restart 按鈕觸發 → Web host 重啟嘗試被呼叫（mock 驗証）
-- [ ] 單元測試（mock migration）：EF Core migration 拋異常 → Photino dialog callback 被觸發，包含 [Open log folder] + [Exit] 按鈕字串；不依賴真實 DB
-- [ ] 手動：佔用 5000（5001 閒置）→ 確認 app 切換到 5002/5003（pair 必須同時閒置）
-- [ ] 手動：同時佔用 5001（5000 閒置）→ 確認 app 仍切換到 5002/5003（pair 必須同時閒置）
-- [ ] 手動：佔用全部 5 對（5000-5009）→ Photino dialog 顯示「無可用埠」提示
-- [ ] 手動（Web host crash）：啟動後強制終止 Web host 進程（或透過 debug hook 模擬 crash）→ Photino window 切換至 fallback HTML，顯示 Restart 按鈕；點擊 Restart → Web host 重啟嘗試（UI 恢復或再次顯示 fallback）
-- [ ] 手動：app 啟動載入 UI，基本功能可用
-
-**依賴：** Task 15, Task 19
-
-**預計觸及檔案：**
-- `src/Hosts/Vulperonex.Desktop/Program.cs`（引用 `PortPairAllocator`，實作在 Task 15 的 `Vulperonex.Web`）
-- `src/Hosts/Vulperonex.Desktop/Resources/fallback.html`
-
-**規模：** S
+**依賴：** Task 19, Task 20
 
 ---
 
 ### Checkpoint：Phase 6（最終）
 
-- [ ] `dotnet test` → 所有 active SC 通過（SC-1~SC-6, SC-8~SC-10；SC-7 removed）
-- [ ] `pnpm test` → 前端測試全通過
-- [ ] `pnpm lint` → 前端 lint 無錯誤
-- [ ] `pnpm build` → wwwroot 建置成功
-- [ ] Photino 視窗手動測試：模擬 chat → Overlay 顯示
-- [ ] 人工 review 安全性（Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙繫結（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（含 `+`/`/`/`=`），解碼用 `Convert.FromBase64String` 而非 `WebEncoders.Base64UrlDecode`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符、超過 10 分鐘 TTL 或已使用 → 拒絕不 exchange code**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ Host header allowlist，兩者皆需通過 + 只接受預設 callback path + single-use**、**OAuth logger scrub list 包含 access token、authorization code、code_verifier、raw refresh token**、**plugin context 不暴露 `IServiceProvider`（reflection 架構測試通過 + PR code review 確認）**）
+- [ ] 全部 Task 18-21 sub-task `[x]` 完成自檢
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit`
+- [ ] `cd src/frontend; pnpm test`
+- [ ] `cd src/frontend; pnpm build`
+- [ ] `cd src/frontend; pnpm lint`
+- [ ] `cd src/frontend; pnpm dev` smoke 通過
+- [ ] Browser manual：Task 20 Browser Manual Checklist 全項目 PASS
+- [ ] Browser manual：Task 20k Twitch OAuth E2E Checklist 全項目 PASS
+- [ ] Desktop manual：Task 21 Desktop Shell Checklist 全項目 PASS
+- [ ] `docs/phases/phase-6-web-ui/manual-verification.md` 所有 dated entries 均為 `Result: PASS`，無 pending 項目
+- [ ] Git 暫存集限於 Phase 6 任務範圍
+- [ ] 安全 review：Overlay DTO exact whitelist、loopback dual bind、OAuth PKCE state/callback/logger scrub、protected config namespace、AES-256-GCM token encryption、machine.key permissions、plugin context 不暴露 `IServiceProvider`
 
 ---
 
@@ -912,11 +830,12 @@ frontend (Vue SPA)
 
 | 風險 | 影響 | 緩解 |
 |------|------|------|
-| Twitch EventSub WebSocket API 頻繁變動 | 高 | 用 mock HTTP handler 隔離 TwitchAdapter 測試；real integration 在 CI 中為可選 |
-| EF Core JSON mapping 在 SQLite 的限制 | 中 | Task 5 早期驗證 JSON column query；備案：手動序列化 |
-| Photino 3.x Windows 相容性 | 中 | Task 21 排在最後；先確保 Web host 正常運作 |
-| SignalR 在 OBS Browser Source 的限制 | 中 | Task 15 盡早手動測試 OBS 連線 |
-| WorkflowEngine 並行 + dedup 複雜度 | 高 | Task 6 + Task 10 均有專屬 integration test；TDQ replay 測試強制模擬 crash 場景 |
+| npm dependencies 撞版本或下載失敗 | 中 | Task 19a 先做 `corepack enable`，若 Windows shim 權限受阻改用 `corepack pnpm@9.15.4 <command>`；以 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts` 做預檢；首次安裝前 ask-first |
+| Rule visual builder 膨脹 | 中 | MVP 只做 JSON editor + 輕量表單；完整 builder 後續切片 |
+| Twitch OAuth 與 Web UI callback UX 混淆 | 中 | OAuth `code` 僅由後端 loopback callback 消費；Web UI 只讀 status/event |
+| SignalR/Polling 測試 flake | 中 | 核心 reducer/backoff 用 fake timer 單元測試；端到端留 manual verification |
+| Desktop/Photino 問題遮蔽 Web UI 問題 | 中 | 先以瀏覽器驗證 Web host，再進 Task 21 Desktop shell |
+| .NET 10.0 + Photino 3.x 相容性 | 中 | Task 21 做 compatibility 預驗；必要時使用 WebView2 fallback 或獨立 Kestrel 模式 |
 
 ## 開放問題（已解答）
 
@@ -924,10 +843,7 @@ frontend (Vue SPA)
   - 實作：Kestrel 在 OAuth flow 期間臨時監聽 `appsettings.json → Auth:CallbackPort`（預設 7979）。
   - 若 7979 被佔用 → 嘗試 7980, 7981（最多 3 次）→ 全失則顯示 dialog 要求手動設定。
   - Twitch Developer Console 需將 `http://localhost:7979/auth/callback`（及備用埠）列為 Redirect URI。
-  - **Task 12 補充：** `appsettings.json` 加 `Auth:CallbackPort: 7979`；TwitchAdapter OAuth handler 使用此設定。
-
-- **Q2 ✅：pnpm 精確版本鎖定**（`package.json` 加 `"packageManager": "pnpm@9.15.4"`；Task 19 驗收要求精確版本，不接受 `pnpm@9` 或 `pnpm@9.x.x` 模糊字串）
-
-- **Q3 ✅：Windows 10 最低支援**（Photino 3.x 需 WebView2，Windows 10 1809+）
-  - Desktop app 啟動時偵測 WebView2 是否安裝，缺失則顯示下載連結 dialog。
-  - `Vulperonex.Desktop` 專案標注 `<TargetFramework>net10.0-windows</TargetFramework>`。
+- **Q2 ✅：pnpm 精確版本鎖定。**
+  - `package.json` 加 `"packageManager": "pnpm@9.15.4"`；不接受 `pnpm@9` 或 `pnpm@9.x.x` 模糊字串。
+- **Q3 ✅：Windows 10 最低支援。**
+  - Photino 3.x 需 WebView2，Windows 10 1809+；缺失時顯示下載連結 dialog。

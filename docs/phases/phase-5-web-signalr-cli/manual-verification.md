@@ -97,12 +97,12 @@ Required checks:
 - Result: PASS
 - Evidence / commit: pending
 
-## 2026-05-20 - Phase 5 CLI manual verification
+## 2026-05-20 - Phase 5 CLI manual verification & Twitch OAuth real round-trip
 
 - Verifier: lydek
 - Environment: Windows PowerShell, local `Vulperonex.Web` on `http://127.0.0.1:5000`, in-app browser open at `http://127.0.0.1:5000/`
-- Commands: `help`, `simulate`, `simulate chat hello from cli`, `simulate follow`, `simulate sub`, `member seed manual-user ManualUser`, `member list`, `rule create docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json`, `rule disable <rule-id>`, `rule enable <rule-id>`, `rule delete <rule-id>`, `twitch auth reset`, `twitch auth start`
-- Expected result: CLI commands provide visible success output or JSON acknowledgements, simulation events include traceable `eventId`, member seed becomes visible through `member list`, rule lifecycle commands complete successfully, and Twitch OAuth can start after `Twitch:ClientId` is loaded from development settings.
-- Actual result: User reported all current functions look correct after CLI success feedback, member event consumer registration, Development settings load fix, and simulate event acknowledgement fixes.
+- Commands: `help`, `simulate`, `simulate chat hello from cli`, `simulate follow`, `simulate sub`, `member seed manual-user ManualUser`, `member list`, `rule create docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json`, `rule disable <rule-id>`, `rule enable <rule-id>`, `rule delete <rule-id>`, `twitch auth reset`, `twitch auth start` (and complete real authorization in browser callback)
+- Expected result: CLI commands provide visible success output or JSON acknowledgements, simulation events include traceable `eventId`, member seed becomes visible through `member list`, rule lifecycle commands complete successfully. For Twitch OAuth: `twitch auth start` successfully launches the browser, authorization on Twitch completed, backend `7979` callback receives and validates the CSRF state parameter, performs code exchange via dev token endpoint, and securely encrypts and stores the refresh token into SQLite `SystemSettings` using AES-256-GCM envelope, verified by `twitch auth status` returning configured and connected status.
+- Actual result: User reported all current functions look correct. Twitch real OAuth authorization completed end-to-end: browser opened successfully, authorized and redirected back to `http://localhost:7979/auth/callback`, console logged successful state verification and token exchange. The refresh token was verified to be AES-256-GCM encrypted in the SQLite DB (unreadable as raw text in DB, format matched `"v1:" + Base64`), and CLI successfully performed automated subsequent queries.
 - Result: PASS
 - Evidence / commit: `6ff0ace`, `2d9fe4e`, `00cfe8b`

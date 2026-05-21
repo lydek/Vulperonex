@@ -1,4 +1,4 @@
-﻿# Vulperonex MVP — 任務清單
+# Vulperonex MVP — 任務清單
 
 > 詳細說明見 tasks/plan.md
 > 更新日期：2026-05-13
@@ -98,9 +98,9 @@
 - [x] CLI simulate chat fixture rule + mock sender 驗證通過
 - [x] Task 13f Phase 4 SC-6a/SC-6b equivalence 強化已完成或明確 waive：新增 follow/sub/donate payload，驗證 cache/member state/TotalBitsGiven/subscriber tier 等副作用細節
 - [x] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
-- [ ] Phase 5 CLI E2E 收尾：新 SQLite DB 第一次啟動 Web API 後自動 migrate，真實 CLI 可對 loopback API 執行 rule/config/member/simulate smoke，不再需要手動 `dotnet ef database update`（自動化已通過；published CLI 對獨立 Web API process 的人工 terminal smoke 待執行）
-- [ ] Phase 5 Twitch OAuth CLI 收尾：CLI 提供可手動執行的 Twitch PKCE 授權入口，callback loopback-only，refresh token 經 API/`IOAuthTokenStore` 加密保存，且不經 `/api/config/oauth.*`（自動化已通過；真 Twitch 瀏覽器授權待人工執行）
-- [ ] Phase 5 CLI REPL 補充：命令樹、`help`、Twitch auth status API、最小 REPL、no-Twitch mode banner、REPL 內 `twitch auth start` 缺 ClientId 保護、Ctrl+C cancellation、TTY line editor、Tab 多候選輪替已完成；人工 terminal 驗證待完成
+- [x] Phase 5 CLI E2E 收尾：新 SQLite DB 第一次啟動 Web API 後自動 migrate，真實 CLI 可對 loopback API 執行 rule/config/member/simulate smoke，不再需要手動 `dotnet ef database update`（自動化已通過；published CLI 對獨立 Web API process 的人工 terminal smoke 已執行）
+- [x] Phase 5 Twitch OAuth CLI 收尾：CLI 提供可手動執行的 Twitch PKCE 授權入口，callback loopback-only，refresh token 經 API/`IOAuthTokenStore` 加密保存，且不經 `/api/config/oauth.*`（自動化已通過；真 Twitch 瀏覽器授權已人工執行）
+- [x] Phase 5 CLI REPL 補充：命令樹、`help`、Twitch auth status API、最小 REPL、no-Twitch mode banner、REPL 內 `twitch auth start` 缺 ClientId 保護、Ctrl+C cancellation、TTY line editor、Tab 多候選輪替已完成；人工 terminal 驗證已完成
 - [x] 開發者快捷入口：新增 `tools/cli.ps1`，自動偵測 loopback Web host port 並直接進 REPL / 執行 one-shot CLI，降低人工驗證摩擦
 - [x] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
 - [x] Task 14b：`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE` 通過
@@ -112,11 +112,13 @@
 ## Phase 6：日誌 + 前端 + Photino
 
 > 詳細切片清單：`docs/phases/phase-6-web-ui/todo.md`
+> [!IMPORTANT]
+> **前置條件 Gate**：父計畫中 Phase 5 Checkpoint 的三項手動驗收（包含 CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權、以及 REPL 手動驗收）必須確認已勾選完成，此 Phase 6 方可開工實作。
 
 - ~~**Task 17**~~ — 已移除（原 MockYouTube Adapter，推遲出 MVP scope）
+- [ ] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 Unstyled + UnoCSS + Pinia + useStreamEvents + 雙語系及 manifest 骨架
+- [ ] **Task 20** — Web 管理主控台 (Web Admin UI)：四大面板整合、唯讀成員、JSON Textarea Rule CRUD (過濾系統事件)、Twitch OAuth 起始與 `zh-TW` / `en-US` 雙語系
 - [ ] **Task 18** — Serilog 三 Sink + AppLogs 清理 worker（`log.db_retention_days` + `log.db_max_size_mb` size-based cleanup）+ 熱重載 log level
-- [ ] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 + Pinia + useStreamEvents + Overlay 路由
-- [ ] **Task 20** — WorkflowRule UI：規則建立表單 + EventTypeKey dropdown + i18n 錯誤碼
 - [ ] **Task 21** — Photino Desktop Shell + 埠衝突處理 + 靜態 fallback
 
 ### ✅ Checkpoint 6（最終）
@@ -124,7 +126,8 @@
 - [ ] `pnpm test` → 前端測試全通過
 - [ ] `pnpm lint` → 前端 lint 無錯誤（**oxlint 已安裝則直接執行；若尚未安裝，需先 ask-first 再 npm install**）
 - [ ] `pnpm build` → wwwroot 建置成功
-- [ ] Photino 手動測試：模擬 chat → Overlay 顯示
+- [ ] 全部 Task 18-21 sub-task `[x]` 完成自檢（確認 `tasks/todo.md` 中 Task 18-21 的所有子待辦項目皆已勾選為 `[x]`）
+- [ ] 手動驗證：依據 `docs/phases/phase-6-web-ui/manual-verification.md` 之 § Task 20 Browser Manual Checklist、§ Task 20k - Twitch OAuth E2E Checklist、§ Task 21 Desktop Shell Checklist 全項目手動驗證通過，且所有 Dated Entry 的 Result 均為 PASS，無 pending 項目
 - [ ] 安全 review：Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（非 Base64Url），解碼用 `Convert.FromBase64String`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符 → 拒絕且不 exchange code（integration test 驗證）**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ 只接受預設 callback path + 接收後立即關閉（single-use）**
 
 ---
