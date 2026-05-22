@@ -26,6 +26,8 @@ public static class WorkflowRuleJsonMapper
             rule.Actions.Select(action => JsonSerializer.SerializeToElement(action, JsonOptions)).ToArray(),
             rule.ExecutionMode,
             rule.MaxParallelism,
+            rule.Throttle,
+            rule.TimeoutSeconds,
             rule.Version);
     }
 
@@ -47,6 +49,8 @@ public static class WorkflowRuleJsonMapper
             Actions = (request.Actions ?? []).Select(DeserializeAction).ToArray(),
             ExecutionMode = request.ExecutionMode,
             MaxParallelism = request.MaxParallelism,
+            Throttle = request.Throttle ?? WorkflowThrottlePolicy.None,
+            TimeoutSeconds = request.TimeoutSeconds,
             Version = version,
         };
     }

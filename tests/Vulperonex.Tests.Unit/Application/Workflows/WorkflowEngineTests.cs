@@ -289,6 +289,75 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_GlobalCooldown_When_RuleRunsTwiceImmediately_Then_SecondRunIsSkipped()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with
+        {
+            Throttle = new WorkflowThrottlePolicy(CooldownSeconds: 30),
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(eventId: "event-1"), TestContext.Current.CancellationToken);
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(eventId: "event-2"), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Given_PerUserCooldown_When_DifferentUserRunsImmediately_Then_SecondRunExecutes()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with
+        {
+            Throttle = new WorkflowThrottlePolicy(
+                PerUserCooldown: true,
+                PerUserCooldownSeconds: 30),
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(
+            rule,
+            NewMessageEvent(eventId: "event-1", userId: "alice", displayName: "Alice"),
+            TestContext.Current.CancellationToken);
+        await engine.ExecuteRuleAsync(
+            rule,
+            NewMessageEvent(eventId: "event-2", userId: "bob", displayName: "Bob"),
+            TestContext.Current.CancellationToken);
+        await engine.ExecuteRuleAsync(
+            rule,
+            NewMessageEvent(eventId: "event-3", userId: "alice", displayName: "Alice"),
+            TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task Given_RuleTimeoutShorterThanActionTimeout_When_ActionRunsTooLong_Then_ActionIsAbandoned()
+    {
+        var executor = new CancellationObservingActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new TestAction
+            {
+                TimeoutMs = 10_000,
+                ErrorBehavior = ErrorBehavior.ContinueOnError,
+            },
+        ]) with
+        {
+            TimeoutSeconds = 1,
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.SawCancellation.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -339,6 +408,7 @@ public sealed class WorkflowEngineTests
             executors,
             new InMemoryWorkflowActionExecutionStore(),
             new NCalcExpressionEvaluator(),
+            new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock());
     }
 
@@ -361,13 +431,16 @@ public sealed class WorkflowEngineTests
         };
     }
 
-    private static UserSentMessageEvent NewMessageEvent(string eventId = "event-1")
+    private static UserSentMessageEvent NewMessageEvent(
+        string eventId = "event-1",
+        string userId = "alice",
+        string displayName = "Alice")
     {
         return new UserSentMessageEvent
         {
             EventId = eventId,
             Platform = "twitch",
-            User = new StreamUser("twitch", "alice", "Alice"),
+            User = new StreamUser("twitch", userId, displayName),
             MessageText = "!hello",
         };
     }

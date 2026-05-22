@@ -29,6 +29,8 @@ internal static class WorkflowRuleMapper
             CreatedAt = entity.CreatedAt,
             ExecutionMode = Enum.TryParse<WorkflowExecutionMode>(entity.ExecutionMode, out var mode) ? mode : WorkflowExecutionMode.Serial,
             MaxParallelism = entity.MaxParallelism,
+            Throttle = JsonSerializer.Deserialize<WorkflowThrottlePolicy>(entity.ThrottleJson, JsonOptions) ?? WorkflowThrottlePolicy.None,
+            TimeoutSeconds = entity.TimeoutSeconds <= 0 ? 30 : entity.TimeoutSeconds,
             Version = entity.Version,
         };
     }
@@ -59,6 +61,8 @@ internal static class WorkflowRuleMapper
             CreatedAt = rule.CreatedAt,
             ExecutionMode = rule.ExecutionMode.ToString(),
             MaxParallelism = rule.MaxParallelism,
+            ThrottleJson = JsonSerializer.Serialize(rule.Throttle, JsonOptions),
+            TimeoutSeconds = rule.TimeoutSeconds,
             Version = rule.Version,
         };
     }
@@ -73,5 +77,7 @@ internal static class WorkflowRuleMapper
         entity.Priority = rule.Priority;
         entity.ExecutionMode = rule.ExecutionMode.ToString();
         entity.MaxParallelism = rule.MaxParallelism;
+        entity.ThrottleJson = JsonSerializer.Serialize(rule.Throttle, JsonOptions);
+        entity.TimeoutSeconds = rule.TimeoutSeconds;
     }
 }

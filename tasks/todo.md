@@ -142,7 +142,7 @@
 
 - [x] **Task 23** — Variable / Expression substrate：`ExpressionContext` + template resolver + NCalc evaluator（ask-first 加 `NCalcSync`）
 - [x] **Task 24** — Step `ExecutionCondition` + `OutputVariable`
-- [ ] **Task 25** — Rule-level throttle + timeout
+- [x] **Task 25** — Rule-level throttle + timeout
 - [ ] **Task 26** — `OnFailureActionsJson` 補救鏈 + replay phase key
 - [ ] **Task 28** — Hot reload immutable rule snapshot cache
 - [ ] **Task 29** — Trigger filter + `MatchCondition`

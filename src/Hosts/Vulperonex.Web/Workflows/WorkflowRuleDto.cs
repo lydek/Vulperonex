@@ -14,6 +14,8 @@ public sealed record WorkflowRuleDto(
     IReadOnlyList<JsonElement> Actions,
     WorkflowExecutionMode ExecutionMode,
     int MaxParallelism,
+    WorkflowThrottlePolicy Throttle,
+    int TimeoutSeconds,
     int Version);
 
 public sealed record WorkflowRuleUpsertRequest(
@@ -25,4 +27,6 @@ public sealed record WorkflowRuleUpsertRequest(
     IReadOnlyList<JsonElement>? Conditions,
     IReadOnlyList<JsonElement>? Actions,
     WorkflowExecutionMode ExecutionMode = WorkflowExecutionMode.Serial,
-    int MaxParallelism = 1);
+    int MaxParallelism = 1,
+    WorkflowThrottlePolicy? Throttle = null,
+    int TimeoutSeconds = 30);

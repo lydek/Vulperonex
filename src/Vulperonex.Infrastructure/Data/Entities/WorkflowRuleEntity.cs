@@ -22,5 +22,9 @@ public sealed class WorkflowRuleEntity
 
     public int MaxParallelism { get; set; } = 1;
 
+    public string ThrottleJson { get; set; } = "{}";
+
+    public int TimeoutSeconds { get; set; } = 30;
+
     public int Version { get; set; }
 }

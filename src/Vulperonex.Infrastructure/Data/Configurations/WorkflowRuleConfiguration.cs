@@ -20,6 +20,8 @@ public sealed class WorkflowRuleConfiguration : IEntityTypeConfiguration<Workflo
         builder.Property(rule => rule.CreatedAt).HasColumnType("TEXT");
         builder.Property(rule => rule.ExecutionMode).HasColumnType("TEXT");
         builder.Property(rule => rule.MaxParallelism).HasColumnType("INTEGER");
+        builder.Property(rule => rule.ThrottleJson).HasColumnType("TEXT");
+        builder.Property(rule => rule.TimeoutSeconds).HasColumnType("INTEGER");
         builder.Property(rule => rule.Version).HasColumnType("INTEGER").IsConcurrencyToken();
     }
 }

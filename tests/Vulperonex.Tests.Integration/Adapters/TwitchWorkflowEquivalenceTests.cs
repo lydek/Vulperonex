@@ -76,6 +76,7 @@ public sealed class TwitchWorkflowEquivalenceTests
             [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),
             new NCalcExpressionEvaluator(),
+            new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock());
     }
 

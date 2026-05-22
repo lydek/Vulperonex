@@ -29,12 +29,12 @@
 
 ## Task 25 - Rule-level Throttle + Timeout
 
-- [ ] Task 25a：`WorkflowThrottlePolicy` value record (`MaxConcurrent`, `CooldownSeconds`, `PerUserCooldown`, `PerUserCooldownSeconds`)。
-- [ ] Task 25b：`IWorkflowThrottleService` 介面 + in-memory impl（global last-fire + per-user TTL map）。
-- [ ] Task 25c：EF migration `WorkflowRules` 加 `ThrottleJson: string`、`TimeoutSeconds: int default 30`。Backward compat：缺欄位用 default。
-- [ ] Task 25d：Engine ExecuteRuleAsync 包 linked CTS by `TimeoutSeconds`；timeout → 標 Abandoned。
-- [ ] Task 25e：Engine 在執行 rule 前呼叫 throttle service；reject 時 graceful skip。
-- [ ] Task 25f：Unit test：global cooldown / per-user cooldown / rule timeout < action timeout。
+- [x] Task 25a：`WorkflowThrottlePolicy` value record (`MaxConcurrent`, `CooldownSeconds`, `PerUserCooldown`, `PerUserCooldownSeconds`)。
+- [x] Task 25b：`IWorkflowThrottleService` 介面 + in-memory impl（global last-fire + per-user TTL map）。
+- [x] Task 25c：EF migration `WorkflowRules` 加 `ThrottleJson: string`、`TimeoutSeconds: int default 30`。Backward compat：缺欄位用 default。
+- [x] Task 25d：Engine ExecuteRuleAsync 包 linked CTS by `TimeoutSeconds`；timeout → 標 Abandoned。
+- [x] Task 25e：Engine 在執行 rule 前呼叫 throttle service；reject 時 graceful skip。
+- [x] Task 25f：Unit test：global cooldown / per-user cooldown / rule timeout < action timeout。
 
 ## Task 26 - OnFailureSteps
 

@@ -32,6 +32,16 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             return ErrorCodes.InvalidActionConfig;
         }
 
+        if (request.TimeoutSeconds < 0 || request.TimeoutSeconds > 86_400)
+        {
+            return ErrorCodes.InvalidActionConfig;
+        }
+
+        if (HasInvalidThrottle(request.Throttle))
+        {
+            return ErrorCodes.InvalidActionConfig;
+        }
+
         foreach (var condition in request.Conditions ?? [])
         {
             var error = ValidateCondition(condition);
@@ -177,6 +187,17 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
         return element.TryGetProperty("errorBehavior", out var value)
             && value.ValueKind == JsonValueKind.String
             && !Enum.TryParse<ErrorBehavior>(value.GetString(), ignoreCase: true, out _);
+    }
+
+    private static bool HasInvalidThrottle(WorkflowThrottlePolicy? throttle)
+    {
+        return throttle is not null
+            && (throttle.MaxConcurrent < 0
+                || throttle.MaxConcurrent > 64
+                || throttle.CooldownSeconds < 0
+                || throttle.CooldownSeconds > 86_400
+                || throttle.PerUserCooldownSeconds < 0
+                || throttle.PerUserCooldownSeconds > 86_400);
     }
 
     private static string? ReadType(JsonElement element)

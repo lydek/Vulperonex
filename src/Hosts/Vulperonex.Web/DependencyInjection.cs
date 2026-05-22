@@ -100,6 +100,7 @@ public static class DependencyInjection
         services.AddScoped<IExpressionEvaluator, NCalcExpressionEvaluator>();
         services.AddScoped<TemplateRenderer>();
         services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
+        services.AddSingleton<IWorkflowThrottleService, InMemoryWorkflowThrottleService>();
         services.AddScoped<IWorkflowActionExecutor, SendChatMessageActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.

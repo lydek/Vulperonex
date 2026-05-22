@@ -20,6 +20,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private readonly IReadOnlyDictionary<string, IWorkflowActionExecutor> _executorsByType;
     private readonly IWorkflowActionExecutionStore _executionStore;
     private readonly IExpressionEvaluator _expressionEvaluator;
+    private readonly IWorkflowThrottleService _throttleService;
     private readonly IClock _clock;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _ruleSemaphores = new();
     private IDisposable? _subscription;
@@ -31,6 +32,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IEnumerable<IWorkflowActionExecutor> actionExecutors,
         IWorkflowActionExecutionStore executionStore,
         IExpressionEvaluator expressionEvaluator,
+        IWorkflowThrottleService throttleService,
         IClock clock)
     {
         _eventBus = eventBus;
@@ -39,6 +41,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         _executorsByType = actionExecutors.ToDictionary(executor => executor.ActionType, StringComparer.Ordinal);
         _executionStore = executionStore;
         _expressionEvaluator = expressionEvaluator;
+        _throttleService = throttleService;
         _clock = clock;
     }
 
@@ -110,6 +113,15 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             return;
         }
 
+        await using var throttleLease = await _throttleService.TryAcquireAsync(rule, streamEvent, cancellationToken);
+        if (throttleLease is null)
+        {
+            return;
+        }
+
+        using var timeoutSource = CreateRuleTimeoutSource(rule, cancellationToken);
+        var effectiveCancellationToken = timeoutSource?.Token ?? cancellationToken;
+
         var capacity = ResolveCapacity(rule);
         // Cache key includes capacity + execution mode so an edited rule
         // does not reuse a semaphore sized for the previous configuration.
@@ -120,22 +132,41 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         var semaphoreKey = $"{rule.Id}|{rule.ExecutionMode}|{capacity}";
         var semaphore = _ruleSemaphores.GetOrAdd(semaphoreKey, _ => new SemaphoreSlim(capacity));
 
-        await semaphore.WaitAsync(cancellationToken);
+        await semaphore.WaitAsync(effectiveCancellationToken);
         try
         {
             if (rule.ExecutionMode is WorkflowExecutionMode.Parallel)
             {
-                await ExecuteActionsInParallelAsync(rule, streamEvent, invocationId, cancellationToken);
+                await ExecuteActionsInParallelAsync(rule, streamEvent, invocationId, effectiveCancellationToken);
             }
             else
             {
-                await ExecuteActionsSeriallyAsync(rule, streamEvent, invocationId, cancellationToken);
+                await ExecuteActionsSeriallyAsync(rule, streamEvent, invocationId, effectiveCancellationToken);
             }
+        }
+        catch (OperationCanceledException) when (timeoutSource?.IsCancellationRequested is true
+            && !cancellationToken.IsCancellationRequested)
+        {
+            return;
         }
         finally
         {
             semaphore.Release();
         }
+    }
+
+    private static CancellationTokenSource? CreateRuleTimeoutSource(
+        WorkflowRule rule,
+        CancellationToken cancellationToken)
+    {
+        if (rule.TimeoutSeconds <= 0)
+        {
+            return null;
+        }
+
+        var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutSource.CancelAfter(TimeSpan.FromSeconds(rule.TimeoutSeconds));
+        return timeoutSource;
     }
 
     private static int ResolveCapacity(WorkflowRule rule)
