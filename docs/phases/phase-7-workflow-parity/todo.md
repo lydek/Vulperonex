@@ -38,11 +38,11 @@
 
 ## Task 26 - OnFailureSteps
 
-- [ ] Task 26a：`WorkflowRule` 加 `OnFailureSteps: IReadOnlyList<WorkflowAction>?`。
-- [ ] Task 26b：EF schema 優先新增 `OnFailureActionsJson`（或等價新欄位），不混入既有 `ActionsJson`；若要改存同欄，先更新 plan/todo 說明遷移理由。
-- [ ] Task 26c：Engine 主鏈失敗 / timeout → 注入 `{Failure.StepIndex}` + `{Failure.ErrorMessage}` → 跑 OnFailureSteps；OnFailureSteps 內不再支援 OnFailure。
-- [ ] Task 26d：`ActionExecutionKey` 加 `phase: Main|OnFailure` 區分 replay。
-- [ ] Task 26e：Unit test：main fail → onFailure 跑 + failure context 解析；onFailure 自己失敗 → 不二次補救。
+- [x] Task 26a：`WorkflowRule` 加 `OnFailureSteps: IReadOnlyList<WorkflowAction>?`。
+- [x] Task 26b：EF schema 優先新增 `OnFailureActionsJson`（或等價新欄位），不混入既有 `ActionsJson`；若要改存同欄，先更新 plan/todo 說明遷移理由。
+- [x] Task 26c：Engine 主鏈失敗 / timeout → 注入 `{Failure.StepIndex}` + `{Failure.ErrorMessage}` → 跑 OnFailureSteps；OnFailureSteps 內不再支援 OnFailure。
+- [x] Task 26d：`ActionExecutionKey` 加 `phase: Main|OnFailure` 區分 replay。
+- [x] Task 26e：Unit test：main fail → onFailure 跑 + failure context 解析；onFailure 自己失敗 → 不二次補救。
 
 ## Task 27 - Sub-process Flag + InvokeRule Polish
 

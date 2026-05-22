@@ -10,13 +10,15 @@ public sealed record ActionExecutionContext
         WorkflowRule WorkflowRule,
         int ActionIndex,
         string? InvocationId = null,
-        ExpressionContext? ExpressionContext = null)
+        ExpressionContext? ExpressionContext = null,
+        WorkflowExecutionPhase Phase = WorkflowExecutionPhase.Main)
     {
         this.StreamEvent = StreamEvent;
         this.WorkflowRule = WorkflowRule;
         this.ActionIndex = ActionIndex;
         this.InvocationId = InvocationId;
         this.ExpressionContext = ExpressionContext ?? global::Vulperonex.Application.Expressions.ExpressionContext.Empty;
+        this.Phase = Phase;
     }
 
     public IStreamEvent StreamEvent { get; init; }
@@ -24,4 +26,5 @@ public sealed record ActionExecutionContext
     public int ActionIndex { get; init; }
     public string? InvocationId { get; init; }
     public ExpressionContext ExpressionContext { get; init; }
+    public WorkflowExecutionPhase Phase { get; init; }
 }

@@ -59,6 +59,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             "Step" => context.Steps,
             "Args" => context.Args,
             "Member" => context.Member,
+            "Failure" => context.Failure,
             _ => null,
         };
 
@@ -67,9 +68,10 @@ public sealed partial class TemplateResolver : ITemplateResolver
             return false;
         }
 
+        var current = value;
         for (var index = 1; index < parts.Count; index++)
         {
-            if (!TryReadMember(value, parts[index], out value))
+            if (!TryReadMember(current, parts[index], out value))
             {
                 return false;
             }
@@ -78,6 +80,8 @@ public sealed partial class TemplateResolver : ITemplateResolver
             {
                 return false;
             }
+
+            current = value!;
         }
 
         return true;

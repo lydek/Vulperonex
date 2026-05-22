@@ -24,14 +24,20 @@ public sealed class SchemaTests
         var workflowRuleColumns = await QueryScalarValuesAsync(
             fixture.Connection,
             "SELECT name FROM pragma_table_info('WorkflowRules') ORDER BY name;");
-        workflowRuleColumns.Should().Contain(["ActionsJson", "ConditionsJson", "ThrottleJson", "TimeoutSeconds"]);
+        workflowRuleColumns.Should().Contain([
+            "ActionsJson",
+            "ConditionsJson",
+            "OnFailureActionsJson",
+            "ThrottleJson",
+            "TimeoutSeconds",
+        ]);
 
         var workflowJsonColumnTypes = await QueryScalarValuesAsync(
             fixture.Connection,
             """
             SELECT type
             FROM pragma_table_info('WorkflowRules')
-            WHERE name IN ('ActionsJson', 'ConditionsJson', 'ThrottleJson')
+            WHERE name IN ('ActionsJson', 'ConditionsJson', 'OnFailureActionsJson', 'ThrottleJson')
             ORDER BY name;
             """);
         workflowJsonColumnTypes.Should().OnlyContain(columnType => columnType == "TEXT");

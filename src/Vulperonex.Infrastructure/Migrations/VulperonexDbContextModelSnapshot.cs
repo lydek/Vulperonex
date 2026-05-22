@@ -118,6 +118,7 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
             b.Property<int>("MaxParallelism").HasColumnType("INTEGER");
             b.Property<string>("Name").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("OnFailureActionsJson").IsRequired().HasColumnType("TEXT");
             b.Property<int>("Priority").HasColumnType("INTEGER");
             b.Property<string>("ThrottleJson").IsRequired().HasColumnType("TEXT");
             b.Property<int>("TimeoutSeconds").HasColumnType("INTEGER");

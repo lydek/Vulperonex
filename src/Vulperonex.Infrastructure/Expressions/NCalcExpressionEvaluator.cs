@@ -49,6 +49,7 @@ public sealed partial class NCalcExpressionEvaluator : IExpressionEvaluator
         var parameters = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
         AddNamespace(parameters, "Trigger", context.Trigger);
         AddNamespace(parameters, "Member", context.Member);
+        AddNamespace(parameters, "Failure", context.Failure);
 
         foreach (var (key, value) in context.Args)
         {
@@ -74,6 +75,6 @@ public sealed partial class NCalcExpressionEvaluator : IExpressionEvaluator
         }
     }
 
-    [GeneratedRegex(@"(?<![\w\]])(?:Trigger|Member|Args|Step)\.[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*")]
+    [GeneratedRegex(@"(?<![\w\]])(?:Trigger|Member|Args|Step|Failure)\.[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*")]
     private static partial Regex NamespacePathRegex();
 }

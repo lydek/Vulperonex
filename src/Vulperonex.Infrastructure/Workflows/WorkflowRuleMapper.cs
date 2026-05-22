@@ -24,6 +24,7 @@ internal static class WorkflowRuleMapper
             EventTypeKey = entity.EventTypeKey,
             Conditions = JsonSerializer.Deserialize<IReadOnlyList<WorkflowCondition>>(entity.ConditionsJson, JsonOptions) ?? [],
             Actions = JsonSerializer.Deserialize<IReadOnlyList<WorkflowAction>>(entity.ActionsJson, JsonOptions) ?? [],
+            OnFailureSteps = JsonSerializer.Deserialize<IReadOnlyList<WorkflowAction>>(entity.OnFailureActionsJson, JsonOptions) ?? [],
             IsEnabled = entity.IsEnabled,
             Priority = entity.Priority,
             CreatedAt = entity.CreatedAt,
@@ -56,6 +57,7 @@ internal static class WorkflowRuleMapper
             EventTypeKey = rule.EventTypeKey,
             ConditionsJson = JsonSerializer.Serialize(rule.Conditions, JsonOptions),
             ActionsJson = JsonSerializer.Serialize(rule.Actions, JsonOptions),
+            OnFailureActionsJson = JsonSerializer.Serialize(rule.OnFailureSteps, JsonOptions),
             IsEnabled = rule.IsEnabled,
             Priority = rule.Priority,
             CreatedAt = rule.CreatedAt,
@@ -73,6 +75,7 @@ internal static class WorkflowRuleMapper
         entity.EventTypeKey = rule.EventTypeKey;
         entity.ConditionsJson = JsonSerializer.Serialize(rule.Conditions, JsonOptions);
         entity.ActionsJson = JsonSerializer.Serialize(rule.Actions, JsonOptions);
+        entity.OnFailureActionsJson = JsonSerializer.Serialize(rule.OnFailureSteps, JsonOptions);
         entity.IsEnabled = rule.IsEnabled;
         entity.Priority = rule.Priority;
         entity.ExecutionMode = rule.ExecutionMode.ToString();

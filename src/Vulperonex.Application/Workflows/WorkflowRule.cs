@@ -10,6 +10,7 @@ public sealed record WorkflowRule
     public required string EventTypeKey { get; init; }
     public IReadOnlyList<WorkflowCondition> Conditions { get; init; } = [];
     public IReadOnlyList<WorkflowAction> Actions { get; init; } = [];
+    public IReadOnlyList<WorkflowAction> OnFailureSteps { get; init; } = [];
     public bool IsEnabled { get; init; } = true;
     public int Priority { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;

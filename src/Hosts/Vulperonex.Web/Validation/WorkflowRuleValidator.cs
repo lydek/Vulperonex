@@ -65,6 +65,20 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             }
         }
 
+        foreach (var action in request.OnFailureSteps ?? [])
+        {
+            var error = ValidateAction(action);
+            if (error is not null)
+            {
+                return error;
+            }
+
+            if (IsCircularReference(request.Id, action))
+            {
+                return ErrorCodes.CircularWorkflowReference;
+            }
+        }
+
         return null;
     }
 

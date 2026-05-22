@@ -12,6 +12,8 @@ public sealed class WorkflowRuleEntity
 
     public string ActionsJson { get; set; } = "[]";
 
+    public string OnFailureActionsJson { get; set; } = "[]";
+
     public bool IsEnabled { get; set; } = true;
 
     public int Priority { get; set; }

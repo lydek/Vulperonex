@@ -135,18 +135,37 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         await semaphore.WaitAsync(effectiveCancellationToken);
         try
         {
+            WorkflowPipelineResult result;
             if (rule.ExecutionMode is WorkflowExecutionMode.Parallel)
             {
-                await ExecuteActionsInParallelAsync(rule, streamEvent, invocationId, effectiveCancellationToken);
+                result = await ExecuteActionsInParallelAsync(rule, streamEvent, invocationId, effectiveCancellationToken);
             }
             else
             {
-                await ExecuteActionsSeriallyAsync(rule, streamEvent, invocationId, effectiveCancellationToken);
+                result = await ExecuteActionsSeriallyAsync(
+                    rule,
+                    rule.Actions,
+                    streamEvent,
+                    invocationId,
+                    WorkflowExecutionPhase.Main,
+                    failure: null,
+                    effectiveCancellationToken);
+            }
+
+            if (!result.Succeeded)
+            {
+                await ExecuteOnFailureStepsAsync(rule, streamEvent, invocationId, result, cancellationToken);
             }
         }
         catch (OperationCanceledException) when (timeoutSource?.IsCancellationRequested is true
             && !cancellationToken.IsCancellationRequested)
         {
+            await ExecuteOnFailureStepsAsync(
+                rule,
+                streamEvent,
+                invocationId,
+                WorkflowPipelineResult.Failed(-1, "Rule timed out."),
+                cancellationToken);
             return;
         }
         finally
@@ -182,30 +201,38 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         return rule.Conditions.All(condition => _conditionEvaluator.IsMatch(condition, context));
     }
 
-    private async Task ExecuteActionsSeriallyAsync(
+    private async Task<WorkflowPipelineResult> ExecuteActionsSeriallyAsync(
         WorkflowRule rule,
+        IReadOnlyList<WorkflowAction> actions,
         IStreamEvent streamEvent,
         string? invocationId,
+        WorkflowExecutionPhase phase,
+        WorkflowFailureContext? failure,
         CancellationToken cancellationToken)
     {
         var stepOutputs = new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase);
-        for (var index = 0; index < rule.Actions.Count; index++)
+        for (var index = 0; index < actions.Count; index++)
         {
-            var shouldContinue = await ExecuteActionWithPolicyAsync(
+            var result = await ExecuteActionWithPolicyAsync(
                 rule,
+                actions,
                 streamEvent,
                 index,
                 invocationId,
+                phase,
                 stepOutputs,
+                failure,
                 cancellationToken);
-            if (!shouldContinue)
+            if (!result.Succeeded)
             {
-                return;
+                return result;
             }
         }
+
+        return WorkflowPipelineResult.Success;
     }
 
-    private async Task ExecuteActionsInParallelAsync(
+    private async Task<WorkflowPipelineResult> ExecuteActionsInParallelAsync(
         WorkflowRule rule,
         IStreamEvent streamEvent,
         string? invocationId,
@@ -218,12 +245,15 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             await throttle.WaitAsync(cancellationToken);
             try
             {
-                await ExecuteActionWithPolicyAsync(
+                return await ExecuteActionWithPolicyAsync(
                     rule,
+                    rule.Actions,
                     streamEvent,
                     index,
                     invocationId,
+                    WorkflowExecutionPhase.Main,
                     new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+                    failure: null,
                     cancellationToken);
             }
             finally
@@ -232,25 +262,29 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             }
         });
 
-        await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks);
+        return results.FirstOrDefault(result => !result.Succeeded) ?? WorkflowPipelineResult.Success;
     }
 
-    private async Task<bool> ExecuteActionWithPolicyAsync(
+    private async Task<WorkflowPipelineResult> ExecuteActionWithPolicyAsync(
         WorkflowRule rule,
+        IReadOnlyList<WorkflowAction> actions,
         IStreamEvent streamEvent,
         int actionIndex,
         string? invocationId,
+        WorkflowExecutionPhase phase,
         IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs,
+        WorkflowFailureContext? failure,
         CancellationToken cancellationToken)
     {
-        var action = rule.Actions[actionIndex];
-        var key = new ActionExecutionKey(streamEvent.EventId, rule.Id, actionIndex, invocationId);
-        var expressionContext = BuildExpressionContext(streamEvent, stepOutputs);
+        var action = actions[actionIndex];
+        var key = new ActionExecutionKey(streamEvent.EventId, rule.Id, actionIndex, invocationId, phase);
+        var expressionContext = BuildExpressionContext(streamEvent, stepOutputs, failure);
 
         if (!await _executionStore.TryBeginAsync(key, cancellationToken))
         {
             // Already terminal (Completed or Failed) — SPEC §4.2 says replay must skip.
-            return true;
+            return WorkflowPipelineResult.Success;
         }
 
         try
@@ -258,7 +292,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             if (!ShouldExecute(action, expressionContext))
             {
                 await _executionStore.MarkSkippedAsync(key, CancellationToken.None);
-                return true;
+                return WorkflowPipelineResult.Success;
             }
 
             var maxAttempts = action.ErrorBehavior is ErrorBehavior.RetryOnError
@@ -271,17 +305,17 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                 {
                     var result = await ExecuteActionOnceAsync(
                         action,
-                        new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId, expressionContext),
+                        new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId, expressionContext, phase),
                         cancellationToken);
                     if (result.IsSkipped)
                     {
                         await _executionStore.MarkSkippedAsync(key, CancellationToken.None);
-                        return true;
+                        return WorkflowPipelineResult.Success;
                     }
 
                     CaptureOutput(action, result, stepOutputs);
                     await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
-                    return true;
+                    return WorkflowPipelineResult.Success;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -295,23 +329,49 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                         await Task.Delay(TimeSpan.FromMilliseconds(action.BackoffMs), cancellationToken);
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
                     // Terminal failure: record Failed so replay skips.
                     await _executionStore.MarkFailedAsync(key, CancellationToken.None);
-                    return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
+                    return action.ErrorBehavior is ErrorBehavior.ContinueOnError
+                        ? WorkflowPipelineResult.Success
+                        : WorkflowPipelineResult.Failed(actionIndex, ex.Message);
                 }
             }
 
             // Retries exhausted without success.
             await _executionStore.MarkFailedAsync(key, CancellationToken.None);
-            return action.ErrorBehavior is ErrorBehavior.ContinueOnError;
+            return action.ErrorBehavior is ErrorBehavior.ContinueOnError
+                ? WorkflowPipelineResult.Success
+                : WorkflowPipelineResult.Failed(actionIndex, "Retries exhausted.");
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             await _executionStore.MarkAbandonedAsync(key, CancellationToken.None);
             throw;
         }
+    }
+
+    private async Task ExecuteOnFailureStepsAsync(
+        WorkflowRule rule,
+        IStreamEvent streamEvent,
+        string? invocationId,
+        WorkflowPipelineResult failure,
+        CancellationToken cancellationToken)
+    {
+        if (rule.OnFailureSteps.Count is 0)
+        {
+            return;
+        }
+
+        await ExecuteActionsSeriallyAsync(
+            rule,
+            rule.OnFailureSteps,
+            streamEvent,
+            invocationId,
+            WorkflowExecutionPhase.OnFailure,
+            new WorkflowFailureContext(failure.FailureStepIndex ?? -1, failure.ErrorMessage ?? string.Empty),
+            cancellationToken);
     }
 
     private bool ShouldExecute(WorkflowAction action, ExpressionContext expressionContext)
@@ -356,7 +416,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
     private static ExpressionContext BuildExpressionContext(
         IStreamEvent streamEvent,
-        IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs)
+        IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs,
+        WorkflowFailureContext? failure)
     {
         var trigger = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
@@ -384,11 +445,19 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             member["IsFollower"] = streamEvent.User.Roles.HasFlag(StreamRole.Follower);
         }
 
+        var failureValues = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        if (failure is not null)
+        {
+            failureValues["StepIndex"] = failure.StepIndex;
+            failureValues["ErrorMessage"] = failure.ErrorMessage;
+        }
+
         return new ExpressionContext(
             trigger,
             new Dictionary<string, IReadOnlyDictionary<string, object?>>(stepOutputs, StringComparer.OrdinalIgnoreCase),
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
-            member);
+            member,
+            failureValues);
     }
 
     private async Task<ActionExecutionResult> ExecuteActionOnceAsync(
@@ -408,5 +477,20 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         }
 
         return await executor.ExecuteAsync(action, context, timeoutSource.Token);
+    }
+
+    private sealed record WorkflowFailureContext(int StepIndex, string ErrorMessage);
+
+    private sealed record WorkflowPipelineResult(
+        bool Succeeded,
+        int? FailureStepIndex = null,
+        string? ErrorMessage = null)
+    {
+        public static WorkflowPipelineResult Success { get; } = new(true);
+
+        public static WorkflowPipelineResult Failed(int failureStepIndex, string errorMessage)
+        {
+            return new WorkflowPipelineResult(false, failureStepIndex, errorMessage);
+        }
     }
 }

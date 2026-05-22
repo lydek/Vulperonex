@@ -4,4 +4,5 @@ public sealed record ActionExecutionKey(
     string EventId,
     string WorkflowRuleId,
     int ActionIndex,
-    string? InvocationId = null);
+    string? InvocationId = null,
+    WorkflowExecutionPhase Phase = WorkflowExecutionPhase.Main);

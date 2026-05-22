@@ -358,6 +358,79 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_MainActionStopsOnError_When_OnFailureStepsExist_Then_OnFailureRunsWithFailureContext()
+    {
+        var executor = new RecordingActionExecutor(failFirstExecution: true);
+        var rule = NewRule(actions:
+        [
+            new TestAction { ErrorBehavior = ErrorBehavior.StopOnError },
+            new TestAction(),
+        ]) with
+        {
+            OnFailureSteps =
+            [
+                new TestAction { ExecutionCondition = "Failure.StepIndex == 0" },
+            ],
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().Equal(
+            ("rule-1", 0, WorkflowExecutionPhase.Main),
+            ("rule-1", 0, WorkflowExecutionPhase.OnFailure));
+        executor.Contexts[1].ExpressionContext.Failure["ErrorMessage"].Should().Be("Expected test failure.");
+    }
+
+    [Fact]
+    public async Task Given_OnFailureStepFails_When_ExecutingRule_Then_NoSecondOnFailureRuns()
+    {
+        var executor = new FailByPhaseActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new TestAction { ErrorBehavior = ErrorBehavior.StopOnError },
+        ]) with
+        {
+            OnFailureSteps =
+            [
+                new TestAction { ErrorBehavior = ErrorBehavior.StopOnError },
+            ],
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().Equal(
+            WorkflowExecutionPhase.Main,
+            WorkflowExecutionPhase.OnFailure);
+    }
+
+    [Fact]
+    public async Task Given_MainAndOnFailureSameActionIndex_When_EventIsReplayed_Then_PhasesUseSeparateDedupKeys()
+    {
+        var executor = new RecordingActionExecutor(failFirstExecution: true);
+        var rule = NewRule(actions:
+        [
+            new TestAction { ErrorBehavior = ErrorBehavior.StopOnError },
+        ]) with
+        {
+            OnFailureSteps = [new TestAction()],
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+        var streamEvent = NewMessageEvent();
+
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+        await engine.ExecuteRuleAsync(rule, streamEvent, TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().Equal(
+            ("rule-1", 0, WorkflowExecutionPhase.Main),
+            ("rule-1", 0, WorkflowExecutionPhase.OnFailure));
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -469,7 +542,7 @@ public sealed class WorkflowEngineTests
     {
         private bool _hasFailed;
         public string ActionType => TestAction.TestActionType;
-        public List<(string RuleId, int ActionIndex)> Executions { get; } = [];
+        public List<(string RuleId, int ActionIndex, WorkflowExecutionPhase Phase)> Executions { get; } = [];
         public List<ActionExecutionContext> Contexts { get; } = [];
 
         public Task<ActionExecutionResult> ExecuteAsync(
@@ -477,7 +550,7 @@ public sealed class WorkflowEngineTests
             ActionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            Executions.Add((context.WorkflowRule.Id, context.ActionIndex));
+            Executions.Add((context.WorkflowRule.Id, context.ActionIndex, context.Phase));
             Contexts.Add(context);
 
             if (failFirstExecution && !_hasFailed)
@@ -505,6 +578,21 @@ public sealed class WorkflowEngineTests
         {
             Attempts++;
             throw new InvalidOperationException("Always fails.");
+        }
+    }
+
+    private sealed class FailByPhaseActionExecutor : IWorkflowActionExecutor
+    {
+        public string ActionType => TestAction.TestActionType;
+        public List<WorkflowExecutionPhase> Executions { get; } = [];
+
+        public Task<ActionExecutionResult> ExecuteAsync(
+            WorkflowAction action,
+            ActionExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Executions.Add(context.Phase);
+            throw new InvalidOperationException($"{context.Phase} failed.");
         }
     }
 
