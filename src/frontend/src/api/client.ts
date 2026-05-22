@@ -83,6 +83,56 @@ export async function getMember(
   return getJson<MemberReadModel>(`/api/members/${encodeURIComponent(memberId)}`, signal);
 }
 
+export interface WorkflowRuleSummary {
+  id: string;
+  name: string;
+  eventTypeKey: string;
+  isEnabled: boolean;
+  priority: number;
+  createdAt: string;
+  version: number;
+}
+
+export interface WorkflowRuleDetail extends WorkflowRuleSummary {
+  conditions: unknown[];
+  actions: unknown[];
+  executionMode: string;
+  maxParallelism: number;
+}
+
+export async function getRules(signal?: AbortSignal): Promise<WorkflowRuleSummary[]> {
+  return getJson<WorkflowRuleSummary[]>("/api/rules/", signal);
+}
+
+export async function getRule(id: string, signal?: AbortSignal): Promise<WorkflowRuleDetail> {
+  return getJson<WorkflowRuleDetail>(`/api/rules/${encodeURIComponent(id)}`, signal);
+}
+
+export async function setRuleEnabled(
+  id: string,
+  isEnabled: boolean,
+  signal?: AbortSignal
+): Promise<void> {
+  const path = isEnabled ? "enable" : "disable";
+  const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}/${path}`, {
+    method: "PUT",
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export async function deleteRule(id: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
 export type OverlayHubName = "chat" | "alerts" | "member";
 
 export async function clearOverlayHistory(
