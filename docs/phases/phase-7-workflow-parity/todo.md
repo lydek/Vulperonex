@@ -20,12 +20,12 @@
 
 ## Task 24 - Step ExecutionCondition + OutputVariable
 
-- [ ] Task 24a：`WorkflowAction` 基底加 `ExecutionCondition: string?` + `OutputVariable: string?`。
-- [ ] Task 24b：`IWorkflowActionExecutor.ExecuteAsync` 回傳改 `Task<ActionExecutionResult>`（含 `OutputValues: IReadOnlyDictionary<string, object?>?` + `IsSkipped: bool`）。
-- [ ] Task 24c：Engine 評估 ExecutionCondition → false → 標 Skipped。
-- [ ] Task 24d：Engine 把 OutputValues 寫入 ExpressionContext.Steps[OutputVariable]。
-- [ ] Task 24e：`ActionExecutionStatus` 加 `Skipped`；replay 視為 terminal。
-- [ ] Task 24f：Unit test：ExecutionCondition false skip；step OutputVariable 鏈式解析。
+- [x] Task 24a：`WorkflowAction` 基底加 `ExecutionCondition: string?` + `OutputVariable: string?`。
+- [x] Task 24b：`IWorkflowActionExecutor.ExecuteAsync` 回傳改 `Task<ActionExecutionResult>`（含 `OutputValues: IReadOnlyDictionary<string, object?>?` + `IsSkipped: bool`）。
+- [x] Task 24c：Engine 評估 ExecutionCondition → false → 標 Skipped。
+- [x] Task 24d：Engine 把 OutputValues 寫入 ExpressionContext.Steps[OutputVariable]。
+- [x] Task 24e：`ActionExecutionStatus` 加 `Skipped`；replay 視為 terminal。
+- [x] Task 24f：Unit test：ExecutionCondition false skip；step OutputVariable 鏈式解析。
 
 ## Task 25 - Rule-level Throttle + Timeout
 

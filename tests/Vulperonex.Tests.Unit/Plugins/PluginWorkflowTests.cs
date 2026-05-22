@@ -9,6 +9,7 @@ using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
+using Vulperonex.Infrastructure.Expressions;
 using Vulperonex.Plugins.Abstractions;
 using Xunit;
 
@@ -46,6 +47,7 @@ public sealed class PluginWorkflowTests
             new WorkflowConditionEvaluator(new FakeClock()),
             [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),
+            new NCalcExpressionEvaluator(),
             new FakeClock());
         await engine.StartAsync(TestContext.Current.CancellationToken);
 

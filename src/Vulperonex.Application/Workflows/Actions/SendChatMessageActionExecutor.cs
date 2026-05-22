@@ -6,14 +6,14 @@ public sealed class SendChatMessageActionExecutor(
 {
     public string ActionType => SendChatMessageAction.ActionType;
 
-    public async Task ExecuteAsync(
+    public async Task<ActionExecutionResult> ExecuteAsync(
         WorkflowAction action,
         ActionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
         if (action is not SendChatMessageAction sendChatMessage)
         {
-            return;
+            return ActionExecutionResult.Completed;
         }
 
         var platform = sendChatMessage.TargetPlatform ?? context.StreamEvent.Platform;
@@ -22,10 +22,11 @@ public sealed class SendChatMessageActionExecutor(
 
         if (sender is null)
         {
-            return;
+            return ActionExecutionResult.Completed;
         }
 
         var message = templateRenderer.Render(sendChatMessage.Template, context.StreamEvent);
         await sender.SendAsync(message, cancellationToken);
+        return ActionExecutionResult.Completed;
     }
 }

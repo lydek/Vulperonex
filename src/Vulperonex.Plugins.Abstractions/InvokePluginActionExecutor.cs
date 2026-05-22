@@ -7,20 +7,20 @@ public sealed class InvokePluginActionExecutor(IPluginRegistry pluginRegistry) :
 {
     public string ActionType => InvokePluginAction.ActionType;
 
-    public async Task ExecuteAsync(
+    public async Task<ActionExecutionResult> ExecuteAsync(
         WorkflowAction action,
         ActionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
         if (action is not InvokePluginAction invokePlugin)
         {
-            return;
+            return ActionExecutionResult.Completed;
         }
 
         var plugin = pluginRegistry.Find(invokePlugin.PluginId);
         if (plugin is null)
         {
-            return;
+            return ActionExecutionResult.Completed;
         }
 
         var actionContext = new PluginActionContext(
@@ -36,5 +36,6 @@ public sealed class InvokePluginActionExecutor(IPluginRegistry pluginRegistry) :
             invokePlugin.Params);
 
         await plugin.ExecuteActionAsync(invokePlugin.ActionId, actionContext, cancellationToken);
+        return ActionExecutionResult.Completed;
     }
 }

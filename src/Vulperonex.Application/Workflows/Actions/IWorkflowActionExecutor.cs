@@ -4,5 +4,8 @@ public interface IWorkflowActionExecutor
 {
     string ActionType { get; }
 
-    Task ExecuteAsync(WorkflowAction action, ActionExecutionContext context, CancellationToken cancellationToken = default);
+    Task<ActionExecutionResult> ExecuteAsync(
+        WorkflowAction action,
+        ActionExecutionContext context,
+        CancellationToken cancellationToken = default);
 }

@@ -26,6 +26,13 @@ public sealed class InMemoryWorkflowActionExecutionStore : IWorkflowActionExecut
         return Task.CompletedTask;
     }
 
+    public Task MarkSkippedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _statusByKey[key] = ActionExecutionStatus.Skipped;
+        return Task.CompletedTask;
+    }
+
     public Task MarkAbandonedAsync(ActionExecutionKey key, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -39,5 +46,6 @@ public sealed class InMemoryWorkflowActionExecutionStore : IWorkflowActionExecut
         Running,
         Completed,
         Failed,
+        Skipped,
     }
 }

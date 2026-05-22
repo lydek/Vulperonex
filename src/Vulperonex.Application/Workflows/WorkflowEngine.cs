@@ -1,8 +1,10 @@
 using System.Collections.Concurrent;
 using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
+using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Application.Workflows;
@@ -17,6 +19,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private readonly WorkflowConditionEvaluator _conditionEvaluator;
     private readonly IReadOnlyDictionary<string, IWorkflowActionExecutor> _executorsByType;
     private readonly IWorkflowActionExecutionStore _executionStore;
+    private readonly IExpressionEvaluator _expressionEvaluator;
     private readonly IClock _clock;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _ruleSemaphores = new();
     private IDisposable? _subscription;
@@ -27,6 +30,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         WorkflowConditionEvaluator conditionEvaluator,
         IEnumerable<IWorkflowActionExecutor> actionExecutors,
         IWorkflowActionExecutionStore executionStore,
+        IExpressionEvaluator expressionEvaluator,
         IClock clock)
     {
         _eventBus = eventBus;
@@ -34,6 +38,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         _conditionEvaluator = conditionEvaluator;
         _executorsByType = actionExecutors.ToDictionary(executor => executor.ActionType, StringComparer.Ordinal);
         _executionStore = executionStore;
+        _expressionEvaluator = expressionEvaluator;
         _clock = clock;
     }
 
@@ -152,9 +157,16 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         string? invocationId,
         CancellationToken cancellationToken)
     {
+        var stepOutputs = new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase);
         for (var index = 0; index < rule.Actions.Count; index++)
         {
-            var shouldContinue = await ExecuteActionWithPolicyAsync(rule, streamEvent, index, invocationId, cancellationToken);
+            var shouldContinue = await ExecuteActionWithPolicyAsync(
+                rule,
+                streamEvent,
+                index,
+                invocationId,
+                stepOutputs,
+                cancellationToken);
             if (!shouldContinue)
             {
                 return;
@@ -175,7 +187,13 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             await throttle.WaitAsync(cancellationToken);
             try
             {
-                await ExecuteActionWithPolicyAsync(rule, streamEvent, index, invocationId, cancellationToken);
+                await ExecuteActionWithPolicyAsync(
+                    rule,
+                    streamEvent,
+                    index,
+                    invocationId,
+                    new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+                    cancellationToken);
             }
             finally
             {
@@ -191,10 +209,12 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IStreamEvent streamEvent,
         int actionIndex,
         string? invocationId,
+        IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs,
         CancellationToken cancellationToken)
     {
         var action = rule.Actions[actionIndex];
         var key = new ActionExecutionKey(streamEvent.EventId, rule.Id, actionIndex, invocationId);
+        var expressionContext = BuildExpressionContext(streamEvent, stepOutputs);
 
         if (!await _executionStore.TryBeginAsync(key, cancellationToken))
         {
@@ -204,6 +224,12 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
         try
         {
+            if (!ShouldExecute(action, expressionContext))
+            {
+                await _executionStore.MarkSkippedAsync(key, CancellationToken.None);
+                return true;
+            }
+
             var maxAttempts = action.ErrorBehavior is ErrorBehavior.RetryOnError
                 ? action.MaxRetries + 1
                 : 1;
@@ -212,10 +238,17 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             {
                 try
                 {
-                    await ExecuteActionOnceAsync(
+                    var result = await ExecuteActionOnceAsync(
                         action,
-                        new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId),
+                        new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId, expressionContext),
                         cancellationToken);
+                    if (result.IsSkipped)
+                    {
+                        await _executionStore.MarkSkippedAsync(key, CancellationToken.None);
+                        return true;
+                    }
+
+                    CaptureOutput(action, result, stepOutputs);
                     await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
                     return true;
                 }
@@ -250,14 +283,91 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         }
     }
 
-    private async Task ExecuteActionOnceAsync(
+    private bool ShouldExecute(WorkflowAction action, ExpressionContext expressionContext)
+    {
+        if (string.IsNullOrWhiteSpace(action.ExecutionCondition))
+        {
+            return true;
+        }
+
+        return CoerceToBoolean(_expressionEvaluator.Evaluate(action.ExecutionCondition, expressionContext));
+    }
+
+    private static bool CoerceToBoolean(object? value)
+    {
+        return value switch
+        {
+            bool boolean => boolean,
+            byte number => number != 0,
+            short number => number != 0,
+            int number => number != 0,
+            long number => number != 0,
+            float number => Math.Abs(number) > float.Epsilon,
+            double number => Math.Abs(number) > double.Epsilon,
+            decimal number => number != 0,
+            string text when bool.TryParse(text, out var boolean) => boolean,
+            _ => false,
+        };
+    }
+
+    private static void CaptureOutput(
+        WorkflowAction action,
+        ActionExecutionResult result,
+        IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs)
+    {
+        if (string.IsNullOrWhiteSpace(action.OutputVariable) || result.OutputValues is null)
+        {
+            return;
+        }
+
+        stepOutputs[action.OutputVariable] = result.OutputValues;
+    }
+
+    private static ExpressionContext BuildExpressionContext(
+        IStreamEvent streamEvent,
+        IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs)
+    {
+        var trigger = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["EventId"] = streamEvent.EventId,
+            ["EventTypeKey"] = streamEvent.EventTypeKey,
+            ["Platform"] = streamEvent.Platform,
+            ["OccurredAt"] = streamEvent.OccurredAt,
+        };
+
+        if (streamEvent is UserSentMessageEvent messageEvent)
+        {
+            trigger["MessageText"] = messageEvent.MessageText;
+        }
+
+        var member = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
+        if (streamEvent.User is not null)
+        {
+            member["Platform"] = streamEvent.User.Platform;
+            member["UserId"] = streamEvent.User.UserId;
+            member["DisplayName"] = streamEvent.User.DisplayName;
+            member["Roles"] = streamEvent.User.Roles.ToString();
+            member["IsSubscriber"] = streamEvent.User.Roles.HasFlag(StreamRole.Subscriber);
+            member["IsModerator"] = streamEvent.User.Roles.HasFlag(StreamRole.Moderator);
+            member["IsVip"] = streamEvent.User.Roles.HasFlag(StreamRole.Vip);
+            member["IsFollower"] = streamEvent.User.Roles.HasFlag(StreamRole.Follower);
+        }
+
+        return new ExpressionContext(
+            trigger,
+            new Dictionary<string, IReadOnlyDictionary<string, object?>>(stepOutputs, StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            member);
+    }
+
+    private async Task<ActionExecutionResult> ExecuteActionOnceAsync(
         WorkflowAction action,
         ActionExecutionContext context,
         CancellationToken cancellationToken)
     {
         if (!_executorsByType.TryGetValue(action.Type, out var executor))
         {
-            return;
+            return ActionExecutionResult.Completed;
         }
 
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -266,6 +376,6 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             timeoutSource.CancelAfter(TimeSpan.FromMilliseconds(action.TimeoutMs));
         }
 
-        await executor.ExecuteAsync(action, context, timeoutSource.Token);
+        return await executor.ExecuteAsync(action, context, timeoutSource.Token);
     }
 }

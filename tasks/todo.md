@@ -141,7 +141,7 @@
 > **前置條件 Gate**：Phase 5 runtime + Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線可用；不等待完整 Phase 6 Checkpoint。
 
 - [x] **Task 23** — Variable / Expression substrate：`ExpressionContext` + template resolver + NCalc evaluator（ask-first 加 `NCalcSync`）
-- [ ] **Task 24** — Step `ExecutionCondition` + `OutputVariable`
+- [x] **Task 24** — Step `ExecutionCondition` + `OutputVariable`
 - [ ] **Task 25** — Rule-level throttle + timeout
 - [ ] **Task 26** — `OnFailureActionsJson` 補救鏈 + replay phase key
 - [ ] **Task 28** — Hot reload immutable rule snapshot cache

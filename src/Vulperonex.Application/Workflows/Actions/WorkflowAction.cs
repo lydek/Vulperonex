@@ -10,6 +10,8 @@ public abstract record WorkflowAction
 {
     [JsonIgnore]
     public abstract string Type { get; }
+    public string? ExecutionCondition { get; init; }
+    public string? OutputVariable { get; init; }
     public int TimeoutMs { get; init; } = 10_000;
     public int MaxRetries { get; init; }
     public int BackoffMs { get; init; } = 500;

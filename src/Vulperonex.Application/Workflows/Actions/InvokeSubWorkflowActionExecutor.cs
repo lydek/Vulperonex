@@ -7,14 +7,14 @@ public sealed class InvokeSubWorkflowActionExecutor(IWorkflowRuleInvoker workflo
 {
     public string ActionType => InvokeSubWorkflowAction.ActionType;
 
-    public async Task ExecuteAsync(
+    public async Task<ActionExecutionResult> ExecuteAsync(
         WorkflowAction action,
         ActionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
         if (action is not InvokeSubWorkflowAction invokeSubWorkflow)
         {
-            return;
+            return ActionExecutionResult.Completed;
         }
 
         // SPEC §4.2: InvocationId must be stable across TDQ replays.
@@ -30,6 +30,7 @@ public sealed class InvokeSubWorkflowActionExecutor(IWorkflowRuleInvoker workflo
             context.StreamEvent,
             invocationId,
             cancellationToken);
+        return ActionExecutionResult.Completed;
     }
 
     private static string DeriveInvocationId(string eventId, string parentRuleId, int actionIndex)

@@ -12,6 +12,7 @@ using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
+using Vulperonex.Infrastructure.Expressions;
 using Xunit;
 
 namespace Vulperonex.Tests.Integration.Adapters;
@@ -74,6 +75,7 @@ public sealed class TwitchWorkflowEquivalenceTests
             new WorkflowConditionEvaluator(new FakeClock()),
             [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),
+            new NCalcExpressionEvaluator(),
             new FakeClock());
     }
 

@@ -73,6 +73,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
             {
                 return false;
             }
+
+            if (value is null && index < parts.Count - 1)
+            {
+                return false;
+            }
         }
 
         return true;

@@ -9,6 +9,7 @@ using Vulperonex.Adapters.Simulation;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Infrastructure.EventBus;
+using Vulperonex.Infrastructure.Expressions;
 using Xunit;
 
 namespace Vulperonex.Tests.Unit.Application.Workflows;
@@ -245,6 +246,49 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_ActionExecutionConditionFalse_When_ExecutingRule_Then_ActionIsSkippedAndNextActionRuns()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new TestAction { ExecutionCondition = "Trigger.MessageText == 'nope'" },
+            new TestAction(),
+        ]);
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().ContainSingle().Which.ActionIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Given_ActionOutputVariable_When_ExecutingNextAction_Then_OutputIsAvailableInExpressionContext()
+    {
+        var executor = new RecordingActionExecutor(
+            outputsByActionIndex: new Dictionary<int, IReadOnlyDictionary<string, object?>>
+            {
+                [0] = new Dictionary<string, object?>
+                {
+                    ["DisplayName"] = "Alice Prime",
+                    ["Points"] = 42,
+                },
+            });
+        var rule = NewRule(actions:
+        [
+            new TestAction { OutputVariable = "Lookup" },
+            new TestAction { ExecutionCondition = "Step.Lookup.Points == 42" },
+        ]);
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().HaveCount(2);
+        executor.Contexts[1].ExpressionContext.Steps["Lookup"]["DisplayName"].Should().Be("Alice Prime");
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -294,6 +338,7 @@ public sealed class WorkflowEngineTests
             new WorkflowConditionEvaluator(new FakeClock()),
             executors,
             new InMemoryWorkflowActionExecutionStore(),
+            new NCalcExpressionEvaluator(),
             new FakeClock());
     }
 
@@ -345,18 +390,22 @@ public sealed class WorkflowEngineTests
         public override string Type => TestActionType;
     }
 
-    private sealed class RecordingActionExecutor(bool failFirstExecution = false) : IWorkflowActionExecutor
+    private sealed class RecordingActionExecutor(
+        bool failFirstExecution = false,
+        IReadOnlyDictionary<int, IReadOnlyDictionary<string, object?>>? outputsByActionIndex = null) : IWorkflowActionExecutor
     {
         private bool _hasFailed;
         public string ActionType => TestAction.TestActionType;
         public List<(string RuleId, int ActionIndex)> Executions { get; } = [];
+        public List<ActionExecutionContext> Contexts { get; } = [];
 
-        public Task ExecuteAsync(
+        public Task<ActionExecutionResult> ExecuteAsync(
             WorkflowAction action,
             ActionExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             Executions.Add((context.WorkflowRule.Id, context.ActionIndex));
+            Contexts.Add(context);
 
             if (failFirstExecution && !_hasFailed)
             {
@@ -364,7 +413,10 @@ public sealed class WorkflowEngineTests
                 throw new InvalidOperationException("Expected test failure.");
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(outputsByActionIndex is not null
+                && outputsByActionIndex.TryGetValue(context.ActionIndex, out var outputValues)
+                    ? ActionExecutionResult.FromOutput(outputValues)
+                    : ActionExecutionResult.Completed);
         }
     }
 
@@ -373,7 +425,7 @@ public sealed class WorkflowEngineTests
         public string ActionType => TestAction.TestActionType;
         public int Attempts { get; private set; }
 
-        public Task ExecuteAsync(
+        public Task<ActionExecutionResult> ExecuteAsync(
             WorkflowAction action,
             ActionExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -388,7 +440,7 @@ public sealed class WorkflowEngineTests
         public string ActionType => TestAction.TestActionType;
         public bool SawCancellation { get; private set; }
 
-        public async Task ExecuteAsync(
+        public async Task<ActionExecutionResult> ExecuteAsync(
             WorkflowAction action,
             ActionExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -402,6 +454,8 @@ public sealed class WorkflowEngineTests
                 SawCancellation = true;
                 throw;
             }
+
+            return ActionExecutionResult.Completed;
         }
     }
 
@@ -411,7 +465,7 @@ public sealed class WorkflowEngineTests
         public string ActionType => TestAction.TestActionType;
         public int Attempts { get; private set; }
 
-        public Task ExecuteAsync(
+        public Task<ActionExecutionResult> ExecuteAsync(
             WorkflowAction action,
             ActionExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -424,7 +478,7 @@ public sealed class WorkflowEngineTests
                 throw new OperationCanceledException(cancellationTokenSource.Token);
             }
 
-            return Task.CompletedTask;
+            return Task.FromResult(ActionExecutionResult.Completed);
         }
     }
 
@@ -434,7 +488,7 @@ public sealed class WorkflowEngineTests
         public string ActionType => TestAction.TestActionType;
         public int MaxObservedConcurrency { get; private set; }
 
-        public async Task ExecuteAsync(
+        public async Task<ActionExecutionResult> ExecuteAsync(
             WorkflowAction action,
             ActionExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -443,6 +497,7 @@ public sealed class WorkflowEngineTests
             MaxObservedConcurrency = Math.Max(MaxObservedConcurrency, current);
             await Task.Delay(20, cancellationToken);
             Interlocked.Decrement(ref _currentConcurrency);
+            return ActionExecutionResult.Completed;
         }
     }
 
