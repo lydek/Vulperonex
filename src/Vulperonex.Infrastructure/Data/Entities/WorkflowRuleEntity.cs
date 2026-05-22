@@ -12,6 +12,8 @@ public sealed class WorkflowRuleEntity
 
     public string? MatchCondition { get; set; }
 
+    public bool IsSubWorkflow { get; set; }
+
     public string ConditionsJson { get; set; } = "{}";
 
     public string ActionsJson { get; set; } = "[]";

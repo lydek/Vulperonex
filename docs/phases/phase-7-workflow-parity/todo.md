@@ -46,10 +46,10 @@
 
 ## Task 27 - Sub-process Flag + InvokeRule Polish
 
-- [ ] Task 27a：EF migration 加 `IsSubWorkflow: bool default false`。
-- [ ] Task 27b：Engine HandleEventAsync 過濾 `IsSubWorkflow=true`。
-- [ ] Task 27c：`InvokeSubWorkflowAction` 加 `Args: Dictionary<string, string>` template；engine resolve 後注入 child ExpressionContext.Args，且不得改變 stable `InvocationId` / `ActionExecutionKey` replay 語意。
-- [ ] Task 27d：Unit test：sub-workflow 不被事件觸發；parent step Output → child Args；TDQ replay 時 child invocation id 穩定。
+- [x] Task 27a：EF migration 加 `IsSubWorkflow: bool default false`。
+- [x] Task 27b：Engine HandleEventAsync 過濾 `IsSubWorkflow=true`。
+- [x] Task 27c：`InvokeSubWorkflowAction` 加 `Args: Dictionary<string, string>` template；engine resolve 後注入 child ExpressionContext.Args，且不得改變 stable `InvocationId` / `ActionExecutionKey` replay 語意。
+- [x] Task 27d：Unit test：sub-workflow 不被事件觸發；parent step Output → child Args；TDQ replay 時 child invocation id 穩定。
 
 ## Task 28 - Hot Reload Snapshot Cache
 

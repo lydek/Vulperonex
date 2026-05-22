@@ -24,6 +24,7 @@ internal static class WorkflowRuleMapper
             EventTypeKey = entity.EventTypeKey,
             Trigger = DeserializeTrigger(entity.TriggerJson, entity.EventTypeKey),
             MatchCondition = entity.MatchCondition,
+            IsSubWorkflow = entity.IsSubWorkflow,
             Conditions = JsonSerializer.Deserialize<IReadOnlyList<WorkflowCondition>>(entity.ConditionsJson, JsonOptions) ?? [],
             Actions = JsonSerializer.Deserialize<IReadOnlyList<WorkflowAction>>(entity.ActionsJson, JsonOptions) ?? [],
             OnFailureSteps = JsonSerializer.Deserialize<IReadOnlyList<WorkflowAction>>(entity.OnFailureActionsJson, JsonOptions) ?? [],
@@ -59,6 +60,7 @@ internal static class WorkflowRuleMapper
             EventTypeKey = rule.EventTypeKey,
             TriggerJson = JsonSerializer.Serialize(NormalizeTrigger(rule), JsonOptions),
             MatchCondition = rule.MatchCondition,
+            IsSubWorkflow = rule.IsSubWorkflow,
             ConditionsJson = JsonSerializer.Serialize(rule.Conditions, JsonOptions),
             ActionsJson = JsonSerializer.Serialize(rule.Actions, JsonOptions),
             OnFailureActionsJson = JsonSerializer.Serialize(rule.OnFailureSteps, JsonOptions),
@@ -79,6 +81,7 @@ internal static class WorkflowRuleMapper
         entity.EventTypeKey = rule.EventTypeKey;
         entity.TriggerJson = JsonSerializer.Serialize(NormalizeTrigger(rule), JsonOptions);
         entity.MatchCondition = rule.MatchCondition;
+        entity.IsSubWorkflow = rule.IsSubWorkflow;
         entity.ConditionsJson = JsonSerializer.Serialize(rule.Conditions, JsonOptions);
         entity.ActionsJson = JsonSerializer.Serialize(rule.Actions, JsonOptions);
         entity.OnFailureActionsJson = JsonSerializer.Serialize(rule.OnFailureSteps, JsonOptions);

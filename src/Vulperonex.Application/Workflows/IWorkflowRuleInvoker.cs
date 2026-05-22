@@ -8,5 +8,6 @@ public interface IWorkflowRuleInvoker
         string workflowRuleId,
         IStreamEvent streamEvent,
         string invocationId,
+        IReadOnlyDictionary<string, string>? args = null,
         CancellationToken cancellationToken = default);
 }

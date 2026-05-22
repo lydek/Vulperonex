@@ -71,6 +71,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         // EventTypeKey matches. No additional filtering here.
         var rules = await _ruleSnapshotCache.GetByEventTypeAsync(streamEvent.EventTypeKey, cancellationToken);
         var orderedRules = rules
+            .Where(rule => !rule.IsSubWorkflow)
             .OrderBy(rule => rule.Priority)
             .ThenBy(rule => rule.CreatedAt)
             .ThenBy(rule => rule.Id, StringComparer.Ordinal)
@@ -84,13 +85,14 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IStreamEvent streamEvent,
         CancellationToken cancellationToken = default)
     {
-        await ExecuteRuleAsync(rule, streamEvent, invocationId: null, cancellationToken);
+        await ExecuteRuleAsync(rule, streamEvent, invocationId: null, cancellationToken: cancellationToken);
     }
 
     public async Task InvokeAsync(
         string workflowRuleId,
         IStreamEvent streamEvent,
         string invocationId,
+        IReadOnlyDictionary<string, string>? args = null,
         CancellationToken cancellationToken = default)
     {
         var rule = await _ruleSnapshotCache.GetByIdAsync(workflowRuleId, cancellationToken);
@@ -99,13 +101,14 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             return;
         }
 
-        await ExecuteRuleAsync(rule, streamEvent, invocationId, cancellationToken);
+        await ExecuteRuleAsync(rule, streamEvent, invocationId, args, cancellationToken);
     }
 
     private async Task ExecuteRuleAsync(
         WorkflowRule rule,
         IStreamEvent streamEvent,
         string? invocationId,
+        IReadOnlyDictionary<string, string>? args = null,
         CancellationToken cancellationToken = default)
     {
         if (!MatchesConditions(rule, streamEvent) || !MatchesTrigger(rule, streamEvent))
@@ -149,6 +152,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                     invocationId,
                     WorkflowExecutionPhase.Main,
                     failure: null,
+                    args ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                     effectiveCancellationToken);
             }
 
@@ -242,6 +246,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         string? invocationId,
         WorkflowExecutionPhase phase,
         WorkflowFailureContext? failure,
+        IReadOnlyDictionary<string, string> args,
         CancellationToken cancellationToken)
     {
         var stepOutputs = new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase);
@@ -256,6 +261,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                 phase,
                 stepOutputs,
                 failure,
+                args,
                 cancellationToken);
             if (!result.Succeeded)
             {
@@ -288,6 +294,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                     WorkflowExecutionPhase.Main,
                     new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
                     failure: null,
+                    new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                     cancellationToken);
             }
             finally
@@ -309,11 +316,12 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         WorkflowExecutionPhase phase,
         IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs,
         WorkflowFailureContext? failure,
+        IReadOnlyDictionary<string, string> args,
         CancellationToken cancellationToken)
     {
         var action = actions[actionIndex];
         var key = new ActionExecutionKey(streamEvent.EventId, rule.Id, actionIndex, invocationId, phase);
-        var expressionContext = BuildExpressionContext(streamEvent, stepOutputs, failure);
+        var expressionContext = BuildExpressionContext(streamEvent, stepOutputs, failure, args);
 
         if (!await _executionStore.TryBeginAsync(key, cancellationToken))
         {
@@ -405,6 +413,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             invocationId,
             WorkflowExecutionPhase.OnFailure,
             new WorkflowFailureContext(failure.FailureStepIndex ?? -1, failure.ErrorMessage ?? string.Empty),
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
             cancellationToken);
     }
 
@@ -451,7 +460,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private static ExpressionContext BuildExpressionContext(
         IStreamEvent streamEvent,
         IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs,
-        WorkflowFailureContext? failure)
+        WorkflowFailureContext? failure,
+        IReadOnlyDictionary<string, string>? args = null)
     {
         var trigger = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
@@ -489,7 +499,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         return new ExpressionContext(
             trigger,
             new Dictionary<string, IReadOnlyDictionary<string, object?>>(stepOutputs, StringComparer.OrdinalIgnoreCase),
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+            new Dictionary<string, string>(args ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase),
             member,
             failureValues);
     }

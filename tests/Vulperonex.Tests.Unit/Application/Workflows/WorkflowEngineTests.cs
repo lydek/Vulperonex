@@ -486,6 +486,62 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_SubWorkflowRule_When_EventIsPublished_Then_RuleIsNotTriggeredDirectly()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with { IsSubWorkflow = true };
+        await using var engine = NewEngine(bus, [rule], [executor]);
+        await engine.StartAsync(TestContext.Current.CancellationToken);
+
+        await bus.PublishAsync(NewMessageEvent(), TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_InvokeSubWorkflowArgs_When_ParentOutputExists_Then_ChildReceivesResolvedArgs()
+    {
+        var lateInvoker = new LateBoundWorkflowRuleInvoker();
+        var recorder = new RecordingActionExecutor(
+            outputsByActionIndex: new Dictionary<int, IReadOnlyDictionary<string, object?>>
+            {
+                [0] = new Dictionary<string, object?> { ["DisplayName"] = "Alice Prime" },
+            });
+        var parent = NewRule(id: "parent", actions:
+        [
+            new TestAction { OutputVariable = "Lookup" },
+            new InvokeSubWorkflowAction
+            {
+                WorkflowId = "child",
+                Args = new Dictionary<string, string>
+                {
+                    ["Target"] = "{Step.Lookup.DisplayName}",
+                },
+            },
+        ]);
+        var child = NewRule(id: "child", actions:
+        [
+            new TestAction { ExecutionCondition = "Args.Target == 'Alice Prime'" },
+        ]) with
+        {
+            IsSubWorkflow = true,
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(
+            bus,
+            [parent, child],
+            [recorder, new InvokeSubWorkflowActionExecutor(lateInvoker, new TemplateResolver())]);
+        lateInvoker.Inner = engine;
+
+        await engine.ExecuteRuleAsync(parent, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        recorder.Contexts.Should().Contain(context =>
+            context.WorkflowRule.Id == "child" && context.ExpressionContext.Args["Target"] == "Alice Prime");
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -685,6 +741,21 @@ public sealed class WorkflowEngineTests
         public void ReleaseFirstAction()
         {
             _releaseFirstAction.TrySetResult();
+        }
+    }
+
+    private sealed class LateBoundWorkflowRuleInvoker : IWorkflowRuleInvoker
+    {
+        public IWorkflowRuleInvoker? Inner { get; set; }
+
+        public Task InvokeAsync(
+            string workflowRuleId,
+            IStreamEvent streamEvent,
+            string invocationId,
+            IReadOnlyDictionary<string, string>? args = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Inner!.InvokeAsync(workflowRuleId, streamEvent, invocationId, args, cancellationToken);
         }
     }
 

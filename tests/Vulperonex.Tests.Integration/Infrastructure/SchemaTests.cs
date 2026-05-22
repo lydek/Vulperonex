@@ -27,6 +27,7 @@ public sealed class SchemaTests
         workflowRuleColumns.Should().Contain([
             "ActionsJson",
             "ConditionsJson",
+            "IsSubWorkflow",
             "MatchCondition",
             "OnFailureActionsJson",
             "ThrottleJson",

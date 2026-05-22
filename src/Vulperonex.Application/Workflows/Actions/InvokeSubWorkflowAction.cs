@@ -9,4 +9,6 @@ public sealed record InvokeSubWorkflowAction : WorkflowAction
     [JsonIgnore]
     public override string Type => ActionType;
     public required string WorkflowId { get; init; }
+    public IReadOnlyDictionary<string, string> Args { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }

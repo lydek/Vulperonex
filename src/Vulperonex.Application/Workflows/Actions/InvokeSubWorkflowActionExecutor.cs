@@ -1,9 +1,12 @@
 using System.Security.Cryptography;
 using System.Text;
+using Vulperonex.Application.Expressions;
 
 namespace Vulperonex.Application.Workflows.Actions;
 
-public sealed class InvokeSubWorkflowActionExecutor(IWorkflowRuleInvoker workflowRuleInvoker) : IWorkflowActionExecutor
+public sealed class InvokeSubWorkflowActionExecutor(
+    IWorkflowRuleInvoker workflowRuleInvoker,
+    ITemplateResolver templateResolver) : IWorkflowActionExecutor
 {
     public string ActionType => InvokeSubWorkflowAction.ActionType;
 
@@ -29,8 +32,19 @@ public sealed class InvokeSubWorkflowActionExecutor(IWorkflowRuleInvoker workflo
             invokeSubWorkflow.WorkflowId,
             context.StreamEvent,
             invocationId,
+            ResolveArgs(invokeSubWorkflow.Args, context.ExpressionContext),
             cancellationToken);
         return ActionExecutionResult.Completed;
+    }
+
+    private IReadOnlyDictionary<string, string> ResolveArgs(
+        IReadOnlyDictionary<string, string> args,
+        ExpressionContext expressionContext)
+    {
+        return args.ToDictionary(
+            pair => pair.Key,
+            pair => templateResolver.Resolve(pair.Value, expressionContext),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     private static string DeriveInvocationId(string eventId, string parentRuleId, int actionIndex)

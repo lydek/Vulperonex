@@ -116,6 +116,7 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<string>("EventTypeKey").IsRequired().HasColumnType("TEXT");
             b.Property<string>("ExecutionMode").IsRequired().HasColumnType("TEXT");
             b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+            b.Property<bool>("IsSubWorkflow").HasColumnType("INTEGER");
             b.Property<string>("MatchCondition").HasColumnType("TEXT");
             b.Property<int>("MaxParallelism").HasColumnType("INTEGER");
             b.Property<string>("Name").IsRequired().HasColumnType("TEXT");
