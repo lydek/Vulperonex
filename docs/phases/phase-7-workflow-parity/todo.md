@@ -68,9 +68,9 @@
 
 ## Task 30 - Executor Expansion
 
-- [ ] Task 30a：`DelayActionExecutor` (`delayMs: 100-30000`)；timeoutMs 默認比 delay 大。
-- [ ] Task 30b：`StopIfActionExecutor` (`condition: NCalc`)；true 時拋 `WorkflowGracefulStopException`；engine 視為正常結束。
-- [ ] Task 30c：`RandomPickerActionExecutor` (`choices: string[], weights?: int[]`)；OutputVariable 寫 Picked。
+- [x] Task 30a：`DelayActionExecutor` (`delayMs: 100-30000`)；timeoutMs 默認比 delay 大。
+- [x] Task 30b：`StopIfActionExecutor` (`condition: NCalc`)；true 時拋 `WorkflowGracefulStopException`；engine 視為正常結束。
+- [x] Task 30c：`RandomPickerActionExecutor` (`choices: string[], weights?: int[]`)；OutputVariable 寫 Picked。
 - [ ] Task 30d：新 `Counter` entity + EF migration + repository；`UpdateCounterActionExecutor` (`key, delta`) → OutputVariable 寫新值。
 - [ ] Task 30e：`LookupTwitchUserActionExecutor` (`login? userId?`) → output `DisplayName/Avatar/Description/IsAffiliate`；需 `ITwitchHelixClient`（既有 token 流程）。
 - [ ] Task 30f：`ShoutoutActionExecutor` (`targetLogin`) → Helix chat/shoutouts。

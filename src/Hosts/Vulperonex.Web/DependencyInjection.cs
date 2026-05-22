@@ -104,6 +104,9 @@ public static class DependencyInjection
         services.AddSingleton<IWorkflowThrottleService, InMemoryWorkflowThrottleService>();
         services.AddScoped<IWorkflowActionExecutor, SendChatMessageActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, DelayActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, StopIfActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, RandomPickerActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {

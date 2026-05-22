@@ -542,6 +542,49 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_StopIfConditionTrue_When_ExecutingRule_Then_PipelineStopsWithoutOnFailure()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new StopIfAction { Condition = "Trigger.MessageText == '!hello'" },
+            new TestAction(),
+        ]) with
+        {
+            OnFailureSteps = [new TestAction()],
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(
+            bus,
+            [rule],
+            [executor, new StopIfActionExecutor(new NCalcExpressionEvaluator())]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_RandomPickerOutputVariable_When_NextActionRuns_Then_PickedIsAvailableInStepContext()
+    {
+        var recorder = new RecordingActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new RandomPickerAction { Choices = ["alpha"], OutputVariable = "Pick" },
+            new TestAction { ExecutionCondition = "Step.Pick.Picked == 'alpha'" },
+        ]);
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(
+            bus,
+            [rule],
+            [recorder, new RandomPickerActionExecutor()]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        recorder.Executions.Should().ContainSingle().Which.ActionIndex.Should().Be(1);
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();

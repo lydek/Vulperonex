@@ -148,7 +148,12 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             and not InvokeSubWorkflowAction.ActionType
             and not InvokePluginAction.ActionType)
         {
-            return ErrorCodes.UnknownActionType;
+            if (type is not DelayAction.ActionType
+                and not StopIfAction.ActionType
+                and not RandomPickerAction.ActionType)
+            {
+                return ErrorCodes.UnknownActionType;
+            }
         }
 
         if (type == SendChatMessageAction.ActionType)
@@ -176,6 +181,40 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             if (string.IsNullOrWhiteSpace(workflowId.GetString()))
             {
                 return ErrorCodes.ActionMissingRequiredParam;
+            }
+        }
+
+        if (type == DelayAction.ActionType)
+        {
+            var delayAction = element.Deserialize<DelayAction>(JsonOptions);
+            if (delayAction is null || delayAction.DelayMs < 100 || delayAction.DelayMs > 30_000)
+            {
+                return ErrorCodes.InvalidActionConfig;
+            }
+        }
+
+        if (type == StopIfAction.ActionType)
+        {
+            var stopIfAction = element.Deserialize<StopIfAction>(JsonOptions);
+            if (stopIfAction is null || string.IsNullOrWhiteSpace(stopIfAction.Condition))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
+            }
+        }
+
+        if (type == RandomPickerAction.ActionType)
+        {
+            var randomPickerAction = element.Deserialize<RandomPickerAction>(JsonOptions);
+            if (randomPickerAction is null || randomPickerAction.Choices.Count is 0)
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
+            }
+
+            if (randomPickerAction.Weights is not null
+                && (randomPickerAction.Weights.Count != randomPickerAction.Choices.Count
+                    || randomPickerAction.Weights.Any(weight => weight < 0)))
+            {
+                return ErrorCodes.InvalidActionConfig;
             }
         }
 

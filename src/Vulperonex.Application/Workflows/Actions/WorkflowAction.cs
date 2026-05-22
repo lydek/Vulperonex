@@ -6,6 +6,9 @@ namespace Vulperonex.Application.Workflows.Actions;
 [JsonDerivedType(typeof(SendChatMessageAction), SendChatMessageAction.ActionType)]
 [JsonDerivedType(typeof(InvokeSubWorkflowAction), InvokeSubWorkflowAction.ActionType)]
 [JsonDerivedType(typeof(InvokePluginAction), InvokePluginAction.ActionType)]
+[JsonDerivedType(typeof(DelayAction), DelayAction.ActionType)]
+[JsonDerivedType(typeof(StopIfAction), StopIfAction.ActionType)]
+[JsonDerivedType(typeof(RandomPickerAction), RandomPickerAction.ActionType)]
 public abstract record WorkflowAction
 {
     [JsonIgnore]

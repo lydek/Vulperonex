@@ -267,6 +267,11 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             {
                 return result;
             }
+
+            if (result.StoppedGracefully)
+            {
+                return result;
+            }
         }
 
         return WorkflowPipelineResult.Success;
@@ -358,6 +363,11 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                     CaptureOutput(action, result, stepOutputs);
                     await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
                     return WorkflowPipelineResult.Success;
+                }
+                catch (WorkflowGracefulStopException)
+                {
+                    await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
+                    return WorkflowPipelineResult.GracefulStop;
                 }
                 catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
@@ -527,14 +537,20 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
     private sealed record WorkflowPipelineResult(
         bool Succeeded,
+        bool StoppedGracefully = false,
         int? FailureStepIndex = null,
         string? ErrorMessage = null)
     {
         public static WorkflowPipelineResult Success { get; } = new(true);
 
+        public static WorkflowPipelineResult GracefulStop { get; } = new(true, StoppedGracefully: true);
+
         public static WorkflowPipelineResult Failed(int failureStepIndex, string errorMessage)
         {
-            return new WorkflowPipelineResult(false, failureStepIndex, errorMessage);
+            return new WorkflowPipelineResult(
+                Succeeded: false,
+                FailureStepIndex: failureStepIndex,
+                ErrorMessage: errorMessage);
         }
     }
 }
