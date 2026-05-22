@@ -92,7 +92,7 @@
 ## Task 32 - ChatOutboxService
 
 - [x] Task 32a：`IChatOutbox.EnqueueAsync(platform, channel, message, dedupKey?)`。
-- [ ] Task 32b：`ChatOutboxDispatcher` background service 按 `chat.outbox.per_second`（default 5）出貨。
+- [x] Task 32b：`ChatOutboxDispatcher` background service 按 `chat.outbox.per_second`（default 5）出貨。
 - [ ] Task 32c：DedupKey 24h TTL 表（in-memory + SystemSettings persist）。
 - [x] Task 32d：`SendChatMessageActionExecutor` 改寫進 outbox（非阻塞）。
 - [ ] Task 32e：Unit test：burst 100 限速；同 dedupKey 24h 內丟棄；缺 `IPlatformChatSender` 時 item 標 `Skipped`/`Failed` 並記 warning，不 silent no-op。

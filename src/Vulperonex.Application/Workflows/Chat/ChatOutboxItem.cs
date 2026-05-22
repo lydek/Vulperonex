@@ -15,6 +15,7 @@ public sealed record ChatOutboxItem
 public enum ChatOutboxItemStatus
 {
     Pending,
+    Processing,
     Sent,
     Skipped,
     Failed,

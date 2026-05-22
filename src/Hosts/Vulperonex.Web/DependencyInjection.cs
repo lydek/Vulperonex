@@ -140,6 +140,7 @@ public static class DependencyInjection
         services.AddHostedService<SimulationAdapterStartupService>();
         services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<OverlayEventForwarder>();
+        services.AddHostedService<ChatOutboxDispatcher>();
         services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddSingleton<AppLogsSink>(provider =>
             new AppLogsSink(provider.GetRequiredService<IServiceScopeFactory>()));

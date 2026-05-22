@@ -82,5 +82,25 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
         {
             return Task.FromResult<IReadOnlyList<ChatOutboxItem>>([]);
         }
+
+        public Task<IReadOnlyList<ChatOutboxItem>> DequeuePendingAsync(int maxItems, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ChatOutboxItem>>([]);
+        }
+
+        public Task MarkSentAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task MarkSkippedAsync(Guid id, string reason, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task MarkFailedAsync(Guid id, string errorMessage, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 }
