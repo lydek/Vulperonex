@@ -32,6 +32,14 @@ public sealed class OverlayDtoWhitelistTests
     }
 
     [Fact]
+    public void Given_OverlayEffectPayload_When_Serialized_Then_JsonKeySetIsExact()
+    {
+        var payload = new OverlayEffectPayload(1, "evt-1", DateTimeOffset.UnixEpoch, "sparkle", 1_000);
+
+        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "effectId", "durationMs");
+    }
+
+    [Fact]
     public void Given_OverlayTextSegmentTypeIsNotAllowed_When_Created_Then_ItIsRejected()
     {
         var create = () => new OverlayTextSegment("script", "alert(1)");

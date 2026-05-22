@@ -77,7 +77,7 @@
 - [ ] Task 30g：`RefundTwitchRedemptionActionExecutor` (`rewardId, redemptionId`)。
 - [ ] Task 30h：`EmitOverlayWidgetActionExecutor` 使用 strong-typed overlay action + exact DTO whitelist，投影後走 OverlayEventForwarder 等價路徑；禁止任意 `payload` 穿透 SignalR。
 - [x] Task 30i：`EmitSystemEventActionExecutor` (`eventTypeKey, payload`) → publish 進 IStreamEventBus；engine 加 depth cap 5 防循環。
-- [ ] Task 30j：`TriggerEffectActionExecutor` (`effectId, durationMs?`) → 廣播 strong-typed effect DTO；新增 whitelist/SignalR contract test，不以 ad hoc `effect: true` 擴充既有 alert payload。
+- [x] Task 30j：`TriggerEffectActionExecutor` (`effectId, durationMs?`) → 廣播 strong-typed effect DTO；新增 whitelist/SignalR contract test，不以 ad hoc `effect: true` 擴充既有 alert payload。
 - [x] Task 30k：`TriggerCheckInActionExecutor` (`userId`) → MemberStreamStateRepository.IncrementCheckInAsync。
 - [x] Task 30l：`AddLotteryTicketsActionExecutor` (`userId, amount`) → 走 Counter `lottery.tickets.<userId>`（正式 LotteryTicket 表延後 Phase 8）。
 

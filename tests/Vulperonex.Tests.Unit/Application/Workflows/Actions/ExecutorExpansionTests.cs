@@ -2,6 +2,9 @@ using FluentAssertions;
 using Vulperonex.Application.Counters;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Members;
+using Vulperonex.Application.Overlay;
+using Vulperonex.Application.Overlay.Dtos;
+using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Domain;
@@ -134,10 +137,37 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["Depth"].Should().Be(1);
     }
 
+    [Fact]
+    public async Task Given_TriggerEffectAction_When_Executed_Then_EmitsStrongTypedEffectPayload()
+    {
+        var emitter = new RecordingOverlayEffectEmitter();
+        var executor = new TriggerEffectActionExecutor(emitter, new TemplateResolver(), new FakeClock());
+
+        var result = await executor.ExecuteAsync(
+            new TriggerEffectAction
+            {
+                EffectId = "sparkle-{Member.UserId}",
+                DurationMs = 1_500,
+            },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        var payload = emitter.Payloads.Should().ContainSingle().Subject;
+        payload.SchemaVersion.Should().Be(1);
+        payload.EventId.Should().Be("event-1");
+        payload.Timestamp.Should().Be(new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero));
+        payload.EffectId.Should().Be("sparkle-alice");
+        payload.DurationMs.Should().Be(1_500);
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["EffectId"].Should().Be("sparkle-alice");
+        result.OutputValues!["DurationMs"].Should().Be(1_500);
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
         {
+            EventId = "event-1",
             Platform = "twitch",
             User = new StreamUser("twitch", "alice", "Alice"),
         };
@@ -215,5 +245,21 @@ public sealed class ExecutorExpansionTests
             {
             }
         }
+    }
+
+    private sealed class RecordingOverlayEffectEmitter : IOverlayEffectEmitter
+    {
+        public List<OverlayEffectPayload> Payloads { get; } = [];
+
+        public Task EmitAsync(OverlayEffectPayload payload, CancellationToken cancellationToken = default)
+        {
+            Payloads.Add(payload);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeClock : IClock
+    {
+        public DateTimeOffset UtcNow { get; } = new(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
     }
 }

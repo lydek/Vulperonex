@@ -77,6 +77,7 @@ public static class DependencyInjection
         services.AddOverlayHistory<OverlayChatPayload>("chat", defaultCapacity: 30);
         services.AddOverlayHistory<OverlayAlertPayload>("alerts", defaultCapacity: 20);
         services.AddOverlayHistory<OverlayMemberPayload>("member", defaultCapacity: 20);
+        services.AddSingleton<IOverlayEffectEmitter, SignalROverlayEffectEmitter>();
         services.AddSingleton<TwitchOAuthSessionStore>();
         services.AddSingleton<PlatformConnectionNotifier>();
         services.AddSingleton<IFileSystem, LocalFileSystem>();
@@ -114,6 +115,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, TriggerCheckInActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, AddLotteryTicketsActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, EmitSystemEventActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, TriggerEffectActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {

@@ -12,6 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Overlay;
+using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Web;
 using Xunit;
@@ -105,6 +107,34 @@ public sealed class SignalRHubTests
         payload.GetProperty("schemaVersion").GetInt32().Should().Be(1);
         payload.GetProperty("eventType").GetString().Should().Be("followed");
         payload.GetProperty("displayName").GetString().Should().Be("Follower");
+    }
+
+    [Fact]
+    public async Task Given_OverlayEffectsHub_When_EffectEmitted_Then_StrongTypedPayloadArrives()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var message = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/effects"))
+            .Build();
+
+        connection.On<JsonElement>("event", payload => message.TrySetResult(payload));
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+        var emitter = app.Services.GetRequiredService<IOverlayEffectEmitter>();
+
+        await emitter.EmitAsync(
+            new OverlayEffectPayload(1, "evt-1", DateTimeOffset.UnixEpoch, "sparkle", 1_500),
+            TestContext.Current.CancellationToken);
+
+        var completed = await Task.WhenAny(message.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+        completed.Should().Be(message.Task);
+        var payload = await message.Task;
+        payload.EnumerateObject().Select(property => property.Name)
+            .Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "effectId", "durationMs");
+        payload.GetProperty("effectId").GetString().Should().Be("sparkle");
+        payload.TryGetProperty("eventType", out _).Should().BeFalse();
     }
 
     [Fact]

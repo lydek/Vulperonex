@@ -45,6 +45,8 @@ public sealed class OverlayMemberHub(IOverlayHistoryService<OverlayMemberPayload
     }
 }
 
+public sealed class OverlayEffectsHub : Hub;
+
 public static class OverlayHubEndpoints
 {
     public static IEndpointRouteBuilder MapOverlayHubs(this IEndpointRouteBuilder endpoints)
@@ -53,6 +55,7 @@ public static class OverlayHubEndpoints
         endpoints.MapHub<OverlayChatHub>("/hubs/overlay/chat");
         endpoints.MapHub<OverlayAlertsHub>("/hubs/overlay/alerts");
         endpoints.MapHub<OverlayMemberHub>("/hubs/overlay/member");
+        endpoints.MapHub<OverlayEffectsHub>("/hubs/overlay/effects");
         return endpoints;
     }
 }
