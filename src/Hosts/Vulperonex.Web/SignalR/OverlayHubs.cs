@@ -47,6 +47,19 @@ public sealed class OverlayMemberHub(IOverlayHistoryService<OverlayMemberPayload
 
 public sealed class OverlayEffectsHub : Hub;
 
+public sealed class OverlayWidgetsHub(IOverlayHistoryService<OverlayWidgetPayload> history) : Hub
+{
+    public override async Task OnConnectedAsync()
+    {
+        foreach (var payload in await history.GetRecentAsync(Context.ConnectionAborted))
+        {
+            await Clients.Caller.SendAsync("event", payload, Context.ConnectionAborted);
+        }
+
+        await base.OnConnectedAsync();
+    }
+}
+
 public static class OverlayHubEndpoints
 {
     public static IEndpointRouteBuilder MapOverlayHubs(this IEndpointRouteBuilder endpoints)
@@ -56,6 +69,7 @@ public static class OverlayHubEndpoints
         endpoints.MapHub<OverlayAlertsHub>("/hubs/overlay/alerts");
         endpoints.MapHub<OverlayMemberHub>("/hubs/overlay/member");
         endpoints.MapHub<OverlayEffectsHub>("/hubs/overlay/effects");
+        endpoints.MapHub<OverlayWidgetsHub>("/hubs/overlay/widgets");
         return endpoints;
     }
 }

@@ -138,6 +138,44 @@ public sealed class SignalRHubTests
     }
 
     [Fact]
+    public async Task Given_OverlayWidgetsHub_When_WidgetEmitted_Then_StrongTypedPayloadArrivesAndReplays()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var liveMessage = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var liveConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/widgets"))
+            .Build();
+
+        liveConnection.On<JsonElement>("event", payload => liveMessage.TrySetResult(payload));
+        await liveConnection.StartAsync(TestContext.Current.CancellationToken);
+        var emitter = app.Services.GetRequiredService<IOverlayWidgetEmitter>();
+
+        await emitter.EmitAsync(
+            new OverlayWidgetPayload(1, "evt-1", DateTimeOffset.UnixEpoch, "channel_point", "alerts", "Redeemed", "success", 5_000),
+            TestContext.Current.CancellationToken);
+
+        var liveCompleted = await Task.WhenAny(liveMessage.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        liveCompleted.Should().Be(liveMessage.Task);
+        var livePayload = await liveMessage.Task;
+        livePayload.EnumerateObject().Select(property => property.Name)
+            .Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "widgetType", "overlayTarget", "displayText", "severity", "durationMs");
+        livePayload.GetProperty("widgetType").GetString().Should().Be("channel_point");
+        livePayload.TryGetProperty("payload", out _).Should().BeFalse();
+
+        var replayed = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var replayConnection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/widgets"))
+            .Build();
+        replayConnection.On<JsonElement>("event", payload => replayed.TrySetResult(payload));
+        await replayConnection.StartAsync(TestContext.Current.CancellationToken);
+
+        var replayCompleted = await Task.WhenAny(replayed.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        replayCompleted.Should().Be(replayed.Task);
+        (await replayed.Task).GetProperty("displayText").GetString().Should().Be("Redeemed");
+    }
+
+    [Fact]
     public async Task Given_OverlayChatHub_When_MultipleClientsReceiveBurst_Then_AllEventsArriveWithinFiveSeconds()
     {
         await using var app = await StartAppAsync();

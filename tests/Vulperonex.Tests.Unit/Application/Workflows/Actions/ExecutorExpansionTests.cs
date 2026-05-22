@@ -163,6 +163,37 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["DurationMs"].Should().Be(1_500);
     }
 
+    [Fact]
+    public async Task Given_EmitOverlayWidgetAction_When_Executed_Then_EmitsStrongTypedWidgetPayload()
+    {
+        var emitter = new RecordingOverlayWidgetEmitter();
+        var executor = new EmitOverlayWidgetActionExecutor(emitter, new TemplateResolver(), new FakeClock());
+
+        var result = await executor.ExecuteAsync(
+            new EmitOverlayWidgetAction
+            {
+                WidgetType = "channel_point",
+                OverlayTarget = "alerts",
+                DisplayText = "{Member.DisplayName} redeemed",
+                Severity = "success",
+                DurationMs = 5_000,
+            },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        var payload = emitter.Payloads.Should().ContainSingle().Subject;
+        payload.SchemaVersion.Should().Be(1);
+        payload.EventId.Should().Be("event-1");
+        payload.Timestamp.Should().Be(new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero));
+        payload.WidgetType.Should().Be("channel_point");
+        payload.OverlayTarget.Should().Be("alerts");
+        payload.DisplayText.Should().Be("Alice redeemed");
+        payload.Severity.Should().Be("success");
+        payload.DurationMs.Should().Be(5_000);
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["DisplayText"].Should().Be("Alice redeemed");
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
@@ -183,6 +214,7 @@ public sealed class ExecutorExpansionTests
                 new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["UserId"] = "alice",
+                    ["DisplayName"] = "Alice",
                 }));
     }
 
@@ -252,6 +284,17 @@ public sealed class ExecutorExpansionTests
         public List<OverlayEffectPayload> Payloads { get; } = [];
 
         public Task EmitAsync(OverlayEffectPayload payload, CancellationToken cancellationToken = default)
+        {
+            Payloads.Add(payload);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOverlayWidgetEmitter : IOverlayWidgetEmitter
+    {
+        public List<OverlayWidgetPayload> Payloads { get; } = [];
+
+        public Task EmitAsync(OverlayWidgetPayload payload, CancellationToken cancellationToken = default)
         {
             Payloads.Add(payload);
             return Task.CompletedTask;

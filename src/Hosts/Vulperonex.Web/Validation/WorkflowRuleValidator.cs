@@ -155,7 +155,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 and not TriggerCheckInAction.ActionType
                 and not AddLotteryTicketsAction.ActionType
                 and not EmitSystemEventAction.ActionType
-                and not TriggerEffectAction.ActionType)
+                and not TriggerEffectAction.ActionType
+                and not EmitOverlayWidgetAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -278,6 +279,23 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             }
         }
 
+        if (type == EmitOverlayWidgetAction.ActionType)
+        {
+            var emitOverlayWidgetAction = element.Deserialize<EmitOverlayWidgetAction>(JsonOptions);
+            if (emitOverlayWidgetAction is null
+                || string.IsNullOrWhiteSpace(emitOverlayWidgetAction.WidgetType)
+                || string.IsNullOrWhiteSpace(emitOverlayWidgetAction.DisplayText))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
+            }
+
+            if (!IsAllowedWidgetSeverity(emitOverlayWidgetAction.Severity)
+                || emitOverlayWidgetAction.DurationMs is < 100 or > 600_000)
+            {
+                return ErrorCodes.InvalidActionConfig;
+            }
+        }
+
         if (HasInvalidExecutionConfig(element))
         {
             return ErrorCodes.InvalidActionConfig;
@@ -317,6 +335,14 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 || throttle.CooldownSeconds > 86_400
                 || throttle.PerUserCooldownSeconds < 0
                 || throttle.PerUserCooldownSeconds > 86_400);
+    }
+
+    private static bool IsAllowedWidgetSeverity(string severity)
+    {
+        return severity.Equals("info", StringComparison.OrdinalIgnoreCase)
+            || severity.Equals("success", StringComparison.OrdinalIgnoreCase)
+            || severity.Equals("warning", StringComparison.OrdinalIgnoreCase)
+            || severity.Equals("error", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ReadType(JsonElement element)

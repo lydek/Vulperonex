@@ -75,7 +75,7 @@
 - [ ] Task 30e：`LookupTwitchUserActionExecutor` (`login? userId?`) → output `DisplayName/Avatar/Description/IsAffiliate`；需 `ITwitchHelixClient`（既有 token 流程）。
 - [ ] Task 30f：`ShoutoutActionExecutor` (`targetLogin`) → Helix chat/shoutouts。
 - [ ] Task 30g：`RefundTwitchRedemptionActionExecutor` (`rewardId, redemptionId`)。
-- [ ] Task 30h：`EmitOverlayWidgetActionExecutor` 使用 strong-typed overlay action + exact DTO whitelist，投影後走 OverlayEventForwarder 等價路徑；禁止任意 `payload` 穿透 SignalR。
+- [x] Task 30h：`EmitOverlayWidgetActionExecutor` 使用 strong-typed overlay action + exact DTO whitelist，投影後走 OverlayEventForwarder 等價路徑；禁止任意 `payload` 穿透 SignalR。
 - [x] Task 30i：`EmitSystemEventActionExecutor` (`eventTypeKey, payload`) → publish 進 IStreamEventBus；engine 加 depth cap 5 防循環。
 - [x] Task 30j：`TriggerEffectActionExecutor` (`effectId, durationMs?`) → 廣播 strong-typed effect DTO；新增 whitelist/SignalR contract test，不以 ad hoc `effect: true` 擴充既有 alert payload。
 - [x] Task 30k：`TriggerCheckInActionExecutor` (`userId`) → MemberStreamStateRepository.IncrementCheckInAsync。

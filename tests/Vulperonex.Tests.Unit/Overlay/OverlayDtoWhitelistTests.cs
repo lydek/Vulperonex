@@ -40,6 +40,22 @@ public sealed class OverlayDtoWhitelistTests
     }
 
     [Fact]
+    public void Given_OverlayWidgetPayload_When_Serialized_Then_JsonKeySetIsExact()
+    {
+        var payload = new OverlayWidgetPayload(1, "evt-1", DateTimeOffset.UnixEpoch, "channel_point", "alerts", "Redeemed", "info", 5_000);
+
+        SerializeKeys(payload).Should().BeEquivalentTo(
+            "schemaVersion",
+            "eventId",
+            "timestamp",
+            "widgetType",
+            "overlayTarget",
+            "displayText",
+            "severity",
+            "durationMs");
+    }
+
+    [Fact]
     public void Given_OverlayTextSegmentTypeIsNotAllowed_When_Created_Then_ItIsRejected()
     {
         var create = () => new OverlayTextSegment("script", "alert(1)");
