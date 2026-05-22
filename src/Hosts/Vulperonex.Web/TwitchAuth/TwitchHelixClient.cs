@@ -68,6 +68,25 @@ public sealed class TwitchHelixClient(
         return new TwitchShoutoutResult(true, target.Login, target.UserId, target.DisplayName);
     }
 
+    public async Task<bool> RefundRedemptionAsync(
+        string rewardId,
+        string redemptionId,
+        CancellationToken cancellationToken = default)
+    {
+        var broadcasterId = configuration["Twitch:BroadcasterId"]
+            ?? throw new InvalidOperationException("Twitch:BroadcasterId is required for redemption refund actions.");
+        using var request = new HttpRequestMessage(
+            HttpMethod.Patch,
+            $"channel_points/custom_rewards/redemptions?broadcaster_id={Uri.EscapeDataString(broadcasterId)}&reward_id={Uri.EscapeDataString(rewardId)}&id={Uri.EscapeDataString(redemptionId)}")
+        {
+            Content = JsonContent.Create(new { status = "CANCELED" }),
+        };
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return true;
+    }
+
     private async Task AddHelixHeadersAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(accessTokenProvider.AccessToken))

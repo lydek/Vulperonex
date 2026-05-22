@@ -63,6 +63,7 @@ public static class TwitchEventMapper
                 User = payload.User,
                 RewardId = payload.RewardId ?? string.Empty,
                 RewardTitle = payload.RewardTitle ?? string.Empty,
+                RedemptionId = payload.RedemptionId ?? string.Empty,
             },
             _ => throw new NotSupportedException($"Unsupported Twitch mock payload kind: {payload.Kind}."),
         };

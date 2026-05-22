@@ -21,6 +21,7 @@ public sealed record SimulationRequest
     public int ViewerCount { get; private init; }
     public string? RewardId { get; private init; }
     public string? RewardTitle { get; private init; }
+    public string? RedemptionId { get; private init; }
 
     public static SimulationRequest Message(string platform, StreamUser user, string messageText)
     {
@@ -68,12 +69,18 @@ public sealed record SimulationRequest
         };
     }
 
-    public static SimulationRequest RewardRedeemed(string platform, StreamUser user, string rewardId, string rewardTitle)
+    public static SimulationRequest RewardRedeemed(
+        string platform,
+        StreamUser user,
+        string rewardId,
+        string rewardTitle,
+        string redemptionId = "redemption-1")
     {
         return new SimulationRequest(SimulationKind.RewardRedeemed, platform, user)
         {
             RewardId = rewardId,
             RewardTitle = rewardTitle,
+            RedemptionId = redemptionId,
         };
     }
 }

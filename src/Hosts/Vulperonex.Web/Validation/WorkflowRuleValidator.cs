@@ -158,7 +158,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 and not TriggerEffectAction.ActionType
                 and not EmitOverlayWidgetAction.ActionType
                 and not LookupTwitchUserAction.ActionType
-                and not ShoutoutAction.ActionType)
+                and not ShoutoutAction.ActionType
+                and not RefundTwitchRedemptionAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -313,6 +314,17 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
         {
             var shoutoutAction = element.Deserialize<ShoutoutAction>(JsonOptions);
             if (shoutoutAction is null || string.IsNullOrWhiteSpace(shoutoutAction.TargetLogin))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
+            }
+        }
+
+        if (type == RefundTwitchRedemptionAction.ActionType)
+        {
+            var refundAction = element.Deserialize<RefundTwitchRedemptionAction>(JsonOptions);
+            if (refundAction is null
+                || string.IsNullOrWhiteSpace(refundAction.RewardId)
+                || string.IsNullOrWhiteSpace(refundAction.RedemptionId))
             {
                 return ErrorCodes.ActionMissingRequiredParam;
             }

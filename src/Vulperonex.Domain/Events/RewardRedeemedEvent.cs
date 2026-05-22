@@ -8,5 +8,6 @@ public sealed record RewardRedeemedEvent : IStreamEvent
     public required StreamUser User { get; init; }
     public string RewardId { get; init; } = string.Empty;
     public string RewardTitle { get; init; } = string.Empty;
+    public string RedemptionId { get; init; } = string.Empty;
     public DateTimeOffset OccurredAt { get; init; } = DateTimeOffset.UtcNow;
 }

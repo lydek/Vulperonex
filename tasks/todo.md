@@ -147,7 +147,7 @@
 - [x] **Task 28** — Hot reload immutable rule snapshot cache
 - [x] **Task 29** — Trigger filter + `MatchCondition`
 - [x] **Task 27** — Sub-workflow flag + Args plumbing，保留 stable `InvocationId`
-- [ ] **Task 30** — Executor expansion（30a-30l；overlay/effect executor 必須 strong-typed DTO + whitelist）
+- [x] **Task 30** — Executor expansion（30a-30l；overlay/effect executor 必須 strong-typed DTO + whitelist）
 - [ ] **Task 32** — ChatOutboxService rate limit + observable skipped/failed state
 - [ ] **Task 31** — WorkflowTimer scheduler（單實例重啟 idempotency；多實例 leader election out-of-scope）
 - [ ] **Task 33** — Web UI builder upgrade for Phase 7 schema

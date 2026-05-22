@@ -122,6 +122,35 @@ public sealed class TwitchHelixClientTests
             "https://api.twitch.tv/helix/chat/shoutouts?from_broadcaster_id=broadcaster-1&to_broadcaster_id=target-1&moderator_id=moderator-1");
     }
 
+    [Fact]
+    public async Task Given_RedemptionRefund_When_Called_Then_PatchesRedemptionStatusToCanceled()
+    {
+        HttpRequestMessage? capturedRequest = null;
+        string? capturedBody = null;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            capturedRequest = request;
+            capturedBody = request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken).GetAwaiter().GetResult();
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }))
+        {
+            BaseAddress = new Uri("https://api.twitch.tv/helix/"),
+        };
+        var client = new TwitchHelixClient(
+            NewConfiguration(),
+            NewTokenProvider(),
+            httpClient);
+
+        var refunded = await client.RefundRedemptionAsync("reward-1", "redemption-1", TestContext.Current.CancellationToken);
+
+        refunded.Should().BeTrue();
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.Method.Should().Be(HttpMethod.Patch);
+        capturedRequest.RequestUri!.ToString().Should().Be(
+            "https://api.twitch.tv/helix/channel_points/custom_rewards/redemptions?broadcaster_id=broadcaster-1&reward_id=reward-1&id=redemption-1");
+        capturedBody.Should().Contain("\"status\":\"CANCELED\"");
+    }
+
     private static IConfiguration NewConfiguration()
     {
         return new ConfigurationBuilder()

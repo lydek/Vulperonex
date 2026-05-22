@@ -12,6 +12,7 @@ public sealed record TwitchMockPayload(
     int ViewerCount = 0,
     string? RewardId = null,
     string? RewardTitle = null,
+    string? RedemptionId = null,
     string? SourceEventId = null)
 {
     public string SyntheticEventId { get; init; } = TwitchSyntheticEventId.New();

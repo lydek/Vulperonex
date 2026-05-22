@@ -10,6 +10,11 @@ public interface ITwitchHelixClient
     Task<TwitchShoutoutResult> SendShoutoutAsync(
         string targetLogin,
         CancellationToken cancellationToken = default);
+
+    Task<bool> RefundRedemptionAsync(
+        string rewardId,
+        string redemptionId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record TwitchHelixUser(

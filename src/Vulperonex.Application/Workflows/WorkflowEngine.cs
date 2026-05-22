@@ -492,6 +492,13 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             trigger["MessageText"] = messageEvent.MessageText;
         }
 
+        if (streamEvent is RewardRedeemedEvent rewardEvent)
+        {
+            trigger["RewardId"] = rewardEvent.RewardId;
+            trigger["RewardTitle"] = rewardEvent.RewardTitle;
+            trigger["RedemptionId"] = rewardEvent.RedemptionId;
+        }
+
         if (streamEvent is WorkflowSystemEvent systemEvent)
         {
             trigger["Depth"] = systemEvent.Depth;

@@ -248,6 +248,28 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["TargetDisplayName"].Should().Be("Alice");
     }
 
+    [Fact]
+    public async Task Given_RefundTwitchRedemptionAction_When_Executed_Then_RewardAndRedemptionAreResolved()
+    {
+        var client = new RecordingTwitchHelixClient { RefundResult = true };
+        var executor = new RefundTwitchRedemptionActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new RefundTwitchRedemptionAction
+            {
+                RewardId = "{Trigger.RewardId}",
+                RedemptionId = "{Trigger.RedemptionId}",
+            },
+            NewRewardContext(),
+            TestContext.Current.CancellationToken);
+
+        client.Refunds.Should().ContainSingle().Which.Should().Be(("reward-1", "redemption-1"));
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["IsRefunded"].Should().Be(true);
+        result.OutputValues!["RewardId"].Should().Be("reward-1");
+        result.OutputValues!["RedemptionId"].Should().Be("redemption-1");
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
@@ -263,6 +285,38 @@ public sealed class ExecutorExpansionTests
             ActionIndex: 0,
             ExpressionContext: new Vulperonex.Application.Expressions.ExpressionContext(
                 new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["UserId"] = "alice",
+                    ["DisplayName"] = "Alice",
+                }));
+    }
+
+    private static ActionExecutionContext NewRewardContext()
+    {
+        var streamEvent = new RewardRedeemedEvent
+        {
+            EventId = "event-1",
+            Platform = "twitch",
+            User = new StreamUser("twitch", "alice", "Alice"),
+            RewardId = "reward-1",
+            RewardTitle = "Highlight",
+            RedemptionId = "redemption-1",
+        };
+
+        return new ActionExecutionContext(
+            streamEvent,
+            new WorkflowRule { Id = "rule-1", Name = "Rule", EventTypeKey = StreamEventKeys.RewardRedeemed },
+            ActionIndex: 0,
+            ExpressionContext: new Vulperonex.Application.Expressions.ExpressionContext(
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["RewardId"] = "reward-1",
+                    ["RewardTitle"] = "Highlight",
+                    ["RedemptionId"] = "redemption-1",
+                },
                 new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
@@ -359,8 +413,10 @@ public sealed class ExecutorExpansionTests
     {
         public TwitchHelixUser? User { get; init; }
         public TwitchShoutoutResult? ShoutoutResult { get; init; }
+        public bool RefundResult { get; init; }
         public List<(string? Login, string? UserId)> Requests { get; } = [];
         public List<string> Shoutouts { get; } = [];
+        public List<(string RewardId, string RedemptionId)> Refunds { get; } = [];
 
         public Task<TwitchHelixUser?> LookupUserAsync(
             string? login,
@@ -377,6 +433,15 @@ public sealed class ExecutorExpansionTests
         {
             Shoutouts.Add(targetLogin);
             return Task.FromResult(ShoutoutResult ?? new TwitchShoutoutResult(false, targetLogin, null, null));
+        }
+
+        public Task<bool> RefundRedemptionAsync(
+            string rewardId,
+            string redemptionId,
+            CancellationToken cancellationToken = default)
+        {
+            Refunds.Add((rewardId, redemptionId));
+            return Task.FromResult(RefundResult);
         }
     }
 

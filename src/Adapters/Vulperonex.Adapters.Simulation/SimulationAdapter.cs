@@ -92,6 +92,7 @@ public sealed class SimulationAdapter(
                 User = request.User,
                 RewardId = request.RewardId ?? string.Empty,
                 RewardTitle = request.RewardTitle ?? string.Empty,
+                RedemptionId = request.RedemptionId ?? string.Empty,
             },
             _ => throw new NotSupportedException($"Unsupported simulation kind: {request.Kind}."),
         };
