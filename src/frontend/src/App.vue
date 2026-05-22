@@ -13,6 +13,7 @@ import { RouterLink, RouterView } from "vue-router";
         <RouterLink to="/" class="nav-link">{{ $t("nav.status") }}</RouterLink>
         <RouterLink to="/simulate" class="nav-link">{{ $t("nav.simulate") }}</RouterLink>
         <RouterLink to="/events" class="nav-link">{{ $t("nav.eventMonitor") }}</RouterLink>
+        <RouterLink to="/members" class="nav-link">{{ $t("nav.members") }}</RouterLink>
         <RouterLink to="/overlay/chat" class="nav-link">{{ $t("nav.chatOverlay") }}</RouterLink>
         <RouterLink to="/overlay/alerts" class="nav-link">{{ $t("nav.alertOverlay") }}</RouterLink>
         <RouterLink to="/overlay/member" class="nav-link">{{ $t("nav.memberOverlay") }}</RouterLink>

@@ -25,7 +25,7 @@
 
 - [x] Task 20a：Simulate 面板支援 chat/follow/sub 短 alias，成功後顯示 ack 響應與 accepted/eventId/platformUserId 資訊。
 - [x] Task 20b：Event 監看器顯示 SignalR envelope 與最近事件列表。精確鎖定 envelope schema 欄位為 `{ type, eventId, platform, occurredAt }`（對齊 Phase 5 後端 `StreamEventEnvelope` record）。`schemaVersion` 與 `data` 欄位之擴充延後至 Phase 7。
-- [ ] Task 20c：Member 面板僅支援 list/show 唯讀操作；不提供 seed/delete 按鈕，不新增 member CRUD 端點。成員唯讀負向測試斷言 (Z10)：所有成員欄位（如姓名、平台識別碼等）在 Web UI 內均為唯讀，不允許直接編輯，且 Vitest 需斷言沒有 seed/delete 操作入口。測試資料建立與清理由 CLI/manual test surface 處理。
+- [x] Task 20c：Member 面板僅支援 list/show 唯讀操作；不提供 seed/delete 按鈕，不新增 member CRUD 端點。成員唯讀負向測試斷言 (Z10)：所有成員欄位（如姓名、平台識別碼等）在 Web UI 內均為唯讀，不允許直接編輯，且 Vitest 需斷言沒有 seed/delete 操作入口。測試資料建立與清理由 CLI/manual test surface 處理。
 - [ ] Task 20d：Rule 面板支援 list/show，顯示 enabled、version、priority、createdAt，刪除等操作加入二次確認對話框。實作樂觀鎖支援 (II17)：前端更新 Rule 時在 DTO 攜帶 `version` 欄位，後端回傳 409 Conflict 時，前端必須捕捉錯誤並彈出專屬樂觀鎖衝突提示，引導重新載入或覆蓋。
 - [ ] Task 20e：EventTypeKey Dropdown 實作：**確實排除過濾** `platform.connection_changed` (isSystemEvent: true)，且 Dropdown 以 badge 標示三種 canonical 可模擬 keys，其餘 keys（`user.donated`、`user.gifted_sub`、`channel.raided`、`reward.redeemed`）確實標示為不支援。
 - [ ] Task 20f：Rule create/update 支援 JSON file 上傳（限制 1MB / `.json` 副檔名 + MIME + JSON.parse 三重 check）與手動 **JSON Textarea 編輯**，送出失敗保留內容且 refocus 於 textarea（`inputRef.value?.focus({ preventScroll: false })`），行內顯示 API validation error。**實作 JSON Textarea 1MB limit 三重 check (II15)**：實作 textarea `maxlength` 限制；貼入（paste）時進行 `300ms` 防抖檢查，長度超過 1MB 則拒減解析並顯示 toast 警告；貼入的原始大文字存入非響應式變數，而非直接指派給 Vue 的響應式 ref，防範 Vue 反覆偵測屬性變化而造成主執行緒卡死與 OOM 崩潰。
