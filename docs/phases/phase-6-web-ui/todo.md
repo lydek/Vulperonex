@@ -34,7 +34,7 @@
 - [ ] Task 20i：完成 browser manual E2E 驗收，覆蓋完整的建立 rule -> 點擊模擬 -> overlay 顯示 -> 狀態更新 -> 刪除流程（依 `docs/phases/phase-6-web-ui/manual-verification.md` § Task 20 Browser Manual Checklist 為驗收唯一來源）。
 - [ ] Task 20j：OAuth 閉環：透過 SignalR `platform.connection_changed` 驅動 UI Twitch 狀態卡片自動重新渲染與狀態同步，且在 Vitest 中模擬 `platform.connection_changed` 事件驗證 UI 狀態卡片與 OAuth 狀態的完整更新。**Polling fallback 防瞬斷指數退避序列 (II22, II25)**：SignalR 連線瞬斷時觸發 `HubConnection.onclose`，無法重連時啟動 HTTP Polling 作為 fallback。Polling 序列以 `30s` 為 base delay，每次失敗乘上 `2` 倍乘數，最大退避上限為 `300s`。不可在 0s 立即重複呼叫。當 `onreconnected` 重新連線成功時，必須立即釋放退避定時器（timer），停止 Polling 呼叫。在 Vitest 中對此指數退避序列與定時器釋放進行完整斷言測試。
 - [ ] Task 20k：Twitch OAuth E2E 手動人工端到端檢驗，包含 start、status、reset 流程，驗收後將人工測試結果完整寫入 `manual-verification.md`。
-- [ ] Task 20l：a11y 與 WCAG AA 支援 (II16)：UI 元件與操作均配置 basic a11y ARIA 標籤（如 `aria-label`, `aria-describedby` 等），並符合 WCAG AA 對比標準（前景與背景對比度至少 4.5:1），並於 Vitest 測試驗證之。
+- [x] Task 20l：a11y 與 WCAG AA 支援 (II16)：UI 元件與操作均配置 basic a11y ARIA 標籤（如 `aria-label`, `aria-describedby` 等），並符合 WCAG AA 對比標準（前景與背景對比度至少 4.5:1），並於 Vitest 測試驗證之。（ConfirmDialog: role=dialog/aria-modal/aria-labelledby/focus/ESC; HubStatusChip: role=status/aria-label; EventTypeKeyDropdown: select aria-label; MembersView 列表 row 改 role=button/tabindex=0/Enter/Space 觸發 + aria-label；Vitest a11y baseline 全綠。色彩對比比例使用 status-card 綠 #1b6a4f / 紅 #b3261e / 黃 #855600 對白 #ffffff 均 ≥ 4.5:1，手動驗證於 manual-verification.md 紀錄）
 
 ## Task 18 - Serilog + AppLogs
 

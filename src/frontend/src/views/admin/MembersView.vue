@@ -113,7 +113,12 @@ function describeError(caught: unknown): string {
               :key="member.memberId"
               :class="['members-row', { 'members-row-selected': selected?.memberId === member.memberId }]"
               data-testid="members-row"
+              tabindex="0"
+              role="button"
+              :aria-label="t('members.col.memberId') + ': ' + member.memberId"
               @click="selectMember(member.memberId)"
+              @keydown.enter.prevent="selectMember(member.memberId)"
+              @keydown.space.prevent="selectMember(member.memberId)"
             >
               <td class="monitor-mono">{{ member.memberId }}</td>
               <td class="monitor-mono">
