@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
+import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import {
@@ -13,6 +14,7 @@ import {
 } from "@/api/client";
 
 const { t } = useI18n();
+const router = useRouter();
 
 const rules = ref<WorkflowRuleSummary[]>([]);
 const selected = ref<WorkflowRuleDetail | null>(null);
@@ -123,6 +125,14 @@ function describeError(caught: unknown): string {
       >
         {{ loadingList ? t("rules.loading") : t("rules.refresh") }}
       </button>
+      <button
+        type="button"
+        class="primary-button"
+        data-testid="rules-new"
+        @click="router.push({ name: 'rule-create' })"
+      >
+        {{ t("rules.new") }}
+      </button>
     </div>
 
     <p
@@ -177,6 +187,14 @@ function describeError(caught: unknown): string {
               <td class="monitor-mono" @click="selectRule(rule.id)">{{ rule.version }}</td>
               <td>
                 <div class="rules-row-actions">
+                  <button
+                    type="button"
+                    class="icon-button"
+                    :data-testid="`edit-${rule.id}`"
+                    @click.stop="router.push({ name: 'rule-edit', params: { id: rule.id } })"
+                  >
+                    {{ t("rules.edit") }}
+                  </button>
                   <button
                     type="button"
                     class="icon-button"

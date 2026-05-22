@@ -133,6 +133,57 @@ export async function deleteRule(id: string, signal?: AbortSignal): Promise<void
   }
 }
 
+export interface WorkflowRuleUpsertRequest {
+  id?: string;
+  name: string;
+  eventTypeKey: string;
+  isEnabled: boolean;
+  priority: number;
+  conditions: unknown[];
+  actions: unknown[];
+  executionMode?: string;
+  maxParallelism?: number;
+}
+
+export async function createRule(
+  body: WorkflowRuleUpsertRequest,
+  signal?: AbortSignal
+): Promise<WorkflowRuleDetail> {
+  const response = await fetch(`${apiBaseUrl}/api/rules/`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<WorkflowRuleDetail>;
+}
+
+export async function updateRule(
+  id: string,
+  body: WorkflowRuleUpsertRequest,
+  signal?: AbortSignal
+): Promise<WorkflowRuleDetail> {
+  const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<WorkflowRuleDetail>;
+}
+
 export interface EventTypeMetadata {
   key: string;
   description: string;
