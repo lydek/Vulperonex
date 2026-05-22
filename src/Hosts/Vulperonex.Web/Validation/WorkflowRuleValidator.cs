@@ -156,7 +156,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 and not AddLotteryTicketsAction.ActionType
                 and not EmitSystemEventAction.ActionType
                 and not TriggerEffectAction.ActionType
-                and not EmitOverlayWidgetAction.ActionType)
+                and not EmitOverlayWidgetAction.ActionType
+                and not LookupTwitchUserAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -293,6 +294,17 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 || emitOverlayWidgetAction.DurationMs is < 100 or > 600_000)
             {
                 return ErrorCodes.InvalidActionConfig;
+            }
+        }
+
+        if (type == LookupTwitchUserAction.ActionType)
+        {
+            var lookupTwitchUserAction = element.Deserialize<LookupTwitchUserAction>(JsonOptions);
+            if (lookupTwitchUserAction is null
+                || (string.IsNullOrWhiteSpace(lookupTwitchUserAction.Login)
+                    && string.IsNullOrWhiteSpace(lookupTwitchUserAction.UserId)))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
             }
         }
 

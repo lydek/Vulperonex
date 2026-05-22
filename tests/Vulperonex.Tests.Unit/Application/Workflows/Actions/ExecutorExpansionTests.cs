@@ -5,6 +5,7 @@ using Vulperonex.Application.Members;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
+using Vulperonex.Application.Twitch;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Domain;
@@ -194,6 +195,37 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["DisplayText"].Should().Be("Alice redeemed");
     }
 
+    [Fact]
+    public async Task Given_LookupTwitchUserAction_When_UserFound_Then_OutputContainsHelixUser()
+    {
+        var client = new RecordingTwitchHelixClient
+        {
+            User = new TwitchHelixUser(
+                "user-1",
+                "alice",
+                "Alice Prime",
+                "avatar",
+                "description",
+                IsAffiliate: true),
+        };
+        var executor = new LookupTwitchUserActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new LookupTwitchUserAction { Login = "{Member.DisplayName}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        client.Requests.Should().ContainSingle().Which.Should().Be(("Alice", null));
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["UserId"].Should().Be("user-1");
+        result.OutputValues!["Login"].Should().Be("alice");
+        result.OutputValues!["DisplayName"].Should().Be("Alice Prime");
+        result.OutputValues!["Avatar"].Should().Be("avatar");
+        result.OutputValues!["Description"].Should().Be("description");
+        result.OutputValues!["IsAffiliate"].Should().Be(true);
+        result.OutputValues!["IsFound"].Should().Be(true);
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
@@ -298,6 +330,21 @@ public sealed class ExecutorExpansionTests
         {
             Payloads.Add(payload);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingTwitchHelixClient : ITwitchHelixClient
+    {
+        public TwitchHelixUser? User { get; init; }
+        public List<(string? Login, string? UserId)> Requests { get; } = [];
+
+        public Task<TwitchHelixUser?> LookupUserAsync(
+            string? login,
+            string? userId,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add((login, userId));
+            return Task.FromResult(User);
         }
     }
 

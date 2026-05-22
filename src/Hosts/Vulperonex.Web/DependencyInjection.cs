@@ -14,6 +14,7 @@ using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Settings;
 using Vulperonex.Application.Time;
+using Vulperonex.Application.Twitch;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
@@ -89,6 +90,8 @@ public static class DependencyInjection
                 serviceProvider.GetRequiredService<IConfiguration>()["Security:RootPath"]));
         services.AddScoped<DatabaseBootstrapper>();
         services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
+        services.AddScoped<TwitchAccessTokenProvider>();
+        services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
         services.AddSingleton<TwitchTokenEndpoint>();
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
@@ -119,6 +122,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, EmitSystemEventActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, TriggerEffectActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, EmitOverlayWidgetActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, LookupTwitchUserActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {

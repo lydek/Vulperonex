@@ -72,7 +72,7 @@
 - [x] Task 30b：`StopIfActionExecutor` (`condition: NCalc`)；true 時拋 `WorkflowGracefulStopException`；engine 視為正常結束。
 - [x] Task 30c：`RandomPickerActionExecutor` (`choices: string[], weights?: int[]`)；OutputVariable 寫 Picked。
 - [x] Task 30d：新 `Counter` entity + EF migration + repository；`UpdateCounterActionExecutor` (`key, delta`) → OutputVariable 寫新值。
-- [ ] Task 30e：`LookupTwitchUserActionExecutor` (`login? userId?`) → output `DisplayName/Avatar/Description/IsAffiliate`；需 `ITwitchHelixClient`（既有 token 流程）。
+- [x] Task 30e：`LookupTwitchUserActionExecutor` (`login? userId?`) → output `DisplayName/Avatar/Description/IsAffiliate`；需 `ITwitchHelixClient`（既有 token 流程）。
 - [ ] Task 30f：`ShoutoutActionExecutor` (`targetLogin`) → Helix chat/shoutouts。
 - [ ] Task 30g：`RefundTwitchRedemptionActionExecutor` (`rewardId, redemptionId`)。
 - [x] Task 30h：`EmitOverlayWidgetActionExecutor` 使用 strong-typed overlay action + exact DTO whitelist，投影後走 OverlayEventForwarder 等價路徑；禁止任意 `payload` 穿透 SignalR。
