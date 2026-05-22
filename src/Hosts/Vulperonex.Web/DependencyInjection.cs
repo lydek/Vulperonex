@@ -113,6 +113,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, UpdateCounterActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, TriggerCheckInActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, AddLotteryTicketsActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, EmitSystemEventActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {

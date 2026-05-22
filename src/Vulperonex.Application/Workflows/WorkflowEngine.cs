@@ -13,6 +13,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 {
     private const int MinParallelism = 1;
     private const int MaxParallelismCap = 64;
+    private const int MaxSystemEventDepth = 5;
 
     private readonly IStreamEventBus _eventBus;
     private readonly IRuleSnapshotCache _ruleSnapshotCache;
@@ -67,6 +68,11 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
     private async Task HandleEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
     {
+        if (streamEvent is WorkflowSystemEvent { Depth: > MaxSystemEventDepth })
+        {
+            return;
+        }
+
         // Query contract: ListEnabledByEventTypeAsync returns only enabled rules whose
         // EventTypeKey matches. No additional filtering here.
         var rules = await _ruleSnapshotCache.GetByEventTypeAsync(streamEvent.EventTypeKey, cancellationToken);
@@ -484,6 +490,16 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         if (streamEvent is UserSentMessageEvent messageEvent)
         {
             trigger["MessageText"] = messageEvent.MessageText;
+        }
+
+        if (streamEvent is WorkflowSystemEvent systemEvent)
+        {
+            trigger["Depth"] = systemEvent.Depth;
+            trigger["Payload"] = systemEvent.Payload;
+            foreach (var (key, value) in systemEvent.Payload)
+            {
+                trigger[$"Payload.{key}"] = value;
+            }
         }
 
         var member = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);

@@ -585,6 +585,54 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_SystemEventDepthOverCap_When_Published_Then_WorkflowIsSkipped()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with { EventTypeKey = "workflow.followup" };
+        await using var engine = NewEngine(bus, [rule], [executor]);
+        await engine.StartAsync(TestContext.Current.CancellationToken);
+
+        await bus.PublishAsync(new WorkflowSystemEvent
+        {
+            EventTypeKey = "workflow.followup",
+            Platform = "system",
+            Depth = 6,
+        }, TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_SystemEventPayloadFilter_When_PayloadMatches_Then_RuleExecutes()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with
+        {
+            EventTypeKey = "workflow.followup",
+            Trigger = new WorkflowTrigger(
+                "workflow.followup",
+                new Dictionary<string, string> { ["Payload.target"] = "alice" }),
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(
+            rule,
+            new WorkflowSystemEvent
+            {
+                EventTypeKey = "workflow.followup",
+                Platform = "system",
+                Depth = 1,
+                Payload = new Dictionary<string, string> { ["target"] = "alice" },
+            },
+            TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().ContainSingle();
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();

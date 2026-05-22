@@ -153,7 +153,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 and not RandomPickerAction.ActionType
                 and not UpdateCounterAction.ActionType
                 and not TriggerCheckInAction.ActionType
-                and not AddLotteryTicketsAction.ActionType)
+                and not AddLotteryTicketsAction.ActionType
+                and not EmitSystemEventAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -250,6 +251,15 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             if (addLotteryTicketsAction.Amount < 1)
             {
                 return ErrorCodes.InvalidActionConfig;
+            }
+        }
+
+        if (type == EmitSystemEventAction.ActionType)
+        {
+            var emitSystemEventAction = element.Deserialize<EmitSystemEventAction>(JsonOptions);
+            if (emitSystemEventAction is null || string.IsNullOrWhiteSpace(emitSystemEventAction.EventTypeKey))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
             }
         }
 

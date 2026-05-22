@@ -65,6 +65,38 @@ public sealed class TdqReplayTests
         (await queue.GetPendingAsync(TestContext.Current.CancellationToken)).Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Given_PendingWorkflowSystemEvent_When_Replayed_Then_DynamicEventTypeIsPreserved()
+    {
+        await using var fixture = new Infrastructure.SqliteFixture();
+        await using var context = await fixture.CreateContextAsync();
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        var queue = new TransientDeliveryQueueStore(context);
+        await queue.EnqueueAsync(new WorkflowSystemEvent
+        {
+            EventTypeKey = "workflow.followup",
+            Platform = "system",
+            Depth = 2,
+            Payload = new Dictionary<string, string> { ["target"] = "alice" },
+        }, TestContext.Current.CancellationToken);
+        await using var bus = new InMemoryStreamEventBus();
+        var received = new ConcurrentBag<WorkflowSystemEvent>();
+        bus.Subscribe<WorkflowSystemEvent>((streamEvent, _) =>
+        {
+            received.Add(streamEvent);
+            return Task.CompletedTask;
+        });
+        var replayService = new TdqReplayService(queue, bus);
+
+        await replayService.ReplayAsync(TestContext.Current.CancellationToken);
+
+        var replayed = received.Should().ContainSingle().Subject;
+        replayed.EventTypeKey.Should().Be("workflow.followup");
+        replayed.Depth.Should().Be(2);
+        replayed.Payload["target"].Should().Be("alice");
+        (await queue.GetPendingAsync(TestContext.Current.CancellationToken)).Should().BeEmpty();
+    }
+
     private static UserSentMessageEvent NewMessageEvent(string userId)
     {
         return new UserSentMessageEvent

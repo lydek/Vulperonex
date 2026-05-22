@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Vulperonex.Application.Counters;
+using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Members;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
@@ -104,6 +105,35 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["TicketCount"].Should().Be(5);
     }
 
+    [Fact]
+    public async Task Given_EmitSystemEventAction_When_Executed_Then_PublishesTypedSystemEvent()
+    {
+        var bus = new RecordingStreamEventBus();
+        var executor = new EmitSystemEventActionExecutor(bus, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new EmitSystemEventAction
+            {
+                EventTypeKey = "workflow.followup",
+                Payload = new Dictionary<string, string>
+                {
+                    ["target"] = "{Member.UserId}",
+                },
+            },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        var emitted = bus.Published.Should().ContainSingle().Subject.Should().BeOfType<WorkflowSystemEvent>().Subject;
+        emitted.EventTypeKey.Should().Be("workflow.followup");
+        emitted.Platform.Should().Be("twitch");
+        emitted.User!.UserId.Should().Be("alice");
+        emitted.Depth.Should().Be(1);
+        emitted.Payload["target"].Should().Be("alice");
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["EventTypeKey"].Should().Be("workflow.followup");
+        result.OutputValues!["Depth"].Should().Be(1);
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
@@ -155,6 +185,35 @@ public sealed class ExecutorExpansionTests
         {
             CheckIns.Add(identity);
             return Task.FromResult(CheckIns.Count);
+        }
+    }
+
+    private sealed class RecordingStreamEventBus : IStreamEventBus
+    {
+        public List<IStreamEvent> Published { get; } = [];
+
+        public Task PublishAsync(IStreamEvent streamEvent, CancellationToken cancellationToken = default)
+        {
+            Published.Add(streamEvent);
+            return Task.CompletedTask;
+        }
+
+        public IDisposable Subscribe<TEvent>(Func<TEvent, CancellationToken, Task> handler)
+            where TEvent : IStreamEvent
+        {
+            return new NoOpDisposable();
+        }
+
+        public Task WaitForIdleAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        private sealed class NoOpDisposable : IDisposable
+        {
+            public void Dispose()
+            {
+            }
         }
     }
 }

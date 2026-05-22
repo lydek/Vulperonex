@@ -24,7 +24,8 @@ internal static class StreamEventJsonSerializer
             StreamEventKeys.ChannelRaided => JsonSerializer.Deserialize<ChannelRaidedEvent>(payloadJson, Options)!,
             StreamEventKeys.RewardRedeemed => JsonSerializer.Deserialize<RewardRedeemedEvent>(payloadJson, Options)!,
             StreamEventKeys.PlatformConnectionChanged => JsonSerializer.Deserialize<PlatformConnectionChangedEvent>(payloadJson, Options)!,
-            _ => throw new InvalidOperationException($"Unknown stream event type: {eventType}"),
+            _ => JsonSerializer.Deserialize<WorkflowSystemEvent>(payloadJson, Options)
+                ?? throw new InvalidOperationException($"Unknown stream event type: {eventType}"),
         };
     }
 }

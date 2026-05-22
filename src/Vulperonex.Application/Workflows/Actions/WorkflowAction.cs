@@ -12,6 +12,7 @@ namespace Vulperonex.Application.Workflows.Actions;
 [JsonDerivedType(typeof(UpdateCounterAction), UpdateCounterAction.ActionType)]
 [JsonDerivedType(typeof(TriggerCheckInAction), TriggerCheckInAction.ActionType)]
 [JsonDerivedType(typeof(AddLotteryTicketsAction), AddLotteryTicketsAction.ActionType)]
+[JsonDerivedType(typeof(EmitSystemEventAction), EmitSystemEventAction.ActionType)]
 public abstract record WorkflowAction
 {
     [JsonIgnore]
