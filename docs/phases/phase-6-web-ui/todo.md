@@ -38,11 +38,11 @@
 
 ## Task 18 - Serilog + AppLogs
 
-- [ ] Task 18a：設定 Console、rolling file、SQLite AppLogs sink（不重複設定 `PRAGMA auto_vacuum`，已在 Task 5 DB bootstrap）。
-- [ ] Task 18b：加入 EventTypeKey、Platform、MemberId、WorkflowRuleId、ActionType 結構化欄位。**去識別化與隱私合規 (II24)**：日誌中的 `MemberId` 欄位僅記錄已去識別化（Pseudonymized）的 ULID，嚴格禁止記錄任何可直接識別使用者的 PII (如真實姓名、E-mail 或平台帳號原始 ID)。
-- [ ] Task 18c：實作 `log.min_level` 熱重載。
-- [ ] Task 18d：實作 AppLogs retention/size cleanup worker（retention 與 size-based 兩策略以先觸發者為準，其預設值為 `log.db_max_size_mb = 50MB` 與 `log.db_retention_days = 30天`），size cleanup 後執行 `VACUUM`，統一呼叫 `AppLogsCleanupWorker.ExecuteOnce()`。
-- [ ] Task 18e：補齊 logging integration tests，並包含 `MemberId` 去識別化合規斷言。
+- [x] Task 18a：設定 Console、rolling file、SQLite AppLogs sink（不重複設定 `PRAGMA auto_vacuum`，已在 Task 5 DB bootstrap）。
+- [x] Task 18b：加入 EventTypeKey、Platform、MemberId、WorkflowRuleId、ActionType 結構化欄位。**去識別化與隱私合規 (II24)**：日誌中的 `MemberId` 欄位僅記錄已去識別化（Pseudonymized）的 ULID，嚴格禁止記錄任何可直接識別使用者的 PII (如真實姓名、E-mail 或平台帳號原始 ID)。
+- [x] Task 18c：實作 `log.min_level` 熱重載。（透過 `LogLevelHotReloadWorker` 每 10 秒輪詢 SystemSettings，套用至共享 `LoggingLevelSwitch`，無需重啟）
+- [x] Task 18d：實作 AppLogs retention/size cleanup worker（retention 與 size-based 兩策略以先觸發者為準，其預設值為 `log.db_max_size_mb = 50MB` 與 `log.db_retention_days = 30天`），size cleanup 後執行 `VACUUM`，統一呼叫 `AppLogsCleanupWorker.ExecuteOnce()`。
+- [x] Task 18e：補齊 logging integration tests，並包含 `MemberId` 去識別化合規斷言。
 
 ## Task 21 - Photino Desktop Shell
 

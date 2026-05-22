@@ -19,6 +19,7 @@ using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Auth;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
+using Vulperonex.Infrastructure.Logging;
 using Vulperonex.Infrastructure.Members;
 using Vulperonex.Infrastructure.Overlay;
 using Vulperonex.Infrastructure.Settings;
@@ -108,6 +109,10 @@ public static class DependencyInjection
         services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<OverlayEventForwarder>();
         services.AddHostedService<DatabaseMigrationStartupService>();
+        services.AddSingleton<AppLogsSink>(provider =>
+            new AppLogsSink(provider.GetRequiredService<IServiceScopeFactory>()));
+        services.AddHostedService<AppLogsCleanupWorker>();
+        services.AddHostedService<Vulperonex.Web.Logging.LogLevelHotReloadWorker>();
         services.AddDbContext<VulperonexDbContext>((serviceProvider, options) =>
         {
             var databasePath = serviceProvider.GetRequiredService<IDatabasePathResolver>().Resolve();

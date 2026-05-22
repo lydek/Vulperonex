@@ -14,5 +14,12 @@ public sealed class AppLogConfiguration : IEntityTypeConfiguration<AppLogEntity>
         builder.Property(log => log.CreatedAt).HasColumnType("TEXT");
         builder.Property(log => log.Level).HasColumnType("TEXT");
         builder.Property(log => log.Message).HasColumnType("TEXT");
+        builder.Property(log => log.Exception).HasColumnType("TEXT");
+        builder.Property(log => log.EventTypeKey).HasColumnType("TEXT");
+        builder.Property(log => log.Platform).HasColumnType("TEXT");
+        builder.Property(log => log.MemberId).HasColumnType("TEXT");
+        builder.Property(log => log.WorkflowRuleId).HasColumnType("TEXT");
+        builder.Property(log => log.ActionType).HasColumnType("TEXT");
+        builder.HasIndex(log => log.CreatedAt);
     }
 }

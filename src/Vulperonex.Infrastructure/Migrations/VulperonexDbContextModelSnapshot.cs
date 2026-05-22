@@ -34,7 +34,14 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<DateTimeOffset>("CreatedAt").HasColumnType("TEXT");
             b.Property<string>("Level").IsRequired().HasColumnType("TEXT");
             b.Property<string>("Message").IsRequired().HasColumnType("TEXT");
+            b.Property<string>("Exception").HasColumnType("TEXT");
+            b.Property<string>("EventTypeKey").HasColumnType("TEXT");
+            b.Property<string>("Platform").HasColumnType("TEXT");
+            b.Property<string>("MemberId").HasColumnType("TEXT");
+            b.Property<string>("WorkflowRuleId").HasColumnType("TEXT");
+            b.Property<string>("ActionType").HasColumnType("TEXT");
             b.HasKey("Id");
+            b.HasIndex("CreatedAt");
             b.ToTable("AppLogs");
         });
 

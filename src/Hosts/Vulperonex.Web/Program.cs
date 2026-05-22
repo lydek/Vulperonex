@@ -1,9 +1,13 @@
 using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
+using Vulperonex.Application.Settings;
+using Vulperonex.Infrastructure.Logging;
 using Vulperonex.Web.Ports;
 using Vulperonex.Web.Endpoints;
 using Vulperonex.Web;
+using Vulperonex.Web.Logging;
 using Vulperonex.Web.SignalR;
 
 var builder = VulperonexWebApplication.CreateBuilder(args);
@@ -38,6 +42,7 @@ public static partial class VulperonexWebApplication
 
     public static WebApplication Build(WebApplicationBuilder builder)
     {
+        ConfigureSerilog(builder);
         var app = builder.Build();
 
         if (app.Environment.IsDevelopment())
@@ -103,6 +108,24 @@ public static partial class VulperonexWebApplication
         };
 
         return candidates.FirstOrDefault(Directory.Exists) ?? candidates[0];
+    }
+
+    private static void ConfigureSerilog(WebApplicationBuilder builder)
+    {
+        var configuredLevel = builder.Configuration["Log:MinLevel"];
+        var levelSwitch = SerilogConfigurator.CreateLevelSwitch(configuredLevel);
+        builder.Services.AddSingleton(levelSwitch);
+
+        builder.Host.UseSerilog((context, serviceProvider, loggerConfiguration) =>
+        {
+            var sink = serviceProvider.GetRequiredService<AppLogsSink>();
+            var directory = SerilogConfigurator.ResolveLogDirectory();
+            var built = SerilogConfigurator.BuildLoggerConfiguration(levelSwitch, sink, directory);
+            loggerConfiguration
+                .MinimumLevel.ControlledBy(levelSwitch)
+                .Enrich.FromLogContext()
+                .WriteTo.Logger(built.CreateLogger());
+        });
     }
 
     private static void ConfigureDefaultLoopbackPorts(WebApplicationBuilder builder)
