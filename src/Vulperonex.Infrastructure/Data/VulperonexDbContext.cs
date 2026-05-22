@@ -7,6 +7,8 @@ public sealed class VulperonexDbContext(DbContextOptions<VulperonexDbContext> op
 {
     public DbSet<MemberEntity> Members => Set<MemberEntity>();
 
+    public DbSet<CounterEntity> Counters => Set<CounterEntity>();
+
     public DbSet<PlatformIdentityEntity> PlatformIdentities => Set<PlatformIdentityEntity>();
 
     public DbSet<WorkflowRuleEntity> WorkflowRules => Set<WorkflowRuleEntity>();

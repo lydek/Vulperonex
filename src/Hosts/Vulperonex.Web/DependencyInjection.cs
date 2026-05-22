@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Vulperonex.Adapters.Simulation;
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Application.Auth;
+using Vulperonex.Application.Counters;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.EventTypes;
 using Vulperonex.Application.Expressions;
@@ -18,6 +19,7 @@ using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Auth;
+using Vulperonex.Infrastructure.Counters;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
 using Vulperonex.Infrastructure.Expressions;
@@ -95,6 +97,7 @@ public static class DependencyInjection
         services.AddScoped<IMemberAdminService, MemberAdminService>();
         services.AddScoped<IMemberResolver, MemberResolver>();
         services.AddScoped<IMemberStreamStateRepository, MemberStreamStateRepository>();
+        services.AddScoped<ICounterRepository, CounterRepository>();
         services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
         services.AddScoped<WorkflowConditionEvaluator>();
         services.AddScoped<ITemplateResolver, TemplateResolver>();
@@ -107,6 +110,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, DelayActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, StopIfActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, RandomPickerActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, UpdateCounterActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {

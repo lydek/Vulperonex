@@ -21,6 +21,11 @@ public sealed class SchemaTests
             "SELECT name FROM pragma_table_info('SystemSettings') ORDER BY name;");
         systemSettingsColumns.Should().BeEquivalentTo("Category", "Key", "UpdatedAt", "Value");
 
+        var counterColumns = await QueryScalarValuesAsync(
+            fixture.Connection,
+            "SELECT name FROM pragma_table_info('Counters') ORDER BY name;");
+        counterColumns.Should().BeEquivalentTo("Key", "UpdatedAt", "Value");
+
         var workflowRuleColumns = await QueryScalarValuesAsync(
             fixture.Connection,
             "SELECT name FROM pragma_table_info('WorkflowRules') ORDER BY name;");

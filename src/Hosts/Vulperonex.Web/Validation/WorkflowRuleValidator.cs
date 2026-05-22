@@ -150,7 +150,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
         {
             if (type is not DelayAction.ActionType
                 and not StopIfAction.ActionType
-                and not RandomPickerAction.ActionType)
+                and not RandomPickerAction.ActionType
+                and not UpdateCounterAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -215,6 +216,15 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                     || randomPickerAction.Weights.Any(weight => weight < 0)))
             {
                 return ErrorCodes.InvalidActionConfig;
+            }
+        }
+
+        if (type == UpdateCounterAction.ActionType)
+        {
+            var updateCounterAction = element.Deserialize<UpdateCounterAction>(JsonOptions);
+            if (updateCounterAction is null || string.IsNullOrWhiteSpace(updateCounterAction.Key))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
             }
         }
 

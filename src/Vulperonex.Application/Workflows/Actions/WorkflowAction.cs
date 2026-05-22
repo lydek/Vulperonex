@@ -9,6 +9,7 @@ namespace Vulperonex.Application.Workflows.Actions;
 [JsonDerivedType(typeof(DelayAction), DelayAction.ActionType)]
 [JsonDerivedType(typeof(StopIfAction), StopIfAction.ActionType)]
 [JsonDerivedType(typeof(RandomPickerAction), RandomPickerAction.ActionType)]
+[JsonDerivedType(typeof(UpdateCounterAction), UpdateCounterAction.ActionType)]
 public abstract record WorkflowAction
 {
     [JsonIgnore]

@@ -45,6 +45,15 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.ToTable("AppLogs");
         });
 
+        modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.CounterEntity", b =>
+        {
+            b.Property<string>("Key").HasColumnType("TEXT");
+            b.Property<DateTimeOffset>("UpdatedAt").HasColumnType("TEXT");
+            b.Property<long>("Value").HasColumnType("INTEGER");
+            b.HasKey("Key");
+            b.ToTable("Counters");
+        });
+
         modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.MemberEntity", b =>
         {
             b.Property<string>("MemberId").HasColumnType("TEXT");
