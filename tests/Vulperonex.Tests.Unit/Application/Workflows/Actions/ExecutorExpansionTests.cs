@@ -1,9 +1,11 @@
 using FluentAssertions;
 using Vulperonex.Application.Counters;
+using Vulperonex.Application.Members;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
+using Vulperonex.Domain.Members;
 using Vulperonex.Infrastructure.Expressions;
 using Xunit;
 
@@ -61,6 +63,24 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["Value"].Should().Be(3);
     }
 
+    [Fact]
+    public async Task Given_TriggerCheckInAction_When_Executed_Then_OutputContainsCheckInCount()
+    {
+        var repository = new RecordingMemberStreamStateRepository();
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        repository.CheckIns.Should().ContainSingle().Which.Should().Be(PlatformIdentity.Create("twitch", "alice"));
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["Platform"].Should().Be("twitch");
+        result.OutputValues!["UserId"].Should().Be("alice");
+        result.OutputValues!["CheckInCount"].Should().Be(1);
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
@@ -91,6 +111,27 @@ public sealed class ExecutorExpansionTests
         {
             Calls.Add((key, delta));
             return Task.FromResult(delta);
+        }
+    }
+
+    private sealed class RecordingMemberStreamStateRepository : IMemberStreamStateRepository
+    {
+        public List<PlatformIdentity> CheckIns { get; } = [];
+
+        public Task MarkFollowerAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task MarkSubscriberAsync(PlatformIdentity identity, string tier, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task<int> IncrementCheckInAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
+        {
+            CheckIns.Add(identity);
+            return Task.FromResult(CheckIns.Count);
         }
     }
 }

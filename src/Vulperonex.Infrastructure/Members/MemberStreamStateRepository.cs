@@ -21,6 +21,28 @@ public sealed class MemberStreamStateRepository(VulperonexDbContext context) : I
         }, cancellationToken);
     }
 
+    public async Task<int> IncrementCheckInAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(identity);
+
+        var platformIdentity = await context.PlatformIdentities
+            .SingleOrDefaultAsync(candidate => candidate.Platform == identity.Platform
+                && candidate.PlatformUserId == identity.PlatformUserId, cancellationToken);
+
+        if (platformIdentity is null)
+        {
+            throw new InvalidOperationException(
+                $"Platform identity '{identity.Platform}:{identity.PlatformUserId}' must be resolved before check-in is updated.");
+        }
+
+        var member = await context.Members
+            .SingleAsync(candidate => candidate.MemberId == platformIdentity.MemberId, cancellationToken);
+
+        member.CheckInCount++;
+        await context.SaveChangesAsync(cancellationToken);
+        return member.CheckInCount;
+    }
+
     private async Task UpdateIdentityAsync(
         PlatformIdentity identity,
         Action<Data.Entities.PlatformIdentityEntity> update,

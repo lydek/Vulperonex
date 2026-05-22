@@ -7,4 +7,6 @@ public interface IMemberStreamStateRepository
     Task MarkFollowerAsync(PlatformIdentity identity, CancellationToken cancellationToken = default);
 
     Task MarkSubscriberAsync(PlatformIdentity identity, string tier, CancellationToken cancellationToken = default);
+
+    Task<int> IncrementCheckInAsync(PlatformIdentity identity, CancellationToken cancellationToken = default);
 }

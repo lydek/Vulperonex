@@ -90,6 +90,7 @@ public sealed class MemberModuleTests
     {
         public List<PlatformIdentity> Followers { get; } = [];
         public List<(PlatformIdentity Identity, string Tier)> Subscriptions { get; } = [];
+        public List<PlatformIdentity> CheckIns { get; } = [];
 
         public Task MarkFollowerAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
         {
@@ -101,6 +102,12 @@ public sealed class MemberModuleTests
         {
             Subscriptions.Add((identity, tier));
             return Task.CompletedTask;
+        }
+
+        public Task<int> IncrementCheckInAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
+        {
+            CheckIns.Add(identity);
+            return Task.FromResult(CheckIns.Count);
         }
     }
 

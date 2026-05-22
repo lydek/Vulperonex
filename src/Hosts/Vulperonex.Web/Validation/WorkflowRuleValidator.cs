@@ -151,7 +151,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             if (type is not DelayAction.ActionType
                 and not StopIfAction.ActionType
                 and not RandomPickerAction.ActionType
-                and not UpdateCounterAction.ActionType)
+                and not UpdateCounterAction.ActionType
+                and not TriggerCheckInAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -223,6 +224,15 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
         {
             var updateCounterAction = element.Deserialize<UpdateCounterAction>(JsonOptions);
             if (updateCounterAction is null || string.IsNullOrWhiteSpace(updateCounterAction.Key))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
+            }
+        }
+
+        if (type == TriggerCheckInAction.ActionType)
+        {
+            var triggerCheckInAction = element.Deserialize<TriggerCheckInAction>(JsonOptions);
+            if (triggerCheckInAction is null || string.IsNullOrWhiteSpace(triggerCheckInAction.UserId))
             {
                 return ErrorCodes.ActionMissingRequiredParam;
             }

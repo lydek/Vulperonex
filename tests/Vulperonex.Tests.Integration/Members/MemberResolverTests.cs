@@ -77,6 +77,26 @@ public sealed class MemberResolverTests
         counter.CommandCount.Should().BeLessThanOrEqualTo(3);
     }
 
+    [Fact]
+    public async Task Given_ResolvedMember_When_CheckInIncremented_Then_CountIsPersisted()
+    {
+        await using var fixture = new Infrastructure.SqliteFixture();
+        await using var context = await fixture.CreateContextAsync();
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        var resolver = new MemberResolver(context);
+        var repository = new MemberStreamStateRepository(context);
+        var identity = PlatformIdentity.Create("twitch", "alice");
+        await resolver.ResolveMemberIdAsync(identity, TestContext.Current.CancellationToken);
+
+        var first = await repository.IncrementCheckInAsync(identity, TestContext.Current.CancellationToken);
+        var second = await repository.IncrementCheckInAsync(identity, TestContext.Current.CancellationToken);
+
+        first.Should().Be(1);
+        second.Should().Be(2);
+        var member = await context.Members.SingleAsync(TestContext.Current.CancellationToken);
+        member.CheckInCount.Should().Be(2);
+    }
+
     private sealed class CommandCounterInterceptor : DbCommandInterceptor
     {
         public int CommandCount { get; private set; }
