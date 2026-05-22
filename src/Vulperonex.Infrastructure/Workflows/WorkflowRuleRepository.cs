@@ -4,12 +4,15 @@ using Vulperonex.Infrastructure.Data;
 
 namespace Vulperonex.Infrastructure.Workflows;
 
-public sealed class WorkflowRuleRepository(VulperonexDbContext context) : IWorkflowRuleRepository
+public sealed class WorkflowRuleRepository(
+    VulperonexDbContext context,
+    IRuleSnapshotCache? snapshotCache = null) : IWorkflowRuleRepository
 {
     public async Task AddAsync(WorkflowRule rule, CancellationToken cancellationToken = default)
     {
         context.WorkflowRules.Add(WorkflowRuleMapper.ToEntity(rule));
         await context.SaveChangesAsync(cancellationToken);
+        snapshotCache?.Invalidate(rule.Id);
     }
 
     public async Task UpdateAsync(WorkflowRule rule, int expectedVersion, CancellationToken cancellationToken = default)
@@ -32,6 +35,7 @@ public sealed class WorkflowRuleRepository(VulperonexDbContext context) : IWorkf
         try
         {
             await context.SaveChangesAsync(cancellationToken);
+            snapshotCache?.Invalidate(rule.Id);
         }
         catch (DbUpdateConcurrencyException ex)
         {
@@ -46,6 +50,7 @@ public sealed class WorkflowRuleRepository(VulperonexDbContext context) : IWorkf
 
         context.WorkflowRules.Remove(entity);
         await context.SaveChangesAsync(cancellationToken);
+        snapshotCache?.Invalidate(id);
     }
 
     public async Task SetEnabledAsync(string id, bool isEnabled, int expectedVersion, CancellationToken cancellationToken = default)
@@ -68,6 +73,7 @@ public sealed class WorkflowRuleRepository(VulperonexDbContext context) : IWorkf
         try
         {
             await context.SaveChangesAsync(cancellationToken);
+            snapshotCache?.Invalidate(id);
         }
         catch (DbUpdateConcurrencyException ex)
         {

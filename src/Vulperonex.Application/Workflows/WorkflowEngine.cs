@@ -15,7 +15,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private const int MaxParallelismCap = 64;
 
     private readonly IStreamEventBus _eventBus;
-    private readonly IWorkflowRuleQueryService _ruleQueryService;
+    private readonly IRuleSnapshotCache _ruleSnapshotCache;
     private readonly WorkflowConditionEvaluator _conditionEvaluator;
     private readonly IReadOnlyDictionary<string, IWorkflowActionExecutor> _executorsByType;
     private readonly IWorkflowActionExecutionStore _executionStore;
@@ -27,7 +27,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
     public WorkflowEngine(
         IStreamEventBus eventBus,
-        IWorkflowRuleQueryService ruleQueryService,
+        IRuleSnapshotCache ruleSnapshotCache,
         WorkflowConditionEvaluator conditionEvaluator,
         IEnumerable<IWorkflowActionExecutor> actionExecutors,
         IWorkflowActionExecutionStore executionStore,
@@ -36,7 +36,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IClock clock)
     {
         _eventBus = eventBus;
-        _ruleQueryService = ruleQueryService;
+        _ruleSnapshotCache = ruleSnapshotCache;
         _conditionEvaluator = conditionEvaluator;
         _executorsByType = actionExecutors.ToDictionary(executor => executor.ActionType, StringComparer.Ordinal);
         _executionStore = executionStore;
@@ -69,7 +69,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     {
         // Query contract: ListEnabledByEventTypeAsync returns only enabled rules whose
         // EventTypeKey matches. No additional filtering here.
-        var rules = await _ruleQueryService.ListEnabledByEventTypeAsync(streamEvent.EventTypeKey, cancellationToken);
+        var rules = await _ruleSnapshotCache.GetByEventTypeAsync(streamEvent.EventTypeKey, cancellationToken);
         var orderedRules = rules
             .OrderBy(rule => rule.Priority)
             .ThenBy(rule => rule.CreatedAt)
@@ -93,7 +93,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         string invocationId,
         CancellationToken cancellationToken = default)
     {
-        var rule = await _ruleQueryService.GetAsync(workflowRuleId, cancellationToken);
+        var rule = await _ruleSnapshotCache.GetByIdAsync(workflowRuleId, cancellationToken);
         if (rule is null)
         {
             return;

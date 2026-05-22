@@ -53,10 +53,10 @@
 
 ## Task 28 - Hot Reload Snapshot Cache
 
-- [ ] Task 28a：`IRuleSnapshotCache` 介面 (`GetByEventTypeAsync`, `GetByIdAsync`)；deep copy WorkflowRule + sub-collections。
-- [ ] Task 28b：Cache invalidation 事件源：WorkflowRuleRepository CRUD 後 publish 進 `IStreamEventBus` 內部頻道 OR 直接觸發 cache.Invalidate(ruleId)。
-- [ ] Task 28c：Engine 換 cache 取代直接 query；執行中 rule 用 snapshot 跑完。
-- [ ] Task 28d：Unit test：rule update inflight execution 不受影響；cache size 受控。
+- [x] Task 28a：`IRuleSnapshotCache` 介面 (`GetByEventTypeAsync`, `GetByIdAsync`)；deep copy WorkflowRule + sub-collections。
+- [x] Task 28b：Cache invalidation 事件源：WorkflowRuleRepository CRUD 後 publish 進 `IStreamEventBus` 內部頻道 OR 直接觸發 cache.Invalidate(ruleId)。
+- [x] Task 28c：Engine 換 cache 取代直接 query；執行中 rule 用 snapshot 跑完。
+- [x] Task 28d：Unit test：rule update inflight execution 不受影響；cache size 受控。
 
 ## Task 29 - Trigger Filter + MatchCondition
 

@@ -71,7 +71,7 @@ public sealed class TwitchWorkflowEquivalenceTests
 
         return new WorkflowEngine(
             bus,
-            new FakeWorkflowRuleQueryService([rule]),
+            new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
             new WorkflowConditionEvaluator(new FakeClock()),
             [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),

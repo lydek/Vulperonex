@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
         services.AddScoped<IWorkflowRuleQueryService, WorkflowRuleQueryService>();
+        services.AddScoped<IRuleSnapshotCache, InMemoryRuleSnapshotCache>();
         services.AddScoped<IWorkflowRuleRepository, WorkflowRuleRepository>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IMemberQueryService, MemberQueryService>();

@@ -431,6 +431,27 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_CachedRuleInvalidatedDuringExecution_When_ActionChainContinues_Then_InFlightSnapshotIsUsed()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var rule = NewRule(actions: [new TestAction(), new TestAction()]);
+        var queryService = new FakeWorkflowRuleQueryService([rule]);
+        var cache = new InMemoryRuleSnapshotCache(queryService);
+        var executor = new BlockingFirstActionExecutor();
+        await using var engine = NewEngine(bus, cache, [executor]);
+        await engine.StartAsync(TestContext.Current.CancellationToken);
+
+        await bus.PublishAsync(NewMessageEvent(), TestContext.Current.CancellationToken);
+        await executor.FirstActionStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        queryService.Rules = [rule with { Actions = [new TestAction()] }];
+        cache.Invalidate(rule.Id);
+        executor.ReleaseFirstAction();
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().Equal(0, 1);
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -474,9 +495,17 @@ public sealed class WorkflowEngineTests
         IReadOnlyCollection<WorkflowRule> rules,
         IEnumerable<IWorkflowActionExecutor> executors)
     {
+        return NewEngine(bus, new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService(rules)), executors);
+    }
+
+    private static WorkflowEngine NewEngine(
+        IStreamEventBus bus,
+        IRuleSnapshotCache ruleSnapshotCache,
+        IEnumerable<IWorkflowActionExecutor> executors)
+    {
         return new WorkflowEngine(
             bus,
-            new FakeWorkflowRuleQueryService(rules),
+            ruleSnapshotCache,
             new WorkflowConditionEvaluator(new FakeClock()),
             executors,
             new InMemoryWorkflowActionExecutionStore(),
@@ -596,6 +625,34 @@ public sealed class WorkflowEngineTests
         }
     }
 
+    private sealed class BlockingFirstActionExecutor : IWorkflowActionExecutor
+    {
+        private readonly TaskCompletionSource _releaseFirstAction = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public string ActionType => TestAction.TestActionType;
+        public TaskCompletionSource FirstActionStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public List<int> Executions { get; } = [];
+
+        public async Task<ActionExecutionResult> ExecuteAsync(
+            WorkflowAction action,
+            ActionExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            Executions.Add(context.ActionIndex);
+            if (context.ActionIndex is 0)
+            {
+                FirstActionStarted.TrySetResult();
+                await _releaseFirstAction.Task.WaitAsync(cancellationToken);
+            }
+
+            return ActionExecutionResult.Completed;
+        }
+
+        public void ReleaseFirstAction()
+        {
+            _releaseFirstAction.TrySetResult();
+        }
+    }
+
     private sealed class CancellationObservingActionExecutor : IWorkflowActionExecutor
     {
         public string ActionType => TestAction.TestActionType;
@@ -664,12 +721,14 @@ public sealed class WorkflowEngineTests
 
     private sealed class FakeWorkflowRuleQueryService(IReadOnlyCollection<WorkflowRule> rules) : IWorkflowRuleQueryService
     {
+        public IReadOnlyCollection<WorkflowRule> Rules { get; set; } = rules;
+
         public Task<IReadOnlyList<WorkflowRule>> ListEnabledByEventTypeAsync(
             string eventTypeKey,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<WorkflowRule>>(
-                rules.Where(rule => rule.EventTypeKey == eventTypeKey && rule.IsEnabled).ToArray());
+                Rules.Where(rule => rule.EventTypeKey == eventTypeKey && rule.IsEnabled).ToArray());
         }
 
         public Task<IReadOnlyList<WorkflowRuleSummaryDto>> ListAsync(CancellationToken cancellationToken = default)
@@ -679,7 +738,7 @@ public sealed class WorkflowEngineTests
 
         public Task<WorkflowRule?> GetAsync(string id, CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(rules.FirstOrDefault(rule => rule.Id == id));
+            return Task.FromResult(Rules.FirstOrDefault(rule => rule.Id == id));
         }
     }
 
