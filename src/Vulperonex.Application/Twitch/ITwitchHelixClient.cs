@@ -6,6 +6,10 @@ public interface ITwitchHelixClient
         string? login,
         string? userId,
         CancellationToken cancellationToken = default);
+
+    Task<TwitchShoutoutResult> SendShoutoutAsync(
+        string targetLogin,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record TwitchHelixUser(
@@ -15,3 +19,9 @@ public sealed record TwitchHelixUser(
     string? Avatar,
     string? Description,
     bool IsAffiliate);
+
+public sealed record TwitchShoutoutResult(
+    bool IsSent,
+    string TargetLogin,
+    string? TargetUserId,
+    string? TargetDisplayName);

@@ -45,6 +45,29 @@ public sealed class TwitchHelixClient(
                 user.BroadcasterType is "affiliate" or "partner");
     }
 
+    public async Task<TwitchShoutoutResult> SendShoutoutAsync(
+        string targetLogin,
+        CancellationToken cancellationToken = default)
+    {
+        var target = await LookupUserAsync(targetLogin, userId: null, cancellationToken);
+        if (target is null)
+        {
+            return new TwitchShoutoutResult(false, targetLogin, null, null);
+        }
+
+        var broadcasterId = configuration["Twitch:BroadcasterId"]
+            ?? throw new InvalidOperationException("Twitch:BroadcasterId is required for shoutout actions.");
+        var moderatorId = configuration["Twitch:ModeratorId"] ?? broadcasterId;
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"chat/shoutouts?from_broadcaster_id={Uri.EscapeDataString(broadcasterId)}&to_broadcaster_id={Uri.EscapeDataString(target.UserId)}&moderator_id={Uri.EscapeDataString(moderatorId)}");
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        return new TwitchShoutoutResult(true, target.Login, target.UserId, target.DisplayName);
+    }
+
     private async Task AddHelixHeadersAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(accessTokenProvider.AccessToken))

@@ -157,7 +157,8 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
                 and not EmitSystemEventAction.ActionType
                 and not TriggerEffectAction.ActionType
                 and not EmitOverlayWidgetAction.ActionType
-                and not LookupTwitchUserAction.ActionType)
+                and not LookupTwitchUserAction.ActionType
+                and not ShoutoutAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -303,6 +304,15 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             if (lookupTwitchUserAction is null
                 || (string.IsNullOrWhiteSpace(lookupTwitchUserAction.Login)
                     && string.IsNullOrWhiteSpace(lookupTwitchUserAction.UserId)))
+            {
+                return ErrorCodes.ActionMissingRequiredParam;
+            }
+        }
+
+        if (type == ShoutoutAction.ActionType)
+        {
+            var shoutoutAction = element.Deserialize<ShoutoutAction>(JsonOptions);
+            if (shoutoutAction is null || string.IsNullOrWhiteSpace(shoutoutAction.TargetLogin))
             {
                 return ErrorCodes.ActionMissingRequiredParam;
             }

@@ -123,6 +123,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, TriggerEffectActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, EmitOverlayWidgetActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, LookupTwitchUserActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, ShoutoutActionExecutor>();
         // Default sender is only a fallback. Real platform registrations must happen before this method.
         if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
         {

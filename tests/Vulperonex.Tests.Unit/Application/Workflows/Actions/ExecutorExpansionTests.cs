@@ -226,6 +226,28 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["IsFound"].Should().Be(true);
     }
 
+    [Fact]
+    public async Task Given_ShoutoutAction_When_Executed_Then_TargetLoginIsResolvedAndOutputContainsResult()
+    {
+        var client = new RecordingTwitchHelixClient
+        {
+            ShoutoutResult = new TwitchShoutoutResult(true, "alice", "user-1", "Alice"),
+        };
+        var executor = new ShoutoutActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new ShoutoutAction { TargetLogin = "@{Member.DisplayName}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        client.Shoutouts.Should().ContainSingle().Which.Should().Be("Alice");
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["IsSent"].Should().Be(true);
+        result.OutputValues!["TargetLogin"].Should().Be("alice");
+        result.OutputValues!["TargetUserId"].Should().Be("user-1");
+        result.OutputValues!["TargetDisplayName"].Should().Be("Alice");
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
@@ -336,7 +358,9 @@ public sealed class ExecutorExpansionTests
     private sealed class RecordingTwitchHelixClient : ITwitchHelixClient
     {
         public TwitchHelixUser? User { get; init; }
+        public TwitchShoutoutResult? ShoutoutResult { get; init; }
         public List<(string? Login, string? UserId)> Requests { get; } = [];
+        public List<string> Shoutouts { get; } = [];
 
         public Task<TwitchHelixUser?> LookupUserAsync(
             string? login,
@@ -345,6 +369,14 @@ public sealed class ExecutorExpansionTests
         {
             Requests.Add((login, userId));
             return Task.FromResult(User);
+        }
+
+        public Task<TwitchShoutoutResult> SendShoutoutAsync(
+            string targetLogin,
+            CancellationToken cancellationToken = default)
+        {
+            Shoutouts.Add(targetLogin);
+            return Task.FromResult(ShoutoutResult ?? new TwitchShoutoutResult(false, targetLogin, null, null));
         }
     }
 

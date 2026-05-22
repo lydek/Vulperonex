@@ -75,12 +75,61 @@ public sealed class TwitchHelixClientTests
         user.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Given_Shoutout_When_TargetExists_Then_PostsHelixShoutoutRequest()
+    {
+        var requests = new List<HttpRequestMessage>();
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            requests.Add(request);
+            return request.Method == HttpMethod.Get
+                ? JsonResponse("""
+                    {
+                      "data": [
+                        {
+                          "id": "target-1",
+                          "login": "alice",
+                          "display_name": "Alice",
+                          "profile_image_url": "avatar",
+                          "description": "desc",
+                          "broadcaster_type": ""
+                        }
+                      ]
+                    }
+                    """)
+                : new HttpResponseMessage(HttpStatusCode.NoContent);
+        }))
+        {
+            BaseAddress = new Uri("https://api.twitch.tv/helix/"),
+        };
+        var client = new TwitchHelixClient(
+            NewConfiguration(),
+            NewTokenProvider(),
+            httpClient);
+
+        var result = await client.SendShoutoutAsync("alice", TestContext.Current.CancellationToken);
+
+        result.Should().BeEquivalentTo(new
+        {
+            IsSent = true,
+            TargetLogin = "alice",
+            TargetUserId = "target-1",
+            TargetDisplayName = "Alice",
+        });
+        requests.Should().HaveCount(2);
+        requests[1].Method.Should().Be(HttpMethod.Post);
+        requests[1].RequestUri!.ToString().Should().Be(
+            "https://api.twitch.tv/helix/chat/shoutouts?from_broadcaster_id=broadcaster-1&to_broadcaster_id=target-1&moderator_id=moderator-1");
+    }
+
     private static IConfiguration NewConfiguration()
     {
         return new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["Twitch:ClientId"] = "client-1",
+                ["Twitch:BroadcasterId"] = "broadcaster-1",
+                ["Twitch:ModeratorId"] = "moderator-1",
             })
             .Build();
     }
