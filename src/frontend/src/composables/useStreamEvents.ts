@@ -1,4 +1,5 @@
 import { HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
+import { storeToRefs } from "pinia";
 import { computed, onScopeDispose, ref } from "vue";
 import { apiBaseUrl } from "@/api/client";
 import { useEventStore, type StreamEventEnvelope } from "@/stores/eventStore";
@@ -19,6 +20,7 @@ export interface StreamEventsConnection {
 
 export function useStreamEvents(options: StreamEventsOptions = {}) {
   const store = useEventStore();
+  const { events } = storeToRefs(store);
   const connection = options.connection ?? new HubConnectionBuilder()
     .withUrl(`${apiBaseUrl}/hubs/events`)
     .withAutomaticReconnect()
@@ -66,7 +68,7 @@ export function useStreamEvents(options: StreamEventsOptions = {}) {
   });
 
   return {
-    events: store.events,
+    events,
     state: computed(() => state.value),
     error: computed(() => error.value),
     start,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { HubConnectionState } from "@microsoft/signalr";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import {
@@ -9,6 +10,10 @@ import {
   startTwitchAuth,
   type TwitchAuthStatusResponse
 } from "@/api/client";
+import { useExponentialPollingFallback } from "@/composables/useExponentialPollingFallback";
+import { useStreamEvents } from "@/composables/useStreamEvents";
+
+const PLATFORM_CONNECTION_CHANGED = "platform.connection_changed";
 
 const { t } = useI18n();
 const status = ref<TwitchAuthStatusResponse | null>(null);
@@ -18,6 +23,14 @@ const resetting = ref(false);
 const lastError = ref<string | null>(null);
 const lastStartUrl = ref<string | null>(null);
 const confirmResetOpen = ref(false);
+const pollingActive = ref(false);
+
+const { events, state: hubState, start: startHub } = useStreamEvents();
+const pollingFallback = useExponentialPollingFallback({
+  poll: async () => {
+    await loadStatus();
+  }
+});
 
 const noTwitchMode = computed(() => status.value !== null && !status.value.clientIdConfigured);
 const startDisabled = computed(() =>
@@ -27,8 +40,33 @@ const resetDisabled = computed(() =>
   resetting.value || loadingStatus.value || !status.value?.hasRefreshToken
 );
 
-onMounted(() => {
-  void loadStatus();
+onMounted(async () => {
+  await loadStatus();
+  await startHub();
+});
+
+onUnmounted(() => {
+  pollingFallback.stop();
+});
+
+watch(
+  () => events.value[0]?.eventId,
+  () => {
+    const newest = events.value[0];
+    if (newest?.type === PLATFORM_CONNECTION_CHANGED) {
+      void loadStatus();
+    }
+  }
+);
+
+watch(hubState, (next, previous) => {
+  if (next === HubConnectionState.Disconnected && previous !== undefined) {
+    pollingFallback.start();
+    pollingActive.value = true;
+  } else if (next === HubConnectionState.Connected) {
+    pollingFallback.stop();
+    pollingActive.value = false;
+  }
 });
 
 async function loadStatus(): Promise<void> {

@@ -1,6 +1,7 @@
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Application.Auth;
 using Vulperonex.Web.Errors;
+using Vulperonex.Web.SignalR;
 using Vulperonex.Web.TwitchAuth;
 
 namespace Vulperonex.Web.Endpoints;
@@ -24,9 +25,13 @@ public static class TwitchAuthEndpoints
             return Results.Ok(new TwitchAuthStatusResponse(clientIdConfigured, clientSecretConfigured, hasRefreshToken));
         });
 
-        group.MapDelete("/token", async (IOAuthTokenStore tokenStore, CancellationToken cancellationToken) =>
+        group.MapDelete("/token", async (
+            IOAuthTokenStore tokenStore,
+            PlatformConnectionNotifier notifier,
+            CancellationToken cancellationToken) =>
         {
             await tokenStore.ClearRefreshTokenAsync("twitch", cancellationToken);
+            await notifier.NotifyAsync("twitch", connected: false, cancellationToken);
             return Results.NoContent();
         });
 
@@ -42,7 +47,7 @@ public static class TwitchAuthEndpoints
             }
 
             var callbackPort = request.CallbackPort ?? AllowedCallbackPorts[0];
-            if (!AllowedCallbackPorts.Contains(callbackPort))
+            if (!IsAllowedCallbackPort(callbackPort))
             {
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
@@ -141,6 +146,20 @@ public static class TwitchAuthEndpoints
         });
 
         return endpoints;
+    }
+
+    private static bool IsAllowedCallbackPort(int port)
+    {
+        if (AllowedCallbackPorts.Contains(port))
+        {
+            return true;
+        }
+
+        // Allow any user-space loopback port (>= 1024) so the Web UI can
+        // request its own Kestrel port as the OAuth callback target. Kestrel
+        // binding already enforces loopback-only, so the trust boundary is
+        // unchanged.
+        return port is >= 1024 and <= 65535;
     }
 
     private static string BuildAuthorizeUrl(string clientId, string scopes, TwitchOAuthSession session)

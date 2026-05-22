@@ -56,6 +56,7 @@ public static partial class VulperonexWebApplication
         app.MapMemberEndpoints();
         app.MapSimulateEndpoints();
         app.MapTwitchAuthEndpoints();
+        app.MapOAuthCallbackEndpoints();
         app.MapOverlayHistoryEndpoints();
         app.MapOverlayHubs();
         app.MapFallback(ServeSpaIndexAsync);
@@ -88,6 +89,7 @@ public static partial class VulperonexWebApplication
         return path.StartsWithSegments("/api")
             || path.StartsWithSegments("/hubs")
             || path.StartsWithSegments("/openapi")
+            || path.StartsWithSegments("/auth")
             || path.Equals("/health");
     }
 

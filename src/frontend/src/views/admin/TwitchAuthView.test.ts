@@ -1,10 +1,31 @@
 import { flushPromises, mount } from "@vue/test-utils";
-import { createPinia } from "pinia";
+import { createPinia, storeToRefs } from "pinia";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ref } from "vue";
 import { createI18n } from "vue-i18n";
+import { HubConnectionState } from "@microsoft/signalr";
 import enUS from "@/i18n/en-US.json";
 import zhTW from "@/i18n/zh-TW.json";
-import TwitchAuthView from "./TwitchAuthView.vue";
+import { useEventStore } from "@/stores/eventStore";
+
+const stubHubState = ref(HubConnectionState.Connected);
+
+vi.mock("@/composables/useStreamEvents", () => {
+  const useStreamEvents = () => {
+    const store = useEventStore();
+    const { events } = storeToRefs(store);
+    return {
+      events,
+      state: stubHubState,
+      error: ref(null),
+      start: async () => {},
+      stop: async () => {}
+    };
+  };
+  return { useStreamEvents };
+});
+
+const { default: TwitchAuthView } = await import("./TwitchAuthView.vue");
 
 function buildI18n() {
   return createI18n({
@@ -27,6 +48,7 @@ function mountView() {
 describe("TwitchAuthView", () => {
   beforeEach(() => {
     vi.stubGlobal("open", vi.fn());
+    stubHubState.value = HubConnectionState.Connected;
   });
 
   afterEach(() => {
@@ -107,6 +129,36 @@ describe("TwitchAuthView", () => {
     expect(fetchMock.mock.calls[1][0]).toBe("/api/twitch/auth/token");
     expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: "DELETE" });
     expect(wrapper.find('[data-testid="twitch-no-token"]').exists()).toBe(true);
+  });
+
+  it("should reload status when platform.connection_changed envelope arrives", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ clientIdConfigured: true, clientSecretConfigured: true, hasRefreshToken: false }),
+        { status: 200 }
+      ))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ clientIdConfigured: true, clientSecretConfigured: true, hasRefreshToken: true }),
+        { status: 200 }
+      ));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    await flushPromises();
+    expect(wrapper.find('[data-testid="twitch-no-token"]').exists()).toBe(true);
+
+    const store = useEventStore();
+    store.upsertEvent({
+      type: "platform.connection_changed",
+      eventId: "evt-conn-1",
+      platform: "twitch",
+      occurredAt: "2026-05-22T00:00:00Z"
+    });
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(wrapper.find('[data-testid="twitch-has-token"]').exists()).toBe(true);
   });
 
   it("should surface error code when start endpoint returns 400", async () => {

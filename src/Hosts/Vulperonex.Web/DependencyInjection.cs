@@ -73,6 +73,7 @@ public static class DependencyInjection
         services.AddOverlayHistory<OverlayAlertPayload>("alerts", defaultCapacity: 20);
         services.AddOverlayHistory<OverlayMemberPayload>("member", defaultCapacity: 20);
         services.AddSingleton<TwitchOAuthSessionStore>();
+        services.AddSingleton<PlatformConnectionNotifier>();
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<MachineKeyProvider>(serviceProvider =>
             new MachineKeyProvider(
