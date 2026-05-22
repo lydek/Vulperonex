@@ -133,6 +133,41 @@ export async function deleteRule(id: string, signal?: AbortSignal): Promise<void
   }
 }
 
+export interface TwitchAuthStartResponse {
+  authorizeUrl: string;
+  state: string;
+  callbackPort: number;
+}
+
+export async function startTwitchAuth(
+  callbackPort?: number,
+  signal?: AbortSignal
+): Promise<TwitchAuthStartResponse> {
+  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/start`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ callbackPort }),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<TwitchAuthStartResponse>;
+}
+
+export async function resetTwitchAuth(signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/token`, {
+    method: "DELETE",
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
 export interface WorkflowRuleUpsertRequest {
   id?: string;
   name: string;
