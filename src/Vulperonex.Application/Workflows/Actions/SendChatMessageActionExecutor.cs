@@ -1,9 +1,24 @@
+using Vulperonex.Application.Workflows.Chat;
+using Vulperonex.Domain.Events;
+
 namespace Vulperonex.Application.Workflows.Actions;
 
-public sealed class SendChatMessageActionExecutor(
-    IEnumerable<IPlatformChatSender> chatSenders,
-    TemplateRenderer templateRenderer) : IWorkflowActionExecutor
+public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
 {
+    private readonly IChatOutbox _chatOutbox;
+    private readonly TemplateRenderer _templateRenderer;
+
+    public SendChatMessageActionExecutor(IChatOutbox chatOutbox, TemplateRenderer templateRenderer)
+    {
+        _chatOutbox = chatOutbox;
+        _templateRenderer = templateRenderer;
+    }
+
+    public SendChatMessageActionExecutor(IEnumerable<IPlatformChatSender> chatSenders, TemplateRenderer templateRenderer)
+        : this(new DirectSendingChatOutbox(chatSenders), templateRenderer)
+    {
+    }
+
     public string ActionType => SendChatMessageAction.ActionType;
 
     public async Task<ActionExecutionResult> ExecuteAsync(
@@ -17,16 +32,55 @@ public sealed class SendChatMessageActionExecutor(
         }
 
         var platform = sendChatMessage.TargetPlatform ?? context.StreamEvent.Platform;
-        var sender = chatSenders.FirstOrDefault(chatSender =>
-            string.Equals(chatSender.Platform, platform, StringComparison.OrdinalIgnoreCase));
+        var message = _templateRenderer.Render(sendChatMessage.Template, context.StreamEvent);
+        var channel = RenderOptional(sendChatMessage.Channel, context.StreamEvent);
+        var dedupKey = RenderOptional(sendChatMessage.DedupKey, context.StreamEvent);
 
-        if (sender is null)
+        await _chatOutbox.EnqueueAsync(platform, channel, message, dedupKey, cancellationToken).ConfigureAwait(false);
+        return ActionExecutionResult.Completed;
+    }
+
+    private string? RenderOptional(string? template, IStreamEvent streamEvent)
+    {
+        return string.IsNullOrWhiteSpace(template) ? null : _templateRenderer.Render(template, streamEvent);
+    }
+
+    private sealed class DirectSendingChatOutbox(IEnumerable<IPlatformChatSender> chatSenders) : IChatOutbox
+    {
+        private readonly IReadOnlyList<IPlatformChatSender> _chatSenders = chatSenders.ToArray();
+
+        public async Task<ChatOutboxEnqueueResult> EnqueueAsync(
+            string platform,
+            string? channel,
+            string message,
+            string? dedupKey = null,
+            CancellationToken cancellationToken = default)
         {
-            return ActionExecutionResult.Completed;
+            var sender = _chatSenders.FirstOrDefault(chatSender =>
+                string.Equals(chatSender.Platform, platform, StringComparison.OrdinalIgnoreCase));
+
+            if (sender is not null)
+            {
+                await sender.SendAsync(message, cancellationToken).ConfigureAwait(false);
+            }
+
+            var item = new ChatOutboxItem
+            {
+                Id = Guid.NewGuid(),
+                Platform = platform,
+                Channel = channel,
+                Message = message,
+                DedupKey = dedupKey,
+                EnqueuedAt = DateTimeOffset.UtcNow,
+                Status = sender is null ? ChatOutboxItemStatus.Skipped : ChatOutboxItemStatus.Sent,
+            };
+
+            return new ChatOutboxEnqueueResult(item);
         }
 
-        var message = templateRenderer.Render(sendChatMessage.Template, context.StreamEvent);
-        await sender.SendAsync(message, cancellationToken);
-        return ActionExecutionResult.Completed;
+        public Task<IReadOnlyList<ChatOutboxItem>> SnapshotAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ChatOutboxItem>>([]);
+        }
     }
 }

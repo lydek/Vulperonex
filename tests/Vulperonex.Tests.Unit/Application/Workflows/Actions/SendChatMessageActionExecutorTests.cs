@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Xunit;
@@ -10,39 +11,46 @@ namespace Vulperonex.Tests.Unit.Application.Workflows.Actions;
 public sealed class SendChatMessageActionExecutorTests
 {
     [Fact]
-    public async Task Given_SendChatMessageActionWithoutTargetPlatform_When_Executed_Then_SourcePlatformSenderIsUsed()
+    public async Task Given_SendChatMessageActionWithoutTargetPlatform_When_Executed_Then_SourcePlatformMessageIsQueued()
     {
-        var twitch = new RecordingChatSender("twitch");
-        var youtube = new RecordingChatSender("youtube");
-        var executor = new SendChatMessageActionExecutor([twitch, youtube], new TemplateRenderer());
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var executor = new SendChatMessageActionExecutor(outbox, new TemplateRenderer());
 
         await executor.ExecuteAsync(
             new SendChatMessageAction { Template = "Hello {user.displayName}" },
             NewContext("twitch"),
             TestContext.Current.CancellationToken);
 
-        twitch.Messages.Should().ContainSingle().Which.Should().Be("Hello Alice");
-        youtube.Messages.Should().BeEmpty();
+        var item = (await outbox.SnapshotAsync(TestContext.Current.CancellationToken))
+            .Should().ContainSingle().Subject;
+        item.Platform.Should().Be("twitch");
+        item.Message.Should().Be("Hello Alice");
+        item.Status.Should().Be(ChatOutboxItemStatus.Pending);
     }
 
     [Fact]
-    public async Task Given_SendChatMessageActionWithTargetPlatform_When_Executed_Then_TargetPlatformSenderIsUsed()
+    public async Task Given_SendChatMessageActionWithTargetPlatformChannelAndDedupKey_When_Executed_Then_MessageIsQueued()
     {
-        var twitch = new RecordingChatSender("twitch");
-        var youtube = new RecordingChatSender("youtube");
-        var executor = new SendChatMessageActionExecutor([twitch, youtube], new TemplateRenderer());
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var executor = new SendChatMessageActionExecutor(outbox, new TemplateRenderer());
 
         await executor.ExecuteAsync(
             new SendChatMessageAction
             {
                 Template = "Hello {user.displayName}",
                 TargetPlatform = "youtube",
+                Channel = "{user.id}",
+                DedupKey = "hello:{user.id}",
             },
             NewContext("twitch"),
             TestContext.Current.CancellationToken);
 
-        twitch.Messages.Should().BeEmpty();
-        youtube.Messages.Should().ContainSingle().Which.Should().Be("Hello Alice");
+        var item = (await outbox.SnapshotAsync(TestContext.Current.CancellationToken))
+            .Should().ContainSingle().Subject;
+        item.Platform.Should().Be("youtube");
+        item.Channel.Should().Be("alice");
+        item.Message.Should().Be("Hello Alice");
+        item.DedupKey.Should().Be("hello:alice");
     }
 
     [Fact]

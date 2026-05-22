@@ -17,6 +17,7 @@ using Vulperonex.Application.Time;
 using Vulperonex.Application.Twitch;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Application.Workflows.Conditions;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Auth;
@@ -111,7 +112,11 @@ public static class DependencyInjection
         services.AddScoped<TemplateRenderer>();
         services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
         services.AddSingleton<IWorkflowThrottleService, InMemoryWorkflowThrottleService>();
-        services.AddScoped<IWorkflowActionExecutor, SendChatMessageActionExecutor>();
+        services.AddSingleton<IChatOutbox, InMemoryChatOutbox>();
+        services.AddScoped<IWorkflowActionExecutor>(serviceProvider =>
+            new SendChatMessageActionExecutor(
+                serviceProvider.GetRequiredService<IChatOutbox>(),
+                serviceProvider.GetRequiredService<TemplateRenderer>()));
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, DelayActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, StopIfActionExecutor>();
