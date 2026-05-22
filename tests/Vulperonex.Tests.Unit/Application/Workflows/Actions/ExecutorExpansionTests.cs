@@ -81,6 +81,29 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["CheckInCount"].Should().Be(1);
     }
 
+    [Fact]
+    public async Task Given_AddLotteryTicketsAction_When_Executed_Then_CounterUsesLotteryTicketKey()
+    {
+        var repository = new RecordingCounterRepository();
+        var executor = new AddLotteryTicketsActionExecutor(repository, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new AddLotteryTicketsAction
+            {
+                UserId = "{Member.UserId}",
+                Amount = 5,
+            },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        repository.Calls.Should().ContainSingle().Which.Should().Be(("lottery.tickets.alice", 5));
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["Key"].Should().Be("lottery.tickets.alice");
+        result.OutputValues!["UserId"].Should().Be("alice");
+        result.OutputValues!["TicketsAdded"].Should().Be(5);
+        result.OutputValues!["TicketCount"].Should().Be(5);
+    }
+
     private static ActionExecutionContext NewContext()
     {
         var streamEvent = new UserSentMessageEvent
