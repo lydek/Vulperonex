@@ -457,6 +457,39 @@ textarea {
   background: #e7f1ef;
 }
 
+.event-type-dropdown {
+  display: grid;
+  gap: 6px;
+}
+
+.event-type-select {
+  border: 1px solid #d6dde5;
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #ffffff;
+}
+
+.event-type-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.event-type-badge {
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.event-type-badge-simulatable {
+  background: #e2f3eb;
+  color: #1b6a4f;
+}
+
 .rules-row-actions {
   display: flex;
   gap: 6px;

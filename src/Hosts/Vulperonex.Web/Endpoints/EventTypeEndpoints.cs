@@ -25,5 +25,9 @@ public static class EventTypeEndpoints
         return endpoints;
     }
 
+    // Note: registry.GetAll() already filters out IsSystemEvent=true entries,
+    // so the API surface never exposes platform.connection_changed. The dropdown
+    // therefore only needs to badge IsSimulatable; system-event filtering is
+    // guaranteed server-side by InMemoryStreamEventTypeRegistry.GetAll().
     private sealed record EventTypeResponse(string Key, string Description, bool IsSimulatable);
 }

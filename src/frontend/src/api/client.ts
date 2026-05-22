@@ -133,6 +133,16 @@ export async function deleteRule(id: string, signal?: AbortSignal): Promise<void
   }
 }
 
+export interface EventTypeMetadata {
+  key: string;
+  description: string;
+  isSimulatable: boolean;
+}
+
+export async function getEventTypes(signal?: AbortSignal): Promise<EventTypeMetadata[]> {
+  return getJson<EventTypeMetadata[]>("/api/event-types", signal);
+}
+
 export type OverlayHubName = "chat" | "alerts" | "member";
 
 export async function clearOverlayHistory(
