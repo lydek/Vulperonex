@@ -21,4 +21,4 @@ public enum ChatOutboxItemStatus
     Failed,
 }
 
-public sealed record ChatOutboxEnqueueResult(ChatOutboxItem Item);
+public sealed record ChatOutboxEnqueueResult(ChatOutboxItem Item, bool IsDuplicate = false);

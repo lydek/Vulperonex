@@ -1,11 +1,29 @@
+using Microsoft.Extensions.DependencyInjection;
+using Vulperonex.Application.Settings;
+
 namespace Vulperonex.Application.Workflows.Chat;
 
-public sealed class InMemoryChatOutbox(TimeProvider timeProvider) : IChatOutbox
+public sealed class InMemoryChatOutbox : IChatOutbox
 {
+    private const int DefaultDedupTtlHours = 24;
     private readonly Lock _sync = new();
     private readonly List<ChatOutboxItem> _items = [];
+    private readonly Dictionary<string, DateTimeOffset> _dedupKeys = new(StringComparer.OrdinalIgnoreCase);
+    private readonly TimeProvider _timeProvider;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
-    public Task<ChatOutboxEnqueueResult> EnqueueAsync(
+    public InMemoryChatOutbox(TimeProvider timeProvider)
+    {
+        _timeProvider = timeProvider;
+    }
+
+    public InMemoryChatOutbox(TimeProvider timeProvider, IServiceScopeFactory scopeFactory)
+    {
+        _timeProvider = timeProvider;
+        _scopeFactory = scopeFactory;
+    }
+
+    public async Task<ChatOutboxEnqueueResult> EnqueueAsync(
         string platform,
         string? channel,
         string message,
@@ -23,22 +41,36 @@ public sealed class InMemoryChatOutbox(TimeProvider timeProvider) : IChatOutbox
             throw new ArgumentException("Chat outbox message must not be empty.", nameof(message));
         }
 
+        var normalizedDedupKey = NormalizeOptional(dedupKey);
+        var now = _timeProvider.GetUtcNow();
+        var dedupTtl = await GetDedupTtlAsync(cancellationToken).ConfigureAwait(false);
         var item = new ChatOutboxItem
         {
             Id = Guid.NewGuid(),
             Platform = platform.Trim(),
             Channel = NormalizeOptional(channel),
             Message = message,
-            DedupKey = NormalizeOptional(dedupKey),
-            EnqueuedAt = timeProvider.GetUtcNow(),
+            DedupKey = normalizedDedupKey,
+            EnqueuedAt = now,
         };
 
         lock (_sync)
         {
+            if (normalizedDedupKey is not null)
+            {
+                PruneExpiredDedupKeys(now, dedupTtl);
+                if (_dedupKeys.ContainsKey(normalizedDedupKey))
+                {
+                    return new ChatOutboxEnqueueResult(item, IsDuplicate: true);
+                }
+
+                _dedupKeys[normalizedDedupKey] = now;
+            }
+
             _items.Add(item);
         }
 
-        return Task.FromResult(new ChatOutboxEnqueueResult(item));
+        return new ChatOutboxEnqueueResult(item);
     }
 
     public Task<IReadOnlyList<ChatOutboxItem>> SnapshotAsync(CancellationToken cancellationToken = default)
@@ -111,6 +143,32 @@ public sealed class InMemoryChatOutbox(TimeProvider timeProvider) : IChatOutbox
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private async Task<TimeSpan> GetDedupTtlAsync(CancellationToken cancellationToken)
+    {
+        if (_scopeFactory is null)
+        {
+            return TimeSpan.FromHours(DefaultDedupTtlHours);
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingsService>();
+        var ttlHours = await settings
+            .GetAsync(SystemSettingKey.ChatOutboxDedupTtlHours, DefaultDedupTtlHours, cancellationToken)
+            .ConfigureAwait(false);
+        return TimeSpan.FromHours(Math.Clamp(ttlHours, 1, 24 * 30));
+    }
+
+    private void PruneExpiredDedupKeys(DateTimeOffset now, TimeSpan ttl)
+    {
+        foreach (var pair in _dedupKeys.ToArray())
+        {
+            if (now - pair.Value >= ttl)
+            {
+                _dedupKeys.Remove(pair.Key);
+            }
+        }
     }
 
     private void UpdateStatus(Guid id, ChatOutboxItemStatus status, string? errorMessage)

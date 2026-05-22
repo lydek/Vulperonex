@@ -38,6 +38,7 @@ public sealed class SystemSettingKeyTests
             "log.db_max_size_mb",
             "log.file_retention_days",
             "workflow.template.strict_missing",
-            "chat.outbox.per_second");
+            "chat.outbox.per_second",
+            "chat.outbox.dedup_ttl_hours");
     }
 }

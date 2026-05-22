@@ -229,10 +229,10 @@ Task 23 Variable / Expression substrate
 **描述：** `SendChatMessageAction` 改寫進 `IChatOutbox` queue（in-memory + SQLite-backed），背景 worker 按 rate limit 出貨。直接 Send fallback 模式可保留。目的：避免多 rule 並行寫聊天時觸發 Twitch rate limit。
 
 **驗收標準：**
-- [ ] `IChatOutbox.EnqueueAsync(platform, channel, message, dedupKey?)`。
-- [ ] Background worker `ChatOutboxDispatcher`：每秒 dispatch 至多 N（依 SystemSetting `chat.outbox.per_second`）。
-- [ ] 缺 `IPlatformChatSender` 註冊時不得 silent no-op；outbox item 標為 `Skipped` 或 `Failed`，記錄 structured warning，並在測試中驗證可觀測。
-- [ ] DedupKey 24h TTL 去重。
+- [x] `IChatOutbox.EnqueueAsync(platform, channel, message, dedupKey?)`。
+- [x] Background worker `ChatOutboxDispatcher`：每秒 dispatch 至多 N（依 SystemSetting `chat.outbox.per_second`）。
+- [x] 缺 `IPlatformChatSender` 註冊時不得 silent no-op；outbox item 標為 `Skipped` 或 `Failed`，記錄 structured warning，並在測試中驗證可觀測。
+- [x] DedupKey 24h TTL 去重。
 
 **驗證：**
 - [ ] Unit test：burst 100 enqueue → 限速送出。

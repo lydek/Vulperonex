@@ -13,4 +13,5 @@ public static class SystemSettingKey
     public const string LogFileRetentionDays = "log.file_retention_days";
     public const string WorkflowTemplateStrictMissing = "workflow.template.strict_missing";
     public const string ChatOutboxPerSecond = "chat.outbox.per_second";
+    public const string ChatOutboxDedupTtlHours = "chat.outbox.dedup_ttl_hours";
 }
