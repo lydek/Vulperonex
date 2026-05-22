@@ -114,6 +114,7 @@
 > 詳細切片清單：`docs/phases/phase-6-web-ui/todo.md`
 > [!IMPORTANT]
 > **前置條件 Gate**：父計畫中 Phase 5 Checkpoint 的三項手動驗收（包含 CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權、以及 REPL 手動驗收）必須確認已勾選完成，此 Phase 6 方可開工實作。
+> **目前優先順序變更**：Phase 6 尚未完成的 Photino/manual verification 等非 workflow parity 項目延後；目前先執行 Phase 7 Workflow Parity。
 
 - ~~**Task 17**~~ — 已移除（原 MockYouTube Adapter，推遲出 MVP scope）
 - [ ] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 Unstyled + UnoCSS + Pinia + useStreamEvents + 雙語系及 manifest 骨架
@@ -129,6 +130,38 @@
 - [ ] 全部 Task 18-21 sub-task `[x]` 完成自檢（確認 `tasks/todo.md` 中 Task 18-21 的所有子待辦項目皆已勾選為 `[x]`）
 - [ ] 手動驗證：依據 `docs/phases/phase-6-web-ui/manual-verification.md` 之 § Task 20 Browser Manual Checklist、§ Task 20k - Twitch OAuth E2E Checklist、§ Task 21 Desktop Shell Checklist 全項目手動驗證通過，且所有 Dated Entry 的 Result 均為 PASS，無 pending 項目
 - [ ] 安全 review：Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（非 Base64Url），解碼用 `Convert.FromBase64String`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符 → 拒絕且不 exchange code（integration test 驗證）**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ 只接受預設 callback path + 接收後立即關閉（single-use）**
+
+---
+
+## Phase 7：Workflow Parity with Omni-Commander
+
+> 詳細計畫：`docs/phases/phase-7-workflow-parity/plan.md`
+> 詳細待辦：`docs/phases/phase-7-workflow-parity/todo.md`
+> 對照來源：`ref/Omni-Commander/OmniCommander.Domain/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/Executors/` + `ref/Omni-Commander/OmniCommander.Tests/Workflows/` + `ref/Omni-Commander/walkthrough.md`
+> **前置條件 Gate**：Phase 5 runtime + Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線可用；不等待完整 Phase 6 Checkpoint。
+
+- [x] **Task 23** — Variable / Expression substrate：`ExpressionContext` + template resolver + NCalc evaluator（ask-first 加 `NCalcSync`）
+- [ ] **Task 24** — Step `ExecutionCondition` + `OutputVariable`
+- [ ] **Task 25** — Rule-level throttle + timeout
+- [ ] **Task 26** — `OnFailureActionsJson` 補救鏈 + replay phase key
+- [ ] **Task 28** — Hot reload immutable rule snapshot cache
+- [ ] **Task 29** — Trigger filter + `MatchCondition`
+- [ ] **Task 27** — Sub-workflow flag + Args plumbing，保留 stable `InvocationId`
+- [ ] **Task 30** — Executor expansion（30a-30l；overlay/effect executor 必須 strong-typed DTO + whitelist）
+- [ ] **Task 32** — ChatOutboxService rate limit + observable skipped/failed state
+- [ ] **Task 31** — WorkflowTimer scheduler（單實例重啟 idempotency；多實例 leader election out-of-scope）
+- [ ] **Task 33** — Web UI builder upgrade for Phase 7 schema
+- [ ] **Task 34** — Plugin Action Args surface（backward compatible）
+- [ ] **Task 35** — Manual verification + Omni parity sign-off
+
+### Checkpoint 7
+- [ ] Task 23-35 sub-task 全部 `[x]`
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] Browser manual：5 個典型 rule 配置（trigger filter / cooldown / counter / sub-workflow / timer）全綠
+- [ ] DTO whitelist / SignalR JSON contract：Phase 7 新 rule schema 與 overlay/effect payload 無 raw JSON 漏網
+- [ ] `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 PASS/FAIL + OC 對照矩陣
 
 ---
 

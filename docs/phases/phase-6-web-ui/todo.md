@@ -5,6 +5,7 @@
 > **實作順序**：Task 19 → Task 20a → Task 22 → Task 20b-l → Task 18 → Task 21（依賴圖順序；詳見 plan.md § 建議實作順序）
 > [!IMPORTANT]
 > **前置條件 Gate**：父計畫中 Phase 5 Checkpoint 的三項手動驗收（包含 CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權含完整 code exchange + refresh_token 保存、以及 REPL 手動驗收）必須確認已勾選完成，此 Phase 6 方可開工實作。
+> **目前狀態**：Phase 6 已完成的 Web UI/rule JSON editor/overlay history 作為 Phase 7 基線；尚未完成的 Photino/manual verification 等非 workflow parity 項目延後，待 Phase 7 後再收斂。
 
 ---
 

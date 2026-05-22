@@ -2,8 +2,10 @@
 
 > 父計畫：`tasks/plan.md`
 > 父待辦清單：`tasks/todo.md`
-> 對照來源：`ref/Omni-Commander/OmniCommander.Domain/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/`
-> 前置條件：Phase 6 Checkpoint 已通過（Web UI 可操作既有 strong-typed workflow）
+> 對照來源：`ref/Omni-Commander/OmniCommander.Domain/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/Executors/` + `ref/Omni-Commander/OmniCommander.Tests/Workflows/` + `ref/Omni-Commander/walkthrough.md`
+> 優先順序：Phase 7 先行；Phase 6 未完成的 Photino/manual verification 等非 workflow parity 項目延後處理。
+> 前置條件：Phase 5 runtime + Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線可用；不再等待完整 Phase 6 Checkpoint。
+> 父層同步：Phase 7 已在 `tasks/plan.md` / `tasks/todo.md` 建立父層指標，為目前優先 active implementation slice。
 
 ---
 
@@ -17,7 +19,7 @@
 
 - **加法為主，不破壞**：既有 `WorkflowAction` 強型別多型保留並擴充；不退化為純字串 DSL。
 - **變數插值層獨立**：所有 Action 共用 `IExpressionContext` + `{Trigger.*}` / `{Step.*}` / `{Args.*}` 解析器；強型別 Action 可選擇性吃 template 字串。
-- **NCalc 為單一 expression 引擎**：條件式（`ExecutionCondition`、`MatchCondition`）統一走 NCalc，避免再造輪子。
+- **NCalc 為單一 expression 引擎**：條件式（`ExecutionCondition`、`MatchCondition`）統一走 NCalc，避免再造輪子；Phase 7 只提供資料 namespace / scalar helpers，不開放任意自訂 function 註冊 API。
 - **Rule-level 控制 > Action-level**：rule-level timeout / throttle / OnFailure 為 first-class，與既有 Action-level timeout / retry 並存（rule 為外層 envelope）。
 - **Sub-process pattern**：`EventTypeKey` 仍為主要觸發鍵；新增 `IsSubWorkflow: bool` 旗標標示「只能被 invoke」的 rule，等同 OC `Trigger == null`。
 - **熱重載快取**：rule cache 改 immutable snapshot + version-keyed swap，仿 OC `DeepCopy`，避免執行中 rule 被 EF tracker 改動。
@@ -34,12 +36,12 @@ Task 23 Variable / Expression substrate
     -> Task 24 Step ExecutionCondition + OutputVariable
     -> Task 25 Rule-level Throttle + Timeout
     -> Task 26 OnFailureSteps
-    -> Task 27 Sub-process flag + InvokeRule polish
     -> Task 28 Hot reload snapshot cache
     -> Task 29 Trigger filter + MatchCondition
+    -> Task 27 Sub-process flag + InvokeRule polish
     -> Task 30 Executor expansion (split into 30a-30l)
-    -> Task 31 WorkflowTimer scheduler
     -> Task 32 ChatOutboxService
+    -> Task 31 WorkflowTimer scheduler
     -> Task 33 Web UI builder upgrade for new schema
     -> Task 34 Plugin Action plumbing for new variable surface
     -> Task 35 Manual verification + parity sign-off
@@ -53,14 +55,14 @@ Task 23 Variable / Expression substrate
 
 **驗收標準：**
 - [ ] `ITemplateResolver.Resolve(string template, ExpressionContext context)` 字串插值；無 placeholder 時 ZeroCopy 返回原字串。
-- [ ] `IExpressionEvaluator.Evaluate(string expression, ExpressionContext context)` 走 NCalc，回傳 bool / object。
+- [ ] `IExpressionEvaluator.Evaluate(string expression, ExpressionContext context)` 走 NCalc，回傳 bool / object；變數只來自 `ExpressionContext` namespace，禁止直接暴露 arbitrary CLR object / reflection。
 - [ ] `ExpressionContext` 暴露 `Trigger`、`Steps`、`Args`、`Member` 四個 namespace；read-only。
 - [ ] 缺失 placeholder（如 `{Trigger.Missing}`）依設定回傳空字串或 `null`（fail-soft，不丟例外）；模式可由 SystemSettings `workflow.template.strict_missing` 切換。
 - [ ] DI 註冊：`AddSingleton<ITemplateResolver, TemplateResolver>()`, `AddSingleton<IExpressionEvaluator, NCalcExpressionEvaluator>()`.
-- [ ] 加 NuGet `NCalcSync` 或 `NCalc.Async`（ask-first）。
+- [ ] 加 NuGet `NCalcSync`（ask-first；若實作時需改用其他 NCalc package，先更新本文件與 lockfile 預檢再安裝）。
 
 **驗證：**
-- [ ] Unit test：placeholder 解析正向 + 缺失 fail-soft；NCalc 表達式 `IsBroadcaster == true && Counter > 5`；template + expression 巢狀。
+- [ ] Unit test：placeholder 解析正向 + 缺失 fail-soft；NCalc 表達式以 namespace scalar value 驗證（例如 `Member.IsBroadcaster == true && Counter > 5`）；template + expression 巢狀。
 - [ ] Unit test：strict mode 切換時 missing placeholder 拋 `TemplateMissingPlaceholderException`。
 
 **預計觸及檔案：**
@@ -117,7 +119,7 @@ Task 23 Variable / Expression substrate
 **描述：** `WorkflowRule` 加 `OnFailureSteps: IReadOnlyList<WorkflowAction>?`，當主流程因 `StopOnError` 中止或 timeout 時，engine 跑 OnFailureSteps 作為補救（不再有第二層 OnFailure）。
 
 **驗收標準：**
-- [ ] Rule schema 加欄位 + EF 持久（JSON 序列化進既有 StepsJson 同欄）。
+- [ ] Rule schema 加欄位 + EF 持久；優先新增 `OnFailureActionsJson`（或等價新欄位），不混入既有 `ActionsJson`，避免主鏈與補救鏈序列化/遷移互相污染。
 - [ ] Engine：主鏈失敗 → 創新 ExecutionContext（注入 `{Trigger.*}` + `{Failure.StepIndex}` + `{Failure.ErrorMessage}`） → 跑 OnFailureSteps 鏈，**OnFailureSteps 本身不再支援 OnFailureSteps**（避免遞迴）。
 - [ ] Idempotent replay：OnFailure 鏈 ActionExecutionKey 加 `phase=OnFailure` 區分。
 
@@ -137,11 +139,13 @@ Task 23 Variable / Expression substrate
 - [ ] EF migration 加 `IsSubWorkflow: bool` (default false)。
 - [ ] Engine HandleEventAsync 過濾 `IsSubWorkflow=true` 之 rule。
 - [ ] InvokeSubWorkflow 接受 `Args: Dictionary<string,string>` 模板字串；child 端透過 `{Args.<key>}` 取得。
+- [ ] `InvocationId` 穩定性不回退：Args plumbing 不得改變既有 `InvokeSubWorkflowAction` 的 stable invocation identity；TDQ replay 必須使用同一 dedup key。
 - [ ] 既有 cycle check 不變。
 
 **驗證：**
 - [ ] Unit test：sub-workflow rule 不被 event 觸發。
 - [ ] Unit test：parent step Output → child Args → child 內可解。
+- [ ] Unit test：同一 parent event/rule/action replay 時 child invocation id 與 `ActionExecutionKey` 維持穩定。
 
 **規模：** S
 
@@ -175,7 +179,7 @@ Task 23 Variable / Expression substrate
 
 **驗證：**
 - [ ] Unit test：Filter `{ "Tier": "1000" }` → 只有 Tier=1000 訂閱事件命中。
-- [ ] Unit test：MatchCondition `IsBroadcaster == true || HasRole('VIP')` 解析。
+- [ ] Unit test：MatchCondition `Member.IsBroadcaster == true || Member.Role == "VIP"` 解析；不依賴自訂 NCalc function 註冊。
 
 **規模：** M
 
@@ -192,9 +196,9 @@ Task 23 Variable / Expression substrate
 - [ ] **Task 30e - LookupTwitchUserActionExecutor**：`{ login? userId? }` → Output `{ Step.X.DisplayName, Avatar, Description, IsAffiliate }`。需 `ITwitchHelixClient`（後端 Phase 4 已建立的 token 流程）。
 - [ ] **Task 30f - ShoutoutActionExecutor**：`{ targetLogin }` → 透過 Helix `chat/shoutouts`（需 broadcaster scope）。
 - [ ] **Task 30g - RefundTwitchRedemptionActionExecutor**：`{ rewardId, redemptionId }` → Helix update redemption status=CANCELED。
-- [ ] **Task 30h - EmitOverlayWidgetActionExecutor**：`{ hub: chat|alerts|member, payload: object }` → 直接走 `OverlayEventForwarder` 等價路徑進 history + broadcast。
+- [ ] **Task 30h - EmitOverlayWidgetActionExecutor**：使用 strong-typed overlay action 與 DTO whitelist（例如 `OverlayTarget`, `DisplayText`, `Severity`, `DurationMs` 等明確欄位），再投影至 `OverlayEventForwarder` 等價路徑進 history + broadcast；禁止接受任意 `payload: object` 直接穿透到 SignalR。
 - [ ] **Task 30i - EmitSystemEventActionExecutor**：`{ eventTypeKey, payload }` → 內部 publish 進 `IStreamEventBus`，可被其他 rule 接收（不可循環，加 depth 上限 5）。
-- [ ] **Task 30j - TriggerEffectActionExecutor**：`{ effectId, durationMs? }` → 廣播至 alerts hub 帶 `effect: true` flag（前端 overlay 解析觸發音效/動畫；音效素材由 Phase 8 補）。
+- [ ] **Task 30j - TriggerEffectActionExecutor**：`{ effectId, durationMs? }` → 廣播至 alerts hub 的 strong-typed effect DTO（固定 schema + whitelist test），前端 overlay 解析觸發動畫 hook；音效素材由 Phase 8 補。不得以 ad hoc `payload.effect = true` 擴充既有 alert payload。
 - [ ] **Task 30k - TriggerCheckInActionExecutor**：`{ userId }` → 走 `MemberStreamStateRepository.IncrementCheckInAsync`。
 - [ ] **Task 30l - AddLotteryTicketsActionExecutor**：`{ userId, amount }` → 需 Counter 系統（Task 30d）+ 新 `LotteryTicket` entity；MVP 可先寫進 Counter `lottery.tickets.<userId>`，正式表延後。
 
@@ -214,7 +218,7 @@ Task 23 Variable / Expression substrate
 
 **驗證：**
 - [ ] Integration test：timer 30s interval，advanced 60s → 觸發 2 次。
-- [ ] Idempotent：兩個 host 同時跑（Phase 7 假設單實例；NamedMutex 已 enforce）。
+- [ ] Idempotent：單一 Web host 重啟不造成重複觸發；兩個 host 同時跑屬 out-of-scope，Phase 7 不依賴尚未收斂的 Desktop/NamedMutex gate。
 
 **規模：** M
 
@@ -227,7 +231,7 @@ Task 23 Variable / Expression substrate
 **驗收標準：**
 - [ ] `IChatOutbox.EnqueueAsync(platform, channel, message, dedupKey?)`。
 - [ ] Background worker `ChatOutboxDispatcher`：每秒 dispatch 至多 N（依 SystemSetting `chat.outbox.per_second`）。
-- [ ] Fallback：缺 `IPlatformChatSender` 註冊時 enqueue no-op。
+- [ ] 缺 `IPlatformChatSender` 註冊時不得 silent no-op；outbox item 標為 `Skipped` 或 `Failed`，記錄 structured warning，並在測試中驗證可觀測。
 - [ ] DedupKey 24h TTL 去重。
 
 **驗證：**
@@ -284,7 +288,7 @@ Task 23 Variable / Expression substrate
 - [ ] `cd src/frontend; pnpm test` / `pnpm build` / `pnpm lint`
 - [ ] Browser manual：建立 5 個典型 rule 配置覆蓋 trigger filter / cooldown / counter / sub-workflow / timer，全部依預期執行。
 - [ ] Browser manual：rule 編輯介面新欄位（throttle / onFailure / executionCondition / outputVariable）皆可操作 + 儲存 + 重載一致。
-- [ ] Audit：所有新 executor 走 strong-typed `WorkflowAction` 多型，不偷 raw JSON dictionary 規避型別檢查。
+- [ ] Audit：所有新 executor 走 strong-typed `WorkflowAction` 多型，不偷 raw JSON dictionary 規避型別檢查；overlay/effect executor 另需 exact DTO whitelist + SignalR JSON contract 測試。
 
 ---
 
@@ -296,7 +300,7 @@ Task 23 Variable / Expression substrate
 | Rule schema 多次 migration 可能造成資料遷移痛點 | 中 | 所有 column 為 nullable / default 值；migration only-additive；DTO whitelist 測試守住契約。 |
 | Executor 一次擴 12 個，工作量大 | 高 | Task 30 拆 12 個獨立子任務，可由不同 PR 並行；MVP 可選擇先做 30a/30b/30c/30d/30k 五個核心，其餘進 backlog。 |
 | Hot reload snapshot cache 與 idempotent replay 兩個 store 互動 | 中 | snapshot cache 僅複製 rule 結構；replay store 仍以 (eventId, ruleId, actionIndex, invocationId, phase) 為 key，與 cache 解耦。 |
-| WorkflowTimer 在多 host 場景重複觸發 | 中 | Phase 7 維持單實例假設（Phase 6 Task 21 NamedMutex 已 enforce）；多實例支援延後。 |
+| WorkflowTimer 在多 host 場景重複觸發 | 中 | Phase 7 維持單一 Web host 假設；本階段只驗證單 host 重啟 idempotency，多實例 leader election 與 Desktop/NamedMutex gate 延後。 |
 | OnFailureSteps 遞迴爆炸 | 中 | OnFailureSteps 本身不再支援 OnFailure；最大深度=1。 |
 | Plugin SDK 變更可能破壞既有 plugin | 低 | Args 為新 optional 屬性，default 空 dictionary。 |
 
@@ -330,4 +334,4 @@ Task 23 Variable / Expression substrate
 - WorkflowTimer 多實例 leader election — 單實例假設。
 - 視覺化 builder（drag-and-drop graph）— JSON Textarea + 表單即可。
 - Plugin sandbox 加強 — 沿用 Phase 1 plugin 隔離規範。
-- NCalc 自定 function 註冊 API — 以後再開。
+- NCalc 任意自定 function 註冊 API — 以後再開；Phase 7 僅允許內建 namespace/scalar helper。

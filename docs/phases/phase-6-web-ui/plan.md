@@ -6,6 +6,7 @@
 > 前置條件：Phase 5 CLI / Web API / SignalR / Twitch OAuth manual verification 已完成並記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 > [!IMPORTANT]
 > **前置條件 Gate**：父計畫中 Phase 5 Checkpoint 的三項手動驗收（包含 CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權、以及 REPL 手動驗收）必須確認已勾選完成，此 Phase 6 方可開工實作。
+> **目前狀態**：Phase 6 已完成的 Web UI/rule JSON editor/overlay history 作為 Phase 7 基線；尚未完成的 Photino/manual verification 等非 workflow parity 項目延後，待 Phase 7 後再收斂。
 > **⚠ OAuth Gate 注意**：「真實瀏覽器授權」需包含完整 code exchange + refresh_token 加密保存，不僅是 `auth start` 開啟瀏覽器。若 Phase 5 manual-verification.md 僅記錄開啟授權 URL，須在有效 `Twitch:ClientId` 環境補充完整 OAuth round-trip 驗收後方可通過此 Gate。
 
 ---

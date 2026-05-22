@@ -737,6 +737,7 @@ frontend (Vue SPA)
 > 詳細切片清單：`docs/phases/phase-6-web-ui/todo.md`
 > 手動驗證紀錄：`docs/phases/phase-6-web-ui/manual-verification.md`
 > **前置條件 Gate 已具備開始規劃資格**：Phase 5 Checkpoint 三項手動驗收（CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權含完整 code exchange + refresh_token 保存、REPL 手動驗收）已在父計畫與 Phase 5 manual verification 中標記完成。
+> **目前優先順序變更**：Phase 6 尚未完成的 Photino/manual verification 等非 workflow parity 項目延後處理；目前先執行 Phase 7 Workflow Parity。Phase 7 可使用 Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線，不等待完整 Phase 6 Checkpoint。
 
 > **Task 17：已移除** — 原 MockYouTube Adapter，推遲出 MVP scope。Task 18 直接接續 Task 16。
 
@@ -823,6 +824,106 @@ frontend (Vue SPA)
 - [ ] `docs/phases/phase-6-web-ui/manual-verification.md` 所有 dated entries 均為 `Result: PASS`，無 pending 項目
 - [ ] Git 暫存集限於 Phase 6 任務範圍
 - [ ] 安全 review：Overlay DTO exact whitelist、loopback dual bind、OAuth PKCE state/callback/logger scrub、protected config namespace、AES-256-GCM token encryption、machine.key permissions、plugin context 不暴露 `IServiceProvider`
+
+---
+
+### Phase 7：Workflow Parity with Omni-Commander
+
+> 詳細計畫：`docs/phases/phase-7-workflow-parity/plan.md`
+> 詳細待辦：`docs/phases/phase-7-workflow-parity/todo.md`
+> 對照來源：`ref/Omni-Commander/OmniCommander.Domain/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/Executors/` + `ref/Omni-Commander/OmniCommander.Tests/Workflows/` + `ref/Omni-Commander/walkthrough.md`
+> 優先順序：Phase 7 先行；Phase 6 未完成的 Photino/manual verification 等非 workflow parity 項目延後處理。
+> 前置條件：Phase 5 runtime + Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線可用；不等待完整 Phase 6 Checkpoint。
+
+Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow 能力，但保留 Vulperonex 已建立的 strong-typed Action、樂觀鎖、TDQ/idempotent replay、Plugin contract、DTO whitelist 與 ask-first dependency discipline。
+
+#### Task 23：Variable / Expression substrate
+
+**描述：** 建立 `ExpressionContext`、template resolver、NCalc expression evaluator。NCalc 僅用於 `ExecutionCondition` / `MatchCondition` 等條件式；Phase 7 不開任意自訂 function 註冊 API。
+
+**依賴：** Phase 5 runtime + Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線；參考 OmniCommander workflow/executor/tests。
+
+#### Task 24：Step ExecutionCondition + OutputVariable
+
+**描述：** `WorkflowAction` 增加 `ExecutionCondition` 與 `OutputVariable`，executor 回傳 `ActionExecutionResult`，讓後續 step 可透過 `{Step.<OutputVariable>.*}` 讀取輸出。
+
+**依賴：** Task 23
+
+#### Task 25：Rule-level Throttle + Timeout
+
+**描述：** `WorkflowRule` 增加 throttle policy 與 rule-level timeout，作為 action-level timeout/retry 的外層 envelope。
+
+**依賴：** Task 24
+
+#### Task 26：OnFailureSteps
+
+**描述：** `WorkflowRule` 增加補救鏈，優先以新欄位（如 `OnFailureActionsJson`）持久化，不混入既有 `ActionsJson`。Replay key 需區分 `Main` / `OnFailure` phase。
+
+**依賴：** Task 25
+
+#### Task 28：Hot Reload Snapshot Cache
+
+**描述：** Engine 改用 immutable rule snapshot cache，rule CRUD 後 invalidation，執行中 rule 與 EF tracker 隔離。
+
+**依賴：** Task 26
+
+#### Task 29：Trigger Filter + MatchCondition
+
+**描述：** 保留頂層 `EventTypeKey` 供 SQL 過濾，新增 trigger filter 與 NCalc `MatchCondition` 作 in-memory 評估。
+
+**依賴：** Task 28
+
+#### Task 27：Sub-workflow Flag + InvokeRule Polish
+
+**描述：** 增加 `IsSubWorkflow` 與 `InvokeSubWorkflowAction.Args`，但不得回退既有 stable `InvocationId` / `ActionExecutionKey` replay 語意。
+
+**依賴：** Task 29
+
+#### Task 30：Executor Expansion
+
+**描述：** 分批新增 Delay、StopIf、RandomPicker、Counter、Twitch Helix、Overlay/SystemEvent/Effect、CheckIn/Lottery 等 executor。所有 executor 必須走 strong-typed `WorkflowAction`；overlay/effect 類 executor 必須有 exact DTO whitelist 與 SignalR JSON contract 測試，不得任意 raw payload 穿透。
+
+**依賴：** Task 27
+
+#### Task 32：ChatOutboxService
+
+**描述：** `SendChatMessageAction` 改寫進 rate-limited outbox。缺 `IPlatformChatSender` 時不得 silent no-op，必須標示 skipped/failed 並記錄 structured warning。
+
+**依賴：** Task 30
+
+#### Task 31：WorkflowTimer Scheduler
+
+**描述：** 新增 WorkflowTimer entity、hosted service、Web API 與 CLI。Phase 7 只驗證單實例重啟 idempotency；多實例 leader election 延後。
+
+**依賴：** Task 30
+
+#### Task 33：Web UI Builder Upgrade
+
+**描述：** Rule editor 支援 trigger filter、matchCondition、throttle、timeout、OnFailure、step condition/output、sub-workflow toggle 與 timer CRUD。
+
+**依賴：** Task 31, Task 32
+
+#### Task 34：Plugin Action Variable Surface
+
+**描述：** Plugin action context 增加 backward-compatible Args surface，既有 plugin 不傳 Args 仍可運作。
+
+**依賴：** Task 33
+
+#### Task 35：Manual Verification & Parity Sign-off
+
+**描述：** 建立 12-15 個典型 rule samples，Web UI + CLI 雙路徑驗證，並於 `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 OC 對照矩陣與 PASS/FAIL。
+
+**依賴：** Task 34
+
+### Checkpoint：Phase 7
+
+- [ ] 全部 Task 23-35 sub-task `[x]` 完成自檢
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] Browser manual：5 個典型 rule 配置覆蓋 trigger filter / cooldown / counter / sub-workflow / timer，全部 PASS
+- [ ] DTO whitelist / SignalR JSON contract：Phase 7 新 rule schema 與 overlay/effect payload 無 raw JSON 漏網
+- [ ] `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 PASS/FAIL + OC 對照矩陣
 
 ---
 

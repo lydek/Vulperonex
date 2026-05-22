@@ -1,20 +1,22 @@
 # Phase 7 待辦清單：Workflow Parity with Omni-Commander
 
 > 詳細計畫：`docs/phases/phase-7-workflow-parity/plan.md`
-> 對照來源：`ref/Omni-Commander/OmniCommander.Domain/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/`
+> 對照來源：`ref/Omni-Commander/OmniCommander.Domain/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/` + `ref/Omni-Commander/OmniCommander.Application/Workflows/Executors/` + `ref/Omni-Commander/OmniCommander.Tests/Workflows/` + `ref/Omni-Commander/walkthrough.md`
 > 父待辦清單：`tasks/todo.md`
 > **實作順序**：23 → 24 → 25 → 26 → 28 → 29 → 27 → 30a-l → 32 → 31 → 33 → 34 → 35
+> **優先順序**：Phase 7 先行；Phase 6 未完成的 Photino/manual verification 等非 workflow parity 項目延後處理。
+> **父層同步 Gate**：`tasks/plan.md` / `tasks/todo.md` 已有 Phase 7 父層指標，本清單為目前優先 active implementation slice。
 
 ---
 
 ## Task 23 - Variable / Expression Substrate
 
-- [ ] Task 23a：加 NuGet `NCalcSync`（ask-first）；中央 `Directory.Packages.props` 釘版本。
-- [ ] Task 23b：宣告 `Vulperonex.Application/Expressions/`：`ITemplateResolver` / `IExpressionEvaluator` / `ExpressionContext`（含 Trigger/Steps/Args/Member namespace）。
-- [ ] Task 23c：實作 `Infrastructure/Expressions/TemplateResolver.cs`（regex 解析 `{Trigger.X}` placeholder，ZeroCopy fast-path）。
-- [ ] Task 23d：實作 `Infrastructure/Expressions/NCalcExpressionEvaluator.cs`（包 NCalc，注入 ExpressionContext 為 functions）。
-- [ ] Task 23e：DI 註冊 + SystemSettings key `workflow.template.strict_missing` (default false)。
-- [ ] Task 23f：Unit test：placeholder 正向 / 缺失 fail-soft / strict-mode 拋例外 / NCalc bool / NCalc with member context。
+- [x] Task 23a：加 NuGet `NCalcSync`（ask-first）；中央 `Directory.Packages.props` 釘版本。
+- [x] Task 23b：宣告 `Vulperonex.Application/Expressions/`：`ITemplateResolver` / `IExpressionEvaluator` / `ExpressionContext`（含 Trigger/Steps/Args/Member namespace）。
+- [x] Task 23c：實作 `Infrastructure/Expressions/TemplateResolver.cs`（regex 解析 `{Trigger.X}` placeholder，ZeroCopy fast-path）。
+- [x] Task 23d：實作 `Infrastructure/Expressions/NCalcExpressionEvaluator.cs`（包 NCalc，只暴露 ExpressionContext namespace/scalar helper；不開任意自訂 function 註冊 API）。
+- [x] Task 23e：DI 註冊 + SystemSettings key `workflow.template.strict_missing` (default false)。
+- [x] Task 23f：Unit test：placeholder 正向 / 缺失 fail-soft / strict-mode 拋例外 / NCalc bool / NCalc with member context。
 
 ## Task 24 - Step ExecutionCondition + OutputVariable
 
@@ -37,7 +39,7 @@
 ## Task 26 - OnFailureSteps
 
 - [ ] Task 26a：`WorkflowRule` 加 `OnFailureSteps: IReadOnlyList<WorkflowAction>?`。
-- [ ] Task 26b：EF schema 儲入既有 StepsJson 同 row 或新欄位 `OnFailureStepsJson`；ask-first 決定。
+- [ ] Task 26b：EF schema 優先新增 `OnFailureActionsJson`（或等價新欄位），不混入既有 `ActionsJson`；若要改存同欄，先更新 plan/todo 說明遷移理由。
 - [ ] Task 26c：Engine 主鏈失敗 / timeout → 注入 `{Failure.StepIndex}` + `{Failure.ErrorMessage}` → 跑 OnFailureSteps；OnFailureSteps 內不再支援 OnFailure。
 - [ ] Task 26d：`ActionExecutionKey` 加 `phase: Main|OnFailure` 區分 replay。
 - [ ] Task 26e：Unit test：main fail → onFailure 跑 + failure context 解析；onFailure 自己失敗 → 不二次補救。
@@ -46,8 +48,8 @@
 
 - [ ] Task 27a：EF migration 加 `IsSubWorkflow: bool default false`。
 - [ ] Task 27b：Engine HandleEventAsync 過濾 `IsSubWorkflow=true`。
-- [ ] Task 27c：`InvokeSubWorkflowAction` 加 `Args: Dictionary<string, string>` template；engine resolve 後注入 child ExpressionContext.Args。
-- [ ] Task 27d：Unit test：sub-workflow 不被事件觸發；parent step Output → child Args。
+- [ ] Task 27c：`InvokeSubWorkflowAction` 加 `Args: Dictionary<string, string>` template；engine resolve 後注入 child ExpressionContext.Args，且不得改變 stable `InvocationId` / `ActionExecutionKey` replay 語意。
+- [ ] Task 27d：Unit test：sub-workflow 不被事件觸發；parent step Output → child Args；TDQ replay 時 child invocation id 穩定。
 
 ## Task 28 - Hot Reload Snapshot Cache
 
@@ -73,9 +75,9 @@
 - [ ] Task 30e：`LookupTwitchUserActionExecutor` (`login? userId?`) → output `DisplayName/Avatar/Description/IsAffiliate`；需 `ITwitchHelixClient`（既有 token 流程）。
 - [ ] Task 30f：`ShoutoutActionExecutor` (`targetLogin`) → Helix chat/shoutouts。
 - [ ] Task 30g：`RefundTwitchRedemptionActionExecutor` (`rewardId, redemptionId`)。
-- [ ] Task 30h：`EmitOverlayWidgetActionExecutor` (`hub, payload`) → 走 OverlayEventForwarder 等價路徑。
+- [ ] Task 30h：`EmitOverlayWidgetActionExecutor` 使用 strong-typed overlay action + exact DTO whitelist，投影後走 OverlayEventForwarder 等價路徑；禁止任意 `payload` 穿透 SignalR。
 - [ ] Task 30i：`EmitSystemEventActionExecutor` (`eventTypeKey, payload`) → publish 進 IStreamEventBus；engine 加 depth cap 5 防循環。
-- [ ] Task 30j：`TriggerEffectActionExecutor` (`effectId, durationMs?`) → 廣播 alerts hub with `effect: true` flag。
+- [ ] Task 30j：`TriggerEffectActionExecutor` (`effectId, durationMs?`) → 廣播 strong-typed effect DTO；新增 whitelist/SignalR contract test，不以 ad hoc `effect: true` 擴充既有 alert payload。
 - [ ] Task 30k：`TriggerCheckInActionExecutor` (`userId`) → MemberStreamStateRepository.IncrementCheckInAsync。
 - [ ] Task 30l：`AddLotteryTicketsActionExecutor` (`userId, amount`) → 走 Counter `lottery.tickets.<userId>`（正式 LotteryTicket 表延後 Phase 8）。
 
@@ -85,7 +87,7 @@
 - [ ] Task 31b：`WorkflowTimerHostedService` 每 5 秒 tick；到期者觸發對應 rule（合成 StreamEvent）。
 - [ ] Task 31c：Web API `GET/POST/PUT/DELETE /api/timers` + DTO。
 - [ ] Task 31d：CLI `timer list/show/create/delete`。
-- [ ] Task 31e：Integration test：30s interval × 60s 模擬 → 觸發 2 次；disabled 不前進 NextFireAt。
+- [ ] Task 31e：Integration test：30s interval × 60s 模擬 → 觸發 2 次；disabled 不前進 NextFireAt；單實例重啟不重複觸發。
 
 ## Task 32 - ChatOutboxService
 
@@ -93,7 +95,7 @@
 - [ ] Task 32b：`ChatOutboxDispatcher` background service 按 `chat.outbox.per_second`（default 5）出貨。
 - [ ] Task 32c：DedupKey 24h TTL 表（in-memory + SystemSettings persist）。
 - [ ] Task 32d：`SendChatMessageActionExecutor` 改寫進 outbox（非阻塞）。
-- [ ] Task 32e：Unit test：burst 100 限速；同 dedupKey 24h 內丟棄。
+- [ ] Task 32e：Unit test：burst 100 限速；同 dedupKey 24h 內丟棄；缺 `IPlatformChatSender` 時 item 標 `Skipped`/`Failed` 並記 warning，不 silent no-op。
 
 ## Task 33 - Web UI Builder Upgrade
 
@@ -127,4 +129,4 @@
 - [ ] Browser manual：5 個典型 rule 配置（trigger filter / cooldown / counter / sub-workflow / timer）全綠。
 - [ ] Browser manual：rule 編輯介面新欄位（throttle/onFailure/executionCondition/outputVariable）可操作 + 儲存 + 重載一致。
 - [ ] DTO whitelist 測試：rule schema 新欄位全部入 whitelist；無 raw JSON 漏網。
-- [ ] Audit：所有新 executor 走 strong-typed `WorkflowAction` 多型，未走 raw JSON dictionary 規避。
+- [ ] Audit：所有新 executor 走 strong-typed `WorkflowAction` 多型，未走 raw JSON dictionary 規避；overlay/effect executor 需 exact DTO whitelist + SignalR JSON contract 測試。
