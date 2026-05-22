@@ -42,6 +42,12 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             return ErrorCodes.InvalidActionConfig;
         }
 
+        if (request.Trigger is not null
+            && !string.Equals(request.Trigger.EventTypeKey, request.EventTypeKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return ErrorCodes.InvalidActionConfig;
+        }
+
         foreach (var condition in request.Conditions ?? [])
         {
             var error = ValidateCondition(condition);

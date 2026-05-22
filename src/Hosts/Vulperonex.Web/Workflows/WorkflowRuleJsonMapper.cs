@@ -19,6 +19,8 @@ public static class WorkflowRuleJsonMapper
             rule.Id,
             rule.Name,
             rule.EventTypeKey,
+            rule.Trigger ?? new WorkflowTrigger(rule.EventTypeKey),
+            rule.MatchCondition,
             rule.IsEnabled,
             rule.Priority,
             rule.CreatedAt,
@@ -43,6 +45,8 @@ public static class WorkflowRuleJsonMapper
             Id = id,
             Name = request.Name,
             EventTypeKey = request.EventTypeKey,
+            Trigger = NormalizeTrigger(request.EventTypeKey, request.Trigger),
+            MatchCondition = request.MatchCondition,
             IsEnabled = request.IsEnabled,
             Priority = request.Priority,
             CreatedAt = createdAt ?? DateTimeOffset.UtcNow,
@@ -67,5 +71,13 @@ public static class WorkflowRuleJsonMapper
     {
         return element.Deserialize<WorkflowAction>(JsonOptions)
             ?? throw new JsonException("Action was null.");
+    }
+
+    private static WorkflowTrigger NormalizeTrigger(string eventTypeKey, WorkflowTrigger? trigger)
+    {
+        return (trigger ?? new WorkflowTrigger(eventTypeKey)) with
+        {
+            EventTypeKey = eventTypeKey,
+        };
     }
 }

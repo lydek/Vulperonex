@@ -452,6 +452,40 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_TriggerFilter_When_FilterValueDiffersOnlyByCase_Then_RuleExecutes()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with
+        {
+            Trigger = new WorkflowTrigger(
+                StreamEventKeys.UserSentMessage,
+                new Dictionary<string, string> { ["MessageText"] = "!HELLO" }),
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task Given_MatchConditionFalse_When_ExecutingRule_Then_RuleIsSkipped()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule() with
+        {
+            MatchCondition = "Trigger.MessageText == '!other' && Member.DisplayName == 'Alice'",
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Given_ParallelRuleWithMaxParallelismAboveCap_When_ExecutingActions_Then_ConcurrencyIsClampedToCap()
     {
         var executor = new ConcurrencyTrackingActionExecutor();
@@ -536,14 +570,15 @@ public sealed class WorkflowEngineTests
     private static UserSentMessageEvent NewMessageEvent(
         string eventId = "event-1",
         string userId = "alice",
-        string displayName = "Alice")
+        string displayName = "Alice",
+        string messageText = "!hello")
     {
         return new UserSentMessageEvent
         {
             EventId = eventId,
             Platform = "twitch",
             User = new StreamUser("twitch", userId, displayName),
-            MessageText = "!hello",
+            MessageText = messageText,
         };
     }
 

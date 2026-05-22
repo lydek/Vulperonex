@@ -145,7 +145,7 @@
 - [x] **Task 25** — Rule-level throttle + timeout
 - [x] **Task 26** — `OnFailureActionsJson` 補救鏈 + replay phase key
 - [x] **Task 28** — Hot reload immutable rule snapshot cache
-- [ ] **Task 29** — Trigger filter + `MatchCondition`
+- [x] **Task 29** — Trigger filter + `MatchCondition`
 - [ ] **Task 27** — Sub-workflow flag + Args plumbing，保留 stable `InvocationId`
 - [ ] **Task 30** — Executor expansion（30a-30l；overlay/effect executor 必須 strong-typed DTO + whitelist）
 - [ ] **Task 32** — ChatOutboxService rate limit + observable skipped/failed state

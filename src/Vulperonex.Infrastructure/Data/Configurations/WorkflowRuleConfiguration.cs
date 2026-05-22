@@ -13,6 +13,8 @@ public sealed class WorkflowRuleConfiguration : IEntityTypeConfiguration<Workflo
         builder.Property(rule => rule.Id).HasColumnType("TEXT");
         builder.Property(rule => rule.Name).HasColumnType("TEXT");
         builder.Property(rule => rule.EventTypeKey).HasColumnType("TEXT");
+        builder.Property(rule => rule.TriggerJson).HasColumnType("TEXT");
+        builder.Property(rule => rule.MatchCondition).HasColumnType("TEXT");
         builder.Property(rule => rule.ConditionsJson).HasColumnType("TEXT");
         builder.Property(rule => rule.ActionsJson).HasColumnType("TEXT");
         builder.Property(rule => rule.OnFailureActionsJson).HasColumnType("TEXT");

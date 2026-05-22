@@ -108,7 +108,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         string? invocationId,
         CancellationToken cancellationToken = default)
     {
-        if (!MatchesConditions(rule, streamEvent))
+        if (!MatchesConditions(rule, streamEvent) || !MatchesTrigger(rule, streamEvent))
         {
             return;
         }
@@ -199,6 +199,40 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     {
         var context = new ConditionEvaluationContext(streamEvent, rule.Id);
         return rule.Conditions.All(condition => _conditionEvaluator.IsMatch(condition, context));
+    }
+
+    private bool MatchesTrigger(WorkflowRule rule, IStreamEvent streamEvent)
+    {
+        var expressionContext = BuildExpressionContext(
+            streamEvent,
+            new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+            failure: null);
+
+        var trigger = rule.Trigger;
+        if (trigger is not null && !MatchesTriggerFilter(trigger.Filter, expressionContext.Trigger))
+        {
+            return false;
+        }
+
+        var matchCondition = rule.MatchCondition ?? trigger?.MatchCondition;
+        return string.IsNullOrWhiteSpace(matchCondition)
+            || CoerceToBoolean(_expressionEvaluator.Evaluate(matchCondition, expressionContext));
+    }
+
+    private static bool MatchesTriggerFilter(
+        IReadOnlyDictionary<string, string> filter,
+        IReadOnlyDictionary<string, object?> triggerValues)
+    {
+        foreach (var (key, expected) in filter)
+        {
+            if (!triggerValues.TryGetValue(key, out var actual)
+                || !string.Equals(actual?.ToString(), expected, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private async Task<WorkflowPipelineResult> ExecuteActionsSeriallyAsync(

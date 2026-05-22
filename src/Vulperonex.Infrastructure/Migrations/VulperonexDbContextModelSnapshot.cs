@@ -116,12 +116,14 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
             b.Property<string>("EventTypeKey").IsRequired().HasColumnType("TEXT");
             b.Property<string>("ExecutionMode").IsRequired().HasColumnType("TEXT");
             b.Property<bool>("IsEnabled").HasColumnType("INTEGER");
+            b.Property<string>("MatchCondition").HasColumnType("TEXT");
             b.Property<int>("MaxParallelism").HasColumnType("INTEGER");
             b.Property<string>("Name").IsRequired().HasColumnType("TEXT");
             b.Property<string>("OnFailureActionsJson").IsRequired().HasColumnType("TEXT");
             b.Property<int>("Priority").HasColumnType("INTEGER");
             b.Property<string>("ThrottleJson").IsRequired().HasColumnType("TEXT");
             b.Property<int>("TimeoutSeconds").HasColumnType("INTEGER");
+            b.Property<string>("TriggerJson").HasColumnType("TEXT");
             b.Property<int>("Version").IsConcurrencyToken().HasColumnType("INTEGER");
             b.HasKey("Id");
             b.ToTable("WorkflowRules");

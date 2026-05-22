@@ -7,6 +7,8 @@ public sealed record WorkflowRuleDto(
     string Id,
     string Name,
     string EventTypeKey,
+    WorkflowTrigger Trigger,
+    string? MatchCondition,
     bool IsEnabled,
     int Priority,
     DateTimeOffset CreatedAt,
@@ -31,4 +33,6 @@ public sealed record WorkflowRuleUpsertRequest(
     WorkflowExecutionMode ExecutionMode = WorkflowExecutionMode.Serial,
     int MaxParallelism = 1,
     WorkflowThrottlePolicy? Throttle = null,
-    int TimeoutSeconds = 30);
+    int TimeoutSeconds = 30,
+    WorkflowTrigger? Trigger = null,
+    string? MatchCondition = null);

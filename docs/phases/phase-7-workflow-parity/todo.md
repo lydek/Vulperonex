@@ -60,11 +60,11 @@
 
 ## Task 29 - Trigger Filter + MatchCondition
 
-- [ ] Task 29a：`WorkflowTrigger` value record (`EventTypeKey`, `Filter: Dictionary<string,string>`, `MatchCondition: string?`)。
-- [ ] Task 29b：`WorkflowRule.EventTypeKey` 保留為頂層字串（SQL 過濾）；trigger 詳細存 `TriggerJson`。
-- [ ] Task 29c：EF migration 加 `TriggerJson: string?`、`MatchCondition: string?`。
-- [ ] Task 29d：Engine 先 SQL 過濾 EventTypeKey → 再 in-memory Filter equality → 再 NCalc MatchCondition。
-- [ ] Task 29e：Unit test：Filter equality (case-insensitive)；MatchCondition NCalc 解析事件屬性。
+- [x] Task 29a：`WorkflowTrigger` value record (`EventTypeKey`, `Filter: Dictionary<string,string>`, `MatchCondition: string?`)。
+- [x] Task 29b：`WorkflowRule.EventTypeKey` 保留為頂層字串（SQL 過濾）；trigger 詳細存 `TriggerJson`。
+- [x] Task 29c：EF migration 加 `TriggerJson: string?`、`MatchCondition: string?`。
+- [x] Task 29d：Engine 先 SQL 過濾 EventTypeKey → 再 in-memory Filter equality → 再 NCalc MatchCondition。
+- [x] Task 29e：Unit test：Filter equality (case-insensitive)；MatchCondition NCalc 解析事件屬性。
 
 ## Task 30 - Executor Expansion
 

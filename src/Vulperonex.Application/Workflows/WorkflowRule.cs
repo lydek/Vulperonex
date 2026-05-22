@@ -8,6 +8,8 @@ public sealed record WorkflowRule
     public required string Id { get; init; }
     public required string Name { get; init; }
     public required string EventTypeKey { get; init; }
+    public WorkflowTrigger? Trigger { get; init; }
+    public string? MatchCondition { get; init; }
     public IReadOnlyList<WorkflowCondition> Conditions { get; init; } = [];
     public IReadOnlyList<WorkflowAction> Actions { get; init; } = [];
     public IReadOnlyList<WorkflowAction> OnFailureSteps { get; init; } = [];

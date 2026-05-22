@@ -8,6 +8,10 @@ public sealed class WorkflowRuleEntity
 
     public string EventTypeKey { get; set; } = string.Empty;
 
+    public string? TriggerJson { get; set; }
+
+    public string? MatchCondition { get; set; }
+
     public string ConditionsJson { get; set; } = "{}";
 
     public string ActionsJson { get; set; } = "[]";
