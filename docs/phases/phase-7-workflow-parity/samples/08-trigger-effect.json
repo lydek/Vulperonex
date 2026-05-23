@@ -1,0 +1,29 @@
+{
+  "name": "Phase 7 sample - trigger effect",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 65,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!effect'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "triggerEffect",
+      "effectId": "pulse",
+      "durationMs": 3000
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 3,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 10
+}

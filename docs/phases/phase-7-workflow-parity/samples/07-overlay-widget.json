@@ -1,0 +1,32 @@
+{
+  "name": "Phase 7 sample - overlay widget",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 70,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!alert'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "emitOverlayWidget",
+      "widgetType": "banner",
+      "overlayTarget": "alerts",
+      "displayText": "Alert from {Member.DisplayName}",
+      "severity": "info",
+      "durationMs": 5000
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 3,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 10
+}

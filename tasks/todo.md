@@ -152,16 +152,16 @@
 - [x] **Task 31** — WorkflowTimer scheduler（單實例重啟 idempotency；多實例 leader election out-of-scope）
 - [x] **Task 33** — Web UI builder upgrade for Phase 7 schema
 - [x] **Task 34** — Plugin Action Args surface（backward compatible）
-- [ ] **Task 35** — Manual verification + Omni parity sign-off
+- [x] **Task 35** — Manual verification + Omni parity sign-off
 
 ### Checkpoint 7
-- [ ] Task 23-35 sub-task 全部 `[x]`
-- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
-- [ ] Browser manual：5 個典型 rule 配置（trigger filter / cooldown / counter / sub-workflow / timer）全綠
-- [ ] DTO whitelist / SignalR JSON contract：Phase 7 新 rule schema 與 overlay/effect payload 無 raw JSON 漏網
-- [ ] `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 PASS/FAIL + OC 對照矩陣
+- [x] Task 23-35 sub-task 全部 `[x]`
+- [x] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [x] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [x] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [x] Browser manual：5 個典型 rule 配置（trigger filter / cooldown / counter / sub-workflow / timer）全綠
+- [x] DTO whitelist / SignalR JSON contract：Phase 7 新 rule schema 與 overlay/effect payload 無 raw JSON 漏網
+- [x] `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 PASS/FAIL + OC 對照矩陣
 
 ---
 

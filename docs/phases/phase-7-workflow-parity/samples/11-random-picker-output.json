@@ -1,0 +1,43 @@
+{
+  "name": "Phase 7 sample - random picker output",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 50,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!pick'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "randomPicker",
+      "choices": [
+        "red",
+        "green",
+        "blue"
+      ],
+      "weights": [
+        1,
+        2,
+        1
+      ],
+      "outputVariable": "Choice"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Picked {Step.Choice.Picked}"
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 5,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 15
+}

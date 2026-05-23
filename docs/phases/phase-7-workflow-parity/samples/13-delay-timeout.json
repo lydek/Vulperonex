@@ -1,0 +1,33 @@
+{
+  "name": "Phase 7 sample - delay within rule timeout",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 40,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!delay'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "delay",
+      "delayMs": 500
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Delay completed."
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 5
+}

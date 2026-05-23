@@ -1,0 +1,34 @@
+{
+  "name": "Phase 7 sample - redemption refund on invalid target",
+  "eventTypeKey": "reward.redeemed",
+  "isEnabled": true,
+  "priority": 30,
+  "trigger": {
+    "eventTypeKey": "reward.redeemed",
+    "filter": {
+      "rewardTitle": "Shoutout"
+    },
+    "matchCondition": "Trigger.TargetLogin == ''"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "refundTwitchRedemption",
+      "rewardId": "{Trigger.RewardId}",
+      "redemptionId": "{Trigger.RedemptionId}"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Redemption refunded because the target was missing."
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 20
+}

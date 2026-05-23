@@ -16,7 +16,7 @@ public sealed class TwitchHelixClient(
         BaseAddress = new Uri("https://api.twitch.tv/helix/"),
     };
 
-    public async Task<TwitchHelixUser?> LookupUserAsync(
+    public async Task<PlatformUserProfile?> LookupUserAsync(
         string? login,
         string? userId,
         CancellationToken cancellationToken = default)
@@ -36,7 +36,7 @@ public sealed class TwitchHelixClient(
         var user = payload?.Data.FirstOrDefault();
         return user is null
             ? null
-            : new TwitchHelixUser(
+            : new PlatformUserProfile(
                 user.Id,
                 user.Login,
                 user.DisplayName,
@@ -45,14 +45,14 @@ public sealed class TwitchHelixClient(
                 user.BroadcasterType is "affiliate" or "partner");
     }
 
-    public async Task<TwitchShoutoutResult> SendShoutoutAsync(
+    public async Task<PlatformShoutoutResult> SendShoutoutAsync(
         string targetLogin,
         CancellationToken cancellationToken = default)
     {
         var target = await LookupUserAsync(targetLogin, userId: null, cancellationToken);
         if (target is null)
         {
-            return new TwitchShoutoutResult(false, targetLogin, null, null);
+            return new PlatformShoutoutResult(false, targetLogin, null, null);
         }
 
         var broadcasterId = configuration["Twitch:BroadcasterId"]
@@ -65,7 +65,7 @@ public sealed class TwitchHelixClient(
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
 
-        return new TwitchShoutoutResult(true, target.Login, target.UserId, target.DisplayName);
+        return new PlatformShoutoutResult(true, target.Login, target.UserId, target.DisplayName);
     }
 
     public async Task<bool> RefundRedemptionAsync(

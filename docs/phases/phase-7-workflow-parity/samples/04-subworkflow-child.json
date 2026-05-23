@@ -1,0 +1,23 @@
+{
+  "name": "Phase 7 sample - subworkflow child",
+  "eventTypeKey": "user.message",
+  "isSubWorkflow": true,
+  "isEnabled": true,
+  "priority": 10,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Child workflow received target {Args.Target} from {Args.Source}"
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 15
+}

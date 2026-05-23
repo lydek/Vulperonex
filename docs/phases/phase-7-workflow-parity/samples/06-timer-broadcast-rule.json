@@ -1,0 +1,27 @@
+{
+  "name": "Phase 7 sample - timer broadcast",
+  "eventTypeKey": "workflow.timer",
+  "isEnabled": true,
+  "priority": 50,
+  "trigger": {
+    "eventTypeKey": "workflow.timer",
+    "filter": {},
+    "matchCondition": "Trigger.IsTimer == true"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Timer fired at {Trigger.OccurredAt}"
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 10
+}

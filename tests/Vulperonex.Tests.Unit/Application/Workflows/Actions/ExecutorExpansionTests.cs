@@ -200,7 +200,7 @@ public sealed class ExecutorExpansionTests
     {
         var client = new RecordingTwitchHelixClient
         {
-            User = new TwitchHelixUser(
+            User = new PlatformUserProfile(
                 "user-1",
                 "alice",
                 "Alice Prime",
@@ -231,7 +231,7 @@ public sealed class ExecutorExpansionTests
     {
         var client = new RecordingTwitchHelixClient
         {
-            ShoutoutResult = new TwitchShoutoutResult(true, "alice", "user-1", "Alice"),
+            ShoutoutResult = new PlatformShoutoutResult(true, "alice", "user-1", "Alice"),
         };
         var executor = new ShoutoutActionExecutor(client, new TemplateResolver());
 
@@ -411,14 +411,14 @@ public sealed class ExecutorExpansionTests
 
     private sealed class RecordingTwitchHelixClient : ITwitchHelixClient
     {
-        public TwitchHelixUser? User { get; init; }
-        public TwitchShoutoutResult? ShoutoutResult { get; init; }
+        public PlatformUserProfile? User { get; init; }
+        public PlatformShoutoutResult? ShoutoutResult { get; init; }
         public bool RefundResult { get; init; }
         public List<(string? Login, string? UserId)> Requests { get; } = [];
         public List<string> Shoutouts { get; } = [];
         public List<(string RewardId, string RedemptionId)> Refunds { get; } = [];
 
-        public Task<TwitchHelixUser?> LookupUserAsync(
+        public Task<PlatformUserProfile?> LookupUserAsync(
             string? login,
             string? userId,
             CancellationToken cancellationToken = default)
@@ -427,12 +427,12 @@ public sealed class ExecutorExpansionTests
             return Task.FromResult(User);
         }
 
-        public Task<TwitchShoutoutResult> SendShoutoutAsync(
+        public Task<PlatformShoutoutResult> SendShoutoutAsync(
             string targetLogin,
             CancellationToken cancellationToken = default)
         {
             Shoutouts.Add(targetLogin);
-            return Task.FromResult(ShoutoutResult ?? new TwitchShoutoutResult(false, targetLogin, null, null));
+            return Task.FromResult(ShoutoutResult ?? new PlatformShoutoutResult(false, targetLogin, null, null));
         }
 
         public Task<bool> RefundRedemptionAsync(

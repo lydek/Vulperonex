@@ -1,0 +1,36 @@
+{
+  "name": "Phase 7 sample - plugin action args",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 35,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!plugin'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "invokePlugin",
+      "pluginId": "sample-plugin",
+      "actionId": "sample-action",
+      "params": {
+        "mode": "demo"
+      },
+      "args": {
+        "user": "{Member.DisplayName}",
+        "message": "{Trigger.MessageText}"
+      }
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 10
+}

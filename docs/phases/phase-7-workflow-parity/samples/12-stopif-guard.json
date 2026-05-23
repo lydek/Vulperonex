@@ -1,0 +1,33 @@
+{
+  "name": "Phase 7 sample - stop-if guard",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 45,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!guard'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "stopIf",
+      "condition": "Member.IsModerator != true"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Moderator-only guard passed."
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 10
+}

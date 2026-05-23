@@ -1,0 +1,35 @@
+{
+  "name": "Phase 7 sample - lottery ticket counter",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 60,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!ticket'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "addLotteryTickets",
+      "userId": "{Member.UserId}",
+      "amount": 1,
+      "outputVariable": "Ticket"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "{Member.DisplayName} received 1 ticket."
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 15,
+    "perUserCooldown": true,
+    "perUserCooldownSeconds": 15
+  },
+  "timeoutSeconds": 20
+}

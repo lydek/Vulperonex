@@ -1,0 +1,41 @@
+{
+  "name": "Phase 7 sample - subworkflow parent",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 75,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!chain'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "randomPicker",
+      "choices": [
+        "alpha",
+        "beta",
+        "gamma"
+      ],
+      "outputVariable": "Pick"
+    },
+    {
+      "type": "invokeSubWorkflow",
+      "workflowId": "replace-with-04-subworkflow-child-id",
+      "args": {
+        "Target": "{Step.Pick.Picked}",
+        "Source": "{Member.DisplayName}"
+      }
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 10,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 30
+}

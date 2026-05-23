@@ -1,0 +1,48 @@
+{
+  "name": "Phase 7 sample - shoutout lookup",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 90,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText.StartsWith('!so ')"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "lookupTwitchUser",
+      "login": "{Trigger.Arg0}",
+      "outputVariable": "Target"
+    },
+    {
+      "type": "stopIf",
+      "condition": "Step.Target.DisplayName == ''"
+    },
+    {
+      "type": "shoutout",
+      "targetLogin": "{Trigger.Arg0}"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Go follow {Step.Target.DisplayName}: {Step.Target.Description}"
+    }
+  ],
+  "onFailureSteps": [
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Shoutout failed: {Failure.ErrorMessage}"
+    }
+  ],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 30,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 20
+}

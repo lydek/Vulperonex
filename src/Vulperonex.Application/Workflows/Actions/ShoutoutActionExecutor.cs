@@ -25,13 +25,13 @@ public sealed class ShoutoutActionExecutor(
             .TrimStart('@');
         if (string.IsNullOrWhiteSpace(targetLogin))
         {
-            return ToOutput(new TwitchShoutoutResult(false, string.Empty, null, null));
+            return ToOutput(new PlatformShoutoutResult(false, string.Empty, null, null));
         }
 
         return ToOutput(await helixClient.SendShoutoutAsync(targetLogin, cancellationToken));
     }
 
-    private static ActionExecutionResult ToOutput(TwitchShoutoutResult result)
+    private static ActionExecutionResult ToOutput(PlatformShoutoutResult result)
     {
         return ActionExecutionResult.FromOutput(
             new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)

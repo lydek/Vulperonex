@@ -2,12 +2,12 @@ namespace Vulperonex.Application.Twitch;
 
 public interface ITwitchHelixClient
 {
-    Task<TwitchHelixUser?> LookupUserAsync(
+    Task<PlatformUserProfile?> LookupUserAsync(
         string? login,
         string? userId,
         CancellationToken cancellationToken = default);
 
-    Task<TwitchShoutoutResult> SendShoutoutAsync(
+    Task<PlatformShoutoutResult> SendShoutoutAsync(
         string targetLogin,
         CancellationToken cancellationToken = default);
 
@@ -17,7 +17,7 @@ public interface ITwitchHelixClient
         CancellationToken cancellationToken = default);
 }
 
-public sealed record TwitchHelixUser(
+public sealed record PlatformUserProfile(
     string UserId,
     string Login,
     string DisplayName,
@@ -25,7 +25,7 @@ public sealed record TwitchHelixUser(
     string? Description,
     bool IsAffiliate);
 
-public sealed record TwitchShoutoutResult(
+public sealed record PlatformShoutoutResult(
     bool IsSent,
     string TargetLogin,
     string? TargetUserId,

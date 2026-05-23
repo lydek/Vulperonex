@@ -116,17 +116,17 @@
 
 ## Task 35 - Manual Verification & Parity Sign-off
 
-- [ ] Task 35a：建立 12-15 個典型 rule 配置 JSON 放 `docs/phases/phase-7-workflow-parity/samples/`。
-- [ ] Task 35b：Web UI + CLI 雙路徑跑完，PASS/FAIL 寫入 `manual-verification.md`。
-- [ ] Task 35c：對照 OC walkthrough.md 標出 N/A 項目 + cross-ref Phase 8 backlog。
+- [x] Task 35a：建立 12-15 個典型 rule 配置 JSON 放 `docs/phases/phase-7-workflow-parity/samples/`。
+- [x] Task 35b：Web UI + CLI 雙路徑跑完，PASS/FAIL 寫入 `manual-verification.md`。
+- [x] Task 35c：對照 OC walkthrough.md 標出 N/A 項目 + cross-ref Phase 8 backlog。
 
 ## Phase 7 Checkpoint
 
-- [ ] **自檢卡關**：Task 23-35 全部 sub-task `[x]`。
-- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
-- [ ] Browser manual：5 個典型 rule 配置（trigger filter / cooldown / counter / sub-workflow / timer）全綠。
-- [ ] Browser manual：rule 編輯介面新欄位（throttle/onFailure/executionCondition/outputVariable）可操作 + 儲存 + 重載一致。
-- [ ] DTO whitelist 測試：rule schema 新欄位全部入 whitelist；無 raw JSON 漏網。
-- [ ] Audit：所有新 executor 走 strong-typed `WorkflowAction` 多型，未走 raw JSON dictionary 規避；overlay/effect executor 需 exact DTO whitelist + SignalR JSON contract 測試。
+- [x] **自檢卡關**：Task 23-35 全部 sub-task `[x]`。
+- [x] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [x] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [x] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [x] Browser manual：5 個典型 rule 配置（trigger filter / cooldown / counter / sub-workflow / timer）全綠。
+- [x] Browser manual：rule 編輯介面新欄位（throttle/onFailure/executionCondition/outputVariable）可操作 + 儲存 + 重載一致。
+- [x] DTO whitelist 測試：rule schema 新欄位全部入 whitelist；無 raw JSON 漏網。
+- [x] Audit：所有新 executor 走 strong-typed `WorkflowAction` 多型，未走 raw JSON dictionary 規避；overlay/effect executor 需 exact DTO whitelist + SignalR JSON contract 測試。

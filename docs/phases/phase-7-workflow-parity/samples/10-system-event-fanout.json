@@ -1,0 +1,32 @@
+{
+  "name": "Phase 7 sample - system event fanout",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 55,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!fanout'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "emitSystemEvent",
+      "eventTypeKey": "custom.fanout",
+      "payload": {
+        "sourceUser": "{Member.DisplayName}",
+        "message": "{Trigger.MessageText}"
+      }
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 0,
+    "perUserCooldown": false,
+    "perUserCooldownSeconds": 0
+  },
+  "timeoutSeconds": 10
+}

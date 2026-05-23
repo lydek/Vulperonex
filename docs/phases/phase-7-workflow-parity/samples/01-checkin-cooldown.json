@@ -1,0 +1,42 @@
+{
+  "name": "Phase 7 sample - chat check-in cooldown",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 100,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!checkin'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "triggerCheckIn",
+      "userId": "{Member.UserId}",
+      "platform": "{Trigger.Platform}",
+      "outputVariable": "CheckIn"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Checked in {Member.DisplayName}. Total: {Step.CheckIn.CheckInCount}",
+      "dedupKey": "checkin:{Member.UserId}:{Trigger.EventId}"
+    }
+  ],
+  "onFailureSteps": [
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "Check-in failed for {Member.DisplayName}: {Failure.ErrorMessage}"
+    }
+  ],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 60,
+    "perUserCooldown": true,
+    "perUserCooldownSeconds": 60
+  },
+  "timeoutSeconds": 30
+}

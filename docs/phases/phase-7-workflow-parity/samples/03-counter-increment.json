@@ -1,0 +1,35 @@
+{
+  "name": "Phase 7 sample - counter increment",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 80,
+  "trigger": {
+    "eventTypeKey": "user.message",
+    "filter": {
+      "platform": "twitch"
+    },
+    "matchCondition": "Trigger.MessageText == '!count'"
+  },
+  "conditions": [],
+  "actions": [
+    {
+      "type": "updateCounter",
+      "key": "chat.count.{Member.UserId}",
+      "delta": 1,
+      "outputVariable": "Counter"
+    },
+    {
+      "type": "sendChatMessage",
+      "targetPlatform": "twitch",
+      "template": "{Member.DisplayName} count is {Step.Counter.Value}"
+    }
+  ],
+  "onFailureSteps": [],
+  "throttle": {
+    "maxConcurrent": 1,
+    "cooldownSeconds": 5,
+    "perUserCooldown": true,
+    "perUserCooldownSeconds": 5
+  },
+  "timeoutSeconds": 15
+}

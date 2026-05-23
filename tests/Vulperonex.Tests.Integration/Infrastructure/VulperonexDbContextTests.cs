@@ -20,7 +20,7 @@ public sealed class VulperonexDbContextTests
     }
 
     [Fact]
-    public async Task Given_VulperonexDbContext_When_ModelIsInspected_Then_PhaseTwoDbSetsArePresent()
+    public async Task Given_VulperonexDbContext_When_ModelIsInspected_Then_CurrentDbSetsArePresent()
     {
         await using var fixture = new SqliteFixture();
         await using var context = await fixture.CreateContextAsync();
@@ -38,6 +38,8 @@ public sealed class VulperonexDbContextTests
             nameof(AppLogEntity),
             nameof(PlatformUserDisplayInfoEntity),
             nameof(TransientDeliveryQueueEntity),
-            nameof(ActionExecutionLogEntity));
+            nameof(ActionExecutionLogEntity),
+            nameof(CounterEntity),
+            nameof(WorkflowTimerEntity));
     }
 }
