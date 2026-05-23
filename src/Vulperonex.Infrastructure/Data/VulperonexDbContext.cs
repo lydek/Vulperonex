@@ -13,6 +13,8 @@ public sealed class VulperonexDbContext(DbContextOptions<VulperonexDbContext> op
 
     public DbSet<WorkflowRuleEntity> WorkflowRules => Set<WorkflowRuleEntity>();
 
+    public DbSet<WorkflowTimerEntity> WorkflowTimers => Set<WorkflowTimerEntity>();
+
     public DbSet<SystemSettingEntity> SystemSettings => Set<SystemSettingEntity>();
 
     public DbSet<AppLogEntity> AppLogs => Set<AppLogEntity>();

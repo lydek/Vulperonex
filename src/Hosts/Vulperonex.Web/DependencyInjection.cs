@@ -19,6 +19,7 @@ using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Application.Workflows.Conditions;
+using Vulperonex.Application.Workflows.Timers;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Auth;
 using Vulperonex.Infrastructure.Counters;
@@ -99,6 +100,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowRuleQueryService, WorkflowRuleQueryService>();
         services.AddScoped<IRuleSnapshotCache, InMemoryRuleSnapshotCache>();
         services.AddScoped<IWorkflowRuleRepository, WorkflowRuleRepository>();
+        services.AddScoped<IWorkflowTimerRepository, WorkflowTimerRepository>();
         services.AddScoped<ISystemSettingsService, SystemSettingsService>();
         services.AddScoped<IMemberQueryService, MemberQueryService>();
         services.AddScoped<IMemberAdminService, MemberAdminService>();

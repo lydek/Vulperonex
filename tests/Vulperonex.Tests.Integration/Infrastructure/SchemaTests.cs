@@ -49,6 +49,11 @@ public sealed class SchemaTests
             ORDER BY name;
             """);
         workflowJsonColumnTypes.Should().OnlyContain(columnType => columnType == "TEXT");
+
+        var workflowTimerColumns = await QueryScalarValuesAsync(
+            fixture.Connection,
+            "SELECT name FROM pragma_table_info('WorkflowTimers') ORDER BY name;");
+        workflowTimerColumns.Should().BeEquivalentTo("Id", "IntervalSeconds", "IsEnabled", "NextFireAt", "RuleId");
     }
 
     [Fact]

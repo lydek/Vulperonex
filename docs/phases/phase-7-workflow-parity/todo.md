@@ -83,7 +83,7 @@
 
 ## Task 31 - WorkflowTimer Scheduler
 
-- [ ] Task 31a：`WorkflowTimer` entity (`Id, RuleId, IntervalSeconds, IsEnabled, NextFireAt`) + EF migration。
+- [x] Task 31a：`WorkflowTimer` entity (`Id, RuleId, IntervalSeconds, IsEnabled, NextFireAt`) + EF migration。
 - [ ] Task 31b：`WorkflowTimerHostedService` 每 5 秒 tick；到期者觸發對應 rule（合成 StreamEvent）。
 - [ ] Task 31c：Web API `GET/POST/PUT/DELETE /api/timers` + DTO。
 - [ ] Task 31d：CLI `timer list/show/create/delete`。

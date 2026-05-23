@@ -2,20 +2,21 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Vulperonex.Infrastructure.Data;
 
 #nullable disable
 
-namespace Vulperonex.Infrastructure.Migrations;
-
-[DbContext(typeof(VulperonexDbContext))]
-partial class VulperonexDbContextModelSnapshot : ModelSnapshot
+namespace Vulperonex.Infrastructure.Migrations
 {
-    protected override void BuildModel(ModelBuilder modelBuilder) => BuildCurrentModel(modelBuilder);
-
-    internal static void BuildCurrentModel(ModelBuilder modelBuilder)
+    [DbContext(typeof(VulperonexDbContext))]
+    [Migration("20260523012234_AddWorkflowTimers")]
+    partial class AddWorkflowTimers
     {
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
 
@@ -342,5 +343,6 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
                         .IsRequired();
                 });
 #pragma warning restore 612, 618
+        }
     }
 }
