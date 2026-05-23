@@ -39,14 +39,14 @@
 
 ## Task 40 - Omni Parity Review and Manual Verification
 
-- [ ] Task 40a：建立 `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md`。
-- [ ] Task 40b：整理 editor UX checklist、PASS/FAIL、Omni parity 對照。
-- [ ] Task 40c：Browser manual 覆蓋 conditions、trigger filter、action step、onFailure、變數插入、JSON fallback。
+- [x] Task 40a：建立 `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md`。
+- [x] Task 40b：整理 editor UX checklist、PASS/FAIL、Omni parity 對照。
+- [x] Task 40c：Browser manual 覆蓋 conditions、trigger filter、action step、onFailure、變數插入、JSON fallback。
 
 ## Phase 7A Checkpoint
 
-- [ ] 全部 Task 36-40 sub-task `[x]`
-- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
-- [ ] Browser manual：workflow editor 主流程可不用手寫 JSON 完成常見配置
-- [ ] Browser manual：variable picker 插入與 reload round-trip PASS
-- [ ] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 完整填寫 PASS/FAIL + Omni UX 對照
+- [x] 全部 Task 36-40 sub-task `[x]`
+- [x] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [x] Browser manual：workflow editor 主流程可不用手寫 JSON 完成常見配置
+- [x] Browser manual：variable picker 插入與 reload round-trip PASS
+- [x] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 完整填寫 PASS/FAIL + Omni UX 對照
