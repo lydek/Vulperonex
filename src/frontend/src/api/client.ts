@@ -224,6 +224,38 @@ export async function deleteTimer(id: string, signal?: AbortSignal): Promise<voi
   }
 }
 
+export type ChatOutboxItemStatus = "Pending" | "Processing" | "Sent" | "Skipped" | "Failed";
+
+export interface ChatOutboxItemDto {
+  id: string;
+  platform: string;
+  channel: string | null;
+  message: string;
+  dedupKey: string | null;
+  enqueuedAt: string;
+  status: ChatOutboxItemStatus;
+  errorMessage: string | null;
+}
+
+export interface ChatOutboxQuery {
+  status?: ChatOutboxItemStatus;
+  platform?: string;
+  limit?: number;
+}
+
+export async function getChatOutbox(
+  query: ChatOutboxQuery = {},
+  signal?: AbortSignal
+): Promise<ChatOutboxItemDto[]> {
+  const params = new URLSearchParams();
+  if (query.status) params.set("status", query.status);
+  if (query.platform) params.set("platform", query.platform);
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  const search = params.toString();
+  const path = search ? `/api/chat-outbox/?${search}` : "/api/chat-outbox/";
+  return getJson<ChatOutboxItemDto[]>(path, signal);
+}
+
 export interface TwitchAuthStartResponse {
   authorizeUrl: string;
   state: string;
@@ -337,6 +369,37 @@ export async function clearOverlayHistory(
     signal
   });
 
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export interface ConfigValueResponse {
+  key: string;
+  value: string | null;
+}
+
+export async function getConfigValue(
+  key: string,
+  signal?: AbortSignal
+): Promise<ConfigValueResponse> {
+  return getJson<ConfigValueResponse>(`/api/config/${encodeURIComponent(key)}`, signal);
+}
+
+export async function setConfigValue(
+  key: string,
+  value: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/config/${encodeURIComponent(key)}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ value }),
+    signal
+  });
   if (!response.ok) {
     throw new ApiError(response.status, await safeReadBody(response));
   }

@@ -69,6 +69,7 @@ public static partial class VulperonexWebApplication
         app.MapTwitchAuthEndpoints();
         app.MapOAuthCallbackEndpoints();
         app.MapOverlayHistoryEndpoints();
+        app.MapChatOutboxEndpoints();
         app.MapOverlayHubs();
         app.MapFallback(ServeSpaIndexAsync);
 

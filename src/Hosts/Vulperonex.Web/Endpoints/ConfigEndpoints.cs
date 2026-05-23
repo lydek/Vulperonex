@@ -15,6 +15,7 @@ public static class ConfigEndpoints
         SystemSettingKey.LogDbRetentionDays,
         SystemSettingKey.LogDbMaxSizeMb,
         SystemSettingKey.LogFileRetentionDays,
+        SystemSettingKey.OverlayChatPreset,
     }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
 
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder endpoints)

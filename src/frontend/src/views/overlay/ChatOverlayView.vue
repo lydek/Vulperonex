@@ -1,18 +1,54 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import HubStatusChip from "@/components/admin/HubStatusChip.vue";
 import { useOverlayHub } from "@/composables/useOverlayHub";
+import { ApiError, getConfigValue } from "@/api/client";
+import {
+  chatOverlayPresets,
+  defaultChatOverlayPresetId,
+  findChatOverlayPreset
+} from "@/views/overlay/chatPresets";
 
 const { t } = useI18n();
+const route = useRoute();
 const { events, start, state, lastEventAt, error, clear } = useOverlayHub("chat");
 const confirmOpen = ref(false);
 const clearing = ref(false);
+const presetId = ref<string>(defaultChatOverlayPresetId);
+const presetError = ref<string | null>(null);
 
-onMounted(() => {
+const activePreset = computed(() => findChatOverlayPreset(presetId.value));
+
+onMounted(async () => {
+  await resolvePreset();
   void start();
 });
+
+async function resolvePreset(): Promise<void> {
+  const queryPreset = route.query.preset;
+  if (typeof queryPreset === "string" && queryPreset.length > 0) {
+    presetId.value = queryPreset;
+    return;
+  }
+
+  try {
+    const config = await getConfigValue("overlay.chat.preset");
+    if (config.value) {
+      presetId.value = config.value;
+    }
+  } catch (caught) {
+    if (caught instanceof ApiError) {
+      presetError.value = caught.errorCode ?? `HTTP_${caught.status}`;
+    } else if (caught instanceof Error) {
+      presetError.value = caught.message;
+    } else {
+      presetError.value = String(caught);
+    }
+  }
+}
 
 async function onConfirm(): Promise<void> {
   clearing.value = true;
@@ -23,6 +59,10 @@ async function onConfirm(): Promise<void> {
     confirmOpen.value = false;
   }
 }
+
+function onPresetChange(value: string): void {
+  presetId.value = value;
+}
 </script>
 
 <template>
@@ -31,6 +71,18 @@ async function onConfirm(): Promise<void> {
       <h1 id="chat-overlay-title" class="page-title">{{ t("overlay.chat.title") }}</h1>
       <div class="overlay-toolbar">
         <HubStatusChip :state="state" :last-event-at="lastEventAt" :error="error" />
+        <label class="form-field-inline">
+          <span class="visually-hidden">{{ t("overlay.chat.preset") }}</span>
+          <select
+            data-testid="chat-overlay-preset-select"
+            :value="presetId"
+            @change="onPresetChange(($event.target as HTMLSelectElement).value)"
+          >
+            <option v-for="preset in chatOverlayPresets" :key="preset.id" :value="preset.id">
+              {{ preset.label }}
+            </option>
+          </select>
+        </label>
         <button
           type="button"
           class="icon-button"
@@ -41,15 +93,21 @@ async function onConfirm(): Promise<void> {
         </button>
       </div>
     </header>
-    <p v-if="events.length === 0" role="status">{{ t("overlay.empty") }}</p>
-    <ul v-else class="event-list" role="list">
-      <li v-for="(event, eventIndex) in events" :key="event.eventId ?? `chat-${eventIndex}`" class="event-item">
-        <strong>{{ event.displayName }}</strong>
-        <span v-for="(segment, segmentIndex) in event.segments" :key="`${event.eventId ?? eventIndex}-${segmentIndex}`">
-          {{ segment.text }}
-        </span>
-      </li>
-    </ul>
+
+    <p
+      v-if="presetError"
+      class="ack-error-code"
+      role="alert"
+      data-testid="chat-overlay-preset-error"
+    >
+      {{ presetError }}
+    </p>
+
+    <component
+      :is="activePreset.component"
+      :events="events"
+      :empty-label="t('overlay.empty')"
+    />
 
     <ConfirmDialog
       :open="confirmOpen"
@@ -63,3 +121,17 @@ async function onConfirm(): Promise<void> {
     />
   </section>
 </template>
+
+<style scoped>
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+</style>

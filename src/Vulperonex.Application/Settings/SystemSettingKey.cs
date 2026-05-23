@@ -14,4 +14,5 @@ public static class SystemSettingKey
     public const string WorkflowTemplateStrictMissing = "workflow.template.strict_missing";
     public const string ChatOutboxPerSecond = "chat.outbox.per_second";
     public const string ChatOutboxDedupTtlHours = "chat.outbox.dedup_ttl_hours";
+    public const string OverlayChatPreset = "overlay.chat.preset";
 }

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import AdminStatusView from "@/views/admin/AdminStatusView.vue";
+import ChatOutboxView from "@/views/admin/ChatOutboxView.vue";
 import EventMonitorView from "@/views/admin/EventMonitorView.vue";
 import MembersView from "@/views/admin/MembersView.vue";
 import RuleEditorView from "@/views/admin/RuleEditorView.vue";
@@ -20,6 +21,7 @@ export const router = createRouter({
     { path: "/members", name: "members", component: MembersView },
     { path: "/rules", name: "rules", component: RulesView },
     { path: "/timers", name: "timers", component: TimersView },
+    { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },
     { path: "/rules/new", name: "rule-create", component: RuleEditorView },
     { path: "/rules/:id/edit", name: "rule-edit", component: RuleEditorView, props: true },
     { path: "/twitch", name: "twitch-auth", component: TwitchAuthView },

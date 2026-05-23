@@ -39,6 +39,7 @@ public sealed class SystemSettingKeyTests
             "log.file_retention_days",
             "workflow.template.strict_missing",
             "chat.outbox.per_second",
-            "chat.outbox.dedup_ttl_hours");
+            "chat.outbox.dedup_ttl_hours",
+            "overlay.chat.preset");
     }
 }
