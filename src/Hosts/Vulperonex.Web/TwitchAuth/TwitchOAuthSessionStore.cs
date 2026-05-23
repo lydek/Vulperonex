@@ -8,15 +8,19 @@ public sealed class TwitchOAuthSessionStore(TimeProvider timeProvider)
     private readonly object _gate = new();
     private readonly Dictionary<string, TwitchOAuthSession> _sessions = [];
 
-    public TwitchOAuthSession Create(int callbackPort)
+    public TwitchOAuthSession Create(int callbackPort, string? customRedirectUri = null)
     {
         var verifier = PkceCodeChallenge.CreateVerifier();
         var state = new PkceStateStore(timeProvider).Create();
+        var redirectUri = !string.IsNullOrWhiteSpace(customRedirectUri)
+            ? customRedirectUri
+            : $"http://localhost:{callbackPort}/auth/callback";
+
         var session = new TwitchOAuthSession(
             state,
             verifier,
             PkceCodeChallenge.FromVerifier(verifier),
-            $"http://localhost:{callbackPort}/auth/callback",
+            redirectUri,
             timeProvider.GetUtcNow());
 
         lock (_gate)

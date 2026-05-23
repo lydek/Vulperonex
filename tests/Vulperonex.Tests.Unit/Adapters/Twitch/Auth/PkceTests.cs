@@ -42,12 +42,18 @@ public sealed class PkceTests
     public void Given_CallbackRequest_When_Validated_Then_LoopbackHostPathAndStateMustMatch()
     {
         var store = new PkceStateStore(TimeProvider.System);
-        var state = store.Create();
+        var state1 = store.Create();
+        var state2 = store.Create();
         var validator = new OAuthCallbackValidator(7979, store);
 
-        validator.IsValid(new OAuthCallbackRequest(IPAddress.Loopback, "localhost:7979", "/auth/callback", state, "code"))
+        validator.IsValid(new OAuthCallbackRequest(IPAddress.Loopback, "localhost:7979", "/auth/callback", state1, "code"))
             .Should()
             .BeTrue();
+
+        validator.IsValid(new OAuthCallbackRequest(IPAddress.Loopback, "localhost:7979", "/api/auth/twitch/callback", state2, "code"))
+            .Should()
+            .BeTrue();
+
         validator.IsValid(new OAuthCallbackRequest(IPAddress.Parse("192.168.1.10"), "localhost:7979", "/auth/callback", store.Create(), "code"))
             .Should()
             .BeFalse();

@@ -52,7 +52,8 @@ public static class TwitchAuthEndpoints
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
 
-            var session = sessions.Create(callbackPort);
+            var customRedirectUri = configuration["Twitch:RedirectUri"];
+            var session = sessions.Create(callbackPort, customRedirectUri);
             var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit";
             var authorizeUrl = BuildAuthorizeUrl(clientId, scopes, session);
             return Results.Ok(new TwitchAuthStartResponse(authorizeUrl, session.State, callbackPort));

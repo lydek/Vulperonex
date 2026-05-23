@@ -10,7 +10,8 @@ public sealed class OAuthCallbackValidator(int port, PkceStateStore stateStore)
 
         return IPAddress.IsLoopback(request.RemoteIpAddress)
             && IsAllowedHost(request.Host)
-            && string.Equals(request.Path, "/auth/callback", StringComparison.Ordinal)
+            && (string.Equals(request.Path, "/auth/callback", StringComparison.Ordinal)
+                || string.Equals(request.Path, "/api/auth/twitch/callback", StringComparison.Ordinal))
             && stateStore.Consume(request.State)
             && !string.IsNullOrWhiteSpace(request.Code);
     }

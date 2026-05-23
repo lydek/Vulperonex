@@ -9,7 +9,7 @@ public static class OAuthCallbackEndpoints
 {
     public static IEndpointRouteBuilder MapOAuthCallbackEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/auth/callback", async (
+        var handler = async (
             HttpContext context,
             TwitchOAuthSessionStore sessions,
             ITwitchTokenEndpoint tokenEndpoint,
@@ -54,7 +54,10 @@ public static class OAuthCallbackEndpoints
 
             await notifier.NotifyAsync("twitch", connected: true, cancellationToken);
             return Results.Redirect("/?oauth=success");
-        });
+        };
+
+        endpoints.MapGet("/auth/callback", handler);
+        endpoints.MapGet("/api/auth/twitch/callback", handler);
 
         return endpoints;
     }
