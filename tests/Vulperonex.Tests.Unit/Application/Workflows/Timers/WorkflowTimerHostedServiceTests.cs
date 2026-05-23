@@ -86,6 +86,33 @@ public sealed class WorkflowTimerHostedServiceTests
         repository.Timers.Single().NextFireAt.Should().Be(now.AddSeconds(-30));
     }
 
+    [Fact]
+    public async Task Given_ScopedAsyncDisposableInvoker_When_Ticked_Then_ScopeDisposesAsynchronously()
+    {
+        var now = new DateTimeOffset(2026, 5, 23, 0, 1, 0, TimeSpan.Zero);
+        var repository = new FakeWorkflowTimerRepository(
+            new WorkflowTimer
+            {
+                Id = "timer-1",
+                RuleId = "rule-1",
+                IntervalSeconds = 30,
+                IsEnabled = true,
+                NextFireAt = now.AddSeconds(-30),
+            });
+        var provider = new ServiceCollection()
+            .AddSingleton<IWorkflowTimerRepository>(repository)
+            .AddScoped<IWorkflowRuleInvoker, AsyncDisposableWorkflowRuleInvoker>()
+            .BuildServiceProvider();
+        var service = new WorkflowTimerHostedService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            TimeProvider.System,
+            NullLogger<WorkflowTimerHostedService>.Instance);
+
+        var act = () => service.TickAsync(now, TestContext.Current.CancellationToken);
+
+        await act.Should().NotThrowAsync();
+    }
+
     private static WorkflowTimerHostedService NewService(
         IWorkflowTimerRepository repository,
         IWorkflowRuleInvoker invoker)
@@ -165,6 +192,24 @@ public sealed class WorkflowTimerHostedServiceTests
         {
             Invocations.Add(new Invocation(workflowRuleId, streamEvent, invocationId, args));
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class AsyncDisposableWorkflowRuleInvoker : IWorkflowRuleInvoker, IAsyncDisposable
+    {
+        public Task InvokeAsync(
+            string workflowRuleId,
+            IStreamEvent streamEvent,
+            string invocationId,
+            IReadOnlyDictionary<string, string>? args = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return ValueTask.CompletedTask;
         }
     }
 

@@ -14,7 +14,7 @@ public sealed class WorkflowTimerHostedService(
 
     public async Task<int> TickAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
-        using var scope = scopeFactory.CreateScope();
+        await using var scope = scopeFactory.CreateAsyncScope();
         var timers = scope.ServiceProvider.GetRequiredService<IWorkflowTimerRepository>();
         var invoker = scope.ServiceProvider.GetRequiredService<IWorkflowRuleInvoker>();
         var dueTimers = await timers.ListDueAsync(now, cancellationToken).ConfigureAwait(false);
