@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import ConditionExpressionInput from "@/components/admin/ConditionExpressionInput.vue";
 import EventTypeKeyDropdown from "@/components/admin/EventTypeKeyDropdown.vue";
+import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
 
 const props = defineProps<{
   eventTypeKey: string;
@@ -17,17 +19,43 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-const filterRows = computed({
-  get: () => Object.entries(props.filter).map(([key, value]) => ({ key, value })),
-  set: (rows: Array<{ key: string; value: string }>) => {
-    const next: Record<string, string> = {};
-    for (const row of rows) {
-      const key = row.key.trim();
-      if (key.length > 0) next[key] = row.value;
+type FilterRow = { key: string; value: string };
+
+const filterRows = ref<FilterRow[]>([]);
+
+watch(() => props.filter, syncRowsFromProps, { immediate: true, deep: true });
+
+function syncRowsFromProps(filter: Record<string, string>): void {
+  const nextRows = Object.entries(filter).map(([key, value]) => ({ key, value }));
+  const hasBlankDraft = filterRows.value.some((row) => row.key.trim().length === 0 && row.value.trim().length === 0);
+  filterRows.value = nextRows.length > 0 || !hasBlankDraft
+    ? nextRows
+    : [...nextRows, { key: "", value: "" }];
+}
+
+function emitFilter(rows: FilterRow[]): void {
+  const next: Record<string, string> = {};
+  for (const row of rows) {
+    const key = row.key.trim();
+    if (key.length > 0) {
+      next[key] = row.value;
     }
-    emit("update:filter", next);
   }
-});
+  emit("update:filter", next);
+}
+
+function replaceRows(rows: FilterRow[]): void {
+  filterRows.value = rows;
+  emitFilter(rows);
+}
+
+function ensureVisibleRow(): void {
+  if (filterRows.value.length === 0) {
+    filterRows.value = [{ key: "", value: "" }];
+  }
+}
+
+watch(filterRows, ensureVisibleRow, { immediate: true });
 
 function addRow(): void {
   filterRows.value = [...filterRows.value, { key: "", value: "" }];
@@ -36,11 +64,12 @@ function addRow(): void {
 function updateRow(index: number, field: "key" | "value", value: string): void {
   const rows = filterRows.value.slice();
   rows[index] = { ...rows[index], [field]: value };
-  filterRows.value = rows;
+  replaceRows(rows);
 }
 
 function removeRow(index: number): void {
-  filterRows.value = filterRows.value.filter((_, rowIndex) => rowIndex !== index);
+  const rows = filterRows.value.filter((_, rowIndex) => rowIndex !== index);
+  replaceRows(rows);
 }
 </script>
 
@@ -63,10 +92,10 @@ function removeRow(index: number): void {
             :value="row.key"
             @input="updateRow(index, 'key', ($event.target as HTMLInputElement).value)"
           />
-          <input
-            :aria-label="t('ruleEditor.trigger.filterValue')"
-            :value="row.value"
-            @input="updateRow(index, 'value', ($event.target as HTMLInputElement).value)"
+          <VariableFieldInput
+            :model-value="row.value"
+            :placeholder="t('ruleEditor.trigger.filterValue')"
+            @update:model-value="updateRow(index, 'value', $event)"
           />
           <button type="button" class="icon-button" @click="removeRow(index)">
             {{ t("common.remove") }}
@@ -79,11 +108,11 @@ function removeRow(index: number): void {
     </div>
     <label class="form-field">
       <span class="form-label">{{ t("ruleEditor.matchCondition") }}</span>
-      <input
-        :value="matchCondition"
-        type="text"
-        data-testid="rule-editor-match-condition"
-        @input="emit('update:matchCondition', ($event.target as HTMLInputElement).value)"
+      <ConditionExpressionInput
+        :model-value="matchCondition"
+        placeholder="Trigger.MessageText == '!go'"
+        data-test-id="rule-editor-match-condition"
+        @update:model-value="emit('update:matchCondition', $event)"
       />
     </label>
   </section>

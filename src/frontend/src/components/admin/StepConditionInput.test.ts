@@ -35,4 +35,22 @@ describe("StepConditionInput", () => {
       }
     ]);
   });
+
+  it("should remove outputVariable when cleared", async () => {
+    const wrapper = mount(StepConditionInput, {
+      props: {
+        modelValue: JSON.stringify([{ type: "randomPicker", outputVariable: "Pick" }])
+      },
+      global: { plugins: [buildI18n()] }
+    });
+
+    await wrapper.findAll("input")[1].setValue("");
+
+    const emitted = wrapper.emitted("update:modelValue")?.[0]?.[0] as string;
+    expect(JSON.parse(emitted)).toEqual([
+      {
+        type: "randomPicker"
+      }
+    ]);
+  });
 });
