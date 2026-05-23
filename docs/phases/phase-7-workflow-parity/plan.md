@@ -6,6 +6,7 @@
 > 優先順序：Phase 7 先行；Phase 6 未完成的 Photino/manual verification 等非 workflow parity 項目延後處理。
 > 前置條件：Phase 5 runtime + Phase 6 已完成的 Web UI/rule JSON editor/overlay history 基線可用；不再等待完整 Phase 6 Checkpoint。
 > 父層同步：Phase 7 已在 `tasks/plan.md` / `tasks/todo.md` 建立父層指標，為目前優先 active implementation slice。
+> 進度來源：本文件中的 checkbox 僅作設計/驗收草案；實際完成狀態以 `docs/phases/phase-7-workflow-parity/todo.md` 與 `tasks/todo.md` 為準。
 
 ---
 
@@ -51,7 +52,7 @@ Task 23 Variable / Expression substrate
 
 ## Task 23 - Variable / Expression Substrate
 
-**描述：** 抽出獨立的 `IExpressionContext` + `ITemplateResolver`，可解析 `{Trigger.*}` / `{Step.*}` / `{Args.*}` / `{Member.*}` placeholder。NCalc 為條件式單一引擎，導入 `Vulperonex.Application/Expressions/` 命名空間。
+**描述：** 抽出獨立的 `IExpressionContext` + `ITemplateResolver`，可解析 `{Trigger.*}` / `{Step.*}` / `{Args.*}` / `{Member.*}` placeholder。NCalc 為條件式單一引擎，置於 `Vulperonex.Application/Expressions/` 命名空間。
 
 **驗收標準：**
 - [ ] `ITemplateResolver.Resolve(string template, ExpressionContext context)` 字串插值；無 placeholder 時 ZeroCopy 返回原字串。
@@ -59,7 +60,7 @@ Task 23 Variable / Expression substrate
 - [ ] `ExpressionContext` 暴露 `Trigger`、`Steps`、`Args`、`Member` 四個 namespace；read-only。
 - [ ] 缺失 placeholder（如 `{Trigger.Missing}`）依設定回傳空字串或 `null`（fail-soft，不丟例外）；模式可由 SystemSettings `workflow.template.strict_missing` 切換。
 - [ ] DI 註冊：`AddSingleton<ITemplateResolver, TemplateResolver>()`, `AddSingleton<IExpressionEvaluator, NCalcExpressionEvaluator>()`.
-- [ ] 加 NuGet `NCalcSync`（ask-first；若實作時需改用其他 NCalc package，先更新本文件與 lockfile 預檢再安裝）。
+- [ ] 加 NuGet `NCalcSync`（ask-first；Phase 7 實作時已先取得批准。若後續需改用其他 NCalc package，先更新本文件與 lockfile 預檢再安裝）。
 
 **驗證：**
 - [ ] Unit test：placeholder 解析正向 + 缺失 fail-soft；NCalc 表達式以 namespace scalar value 驗證（例如 `Member.IsBroadcaster == true && Counter > 5`）；template + expression 巢狀。
@@ -138,7 +139,7 @@ Task 23 Variable / Expression substrate
 **驗收標準：**
 - [ ] EF migration 加 `IsSubWorkflow: bool` (default false)。
 - [ ] Engine HandleEventAsync 過濾 `IsSubWorkflow=true` 之 rule。
-- [ ] InvokeSubWorkflow 接受 `Args: Dictionary<string,string>` 模板字串；child 端透過 `{Args.<key>}` 取得。
+- [ ] InvokeSubWorkflow 接受 `Args: Dictionary<string,string>` 範本字串；child 端透過 `{Args.<key>}` 取得。
 - [ ] `InvocationId` 穩定性不回退：Args plumbing 不得改變既有 `InvokeSubWorkflowAction` 的 stable invocation identity；TDQ replay 必須使用同一 dedup key。
 - [ ] 既有 cycle check 不變。
 

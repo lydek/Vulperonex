@@ -9,7 +9,7 @@ Reference: `ref/Omni-Commander/walkthrough.md`
 | Area | Path | Status | Evidence |
 | --- | --- | --- | --- |
 | Sample rule set | `docs/phases/phase-7-workflow-parity/samples/*.json` | PASS | 15 JSON samples cover check-in, shoutout, counter, sub-workflow, timer, overlay, effect, lottery ticket counter, system event, picker, guard, delay, plugin args, redemption refund. |
-| Web UI builder | `/rules`, `/timers` | PASS | `npm --prefix src/frontend run vue-tsc -- --noEmit`; `npm --prefix src/frontend test`; `npm --prefix src/frontend run build`; `npm --prefix src/frontend run lint`. |
+| Web UI builder | `/rules`, `/timers` | PASS with caveat | `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`. Phase 7 sign-off covered schema parity/save-reload for the then-shipped JSON-first builder baseline; the pre-existing `TriggerEditor` filter add-row bug was later isolated and repaired under Phase 7A Task 36. |
 | CLI surface | `rule`, `timer`, `simulate` command tests | PASS | CLI integration tests are part of the Phase 7 verification command set. |
 | Backend workflow runtime | Unit tests | PASS | `dotnet test tests/Vulperonex.Tests.Unit/Vulperonex.Tests.Unit.csproj --no-restore -m:1 /nr:false /p:UseSharedCompilation=false`. |
 | Timer runtime | Integration tests | PASS | `WorkflowTimerRepositoryTests` and `WorkflowTimerHostedServiceIntegrationTests` cover repository persistence and scheduler firing. |
@@ -22,7 +22,7 @@ Reference: `ref/Omni-Commander/walkthrough.md`
 | `01-checkin-cooldown.json` | Create/edit in `/rules`; reload detail | Trigger filter, throttle, OnFailure, and chat outbox fields survive reload. | PASS |
 | `03-counter-increment.json` | Create/edit in `/rules`; simulate `!count` | `updateCounter` output variable feeds follow-up chat template. | PASS |
 | `04-subworkflow-child.json` + `05-subworkflow-parent.json` | Create child then parent in `/rules` | Child is marked sub-workflow and parent passes Args. | PASS |
-| `06-timer-broadcast-rule.json` | Create rule in `/rules`; create timer in `/timers` | Timer list/show/edit/delete works and rule is invoked by `workflow.timer`. | PASS |
+| `06-timer-broadcast-rule.json` | Create rule in `/rules`; create timer in `/timers` | Timer list/show/edit/delete works; timer-triggered rule uses `EventTypeKey = workflow.timer`, and timer execution context also injects `{Trigger.IsTimer} = true`. | PASS |
 | `07-overlay-widget.json` + `08-trigger-effect.json` | Create/edit in `/rules`; open overlays | Overlay widget/effect payloads use whitelisted DTO fields. | PASS |
 
 ## CLI Dual-path Checklist
@@ -45,7 +45,7 @@ Use the same JSON samples with the CLI rule command. The timer sample uses a rul
 | Step output variables | Implemented | `WorkflowAction.OutputVariable` stores executor outputs under `Step.<name>`. |
 | Rule throttle / cooldown | Implemented | `WorkflowThrottlePolicy` supports max concurrent, global cooldown, and per-user cooldown. |
 | Rule timeout and action cancellation | Implemented | Rule-level linked cancellation wraps action-level timeout/retry behavior. |
-| OnFailure steps | Implemented | Main phase failures execute one OnFailure phase with failure context. |
+| OnFailure steps | Implemented | Main phase failures execute one OnFailure phase with failure context. Persisted column name is `OnFailureActionsJson`. |
 | Sub-process / invoke-only rules | Implemented | `IsSubWorkflow` prevents event-bus triggering. |
 | Hot reload snapshot behavior | Implemented | `IRuleSnapshotCache` returns copied rule snapshots and isolates inflight execution. |
 | Timer-triggered workflows | Implemented | `WorkflowTimerHostedService`, API, CLI, and `/timers` UI are in place. |
@@ -59,4 +59,4 @@ Use the same JSON samples with the CLI rule command. The timer sample uses a rul
 | Durable lottery ticket entity and prize draw operations | N/A for Phase 7; sample uses counter-backed `addLotteryTickets`. | Phase 8 lottery domain persistence and draw UI. |
 | Multi-host timer leader election | N/A for Phase 7 single-host desktop runtime. | Phase 8 deployment/runtime hardening. |
 | Full Twitch live OAuth walkthrough | N/A for Phase 7 parity sign-off; no-Twitch/manual simulation remains supported. | Phase 8 live Twitch adapter hardening. |
-| Rich visual workflow graph editor | N/A for Phase 7; JSON-first builder fields are complete. | Phase 8 UX expansion. |
+| Rich visual workflow graph editor | N/A for Phase 7 parity sign-off. JSON-first builder was accepted for Phase 7 only; known editor UX gaps, including the pre-existing trigger-filter add-row defect, were explicitly moved to Phase 7A. | Phase 7A workflow editor UX alignment; graph/canvas builder remains beyond that slice. |
