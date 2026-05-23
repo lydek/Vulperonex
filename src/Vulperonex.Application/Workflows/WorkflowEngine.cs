@@ -51,7 +51,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     public Task StartAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _subscription = _eventBus.Subscribe<IStreamEvent>(HandleEventAsync);
+        _subscription = _eventBus.Subscribe<IStreamEvent>(ProcessEventAsync);
         return Task.CompletedTask;
     }
 
@@ -68,7 +68,15 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         await StopAsync();
     }
 
-    private async Task HandleEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
+    /// <summary>
+    /// Fan out a bus event to every matching enabled rule. Production wires
+    /// this through <c>WorkflowEngineDispatcher</c>, which opens a DI scope
+    /// per event so the engine's scoped dependencies (rule snapshot cache,
+    /// execution store, action executors) honor their lifetime contract.
+    /// Tests call <see cref="StartAsync"/> instead to subscribe a long-lived
+    /// engine instance directly to the in-memory bus.
+    /// </summary>
+    public async Task ProcessEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
     {
         if (streamEvent is WorkflowSystemEvent { Depth: > MaxSystemEventDepth })
         {

@@ -14,7 +14,7 @@ public sealed class InvokeSubWorkflowActionExecutorTests
     public async Task Given_InvokeSubWorkflowAction_When_Executed_Then_TargetWorkflowIsInvokedWithStableInvocationId()
     {
         var invoker = new RecordingWorkflowRuleInvoker();
-        var executor = new InvokeSubWorkflowActionExecutor(invoker, new TemplateResolver());
+        var executor = new InvokeSubWorkflowActionExecutor(() => invoker, new TemplateResolver());
         var streamEvent = NewEvent(eventId: "event-1");
         var context = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 0);
 
@@ -33,7 +33,7 @@ public sealed class InvokeSubWorkflowActionExecutorTests
     public async Task Given_SameEventRuleAndActionIndex_When_ExecutedTwice_Then_InvocationIdIsDeterministic()
     {
         var invoker = new RecordingWorkflowRuleInvoker();
-        var executor = new InvokeSubWorkflowActionExecutor(invoker, new TemplateResolver());
+        var executor = new InvokeSubWorkflowActionExecutor(() => invoker, new TemplateResolver());
         var streamEvent = NewEvent(eventId: "event-1");
         var context = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 0);
         var action = new InvokeSubWorkflowAction { WorkflowId = "child" };
@@ -49,7 +49,7 @@ public sealed class InvokeSubWorkflowActionExecutorTests
     public async Task Given_DifferentActionIndex_When_Executed_Then_InvocationIdDiffers()
     {
         var invoker = new RecordingWorkflowRuleInvoker();
-        var executor = new InvokeSubWorkflowActionExecutor(invoker, new TemplateResolver());
+        var executor = new InvokeSubWorkflowActionExecutor(() => invoker, new TemplateResolver());
         var streamEvent = NewEvent(eventId: "event-1");
         var firstContext = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 0);
         var secondContext = NewContext(streamEvent, parentRuleId: "parent", actionIndex: 1);

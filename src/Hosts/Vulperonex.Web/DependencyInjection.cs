@@ -141,6 +141,8 @@ public static class DependencyInjection
         }
         services.AddScoped<WorkflowEngine>();
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
+        services.AddScoped<Func<IWorkflowRuleInvoker>>(serviceProvider =>
+            () => serviceProvider.GetRequiredService<IWorkflowRuleInvoker>());
         // DatabaseMigrationStartupService must run first. Hosted services
         // start in registration order, and several downstream workers
         // (ChatOutboxDispatcher, WorkflowTimer, etc.) read SystemSettings via
@@ -149,6 +151,7 @@ public static class DependencyInjection
         services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddHostedService<SimulationAdapterStartupService>();
         services.AddHostedService<MemberModuleHostedService>();
+        services.AddHostedService<WorkflowEngineDispatcher>();
         services.AddHostedService<OverlayEventForwarder>();
         services.AddHostedService<ChatOutboxDispatcher>();
         services.AddHostedService<WorkflowTimerHostedService>();

@@ -5,7 +5,7 @@ using Vulperonex.Application.Expressions;
 namespace Vulperonex.Application.Workflows.Actions;
 
 public sealed class InvokeSubWorkflowActionExecutor(
-    IWorkflowRuleInvoker workflowRuleInvoker,
+    Func<IWorkflowRuleInvoker> workflowRuleInvokerFactory,
     ITemplateResolver templateResolver) : IWorkflowActionExecutor
 {
     public string ActionType => InvokeSubWorkflowAction.ActionType;
@@ -28,7 +28,7 @@ public sealed class InvokeSubWorkflowActionExecutor(
             context.WorkflowRule.Id,
             context.ActionIndex);
 
-        await workflowRuleInvoker.InvokeAsync(
+        await workflowRuleInvokerFactory().InvokeAsync(
             invokeSubWorkflow.WorkflowId,
             context.StreamEvent,
             invocationId,

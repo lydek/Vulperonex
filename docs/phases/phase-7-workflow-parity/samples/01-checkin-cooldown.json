@@ -6,7 +6,7 @@
   "trigger": {
     "eventTypeKey": "user.message",
     "filter": {
-      "platform": "twitch"
+      "platform": "simulation"
     },
     "matchCondition": "Trigger.MessageText == '!checkin'"
   },
@@ -20,7 +20,7 @@
     },
     {
       "type": "sendChatMessage",
-      "targetPlatform": "twitch",
+      "targetPlatform": "simulation",
       "template": "Checked in {Member.DisplayName}. Total: {Step.CheckIn.CheckInCount}",
       "dedupKey": "checkin:{Member.UserId}:{Trigger.EventId}"
     }

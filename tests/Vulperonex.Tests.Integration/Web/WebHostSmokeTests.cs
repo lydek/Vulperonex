@@ -1,20 +1,32 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Vulperonex.Application.Workflows;
+using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Web;
+using Vulperonex.Web.Members;
+using Vulperonex.Web.Workflows;
 using Xunit;
 
 namespace Vulperonex.Tests.Integration.Web;
 
 public sealed class WebHostSmokeTests
 {
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     [Fact]
     public void Given_DevelopmentCreateBuilder_When_DevelopmentSettingsExist_Then_TwitchClientIdIsLoaded()
     {
@@ -60,6 +72,46 @@ public sealed class WebHostSmokeTests
     }
 
     [Fact]
+    public async Task Given_WebHostServices_When_WorkflowEngineIsResolved_Then_SubWorkflowExecutorDoesNotCreateDiCycle()
+    {
+        await using var app = BuildAppWithoutStarting();
+        await using var scope = app.Services.CreateAsyncScope();
+
+        var act = () => scope.ServiceProvider.GetRequiredService<WorkflowEngine>();
+
+        act.Should().NotThrow();
+    }
+
+    [Fact]
+    public async Task Given_WebHostServices_When_HostedServicesAreResolved_Then_MembersSubscribeBeforeWorkflowEngine()
+    {
+        await using var app = BuildAppWithoutStarting();
+
+        var hostedServices = app.Services.GetServices<IHostedService>().ToList();
+
+        hostedServices.FindIndex(service => service is MemberModuleHostedService)
+            .Should()
+            .BeLessThan(hostedServices.FindIndex(service => service is WorkflowEngineDispatcher));
+    }
+
+    [Fact]
+    public async Task Given_Phase7CheckInSample_When_Imported_Then_ItMatchesSimulationChat()
+    {
+        var json = await File.ReadAllTextAsync(
+            ResolveRepoPath("docs", "phases", "phase-7-workflow-parity", "samples", "01-checkin-cooldown.json"),
+            TestContext.Current.CancellationToken);
+        var request = JsonSerializer.Deserialize<WorkflowRuleUpsertRequest>(json, JsonOptions)
+            ?? throw new InvalidOperationException("Sample rule JSON could not be deserialized.");
+        var rule = WorkflowRuleJsonMapper.ToRule(request, "sample-checkin");
+
+        rule.Trigger!.Filter.Should().Contain("platform", "simulation");
+        rule.Actions.OfType<SendChatMessageAction>()
+            .Should()
+            .ContainSingle()
+            .Which.TargetPlatform.Should().Be("simulation");
+    }
+
+    [Fact]
     public async Task Given_WebHostWithStaticIndex_When_FrontendRouteIsCalled_Then_SpaIndexIsServed()
     {
         using var contentRoot = TestContentRoot.Create();
@@ -92,18 +144,30 @@ public sealed class WebHostSmokeTests
 
     private static async Task<WebApplication> StartAppAsync(string? contentRootPath = null)
     {
+        var builder = CreateTestBuilder(contentRootPath);
+        builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
+
+        var app = VulperonexWebApplication.Build(builder);
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        return app;
+    }
+
+    private static WebApplication BuildAppWithoutStarting(string? contentRootPath = null)
+    {
+        var builder = CreateTestBuilder(contentRootPath);
+        return VulperonexWebApplication.Build(builder);
+    }
+
+    private static WebApplicationBuilder CreateTestBuilder(string? contentRootPath = null)
+    {
         var builder = VulperonexWebApplication.CreateBuilder(
             new WebApplicationOptions
             {
                 ContentRootPath = contentRootPath,
             },
             configureDefaultLoopbackPorts: false);
-        builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
         builder.Logging.ClearProviders();
-
-        var app = VulperonexWebApplication.Build(builder);
-        await app.StartAsync(TestContext.Current.CancellationToken);
-        return app;
+        return builder;
     }
 
     private static HttpClient CreateClient(WebApplication app)
@@ -130,6 +194,24 @@ public sealed class WebHostSmokeTests
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         return port;
+    }
+
+    private static string ResolveRepoPath(params string[] segments)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(new[] { directory.FullName }.Concat(segments).ToArray());
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException($"Could not find repository file '{Path.Combine(segments)}'.");
     }
 
     private sealed class TestContentRoot : IDisposable

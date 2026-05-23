@@ -532,7 +532,7 @@ public sealed class WorkflowEngineTests
         await using var engine = NewEngine(
             bus,
             [parent, child],
-            [recorder, new InvokeSubWorkflowActionExecutor(lateInvoker, new TemplateResolver())]);
+            [recorder, new InvokeSubWorkflowActionExecutor(() => lateInvoker, new TemplateResolver())]);
         lateInvoker.Inner = engine;
 
         await engine.ExecuteRuleAsync(parent, NewMessageEvent(), TestContext.Current.CancellationToken);
