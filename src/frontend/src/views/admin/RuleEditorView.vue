@@ -16,6 +16,8 @@ import {
   type WorkflowRuleUpsertRequest
 } from "@/api/client";
 
+const MAX_RULE_FILE_BYTES = 1_048_576;
+
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
@@ -48,6 +50,7 @@ const loadingExisting = ref(false);
 const submitError = ref<string | null>(null);
 const submitDetail = ref<string | null>(null);
 const editorRef = ref<{ focus: () => void } | null>(null);
+const ruleFileInputRef = ref<HTMLInputElement | null>(null);
 
 onMounted(async () => {
   if (!isEdit.value) return;
@@ -158,6 +161,98 @@ async function onSubmit(event: Event): Promise<void> {
   }
 }
 
+async function onRuleFileChange(event: Event): Promise<void> {
+  submitError.value = null;
+  submitDetail.value = null;
+
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+
+  try {
+    if (!/\.json$/i.test(file.name)) {
+      throw new Error(t("ruleEditor.fileExtension"));
+    }
+
+    if (file.type && file.type !== "application/json" && file.type !== "text/json") {
+      throw new Error(t("ruleEditor.fileMime"));
+    }
+
+    if (file.size > MAX_RULE_FILE_BYTES) {
+      throw new Error(t("ruleEditor.tooLarge"));
+    }
+
+    const parsed = JSON.parse(await file.text()) as unknown;
+    if (!isObjectRecord(parsed)) {
+      throw new Error("Rule file must be a JSON object");
+    }
+
+    applyImportedRule(parsed);
+  } catch (caught) {
+    submitError.value = "INVALID_JSON";
+    submitDetail.value = caught instanceof Error ? caught.message : String(caught);
+  } finally {
+    if (ruleFileInputRef.value) {
+      ruleFileInputRef.value.value = "";
+    }
+  }
+}
+
+function applyImportedRule(rule: Record<string, unknown>): void {
+  const trigger = isObjectRecord(rule.trigger) ? rule.trigger : null;
+  const importedEventTypeKey = readString(rule.eventTypeKey)
+    ?? (trigger ? readString(trigger.eventTypeKey) : null);
+
+  name.value = readString(rule.name) ?? name.value;
+  eventTypeKey.value = importedEventTypeKey ?? eventTypeKey.value;
+  priority.value = readNumber(rule.priority) ?? priority.value;
+  isEnabled.value = readBoolean(rule.isEnabled) ?? isEnabled.value;
+  isSubWorkflow.value = readBoolean(rule.isSubWorkflow) ?? isSubWorkflow.value;
+  triggerFilter.value = trigger && isStringRecord(trigger.filter) ? trigger.filter : {};
+  matchCondition.value = readString(rule.matchCondition)
+    ?? (trigger ? readString(trigger.matchCondition) : null)
+    ?? "";
+  throttle.value = readThrottle(rule.throttle) ?? throttle.value;
+  timeoutSeconds.value = readNumber(rule.timeoutSeconds) ?? timeoutSeconds.value;
+  conditionsText.value = JSON.stringify(readArray(rule.conditions) ?? [], null, 2);
+  actionsText.value = JSON.stringify(readArray(rule.actions) ?? [], null, 2);
+  onFailureText.value = JSON.stringify(readArray(rule.onFailureSteps) ?? [], null, 2);
+}
+
+function readThrottle(value: unknown): WorkflowThrottlePolicy | null {
+  if (!isObjectRecord(value)) return null;
+  return {
+    maxConcurrent: readNumber(value.maxConcurrent) ?? 0,
+    cooldownSeconds: readNumber(value.cooldownSeconds) ?? 0,
+    perUserCooldown: readBoolean(value.perUserCooldown) ?? false,
+    perUserCooldownSeconds: readNumber(value.perUserCooldownSeconds) ?? 0
+  };
+}
+
+function readArray(value: unknown): unknown[] | null {
+  return Array.isArray(value) ? value : null;
+}
+
+function readBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function isStringRecord(value: unknown): value is Record<string, string> {
+  return isObjectRecord(value)
+    && Object.values(value).every((item) => typeof item === "string");
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function describeError(caught: unknown): string {
   if (caught instanceof ApiError) {
     return caught.errorCode ?? `HTTP_${caught.status}`;
@@ -176,6 +271,20 @@ function describeError(caught: unknown): string {
     </header>
 
     <form class="rule-editor-form" @submit="onSubmit" novalidate>
+      <div class="form-field">
+        <span class="form-label">{{ t("ruleEditor.importRule") }}</span>
+        <label class="rule-editor-file">
+          <input
+            ref="ruleFileInputRef"
+            type="file"
+            accept=".json,application/json,text/json"
+            data-testid="rule-import-file"
+            @change="onRuleFileChange"
+          />
+          {{ t("ruleEditor.importRuleFile") }}
+        </label>
+      </div>
+
       <label class="form-field">
         <span class="form-label">{{ t("ruleEditor.name") }}</span>
         <input

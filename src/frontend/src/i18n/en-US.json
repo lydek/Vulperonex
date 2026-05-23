@@ -57,6 +57,8 @@
   "ruleEditor.steps.type": "type",
   "ruleEditor.conditions": "Conditions (JSON array)",
   "ruleEditor.actions": "Actions (JSON array)",
+  "ruleEditor.importRule": "Full rule import",
+  "ruleEditor.importRuleFile": "Upload full rule JSON (.json, ≤ 1 MB)",
   "ruleEditor.create": "Create",
   "ruleEditor.update": "Update",
   "ruleEditor.submitting": "Submitting…",

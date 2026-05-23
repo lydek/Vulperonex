@@ -57,6 +57,8 @@
   "ruleEditor.steps.type": "類型",
   "ruleEditor.conditions": "Conditions（JSON 陣列）",
   "ruleEditor.actions": "Actions（JSON 陣列）",
+  "ruleEditor.importRule": "完整 rule 匯入",
+  "ruleEditor.importRuleFile": "上傳完整 rule JSON（.json，≤ 1 MB）",
   "ruleEditor.create": "建立",
   "ruleEditor.update": "更新",
   "ruleEditor.submitting": "送出中…",
