@@ -32,10 +32,10 @@
 
 ## Task 39 - JSON Fallback Demotion and Import/Export
 
-- [ ] Task 39a：`RuleJsonEditor` 降為 advanced fallback，而不是主編輯路徑。
-- [ ] Task 39b：補 form -> JSON export round-trip。
-- [ ] Task 39c：補 JSON import -> form hydration，並標示 unsupported/fallback 區塊。
-- [ ] Task 39d：維持 1MB guard、parse error、focus/refocus、oversized paste 防護。
+- [x] Task 39a：`RuleJsonEditor` 降為 advanced fallback，而不是主編輯路徑。
+- [x] Task 39b：補 form -> JSON export round-trip。
+- [x] Task 39c：補 JSON import -> form hydration，並標示 unsupported/fallback 區塊。
+- [x] Task 39d：維持 1MB guard、parse error、focus/refocus、oversized paste 防護。
 
 ## Task 40 - Omni Parity Review and Manual Verification
 

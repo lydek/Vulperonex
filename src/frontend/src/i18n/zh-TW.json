@@ -59,6 +59,8 @@
   "ruleEditor.actions": "Actions（JSON 陣列）",
   "ruleEditor.importRule": "完整 rule 匯入",
   "ruleEditor.importRuleFile": "上傳完整 rule JSON（.json，≤ 1 MB）",
+  "ruleEditor.exportRule": "下載目前 rule 為 JSON",
+  "ruleEditor.unsupportedFields": "匯入的 rule 含未在表單編輯的欄位，請於相關區段的進階 JSON 檢視：{fields}",
   "ruleEditor.create": "建立",
   "ruleEditor.update": "更新",
   "ruleEditor.submitting": "送出中…",

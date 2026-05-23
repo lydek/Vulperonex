@@ -59,6 +59,8 @@
   "ruleEditor.actions": "Actions (JSON array)",
   "ruleEditor.importRule": "Full rule import",
   "ruleEditor.importRuleFile": "Upload full rule JSON (.json, ≤ 1 MB)",
+  "ruleEditor.exportRule": "Download current rule as JSON",
+  "ruleEditor.unsupportedFields": "Imported rule contains fields not editable in the form. Use Advanced JSON in the relevant section to inspect them: {fields}",
   "ruleEditor.create": "Create",
   "ruleEditor.update": "Update",
   "ruleEditor.submitting": "Submitting…",

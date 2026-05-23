@@ -55,6 +55,30 @@ const savedSnapshot = ref("");
 const allowRouteLeave = ref(false);
 const pendingRoute = ref<RouteLocationRaw | null>(null);
 const showLeaveConfirm = ref(false);
+const unsupportedFields = ref<string[]>([]);
+
+const KNOWN_RULE_KEYS = new Set([
+  "id",
+  "name",
+  "eventTypeKey",
+  "priority",
+  "isEnabled",
+  "isSubWorkflow",
+  "matchCondition",
+  "trigger",
+  "throttle",
+  "timeoutSeconds",
+  "conditions",
+  "actions",
+  "onFailureSteps",
+  "executionMode",
+  "maxParallelism",
+  "version",
+  "rowVersion",
+  "createdAt",
+  "updatedAt"
+]);
+const KNOWN_TRIGGER_KEYS = new Set(["eventTypeKey", "filter", "matchCondition"]);
 
 const currentSnapshot = computed(() => JSON.stringify({
   name: name.value,
@@ -248,6 +272,71 @@ async function onSubmit(event: Event): Promise<void> {
   }
 }
 
+function buildExportPayload(): string | null {
+  submitError.value = null;
+  submitDetail.value = null;
+
+  let conditions: unknown[];
+  let actions: unknown[];
+  let onFailureSteps: unknown[];
+  try {
+    conditions = JSON.parse(conditionsText.value) as unknown[];
+    actions = JSON.parse(actionsText.value) as unknown[];
+    onFailureSteps = JSON.parse(onFailureText.value) as unknown[];
+  } catch (parseError) {
+    submitError.value = "INVALID_JSON";
+    submitDetail.value = parseError instanceof Error ? parseError.message : String(parseError);
+    return null;
+  }
+
+  const trimmedMatchCondition = matchCondition.value.trim();
+  const exportPayload = {
+    name: name.value.trim(),
+    eventTypeKey: eventTypeKey.value,
+    isEnabled: isEnabled.value,
+    priority: priority.value,
+    conditions,
+    actions,
+    onFailureSteps,
+    executionMode: "Serial",
+    maxParallelism: 1,
+    throttle: throttle.value,
+    timeoutSeconds: timeoutSeconds.value,
+    trigger: {
+      eventTypeKey: eventTypeKey.value,
+      filter: triggerFilter.value,
+      matchCondition: trimmedMatchCondition.length > 0 ? trimmedMatchCondition : null
+    },
+    matchCondition: trimmedMatchCondition.length > 0 ? trimmedMatchCondition : null,
+    isSubWorkflow: isSubWorkflow.value
+  };
+
+  return JSON.stringify(exportPayload, null, 2);
+}
+
+function exportRule(): void {
+  const serialized = buildExportPayload();
+  if (serialized === null) {
+    return;
+  }
+
+  const blob = new Blob([serialized], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `${sanitizeFilename(name.value.trim() || "rule")}.json`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+defineExpose({ buildExportPayload });
+
+function sanitizeFilename(value: string): string {
+  return value.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(0, 64) || "rule";
+}
+
 async function onRuleFileChange(event: Event): Promise<void> {
   submitError.value = null;
   submitDetail.value = null;
@@ -303,6 +392,28 @@ function applyImportedRule(rule: Record<string, unknown>): void {
   conditionsText.value = JSON.stringify(readArray(rule.conditions) ?? [], null, 2);
   actionsText.value = JSON.stringify(readArray(rule.actions) ?? [], null, 2);
   onFailureText.value = JSON.stringify(readArray(rule.onFailureSteps) ?? [], null, 2);
+
+  unsupportedFields.value = collectUnsupportedKeys(rule, trigger);
+}
+
+function collectUnsupportedKeys(
+  rule: Record<string, unknown>,
+  trigger: Record<string, unknown> | null
+): string[] {
+  const unknown: string[] = [];
+  for (const key of Object.keys(rule)) {
+    if (!KNOWN_RULE_KEYS.has(key)) {
+      unknown.push(key);
+    }
+  }
+  if (trigger) {
+    for (const key of Object.keys(trigger)) {
+      if (!KNOWN_TRIGGER_KEYS.has(key)) {
+        unknown.push(`trigger.${key}`);
+      }
+    }
+  }
+  return unknown.sort((a, b) => a.localeCompare(b));
 }
 
 function readThrottle(value: unknown): WorkflowThrottlePolicy | null {
@@ -360,16 +471,34 @@ function describeError(caught: unknown): string {
     <form class="rule-editor-form" @submit="onSubmit" novalidate>
       <div class="form-field">
         <span class="form-label">{{ t("ruleEditor.importRule") }}</span>
-        <label class="rule-editor-file">
-          <input
-            ref="ruleFileInputRef"
-            type="file"
-            accept=".json,application/json,text/json"
-            data-testid="rule-import-file"
-            @change="onRuleFileChange"
-          />
-          {{ t("ruleEditor.importRuleFile") }}
-        </label>
+        <div class="rule-editor-import-row">
+          <label class="rule-editor-file">
+            <input
+              ref="ruleFileInputRef"
+              type="file"
+              accept=".json,application/json,text/json"
+              data-testid="rule-import-file"
+              @change="onRuleFileChange"
+            />
+            {{ t("ruleEditor.importRuleFile") }}
+          </label>
+          <button
+            type="button"
+            class="secondary-button"
+            data-testid="rule-export"
+            @click="exportRule"
+          >
+            {{ t("ruleEditor.exportRule") }}
+          </button>
+        </div>
+        <p
+          v-if="unsupportedFields.length > 0"
+          class="rule-editor-unsupported"
+          role="status"
+          data-testid="rule-editor-unsupported"
+        >
+          {{ t("ruleEditor.unsupportedFields", { fields: unsupportedFields.join(", ") }) }}
+        </p>
       </div>
 
       <label class="form-field">
@@ -489,6 +618,23 @@ function describeError(caught: unknown): string {
 </template>
 
 <style scoped>
+.rule-editor-import-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.rule-editor-unsupported {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border: 1px solid #fcd9b6;
+  background: #fff7ed;
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
 .rule-editor-actions {
   position: sticky;
   bottom: 0;
