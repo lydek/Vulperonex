@@ -7,7 +7,8 @@ import RuleEditorView from "./RuleEditorView.vue";
 
 vi.mock("vue-router", () => ({
   useRoute: () => ({ params: {} }),
-  useRouter: () => ({ push: vi.fn() })
+  useRouter: () => ({ push: vi.fn() }),
+  onBeforeRouteLeave: vi.fn()
 }));
 
 function buildI18n() {
@@ -34,18 +35,22 @@ function mountView() {
           props: ["modelValue"],
           template: '<div data-testid="throttle-editor">{{ JSON.stringify(modelValue) }}</div>'
         },
-        RuleJsonEditor: {
+        WorkflowConditionsEditor: {
           props: ["modelValue"],
           emits: ["update:modelValue"],
           template:
-            '<textarea data-testid="rule-json-editor" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+            '<textarea data-testid="workflow-conditions-editor" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
         },
-        StepConditionInput: true,
-        OnFailureEditor: {
+        WorkflowActionsEditor: {
           props: ["modelValue"],
           emits: ["update:modelValue"],
           template:
-            '<textarea data-testid="on-failure-editor" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+            '<textarea data-testid="workflow-actions-editor" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
+        },
+        ConfirmDialog: {
+          props: ["open", "title", "message", "confirmLabel", "cancelLabel"],
+          emits: ["confirm", "cancel"],
+          template: '<div v-if="open" data-testid="unsaved-confirm">{{ title }} {{ message }}</div>'
         }
       }
     }
@@ -98,13 +103,22 @@ describe("RuleEditorView", () => {
     expect((wrapper.find('[data-testid="rule-editor-timeout"]').element as HTMLInputElement).value)
       .toBe("20");
     expect(wrapper.find('[data-testid="throttle-editor"]').text()).toContain("\"cooldownSeconds\":10");
-    expect(wrapper.findAll('[data-testid="rule-json-editor"]')[1].element).toHaveProperty(
+    expect(wrapper.findAll('[data-testid="workflow-actions-editor"]')[0].element).toHaveProperty(
       "value",
       JSON.stringify([{ type: "sendChatMessage", template: "hello" }], null, 2)
     );
-    expect(wrapper.find('[data-testid="on-failure-editor"]').element).toHaveProperty(
+    expect(wrapper.findAll('[data-testid="workflow-actions-editor"]')[1].element).toHaveProperty(
       "value",
       JSON.stringify([{ type: "sendChatMessage", template: "failed" }], null, 2)
     );
+  });
+
+  it("should show unsaved confirmation before leaving edited content", async () => {
+    const wrapper = mountView();
+
+    await wrapper.find('[data-testid="rule-editor-name"]').setValue("Dirty rule");
+    await wrapper.find("button.secondary-button").trigger("click");
+
+    expect(wrapper.find('[data-testid="unsaved-confirm"]').exists()).toBe(true);
   });
 });

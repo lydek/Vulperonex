@@ -29,6 +29,16 @@ textarea {
   border-right: 1px solid #d6dde5;
   background: #ffffff;
   padding: 16px;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow: auto;
+}
+
+.app-sidebar__inner {
+  display: grid;
+  gap: 12px;
 }
 
 .brand-block {

@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 import { useI18n } from "vue-i18n";
-import OnFailureEditor from "@/components/admin/OnFailureEditor.vue";
-import RuleJsonEditor from "@/components/admin/RuleJsonEditor.vue";
-import StepConditionInput from "@/components/admin/StepConditionInput.vue";
+import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import ThrottleEditor from "@/components/admin/ThrottleEditor.vue";
 import TriggerEditor from "@/components/admin/TriggerEditor.vue";
+import WorkflowActionsEditor from "@/components/admin/WorkflowActionsEditor.vue";
+import WorkflowConditionsEditor from "@/components/admin/WorkflowConditionsEditor.vue";
 import {
   ApiError,
   createRule,
@@ -20,7 +20,7 @@ const MAX_RULE_FILE_BYTES = 1_048_576;
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
+const { t, te } = useI18n();
 
 const ruleId = computed(() => {
   const param = route.params.id;
@@ -51,10 +51,37 @@ const submitError = ref<string | null>(null);
 const submitDetail = ref<string | null>(null);
 const editorRef = ref<{ focus: () => void } | null>(null);
 const ruleFileInputRef = ref<HTMLInputElement | null>(null);
+const savedSnapshot = ref("");
+const allowRouteLeave = ref(false);
+const pendingRoute = ref<RouteLocationRaw | null>(null);
+const showLeaveConfirm = ref(false);
+
+const currentSnapshot = computed(() => JSON.stringify({
+  name: name.value,
+  eventTypeKey: eventTypeKey.value,
+  priority: priority.value,
+  isEnabled: isEnabled.value,
+  isSubWorkflow: isSubWorkflow.value,
+  matchCondition: matchCondition.value,
+  triggerFilter: triggerFilter.value,
+  throttle: throttle.value,
+  timeoutSeconds: timeoutSeconds.value,
+  conditionsText: conditionsText.value,
+  actionsText: actionsText.value,
+  onFailureText: onFailureText.value
+}));
+
+const isDirty = computed(() => currentSnapshot.value !== savedSnapshot.value);
 
 onMounted(async () => {
+  savedSnapshot.value = currentSnapshot.value;
+  window.addEventListener("beforeunload", onBeforeUnload);
   if (!isEdit.value) return;
   await loadExisting();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", onBeforeUnload);
 });
 
 watch(ruleId, async () => {
@@ -62,6 +89,59 @@ watch(ruleId, async () => {
     await loadExisting();
   }
 });
+
+onBeforeRouteLeave((to) => {
+  if (allowRouteLeave.value || !isDirty.value) {
+    return true;
+  }
+
+  pendingRoute.value = to;
+  showLeaveConfirm.value = true;
+  return false;
+});
+
+function onBeforeUnload(event: BeforeUnloadEvent): void {
+  if (!isDirty.value || allowRouteLeave.value) {
+    return;
+  }
+
+  event.preventDefault();
+  event.returnValue = "";
+}
+
+function markSaved(): void {
+  savedSnapshot.value = currentSnapshot.value;
+}
+
+function fallbackLabel(key: string, text: string): string {
+  return te(key) ? t(key) : text;
+}
+
+function requestLeave(target: RouteLocationRaw): void {
+  if (!isDirty.value) {
+    allowRouteLeave.value = true;
+    void router.push(target);
+    return;
+  }
+
+  pendingRoute.value = target;
+  showLeaveConfirm.value = true;
+}
+
+function cancelLeave(): void {
+  pendingRoute.value = null;
+  showLeaveConfirm.value = false;
+}
+
+async function confirmLeave(): Promise<void> {
+  const target = pendingRoute.value;
+  pendingRoute.value = null;
+  showLeaveConfirm.value = false;
+  allowRouteLeave.value = true;
+  if (target) {
+    await router.push(target);
+  }
+}
 
 async function loadExisting(): Promise<void> {
   if (!ruleId.value) return;
@@ -81,6 +161,7 @@ async function loadExisting(): Promise<void> {
     conditionsText.value = JSON.stringify(rule.conditions, null, 2);
     actionsText.value = JSON.stringify(rule.actions, null, 2);
     onFailureText.value = JSON.stringify(rule.onFailureSteps, null, 2);
+    markSaved();
   } catch (caught) {
     submitError.value = describeError(caught);
   } finally {
@@ -141,17 +222,23 @@ async function onSubmit(event: Event): Promise<void> {
       await updateRule(ruleId.value, body);
     } else {
       const created = await createRule(body);
+      allowRouteLeave.value = true;
+      markSaved();
       await router.push({ name: "rules" });
       // ensure detail visible after navigation by selecting it
       void created;
       return;
     }
+    allowRouteLeave.value = true;
+    markSaved();
     await router.push({ name: "rules" });
   } catch (caught) {
     if (caught instanceof ApiError) {
+      allowRouteLeave.value = false;
       submitError.value = caught.errorCode ?? `HTTP_${caught.status}`;
       submitDetail.value = caught.body || null;
     } else {
+      allowRouteLeave.value = false;
       submitError.value = "NETWORK_ERROR";
       submitDetail.value = caught instanceof Error ? caught.message : String(caught);
     }
@@ -337,25 +424,27 @@ function describeError(caught: unknown): string {
 
       <ThrottleEditor v-model="throttle" />
 
-      <div class="form-field">
-        <span class="form-label">{{ t("ruleEditor.conditions") }}</span>
-        <RuleJsonEditor
-          v-model="conditionsText"
-          :aria-label="t('ruleEditor.conditions')"
-        />
-      </div>
+      <WorkflowConditionsEditor
+        v-model="conditionsText"
+        :title="t('ruleEditor.conditions')"
+        empty-text="No conditions yet. Add one to gate this workflow without editing raw JSON."
+        test-id-prefix="workflow-conditions"
+      />
 
-      <div class="form-field">
-        <span class="form-label">{{ t("ruleEditor.actions") }}</span>
-        <RuleJsonEditor
-          ref="editorRef"
-          v-model="actionsText"
-          :aria-label="t('ruleEditor.actions')"
-        />
-      </div>
+      <WorkflowActionsEditor
+        ref="editorRef"
+        v-model="actionsText"
+        :title="t('ruleEditor.actions')"
+        empty-text="No actions yet. Add a step to build the workflow visually."
+        test-id-prefix="workflow-actions"
+      />
 
-      <StepConditionInput v-model="actionsText" />
-      <OnFailureEditor v-model="onFailureText" />
+      <WorkflowActionsEditor
+        v-model="onFailureText"
+        :title="t('ruleEditor.onFailure')"
+        empty-text="No failure recovery steps yet. Add fallback actions to run after an error."
+        test-id-prefix="workflow-on-failure"
+      />
 
       <p
         v-if="submitError"
@@ -372,7 +461,7 @@ function describeError(caught: unknown): string {
           type="button"
           class="secondary-button"
           :disabled="submitting"
-          @click="router.push({ name: 'rules' })"
+          @click="requestLeave({ name: 'rules' })"
         >
           {{ t("common.cancel") }}
         </button>
@@ -386,5 +475,28 @@ function describeError(caught: unknown): string {
         </button>
       </div>
     </form>
+
+    <ConfirmDialog
+      :open="showLeaveConfirm"
+      :title="fallbackLabel('ruleEditor.unsavedTitle', 'Unsaved changes')"
+      :message="fallbackLabel('ruleEditor.unsavedMessage', 'You have unsaved changes. Discard them and leave this page?')"
+      :confirm-label="fallbackLabel('ruleEditor.unsavedConfirm', 'Discard and leave')"
+      :cancel-label="t('common.cancel')"
+      @confirm="confirmLeave"
+      @cancel="cancelLeave"
+    />
   </section>
 </template>
+
+<style scoped>
+.rule-editor-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  padding: 14px 16px;
+  margin: 8px -16px -16px;
+  border-top: 1px solid #d6dde5;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+}
+</style>
