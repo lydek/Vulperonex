@@ -141,12 +141,17 @@ public static class DependencyInjection
         }
         services.AddScoped<WorkflowEngine>();
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
+        // DatabaseMigrationStartupService must run first. Hosted services
+        // start in registration order, and several downstream workers
+        // (ChatOutboxDispatcher, WorkflowTimer, etc.) read SystemSettings via
+        // EF as soon as their ExecuteAsync runs. If the migration is queued
+        // later, those reads hit a database that has no schema yet.
+        services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddHostedService<SimulationAdapterStartupService>();
         services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<OverlayEventForwarder>();
         services.AddHostedService<ChatOutboxDispatcher>();
         services.AddHostedService<WorkflowTimerHostedService>();
-        services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddSingleton<AppLogsSink>(provider =>
             new AppLogsSink(provider.GetRequiredService<IServiceScopeFactory>()));
         services.AddHostedService<AppLogsCleanupWorker>();

@@ -1,3 +1,4 @@
+using System.Reactive.Subjects;
 using System.Threading.Channels;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Settings;
@@ -15,10 +16,13 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
     private readonly Task _dispatchTask;
     private readonly object _gate = new();
     private readonly List<Subscription> _subscriptions = [];
+    private readonly Subject<IStreamEvent> _subject = new();
     private TaskCompletionSource? _idleCompletion;
     private int _pendingDispatchCount;
 
     public int Capacity { get; }
+
+    public IObservable<IStreamEvent> Events => _subject;
 
     public InMemoryStreamEventBus()
         : this(DefaultCapacity)
@@ -127,6 +131,8 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
         {
         }
 
+        _subject.OnCompleted();
+        _subject.Dispose();
         _disposeTokenSource.Dispose();
     }
 
@@ -145,6 +151,17 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
                     catch
                     {
                     }
+                }
+
+                try
+                {
+                    _subject.OnNext(streamEvent);
+                }
+                catch
+                {
+                    // Rx subscribers manage their own error policy; an
+                    // OnNext throw must not break the dispatch loop or
+                    // starve the legacy Subscribe<TEvent> handlers.
                 }
             }
             finally

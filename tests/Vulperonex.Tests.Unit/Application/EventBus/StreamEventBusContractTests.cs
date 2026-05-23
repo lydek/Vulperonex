@@ -15,7 +15,7 @@ public sealed class StreamEventBusContractTests
             .Select(method => method.Name)
             .ToArray();
 
-        methodNames.Should().BeEquivalentTo("PublishAsync", "Subscribe", "WaitForIdleAsync");
+        methodNames.Should().BeEquivalentTo("PublishAsync", "Subscribe", "WaitForIdleAsync", "get_Events");
     }
 
     [Fact]

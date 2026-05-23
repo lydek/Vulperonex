@@ -362,6 +362,8 @@ public sealed class ExecutorExpansionTests
     {
         public List<IStreamEvent> Published { get; } = [];
 
+        public IObservable<IStreamEvent> Events { get; } = new System.Reactive.Subjects.Subject<IStreamEvent>();
+
         public Task PublishAsync(IStreamEvent streamEvent, CancellationToken cancellationToken = default)
         {
             Published.Add(streamEvent);
