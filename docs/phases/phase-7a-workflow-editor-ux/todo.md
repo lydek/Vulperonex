@@ -17,7 +17,7 @@
 - [x] Task 37a：建立 condition metadata registry（`type`、label、summary、field schema）。
 - [x] Task 37b：Conditions 頁以 visual builder 取代主要 JSON 編輯路徑。
 - [x] Task 37c：建立 action metadata registry（`type`、label、summary、field schema、outputVariables）。
-- [ ] Task 37d：建立共用 step list shell，支援新增、刪除、上下移動、展開/收合。
+- [x] Task 37d：建立共用 step list shell，支援新增、刪除、上下移動、展開/收合。
 - [x] Task 37e：Actions 頁以 step builder 取代主要 JSON 編輯路徑。
 - [x] Task 37f：OnFailure 頁以相同 step builder shell 實作，但資料源獨立。
 - [x] Task 37g：unknown action/condition type 顯示 fallback 卡片，可切 raw JSON 維護。

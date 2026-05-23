@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConditionExpressionInput from "@/components/admin/ConditionExpressionInput.vue";
-import RuleJsonEditor from "@/components/admin/RuleJsonEditor.vue";
+import StepListShell from "@/components/admin/StepListShell.vue";
 import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
 import {
   actionDefinitions,
@@ -31,6 +31,7 @@ const props = defineProps<{
   title: string;
   emptyText: string;
   testIdPrefix?: string;
+  notice?: string;
 }>();
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
@@ -203,59 +204,54 @@ function previousStepsFor(index: number): JsonRecord[] {
 </script>
 
 <template>
-  <section class="status-card workflow-builder" :aria-labelledby="`${prefix}-title`">
-    <div class="workflow-builder__header">
-      <h2 :id="`${prefix}-title`" class="section-title">{{ title }}</h2>
-      <button type="button" class="secondary-button" :data-testid="`${prefix}-add`" @click="addItem">
-        {{ fallbackLabel("common.add", "Add") }}
-      </button>
-    </div>
+  <StepListShell
+    :items="items"
+    :title="title"
+    :empty-text="emptyText"
+    :prefix="prefix"
+    :model-value="modelValue"
+    :aria-label="title"
+    @add="addItem"
+    @remove="removeItem"
+    @move="moveItem"
+    @update:model-value="emit('update:modelValue', $event)"
+  >
+    <template v-if="notice" #notice>
+      <p class="workflow-builder__notice" role="note">{{ notice }}</p>
+    </template>
 
-    <p v-if="items.length === 0" class="workflow-builder__empty" role="status">{{ emptyText }}</p>
+    <template #identity="{ item, index }">
+      <label class="form-field">
+        <span class="form-label">{{ fallbackLabel("ruleEditor.steps.type", "Type") }}</span>
+        <select
+          :data-testid="`${prefix}-type-${index}`"
+          :value="asString(item.type)"
+          @change="onTypeChange(index, ($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="definition in actionDefinitions" :key="definition.type" :value="definition.type">
+            {{ definition.label }}
+          </option>
+          <option
+            v-if="!definitionFor(item) && asString(item.type).length > 0"
+            :value="asString(item.type)"
+          >
+            {{ asString(item.type) }}
+          </option>
+        </select>
+      </label>
+      <p class="workflow-builder__summary">
+        {{
+          definitionFor(item)?.description
+            ?? fallbackLabel(
+              "ruleEditor.builder.unknownAction",
+              "Unknown action type. Use advanced JSON fallback to edit unsupported fields."
+            )
+        }}
+      </p>
+    </template>
 
-    <div v-for="(item, index) in items" :key="`${prefix}-${index}`" class="workflow-builder__card">
-      <div class="workflow-builder__card-header">
-        <div class="workflow-builder__identity">
-          <span class="workflow-builder__badge">{{ index + 1 }}</span>
-          <div>
-            <label class="form-field">
-              <span class="form-label">{{ fallbackLabel("ruleEditor.steps.type", "Type") }}</span>
-              <select
-                :data-testid="`${prefix}-type-${index}`"
-                :value="asString(item.type)"
-                @change="onTypeChange(index, ($event.target as HTMLSelectElement).value)"
-              >
-                <option v-for="definition in actionDefinitions" :key="definition.type" :value="definition.type">
-                  {{ definition.label }}
-                </option>
-                <option
-                  v-if="!definitionFor(item) && asString(item.type).length > 0"
-                  :value="asString(item.type)"
-                >
-                  {{ asString(item.type) }}
-                </option>
-              </select>
-            </label>
-            <p class="workflow-builder__summary">
-              {{ definitionFor(item)?.description ?? fallbackLabel("ruleEditor.builder.unknownAction", "Unknown action type. Use advanced JSON fallback to edit unsupported fields.") }}
-            </p>
-          </div>
-        </div>
-
-        <div class="workflow-builder__controls">
-          <button type="button" class="icon-button" :disabled="index === 0" @click="moveItem(index, -1)">
-            Up
-          </button>
-          <button type="button" class="icon-button" :disabled="index === items.length - 1" @click="moveItem(index, 1)">
-            Down
-          </button>
-          <button type="button" class="icon-button" @click="removeItem(index)">
-            {{ fallbackLabel("common.remove", "Remove") }}
-          </button>
-        </div>
-      </div>
-
-      <div class="workflow-builder__grid" v-if="definitionFor(item)">
+    <template #body="{ item, index }">
+      <div v-if="definitionFor(item)" class="workflow-builder__grid">
         <template v-for="field in definitionFor(item)?.fields" :key="field.key">
           <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
             <span class="form-label">{{ field.label }}</span>
@@ -348,73 +344,32 @@ function previousStepsFor(index: number): JsonRecord[] {
       </div>
 
       <div v-else class="workflow-builder__unknown">
-        {{ fallbackLabel("ruleEditor.builder.unknownAction", "Unknown action type. Use advanced JSON fallback to edit unsupported fields.") }}
+        {{
+          fallbackLabel(
+            "ruleEditor.builder.unknownAction",
+            "Unknown action type. Use advanced JSON fallback to edit unsupported fields."
+          )
+        }}
       </div>
-    </div>
-
-    <details class="workflow-builder__advanced">
-      <summary>{{ fallbackLabel("ruleEditor.builder.advancedJson", "Advanced JSON") }}</summary>
-      <RuleJsonEditor :model-value="modelValue" :aria-label="title" @update:model-value="emit('update:modelValue', $event)" />
-    </details>
-  </section>
+    </template>
+  </StepListShell>
 </template>
 
 <style scoped>
-.workflow-builder {
-  display: grid;
-  gap: 12px;
-}
-
-.workflow-builder__header,
-.workflow-builder__card-header,
-.workflow-builder__controls,
-.workflow-builder__identity {
-  display: flex;
-  gap: 12px;
-}
-
-.workflow-builder__header,
-.workflow-builder__card-header {
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.workflow-builder__identity {
-  align-items: flex-start;
-  flex: 1;
-  min-width: 0;
-}
-
-.workflow-builder__controls {
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.workflow-builder__badge {
-  display: inline-grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: #e7f1ef;
-  color: #164f48;
-  font-weight: 700;
-}
-
 .workflow-builder__summary,
-.workflow-builder__empty,
-.workflow-builder__unknown {
+.workflow-builder__unknown,
+.workflow-builder__notice {
   margin: 4px 0 0;
   color: #5f6f80;
   font-size: 13px;
 }
 
-.workflow-builder__card {
-  border: 1px solid #d6dde5;
-  border-radius: 10px;
-  padding: 14px;
-  display: grid;
-  gap: 12px;
+.workflow-builder__notice {
+  padding: 8px 12px;
+  background: #fff7ed;
+  border: 1px solid #fcd9b6;
+  border-radius: 6px;
+  color: #92400e;
 }
 
 .workflow-builder__grid {
@@ -439,13 +394,6 @@ function previousStepsFor(index: number): JsonRecord[] {
   min-width: 0;
 }
 
-.workflow-builder__advanced summary {
-  cursor: pointer;
-  font-weight: 600;
-  color: #394756;
-  margin-bottom: 8px;
-}
-
 textarea {
   border: 1px solid #d6dde5;
   border-radius: 6px;
@@ -454,16 +402,6 @@ textarea {
 }
 
 @media (max-width: 720px) {
-  .workflow-builder__header,
-  .workflow-builder__card-header,
-  .workflow-builder__identity {
-    flex-direction: column;
-  }
-
-  .workflow-builder__controls {
-    justify-content: flex-end;
-  }
-
   .workflow-builder__meta {
     grid-template-columns: 1fr;
   }

@@ -16,24 +16,29 @@ function buildI18n() {
 }
 
 describe("OnFailureEditor", () => {
-  it("should forward JSON editor updates", async () => {
+  it("should add steps via the shared action builder", async () => {
     const wrapper = mount(OnFailureEditor, {
       props: { modelValue: "[]" },
-      global: {
-        plugins: [buildI18n()],
-        stubs: {
-          RuleJsonEditor: {
-            props: ["modelValue"],
-            emits: ["update:modelValue"],
-            template:
-              '<textarea data-testid="on-failure-json" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />'
-          }
-        }
-      }
+      global: { plugins: [buildI18n()] }
     });
 
-    await wrapper.find('[data-testid="on-failure-json"]').setValue('[{"type":"noop"}]');
+    await wrapper.find('[data-testid="on-failure-actions-add"]').trigger("click");
 
-    expect(wrapper.emitted("update:modelValue")?.[0]).toEqual(['[{"type":"noop"}]']);
+    const emitted = wrapper.emitted("update:modelValue");
+    expect(emitted).toBeTruthy();
+    const last = emitted?.at(-1)?.[0];
+    expect(typeof last).toBe("string");
+    expect(JSON.parse(last as string)).toEqual([
+      expect.objectContaining({ type: expect.any(String) })
+    ]);
+  });
+
+  it("should expose the nested-onFailure notice", () => {
+    const wrapper = mount(OnFailureEditor, {
+      props: { modelValue: "[]" },
+      global: { plugins: [buildI18n()] }
+    });
+
+    expect(wrapper.text()).toContain("nested");
   });
 });
