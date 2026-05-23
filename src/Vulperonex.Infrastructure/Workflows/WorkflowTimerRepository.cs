@@ -11,11 +11,13 @@ public sealed class WorkflowTimerRepository(VulperonexDbContext context) : IWork
     {
         var entities = await context.WorkflowTimers
             .AsNoTracking()
-            .OrderBy(timer => timer.NextFireAt)
-            .ThenBy(timer => timer.Id)
             .ToListAsync(cancellationToken);
 
-        return entities.Select(ToDomain).ToArray();
+        return entities
+            .OrderBy(timer => timer.NextFireAt)
+            .ThenBy(timer => timer.Id)
+            .Select(ToDomain)
+            .ToArray();
     }
 
     public async Task<WorkflowTimer?> GetAsync(string id, CancellationToken cancellationToken = default)

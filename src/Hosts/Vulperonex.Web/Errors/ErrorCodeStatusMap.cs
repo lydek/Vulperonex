@@ -5,6 +5,7 @@ public static class ErrorCodeStatusMap
     private static readonly IReadOnlyDictionary<string, int> StatusByCode = new Dictionary<string, int>
     {
         [ErrorCodes.WorkflowRuleNotFound] = StatusCodes.Status404NotFound,
+        [ErrorCodes.WorkflowTimerNotFound] = StatusCodes.Status404NotFound,
         [ErrorCodes.WorkflowRuleIdNotAllowed] = StatusCodes.Status400BadRequest,
         [ErrorCodes.WorkflowRuleConflict] = StatusCodes.Status409Conflict,
         [ErrorCodes.UnknownEventTypeKey] = StatusCodes.Status400BadRequest,

@@ -9,6 +9,7 @@ public sealed class ErrorCodeStatusMapTests
 {
     [Theory]
     [InlineData(ErrorCodes.WorkflowRuleNotFound, StatusCodes.Status404NotFound)]
+    [InlineData(ErrorCodes.WorkflowTimerNotFound, StatusCodes.Status404NotFound)]
     [InlineData(ErrorCodes.UnknownEventTypeKey, StatusCodes.Status400BadRequest)]
     [InlineData(ErrorCodes.ConfigKeySecurityNamespace, StatusCodes.Status403Forbidden)]
     [InlineData(ErrorCodes.OAuthCredentialNamespace, StatusCodes.Status403Forbidden)]

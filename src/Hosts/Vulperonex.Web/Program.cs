@@ -56,6 +56,7 @@ public static partial class VulperonexWebApplication
         app.MapOpenApi("/openapi/v1.json");
         app.MapHealthEndpoints();
         app.MapWorkflowRuleEndpoints();
+        app.MapWorkflowTimerEndpoints();
         app.MapEventTypeEndpoints();
         app.MapConfigEndpoints();
         app.MapMemberEndpoints();

@@ -292,6 +292,57 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_WorkflowTimerEndpoints_When_TimerIsCreatedUpdatedListedAndDeleted_Then_CrudUsesExpectedHttpSemantics()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var nextFireAt = new DateTimeOffset(2026, 5, 23, 0, 0, 30, TimeSpan.Zero);
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/timers",
+            new
+            {
+                ruleId = "rule-1",
+                intervalSeconds = 30,
+                isEnabled = true,
+                nextFireAt,
+            },
+            TestContext.Current.CancellationToken);
+
+        var createBody = await createResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Created, "response body was {0}", createBody);
+        createResponse.Headers.Location?.ToString().Should().StartWith("/api/timers/");
+        using var created = JsonDocument.Parse(createBody);
+        created.RootElement.GetProperty("ruleId").GetString().Should().Be("rule-1");
+
+        var location = createResponse.Headers.Location!.ToString();
+        var updateResponse = await client.PutAsJsonAsync(
+            location,
+            new
+            {
+                ruleId = "rule-2",
+                intervalSeconds = 60,
+                isEnabled = false,
+                nextFireAt = nextFireAt.AddSeconds(60),
+            },
+            TestContext.Current.CancellationToken);
+        var updateBody = await updateResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        updateResponse.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", updateBody);
+        updateBody.Should().Contain("rule-2");
+
+        var listResponse = await client.GetAsync("/api/timers", TestContext.Current.CancellationToken);
+        var listBody = await listResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        listResponse.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", listBody);
+        listBody.Should().Contain("rule-2");
+
+        var deleteResponse = await client.DeleteAsync(location, TestContext.Current.CancellationToken);
+        deleteResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var getDeletedResponse = await client.GetAsync(location, TestContext.Current.CancellationToken);
+        getDeletedResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Given_WorkflowRuleCreate_When_ClientProvidesId_Then_StableErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();
