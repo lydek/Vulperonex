@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Reactive.Linq;
+using System.Reactive.Threading.Tasks;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Time;
@@ -348,60 +350,42 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
                 return WorkflowPipelineResult.Success;
             }
 
-            var maxAttempts = action.ErrorBehavior is ErrorBehavior.RetryOnError
-                ? action.MaxRetries + 1
-                : 1;
-
-            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            var actionContext = new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId, expressionContext, phase);
+            ActionExecutionResult result;
+            try
             {
-                try
-                {
-                    var result = await ExecuteActionOnceAsync(
-                        action,
-                        new ActionExecutionContext(streamEvent, rule, actionIndex, invocationId, expressionContext, phase),
-                        cancellationToken);
-                    if (result.IsSkipped)
-                    {
-                        await _executionStore.MarkSkippedAsync(key, CancellationToken.None);
-                        return WorkflowPipelineResult.Success;
-                    }
-
-                    CaptureOutput(action, result, stepOutputs);
-                    await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
-                    return WorkflowPipelineResult.Success;
-                }
-                catch (WorkflowGracefulStopException)
-                {
-                    await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
-                    return WorkflowPipelineResult.GracefulStop;
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    await _executionStore.MarkAbandonedAsync(key, CancellationToken.None);
-                    throw;
-                }
-                catch when (action.ErrorBehavior is ErrorBehavior.RetryOnError && attempt < maxAttempts)
-                {
-                    if (action.BackoffMs > 0)
-                    {
-                        await Task.Delay(TimeSpan.FromMilliseconds(action.BackoffMs), cancellationToken);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    // Terminal failure: record Failed so replay skips.
-                    await _executionStore.MarkFailedAsync(key, CancellationToken.None);
-                    return action.ErrorBehavior is ErrorBehavior.ContinueOnError
-                        ? WorkflowPipelineResult.Success
-                        : WorkflowPipelineResult.Failed(actionIndex, ex.Message);
-                }
+                result = await BuildAttemptPipeline(action, actionContext, cancellationToken)
+                    .ToTask(cancellationToken);
+            }
+            catch (WorkflowGracefulStopException)
+            {
+                await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
+                return WorkflowPipelineResult.GracefulStop;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                await _executionStore.MarkAbandonedAsync(key, CancellationToken.None);
+                throw;
+            }
+            catch (Exception ex)
+            {
+                await _executionStore.MarkFailedAsync(key, CancellationToken.None);
+                return action.ErrorBehavior is ErrorBehavior.ContinueOnError
+                    ? WorkflowPipelineResult.Success
+                    : WorkflowPipelineResult.Failed(
+                        actionIndex,
+                        ex is TimeoutException ? "Action timed out." : ex.Message);
             }
 
-            // Retries exhausted without success.
-            await _executionStore.MarkFailedAsync(key, CancellationToken.None);
-            return action.ErrorBehavior is ErrorBehavior.ContinueOnError
-                ? WorkflowPipelineResult.Success
-                : WorkflowPipelineResult.Failed(actionIndex, "Retries exhausted.");
+            if (result.IsSkipped)
+            {
+                await _executionStore.MarkSkippedAsync(key, CancellationToken.None);
+                return WorkflowPipelineResult.Success;
+            }
+
+            CaptureOutput(action, result, stepOutputs);
+            await _executionStore.MarkCompletedAsync(key, CancellationToken.None);
+            return WorkflowPipelineResult.Success;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -537,23 +521,54 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             failureValues);
     }
 
-    private async Task<ActionExecutionResult> ExecuteActionOnceAsync(
+    private IObservable<ActionExecutionResult> BuildAttemptPipeline(
         WorkflowAction action,
-        ActionExecutionContext context,
+        ActionExecutionContext actionContext,
         CancellationToken cancellationToken)
     {
-        if (!_executorsByType.TryGetValue(action.Type, out var executor))
+        var maxRetries = action.ErrorBehavior is ErrorBehavior.RetryOnError ? action.MaxRetries : 0;
+        var backoff = TimeSpan.FromMilliseconds(Math.Max(0, action.BackoffMs));
+        var timeout = action.TimeoutMs > 0
+            ? TimeSpan.FromMilliseconds(action.TimeoutMs)
+            : (TimeSpan?)null;
+
+        // Each Rx subscription = one attempt. RetryWhen re-subscribes, so
+        // Timeout and the FromAsync cancellation token are fresh per try.
+        var attempt = Observable.FromAsync(ct =>
         {
-            return ActionExecutionResult.Completed;
+            if (!_executorsByType.TryGetValue(action.Type, out var executor))
+            {
+                return Task.FromResult(ActionExecutionResult.Completed);
+            }
+            return executor.ExecuteAsync(action, actionContext, ct);
+        });
+
+        if (timeout is { } span)
+        {
+            attempt = attempt.Timeout(span);
         }
 
-        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        if (action.TimeoutMs > 0)
-        {
-            timeoutSource.CancelAfter(TimeSpan.FromMilliseconds(action.TimeoutMs));
-        }
-
-        return await executor.ExecuteAsync(action, context, timeoutSource.Token);
+        return attempt.RetryWhen(errors => errors
+            .Select((err, index) => (err, retried: index))
+            .SelectMany(x =>
+            {
+                // GracefulStop and outer cancellation propagate immediately.
+                if (x.err is WorkflowGracefulStopException)
+                {
+                    return Observable.Throw<long>(x.err);
+                }
+                if (x.err is OperationCanceledException && cancellationToken.IsCancellationRequested)
+                {
+                    return Observable.Throw<long>(x.err);
+                }
+                if (x.retried >= maxRetries)
+                {
+                    return Observable.Throw<long>(x.err);
+                }
+                return backoff > TimeSpan.Zero
+                    ? Observable.Timer(backoff)
+                    : Observable.Return(0L);
+            }));
     }
 
     private sealed record WorkflowFailureContext(int StepIndex, string ErrorMessage);
