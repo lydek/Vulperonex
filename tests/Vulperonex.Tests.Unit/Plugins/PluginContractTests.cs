@@ -1,11 +1,13 @@
 using System.Text.Json;
 using FluentAssertions;
 using Vulperonex.Application.EventTypes;
+using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Infrastructure.EventTypes;
+using Vulperonex.Infrastructure.Expressions;
 using Vulperonex.Plugins.Abstractions;
 using Xunit;
 
@@ -51,7 +53,7 @@ public sealed class PluginContractTests
     public async Task Given_InvokePluginAction_When_Executed_Then_RegisteredPluginReceivesJsonElementParams()
     {
         var plugin = new RecordingPlugin();
-        var executor = new InvokePluginActionExecutor(new StaticPluginRegistry([plugin]));
+        var executor = new InvokePluginActionExecutor(new StaticPluginRegistry([plugin]), new TemplateResolver());
         using var document = JsonDocument.Parse("""{"count":3,"enabled":true,"name":"test"}""");
         var action = new InvokePluginAction
         {
@@ -77,7 +79,55 @@ public sealed class PluginContractTests
         plugin.Calls[0].Context.Params["name"].GetString().Should().Be("test");
         plugin.Calls[0].Context.Params["count"].GetInt32().Should().Be(3);
         plugin.Calls[0].Context.Params["enabled"].GetBoolean().Should().BeTrue();
+        plugin.Calls[0].Context.Args.Should().BeEmpty();
         plugin.Calls[0].Context.ActionExecutionKey.Should().Be(new ActionExecutionKey(streamEvent.EventId, "rule-1", 2));
+    }
+
+    [Fact]
+    public async Task Given_InvokePluginActionWithArgs_When_Executed_Then_PluginReceivesResolvedArgs()
+    {
+        var plugin = new RecordingPlugin();
+        var executor = new InvokePluginActionExecutor(new StaticPluginRegistry([plugin]), new TemplateResolver());
+        var action = new InvokePluginAction
+        {
+            PluginId = "test-plugin",
+            ActionId = "do-work",
+            Args = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["target"] = "{Args.Target}",
+                ["message"] = "hello {Trigger.DisplayName}",
+            },
+        };
+        var streamEvent = new UserSentMessageEvent
+        {
+            Platform = "twitch",
+            User = new StreamUser("twitch", "alice", "Alice"),
+        };
+        var context = new ActionExecutionContext(
+            streamEvent,
+            new WorkflowRule { Id = "rule-1", Name = "Rule", EventTypeKey = StreamEventKeys.UserSentMessage },
+            ActionIndex: 2,
+            ExpressionContext: new ExpressionContext(
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["DisplayName"] = "Alice",
+                },
+                new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
+                new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Target"] = "Bob",
+                },
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)));
+
+        await executor.ExecuteAsync(action, context, TestContext.Current.CancellationToken);
+
+        plugin.Calls.Should().ContainSingle();
+        plugin.Calls[0].Context.Args.Should().Equal(
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["target"] = "Bob",
+                ["message"] = "hello Alice",
+            });
     }
 
     private sealed class RecordingPlugin : IVulperonexPlugin

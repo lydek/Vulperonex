@@ -110,9 +110,9 @@
 
 ## Task 34 - Plugin Action Variable Surface
 
-- [ ] Task 34a：Plugin SDK `IActionExecutionContext` 加 `Args: IReadOnlyDictionary<string, string>`（default 空）。
-- [ ] Task 34b：`InvokePluginAction` 加 `Args: Dictionary<string,string>` template；engine 於 invoke 前 resolve。
-- [ ] Task 34c：既有 plugin 不傳 Args 仍 work（regression test）。
+- [x] Task 34a：Plugin SDK `IActionExecutionContext` 加 `Args: IReadOnlyDictionary<string, string>`（default 空）。
+- [x] Task 34b：`InvokePluginAction` 加 `Args: Dictionary<string,string>` template；engine 於 invoke 前 resolve。
+- [x] Task 34c：既有 plugin 不傳 Args 仍 work（regression test）。
 
 ## Task 35 - Manual Verification & Parity Sign-off
 

@@ -10,4 +10,5 @@ public sealed record PluginActionContext(
     string WorkflowRuleId,
     int ActionIndex,
     string EventTypeKey,
-    IReadOnlyDictionary<string, JsonElement> Params) : IPluginActionContext;
+    IReadOnlyDictionary<string, JsonElement> Params,
+    IReadOnlyDictionary<string, string> Args) : IPluginActionContext;

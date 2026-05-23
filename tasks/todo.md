@@ -151,7 +151,7 @@
 - [x] **Task 32** — ChatOutboxService rate limit + observable skipped/failed state
 - [x] **Task 31** — WorkflowTimer scheduler（單實例重啟 idempotency；多實例 leader election out-of-scope）
 - [x] **Task 33** — Web UI builder upgrade for Phase 7 schema
-- [ ] **Task 34** — Plugin Action Args surface（backward compatible）
+- [x] **Task 34** — Plugin Action Args surface（backward compatible）
 - [ ] **Task 35** — Manual verification + Omni parity sign-off
 
 ### Checkpoint 7

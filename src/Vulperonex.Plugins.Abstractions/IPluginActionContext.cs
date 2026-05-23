@@ -17,4 +17,6 @@ public interface IPluginActionContext
     string EventTypeKey { get; }
 
     IReadOnlyDictionary<string, JsonElement> Params { get; }
+
+    IReadOnlyDictionary<string, string> Args { get; }
 }

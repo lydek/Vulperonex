@@ -1,9 +1,12 @@
+using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 
 namespace Vulperonex.Plugins.Abstractions;
 
-public sealed class InvokePluginActionExecutor(IPluginRegistry pluginRegistry) : IWorkflowActionExecutor
+public sealed class InvokePluginActionExecutor(
+    IPluginRegistry pluginRegistry,
+    ITemplateResolver templateResolver) : IWorkflowActionExecutor
 {
     public string ActionType => InvokePluginAction.ActionType;
 
@@ -33,9 +36,20 @@ public sealed class InvokePluginActionExecutor(IPluginRegistry pluginRegistry) :
             context.WorkflowRule.Id,
             context.ActionIndex,
             context.StreamEvent.EventTypeKey,
-            invokePlugin.Params);
+            invokePlugin.Params,
+            ResolveArgs(invokePlugin.Args, context.ExpressionContext));
 
         await plugin.ExecuteActionAsync(invokePlugin.ActionId, actionContext, cancellationToken);
         return ActionExecutionResult.Completed;
+    }
+
+    private IReadOnlyDictionary<string, string> ResolveArgs(
+        IReadOnlyDictionary<string, string> args,
+        ExpressionContext expressionContext)
+    {
+        return args.ToDictionary(
+            pair => pair.Key,
+            pair => templateResolver.Resolve(pair.Value, expressionContext),
+            StringComparer.OrdinalIgnoreCase);
     }
 }

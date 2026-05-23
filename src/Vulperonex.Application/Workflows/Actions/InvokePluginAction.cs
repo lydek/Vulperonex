@@ -13,4 +13,6 @@ public sealed record InvokePluginAction : WorkflowAction
     public required string ActionId { get; init; }
     public IReadOnlyDictionary<string, JsonElement> Params { get; init; } =
         new Dictionary<string, JsonElement>();
+    public IReadOnlyDictionary<string, string> Args { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
