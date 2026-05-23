@@ -925,9 +925,16 @@ public sealed class Phase5EndpointTests
         {
             foreach (var port in ports)
             {
-                var listener = new TcpListener(System.Net.IPAddress.Loopback, port);
-                listener.Start();
-                listeners.Add(listener);
+                try
+                {
+                    var listener = new TcpListener(System.Net.IPAddress.Loopback, port);
+                    listener.Start();
+                    listeners.Add(listener);
+                }
+                catch (System.Net.Sockets.SocketException ex) when (ex.SocketErrorCode == System.Net.Sockets.SocketError.AddressAlreadyInUse)
+                {
+                    // Port already in use, which is also unavailable.
+                }
             }
 
             return listeners;

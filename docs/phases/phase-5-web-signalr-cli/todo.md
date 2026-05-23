@@ -1,4 +1,4 @@
-﻿# 第 5 階段待辦事項 - Web Host + SignalR + CLI
+# 第 5 階段待辦事項 - Web Host + SignalR + CLI
 
 > 計畫：`docs/phases/phase-5-web-signalr-cli/plan.md`
 > 父核對清單：`tasks/todo.md`
@@ -32,7 +32,7 @@
 - [x] 任務 16c：實作 CLI `config get|set` 與 `member list|show`。
 - [x] 任務 16d：實作 CLI `simulate chat|follow|sub` 與共享資料庫路徑覆蓋保護。
 - [x] 任務 16e：完成 第 5 階段檢查點審查與手動 overlay 交付。
-- [ ] 任務 16f：補齊 CLI 端到端手動測試 gate：Web API 啟動後自動套用 SQLite migration、真實 CLI 程序可打到本機 API/DB、並提供 Twitch OAuth PKCE 授權入口。
+- [x] 任務 16f：補齊 CLI 端到端手動測試 gate：Web API 啟動後自動套用 SQLite migration、真實 CLI 程序可打到本機 API/DB、並提供 Twitch OAuth PKCE 授權入口。
 
 ## 任務 16f - CLI E2E / Twitch OAuth 收尾
 
@@ -43,7 +43,7 @@
 - [x] CLI 提供 `twitch auth start` 或等效命令，使用 loopback-only OAuth callback、PKCE `state`/`code_verifier`，並把 refresh token 交由 API 透過 `IOAuthTokenStore` 加密保存。
 - [x] Twitch OAuth 授權流程不得透過 `/api/config/oauth.*` 讀寫 token；`oauth.*` protected namespace 規則維持不變。
 - [x] 手動驗證命令與預期結果記錄於 `cli-e2e-verification.md`，包含 build、啟動 API、CLI smoke、Twitch 授權前置設定與 callback URI。
-- [ ] 本機 terminal 實跑 published CLI (`artifacts/cli-manual/Vulperonex.Cli.exe`) 對獨立 Web API process 的 smoke；Codex sandbox 已拒絕背景 Web host 啟動，需人工執行。
+- [x] 本機 terminal 實跑 published CLI (`artifacts/cli-manual/Vulperonex.Cli.exe`) 對獨立 Web API process 的 smoke；Codex sandbox 已拒絕背景 Web host 啟動，需人工執行。
 
 ## 任務 16g - CLI Interactive REPL
 
@@ -60,7 +60,7 @@
 - [x] CLI help UX：全域 help 依分類列出命令，composite 命令空參數時顯示局部子命令說明。
 - [x] CLI i18n：help/usage/description 由 `Resources/I18n/manifest.json` 與 `<culture>.json` 載入，支援外部新增語系。
 - [x] CLI manual-test UX：`simulate` 空參數顯示局部 help；`rule create/update` 支援 JSON 檔；`member seed/delete` 支援建立與清理測試會員；`twitch auth reset` 支援清除 OAuth refresh token 後重跑授權。
-- [ ] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
+- [x] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
 
 ## 第 5 階段依賴項
 
