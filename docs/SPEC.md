@@ -354,6 +354,8 @@ public record UserDisplayInfo(
 - 每個平台一個 `IPlatformChatSender`。Twitch → Twitch IRC, Simulation → 記憶體內接收端。
 - `WorkflowAction.SendChatMessage` 預設在**源平台回覆**（來自事件的 `Platform` 欄位）。
 - 操作可以透過明確的 `TargetPlatform` 設定**覆寫至特定平台**（如 `"twitch"`）；**「廣播到所有平台」為 post-MVP**（MVP 的 `TargetPlatform` 只接受具體平台名稱或 null；不接受 `"all"` sentinel）。
+- `Simulation` 模式下的 `SendChatMessage` **不得只有 silent no-op**。即使未接到真實聊天室，也必須寫入可觀測的記憶體接收端 / Chat Outbox / 歷史檢視面，讓使用者能確認 rendered message、platform、channel、dedupKey、status（sent / skipped / failed）。
+- `/overlay/chat` 的 event-driven 聊天事件顯示與 workflow `SendChatMessage` 是**兩個不同的資料流**。除非明確配置 bridge，否則不能把 chat overlay 視為 workflow chat output 的唯一驗證面。
 
 ---
 
@@ -842,6 +844,14 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 
 每個 URL 都是一個獨立的 Vue 路由，在掛載時連線到其 SignalR 組。不需要身份驗證（OBS 必須直接連線）。
 
+**聊天 overlay 樣板系統：**
+
+- `/overlay/chat` 必須支援**多個內建樣板 / preset**，至少包含 Vulperonex 預設樣板；內建樣板需可對應「單一樣板目錄 / 單一樣板封包」概念，而不是寫死單版面。
+- 樣板選擇必須是**設定層級**能力，而不是要求使用者直接改前端原始碼；後續可擴充為樣板清單、預覽、匯入 / 匯出。
+- 樣板渲染仍必須遵守 MVP 安全界線：使用 DTO 白名單與 text binding；**不得以 `v-html` 或任意 raw HTML 直接穿透 event payload**。
+- **OneComme 相容屬於擴充功能 / 插件類型能力，不屬於 core 直接內建整合。** Core 只需提供可擴充的樣板 preset / package contract；OneComme 相容可透過外掛、樣板匯入器、或 adapter 套件實作。
+- 以 **OneComme** 作為優先相容目標之一。目的不是 1:1 複製其內部實作，而是提供足夠接近的樣板結構 / 匯入映射 / 相容契約，降低既有 OneComme 使用者的遷移成本，同時維持 core 與第三方樣板生態的邊界。
+
 **事件 → 疊層映射：**
 
 | 領域事件 | 疊層目標 |
@@ -1281,6 +1291,8 @@ dotnet test tests/Vulperonex.Tests.Unit \
 
 - [ ] **SC-5：** 整合測試 `OverlayHub_ReceivesSignalRPayload_WithinTimeout`：透過 `SimulationAdapter` 發布 `UserSentMessageEvent`，斷言 `/overlay/chat` SignalR Hub 用戶端在 **5 秒**內（CI 安全超時）接收到 `OverlayChatPayload`。效能目標（非阻塞）：從事件到 SignalR 的延遲在本地機器上 < 500ms，作為基準單獨追蹤，而非判定通過/失敗的門檻。
 
+- [ ] **SC-5b：** 整合測試 `WorkflowSendChatMessage_Simulation_IsObservable`：在 `Simulation` 平台執行含 `SendChatMessage` 的 workflow，斷言可觀測輸出面（記憶體接收端 / Chat Outbox / 歷史檢視）於 **5 秒**內出現 rendered message、platform、channel、dedupKey 與 status，且不依賴 `/overlay/chat` 是否有 bridge。
+
 - [ ] **SC-6：** 兩個互補的整合測試共同滿足此準則（拆分於 Task 12 + Task 13 實作）：
   - **SC-6a（WorkflowEngine half，Task 12）：** `SC6a_SimulationAndTwitch_ProduceSameWorkflowSideEffect`：使用相同有效負載分別透過 `SimulationAdapter` 和 `TwitchAdapter`（mock IRC）發布 `UserSentMessageEvent`；斷言兩者在 `WaitForIdleAsync` 後對 `IPlatformChatSender.SendAsync` 的呼叫完全相同。
   - **SC-6b（MemberRecord half，Task 13）：** `SC6b_SimulationAndTwitch_ProduceSameMemberDbState`：相同有效負載分別執行（各使用獨立 fresh SQLite fixture），斷言兩次 `WaitForIdleAsync` 後 `MemberRecord` 資料庫狀態相同。
@@ -1294,6 +1306,10 @@ dotnet test tests/Vulperonex.Tests.Unit \
 - [ ] **SC-9：** 單元測試 `SendChatMessageAction_DefaultsToSourcePlatform` 和 `SendChatMessageAction_RespectsTargetPlatformOverride`：驗證 `IPlatformChatSender` 選擇邏輯。
 
 - [ ] **SC-10：** 整合測試 `Plugin_CanPublishCustomEvent_TriggeringWorkflow`：外掛程式呼叫 `IPluginContext.Events.PublishAsync(customEvent)`；具有匹配 `EventTypeKey` 的 `WorkflowRule` 觸發；`IPlatformChatSender` 模擬對象接收到 `SendAsync`。
+
+- [ ] **SC-11：** 手動 / 整合驗證 `ChatOverlayTemplatePreset_CanSwitchWithoutCodeEdit`：`/overlay/chat` 可在不修改前端原始碼的前提下切換至少兩個樣板，至少包含 Vulperonex 內建預設與另一個可安裝 preset；切換後 payload contract 不變，且渲染仍遵守 DTO 白名單與 text binding。
+
+- [ ] **SC-11b：** 擴充功能驗證 `OneCommeCompatibility_ExtensionContract_Works`：OneComme 相容能力以外掛 / 匯入器 / adapter 形式接入，不要求 core 直接綁定其執行期；驗證可辨識 OneComme 樣板目錄結構或對應 package metadata，並映射到 Vulperonex chat overlay preset contract。
 
 ---
 

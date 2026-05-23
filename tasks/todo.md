@@ -163,6 +163,26 @@
 - [x] DTO whitelist / SignalR JSON contract：Phase 7 新 rule schema 與 overlay/effect payload 無 raw JSON 漏網
 - [x] `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 PASS/FAIL + OC 對照矩陣
 
+## Phase 7A：Workflow Editor UX Alignment with Omni-Commander
+
+> 詳細計畫：`docs/phases/phase-7a-workflow-editor-ux/plan.md`
+> 詳細待辦：`docs/phases/phase-7a-workflow-editor-ux/todo.md`
+> 目的：補齊目前 Phase 7 workflow editor 的 UX 缺口，讓 editor 不再以 JSON textarea 當主要操作路徑。
+
+- [x] **Task 36** — Workflow editor baseline repair：trigger filter「新增」互動修復、現有 editor regression tests
+- [ ] **Task 37** — Visual builder：Conditions / Actions / OnFailure 主流程改為表單式 editor
+- [x] **Task 38** — Variable picker：提供 Trigger / Args / Step outputs / Member / Failure 變數插入
+- [ ] **Task 39** — JSON fallback demotion：JSON 改為 advanced fallback / import-export surface
+- [ ] **Task 40** — Omni parity verification：editor UX checklist + Omni 對照矩陣
+
+### Checkpoint：Phase 7A
+
+- [ ] 全部 Task 36-40 sub-task `[x]` 完成自檢
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] Browser manual：workflow editor 主流程不需直接手寫 JSON 即可建立常見規則
+- [ ] Browser manual：variable picker 插入與 reload round-trip 全部 PASS
+- [ ] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 記錄 PASS/FAIL + Omni UX 對照矩陣
+
 ---
 
 ## Success Criteria 對照
@@ -180,6 +200,19 @@
 | SC-8：ULID MemberRecord 建立 | Task 13 |
 | SC-9：SendChatMessage platform 路由 | Task 10 |
 | SC-10：Plugin 發布事件觸發 rule | Task 11 |
+
+## Phase 7B：Chat Output Observability and Overlay Template Presets
+
+- [ ] **Task 41** — Simulation chat output observable surface：workflow `SendChatMessage` 在 simulation/local 模式下可直接看到 message / platform / channel / dedupKey / status
+- [ ] **Task 42** — Chat overlay preset system：`/overlay/chat` 支援至少兩個可切換內建樣板，且切換不需改前端原始碼
+- [ ] **Task 43** — OneComme compatibility path：以 extension/plugin 方式提供 OneComme 相容 / 匯入 / 映射策略，不直接併入 core
+
+### Checkpoint：Phase 7B
+
+- [ ] 全部 Task 41-43 sub-task `[x]` 完成自檢
+- [ ] workflow `SendChatMessage` 在 `Simulation` 模式下可直接觀察結果，不再需要猜測是否送出
+- [ ] `/overlay/chat` 至少可切換兩個樣板，且 core preset contract 可承接外掛 / 可安裝樣板
+- [ ] `docs/.../manual-verification.md` 記錄 observability + preset + extension compatibility PASS/FAIL
 
 ## Architecture / Security / Testing Gates
 

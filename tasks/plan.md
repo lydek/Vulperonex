@@ -837,6 +837,8 @@ frontend (Vue SPA)
 
 Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow 能力，但保留 Vulperonex 已建立的 strong-typed Action、樂觀鎖、TDQ/idempotent replay、Plugin contract、DTO whitelist 與 ask-first dependency discipline。
 
+> 進度來源：本文件中的 checkbox 作為父層設計/驗收草案；實際完成狀態以各 phase `todo.md` 與 `tasks/todo.md` 為準。
+
 #### Task 23：Variable / Expression substrate
 
 **描述：** 建立 `ExpressionContext`、template resolver、NCalc expression evaluator。NCalc 僅用於 `ExecutionCondition` / `MatchCondition` 等條件式；Phase 7 不開任意自訂 function 註冊 API。
@@ -874,6 +876,8 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 **依賴：** Task 28
 
 #### Task 27：Sub-workflow Flag + InvokeRule Polish
+
+> 註：Task 編號沿用早期排序；實作依賴仍以 Task 29 完成後再處理 Task 27 為準。
 
 **描述：** 增加 `IsSubWorkflow` 與 `InvokeSubWorkflowAction.Args`，但不得回退既有 stable `InvocationId` / `ActionExecutionKey` replay 語意。
 
@@ -924,6 +928,103 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 - [ ] Browser manual：5 個典型 rule 配置覆蓋 trigger filter / cooldown / counter / sub-workflow / timer，全部 PASS
 - [ ] DTO whitelist / SignalR JSON contract：Phase 7 新 rule schema 與 overlay/effect payload 無 raw JSON 漏網
 - [ ] `docs/phases/phase-7-workflow-parity/manual-verification.md` 記錄 PASS/FAIL + OC 對照矩陣
+
+### Phase 7A：Workflow Editor UX Alignment with Omni-Commander
+
+> 詳細計畫：`docs/phases/phase-7a-workflow-editor-ux/plan.md`
+> 詳細待辦：`docs/phases/phase-7a-workflow-editor-ux/todo.md`
+> 優先順序：Phase 7 runtime/schema parity 完成後，下一個 workflow 相關 active slice。Phase 8 其他領域功能擴充先不併進來。
+
+**描述：** 針對目前 Web workflow editor 的可用性缺口補一個獨立 UX slice。目標不是再擴 schema，而是把既有 Phase 7 schema 以可操作、可發現、接近 `ref/Omni-Commander/OmniCommander.UI/src/components/workflow/` 的方式呈現。重點包含：修復 trigger filter「新增無反應」、把 `conditions` / `actions` / `onFailureSteps` 從 JSON-first 改為 visual builder、提供 variable picker 與欄位插入、保留 JSON import/export 作 advanced fallback，而不是主要操作路徑。
+
+#### Task 36 - Workflow Editor UX Baseline Repair
+
+**描述：** 先修掉目前已知的阻塞互動問題，避免後續 builder 仍建立在失效基線上。
+**驗收標準：**
+- [ ] `TriggerEditor` 的 filter「新增」按鈕按下後立即新增一列可編輯 key/value row；不需先有既有 filter 才能運作。
+- [ ] filter row 支援新增、刪除、空 key 不落盤；重載既有規則後顯示一致。
+- [ ] 既有 `TriggerEditor` / `ThrottleEditor` / `StepConditionInput` / `OnFailureEditor` 互動行為加 Vitest 覆蓋，至少鎖住目前回報過的 UX regressions。
+
+#### Task 37 - Visual Builder for Conditions, Actions, and OnFailure
+
+**描述：** `conditions`、`actions` 與 `onFailureSteps` 改用 visual builder 作主要 UI。`actions` / `onFailureSteps` 每一步可選 action type、編輯其強型別欄位、設定 `ExecutionCondition`、`OutputVariable`，並支援新增、刪除、排序；`conditions` 則提供對應 schema 的表單式編輯；`OnFailure` 與主流程共用同一 builder shell，但資料源分離。
+**驗收標準：**
+- [ ] `Conditions` / `Actions` / `OnFailure` 頁籤主畫面不再要求使用者直接編輯原始 JSON array 才能完成常見操作。
+- [ ] visual builder 至少支援目前常見 condition 類型；未知 condition type 才退回 raw JSON fallback。
+- [ ] step builder 至少支援 Phase 7 已落地的常用 actions：`sendChatMessage`、`randomPicker`、`delay`、`stopIf`、`updateCounter`、`invokeSubWorkflow`、`lookupTwitchUser`、`shoutout`、`refundTwitchRedemption`、`emitOverlayWidget`、`emitSystemEvent`、`triggerEffect`、`triggerCheckIn`、`addLotteryTickets`、`invokePluginAction`。
+- [ ] 每個 action 顯示 human-readable 名稱、簡短用途說明、必要欄位提示；未知 action type 才退回 raw JSON fallback card。
+- [ ] 支援 step 新增、刪除、上下移動；儲存後順序與 API payload 一致。
+- [ ] `OnFailureSteps` 不可巢狀再開 `OnFailureSteps`，UI 要明確限制。
+
+#### Task 38 - Variable Picker and Visual Text Inputs
+
+**描述：** 對齊 Omni-Commander 的可用性核心，不要求完整 drag-and-drop graph，但要提供可發現的 variable picker 與文字欄位插入體驗。
+**驗收標準：**
+- [ ] variable picker 至少分成 `Trigger`、`Args`、`Step Outputs`、`Member`、`Failure` 幾個群組。
+- [ ] picker 可插入到 action 參數、`ExecutionCondition`、`MatchCondition`、filter value、`OutputVariable` 以外的模板文字欄位。
+- [ ] 插入格式固定為 Phase 7 expression/template contract：`{Trigger.*}`、`{Args.*}`、`{Step.*}`、`{Member.*}`；不引入第二套 DSL。
+- [ ] 針對 `ExecutionCondition` / `MatchCondition` 提供至少一種「視覺化條件模式 + 原始表達式模式」切換；視覺化模式至少涵蓋單一變數、operator、單一比較值的常見條件。
+- [ ] 文字欄位可直接打字，也可插入變數 chip；不要求一次做到 ProseMirror/drag-drop editor，但不可比現況 textarea 更難用。
+
+#### Task 39 - JSON Fallback Demotion and Import/Export
+
+**描述：** 保留 JSON-first 能力給進階使用者與 round-trip 驗證，但降級成 fallback surface，不再是主流程唯一入口。
+**驗收標準：**
+- [ ] 主 editor 預設進入表單/step builder 模式；raw JSON 僅作「進階編輯」或 import/export。
+- [ ] 支援從 JSON 載入既有 rule 後映射回表單；無法完整映射的欄位需明確顯示 fallback/unsupported 提示。
+- [ ] 支援從表單匯出目前 rule JSON，確保 CLI / API / docs sample 可 round-trip。
+- [ ] 保留 1MB guard、parse error、focus/refocus、防止 oversized paste 等既有 Phase 6 安全欄位。
+
+#### Task 40 - Omni Parity Review and Manual Verification
+
+**描述：** 對照 `ref/Omni-Commander` 的 workflow editor，明確記錄哪些 UX 已對齊、哪些刻意不做，避免再次出現「文件寫完成，但互動不直覺」的模糊狀態。
+**驗收標準：**
+- [ ] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 記錄 editor UX checklist、PASS/FAIL、與 Omni 對照矩陣。
+- [ ] Browser manual 至少覆蓋：conditions、trigger filter row、新增 action step、編輯 random picker、配置 onFailure step、插入 step output 變數、切回 raw JSON fallback。
+- [ ] 明列 N/A：不做 graph editor、不做完整拖拉變數面板、不做 Phase 8 新 schema。
+
+### Checkpoint：Phase 7A
+
+- [ ] 全部 Task 36-40 sub-task `[x]` 完成自檢
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] Browser manual：workflow editor 主流程不需直接手寫 JSON 即可建立與修改常見規則
+- [ ] Browser manual：variable picker 可插入 trigger / step output / args 變數，儲存後 reload 一致
+- [ ] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 記錄 PASS/FAIL + Omni UX 對照矩陣
+
+### Phase 7B：Chat Output Observability and Overlay Template Presets
+
+> 目的：補齊 workflow `SendChatMessage` 在 simulation / local 模式下的可觀測性缺口，並把聊天 overlay 從單一實作提升為可切換樣板系統。OneComme 相容定位為 extension/plugin slice，不直接併入 core。
+
+#### Task 41 - Simulation Chat Output Observable Surface
+
+**描述：** 補 `Simulation` 平台的 chat sender observable surface。`SendChatMessage` 不得只有 silent no-op；至少要能在 admin / overlay history / memory receiver 中看到 rendered message、platform、channel、dedupKey、status。
+**驗收標準：**
+- [ ] `Simulation` 平台執行 `SendChatMessage` 後，使用者可在可視介面或明確 API 中查到訊息結果。
+- [ ] 結果至少包含 `message`、`platform`、`channel`、`dedupKey`、`status`、timestamp。
+- [ ] workflow chat output 驗證不再依賴 `/overlay/chat` 是否剛好有 bridge。
+
+#### Task 42 - Chat Overlay Preset System
+
+**描述：** 將 `/overlay/chat` 提升為 preset/template-driven overlay。提供多個內建樣板，並保留後續匯入 / 匯出能力；core 只定義 preset/package contract，不直接耦合 OneComme runtime。
+**驗收標準：**
+- [ ] 至少提供兩個可切換聊天樣板：Vulperonex 預設樣板 + 另一個內建或可安裝樣板。
+- [ ] 樣板切換透過設定或 admin UI 完成，不需直接修改前端原始碼。
+- [ ] 樣板渲染仍遵守 DTO 白名單與 text binding，不引入 `v-html` raw payload 直出。
+
+#### Task 43 - OneComme Compatibility Path
+
+**描述：** 以 OneComme 為優先相容目標之一，但以 extension / plugin 方式接入。定義樣板匯入器、目錄掃描器、或 adapter package 的最小契約，降低既有使用者遷移成本，同時維持 core 邊界。
+**驗收標準：**
+- [ ] 文件明列 OneComme 相容策略：哪些能力透過外掛直接相容、哪些透過映射、哪些暫不支援。
+- [ ] 至少有一條 extension/import path 明確標示為 OneComme-compatible / migration-oriented；不要求 core 內建整包整合。
+- [ ] 手動驗證記錄 OneComme 樣板目錄或 package metadata 的辨識與匯入流程。
+
+### Checkpoint：Phase 7B
+
+- [ ] 全部 Task 41-43 sub-task `[x]` 完成自檢
+- [ ] workflow `SendChatMessage` 在 `Simulation` 模式下可直接觀察結果，不再需要猜測是否送出
+- [ ] `/overlay/chat` 至少可切換兩個樣板，且 core preset contract 可承接外掛 / 可安裝樣板
+- [ ] `docs/.../manual-verification.md` 記錄 observability + preset + extension compatibility PASS/FAIL
 
 ---
 
