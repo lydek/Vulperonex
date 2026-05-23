@@ -17,6 +17,13 @@ public static class OAuthCallbackEndpoints
             PlatformConnectionNotifier notifier,
             CancellationToken cancellationToken) =>
         {
+            var error = context.Request.Query["error"].ToString();
+            var errorDesc = context.Request.Query["error_description"].ToString();
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                return Results.Redirect($"/?oauth=error&error={Uri.EscapeDataString(error)}&desc={Uri.EscapeDataString(errorDesc)}");
+            }
+
             var state = context.Request.Query["state"].ToString();
             var code = context.Request.Query["code"].ToString();
             if (string.IsNullOrWhiteSpace(state)
