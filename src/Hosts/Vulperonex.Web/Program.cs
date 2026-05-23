@@ -45,6 +45,11 @@ public static partial class VulperonexWebApplication
         ConfigureSerilog(builder);
         var app = builder.Build();
 
+        var levelSwitch = app.Services.GetRequiredService<Serilog.Core.LoggingLevelSwitch>();
+        var broker = app.Services.GetRequiredService<Vulperonex.Infrastructure.Settings.SystemSettingsBroker>();
+        var hotReload = SerilogConfigurator.BindHotReload(levelSwitch, broker);
+        app.Lifetime.ApplicationStopping.Register(hotReload.Dispose);
+
         if (app.Environment.IsDevelopment())
         {
             app.UseDeveloperExceptionPage();

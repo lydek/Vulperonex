@@ -6,12 +6,20 @@ using Vulperonex.Infrastructure.Data.Entities;
 
 namespace Vulperonex.Infrastructure.Settings;
 
-public class SystemSettingsService(VulperonexDbContext context) : ISystemSettingsService
+public class SystemSettingsService : ISystemSettingsService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly SettingsObservable _changes = new();
 
-    public IObservable<SettingChangedEvent> Changes => _changes;
+    private readonly VulperonexDbContext context;
+    private readonly SystemSettingsBroker _broker;
+
+    public SystemSettingsService(VulperonexDbContext context, SystemSettingsBroker? broker = null)
+    {
+        this.context = context;
+        _broker = broker ?? new SystemSettingsBroker();
+    }
+
+    public IObservable<SettingChangedEvent> Changes => _broker;
 
     public async Task<T> GetAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
     {
@@ -40,7 +48,7 @@ public class SystemSettingsService(VulperonexDbContext context) : ISystemSetting
         row.Category = category.ToLowerInvariant();
         row.UpdatedAt = DateTimeOffset.UtcNow;
         await context.SaveChangesAsync(cancellationToken);
-        _changes.Publish(new SettingChangedEvent(normalizedKey, oldValue, row.Value));
+        _broker.Publish(new SettingChangedEvent(normalizedKey, oldValue, row.Value));
     }
 
     public virtual async Task DeleteAsync(string key, CancellationToken cancellationToken = default)
@@ -55,7 +63,7 @@ public class SystemSettingsService(VulperonexDbContext context) : ISystemSetting
         var oldValue = row.Value;
         context.SystemSettings.Remove(row);
         await context.SaveChangesAsync(cancellationToken);
-        _changes.Publish(new SettingChangedEvent(normalizedKey, oldValue, null));
+        _broker.Publish(new SettingChangedEvent(normalizedKey, oldValue, null));
     }
 
     protected static string NormalizeKey(string key)
@@ -68,35 +76,4 @@ public class SystemSettingsService(VulperonexDbContext context) : ISystemSetting
         return key.Trim().ToLowerInvariant();
     }
 
-    private sealed class SettingsObservable : IObservable<SettingChangedEvent>
-    {
-        private readonly List<IObserver<SettingChangedEvent>> _observers = [];
-
-        public IDisposable Subscribe(IObserver<SettingChangedEvent> observer)
-        {
-            _observers.Add(observer);
-            return new Subscription(_observers, observer);
-        }
-
-        public void Publish(SettingChangedEvent changedEvent)
-        {
-            foreach (var observer in _observers.ToArray())
-            {
-                try
-                {
-                    observer.OnNext(changedEvent);
-                }
-                catch
-                {
-                }
-            }
-        }
-
-        private sealed class Subscription(
-            List<IObserver<SettingChangedEvent>> observers,
-            IObserver<SettingChangedEvent> observer) : IDisposable
-        {
-            public void Dispose() => observers.Remove(observer);
-        }
-    }
 }

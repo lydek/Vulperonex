@@ -98,9 +98,9 @@ public static class SerilogConfigurator
 
     public static IDisposable BindHotReload(
         LoggingLevelSwitch levelSwitch,
-        ISystemSettingsService settings)
+        IObservable<SettingChangedEvent> changes)
     {
-        return settings.Changes.Subscribe(new LevelSwitchObserver(levelSwitch));
+        return changes.Subscribe(new LevelSwitchObserver(levelSwitch));
     }
 
     private sealed class LevelSwitchObserver(LoggingLevelSwitch levelSwitch) : IObserver<SettingChangedEvent>

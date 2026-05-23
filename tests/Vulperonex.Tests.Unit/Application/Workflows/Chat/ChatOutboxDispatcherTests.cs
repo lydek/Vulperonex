@@ -85,7 +85,8 @@ public sealed class ChatOutboxDispatcherTests
             outbox,
             senders,
             provider.GetRequiredService<IServiceScopeFactory>(),
-            NullLogger<ChatOutboxDispatcher>.Instance);
+            NullLogger<ChatOutboxDispatcher>.Instance,
+            new NoopObservable());
     }
 
     private sealed class RecordingChatSender(string platform) : IPlatformChatSender
