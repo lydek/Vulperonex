@@ -93,11 +93,30 @@ export interface WorkflowRuleSummary {
   version: number;
 }
 
+export interface WorkflowTrigger {
+  eventTypeKey: string;
+  filter: Record<string, string>;
+  matchCondition?: string | null;
+}
+
+export interface WorkflowThrottlePolicy {
+  maxConcurrent: number;
+  cooldownSeconds: number;
+  perUserCooldown: boolean;
+  perUserCooldownSeconds: number;
+}
+
 export interface WorkflowRuleDetail extends WorkflowRuleSummary {
+  trigger: WorkflowTrigger;
+  matchCondition?: string | null;
+  isSubWorkflow: boolean;
   conditions: unknown[];
   actions: unknown[];
+  onFailureSteps: unknown[];
   executionMode: string;
   maxParallelism: number;
+  throttle: WorkflowThrottlePolicy;
+  timeoutSeconds: number;
 }
 
 export async function getRules(signal?: AbortSignal): Promise<WorkflowRuleSummary[]> {
@@ -125,6 +144,78 @@ export async function setRuleEnabled(
 
 export async function deleteRule(id: string, signal?: AbortSignal): Promise<void> {
   const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export interface WorkflowTimerDto {
+  id: string;
+  ruleId: string;
+  intervalSeconds: number;
+  isEnabled: boolean;
+  nextFireAt: string;
+}
+
+export interface WorkflowTimerUpsertRequest {
+  ruleId: string;
+  intervalSeconds: number;
+  isEnabled: boolean;
+  nextFireAt: string;
+}
+
+export async function getTimers(signal?: AbortSignal): Promise<WorkflowTimerDto[]> {
+  return getJson<WorkflowTimerDto[]>("/api/timers/", signal);
+}
+
+export async function getTimer(id: string, signal?: AbortSignal): Promise<WorkflowTimerDto> {
+  return getJson<WorkflowTimerDto>(`/api/timers/${encodeURIComponent(id)}`, signal);
+}
+
+export async function createTimer(
+  body: WorkflowTimerUpsertRequest,
+  signal?: AbortSignal
+): Promise<WorkflowTimerDto> {
+  const response = await fetch(`${apiBaseUrl}/api/timers/`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<WorkflowTimerDto>;
+}
+
+export async function updateTimer(
+  id: string,
+  body: WorkflowTimerUpsertRequest,
+  signal?: AbortSignal
+): Promise<WorkflowTimerDto> {
+  const response = await fetch(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<WorkflowTimerDto>;
+}
+
+export async function deleteTimer(id: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
     method: "DELETE",
     signal
   });
@@ -176,8 +267,14 @@ export interface WorkflowRuleUpsertRequest {
   priority: number;
   conditions: unknown[];
   actions: unknown[];
+  onFailureSteps?: unknown[];
   executionMode?: string;
   maxParallelism?: number;
+  throttle?: WorkflowThrottlePolicy;
+  timeoutSeconds?: number;
+  trigger?: WorkflowTrigger;
+  matchCondition?: string | null;
+  isSubWorkflow?: boolean;
 }
 
 export async function createRule(

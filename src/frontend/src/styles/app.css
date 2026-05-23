@@ -520,6 +520,37 @@ textarea {
   gap: 8px;
 }
 
+.section-title {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #24313f;
+}
+
+.compact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.rule-filter-rows {
+  display: grid;
+  gap: 8px;
+}
+
+.rule-filter-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(120px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .rule-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .event-type-dropdown {
   display: grid;
   gap: 6px;

@@ -2,13 +2,17 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
-import EventTypeKeyDropdown from "@/components/admin/EventTypeKeyDropdown.vue";
+import OnFailureEditor from "@/components/admin/OnFailureEditor.vue";
 import RuleJsonEditor from "@/components/admin/RuleJsonEditor.vue";
+import StepConditionInput from "@/components/admin/StepConditionInput.vue";
+import ThrottleEditor from "@/components/admin/ThrottleEditor.vue";
+import TriggerEditor from "@/components/admin/TriggerEditor.vue";
 import {
   ApiError,
   createRule,
   getRule,
   updateRule,
+  type WorkflowThrottlePolicy,
   type WorkflowRuleUpsertRequest
 } from "@/api/client";
 
@@ -26,8 +30,19 @@ const name = ref("");
 const eventTypeKey = ref("");
 const priority = ref(100);
 const isEnabled = ref(true);
+const isSubWorkflow = ref(false);
+const matchCondition = ref("");
+const triggerFilter = ref<Record<string, string>>({});
+const throttle = ref<WorkflowThrottlePolicy>({
+  maxConcurrent: 0,
+  cooldownSeconds: 0,
+  perUserCooldown: false,
+  perUserCooldownSeconds: 0
+});
+const timeoutSeconds = ref(30);
 const conditionsText = ref("[]");
 const actionsText = ref("[]");
+const onFailureText = ref("[]");
 const submitting = ref(false);
 const loadingExisting = ref(false);
 const submitError = ref<string | null>(null);
@@ -55,8 +70,14 @@ async function loadExisting(): Promise<void> {
     eventTypeKey.value = rule.eventTypeKey;
     priority.value = rule.priority;
     isEnabled.value = rule.isEnabled;
+    isSubWorkflow.value = rule.isSubWorkflow;
+    triggerFilter.value = rule.trigger?.filter ?? {};
+    matchCondition.value = rule.matchCondition ?? rule.trigger?.matchCondition ?? "";
+    throttle.value = rule.throttle;
+    timeoutSeconds.value = rule.timeoutSeconds;
     conditionsText.value = JSON.stringify(rule.conditions, null, 2);
     actionsText.value = JSON.stringify(rule.actions, null, 2);
+    onFailureText.value = JSON.stringify(rule.onFailureSteps, null, 2);
   } catch (caught) {
     submitError.value = describeError(caught);
   } finally {
@@ -71,9 +92,11 @@ async function onSubmit(event: Event): Promise<void> {
 
   let conditions: unknown[];
   let actions: unknown[];
+  let onFailureSteps: unknown[];
   try {
     conditions = JSON.parse(conditionsText.value) as unknown[];
     actions = JSON.parse(actionsText.value) as unknown[];
+    onFailureSteps = JSON.parse(onFailureText.value) as unknown[];
   } catch (parseError) {
     submitError.value = "INVALID_JSON";
     submitDetail.value = parseError instanceof Error ? parseError.message : String(parseError);
@@ -81,9 +104,9 @@ async function onSubmit(event: Event): Promise<void> {
     return;
   }
 
-  if (!Array.isArray(conditions) || !Array.isArray(actions)) {
+  if (!Array.isArray(conditions) || !Array.isArray(actions) || !Array.isArray(onFailureSteps)) {
     submitError.value = "INVALID_JSON";
-    submitDetail.value = "conditions and actions must be JSON arrays";
+    submitDetail.value = "conditions, actions, and onFailureSteps must be JSON arrays";
     editorRef.value?.focus();
     return;
   }
@@ -95,8 +118,18 @@ async function onSubmit(event: Event): Promise<void> {
     priority: priority.value,
     conditions,
     actions,
+    onFailureSteps,
     executionMode: "Serial",
-    maxParallelism: 1
+    maxParallelism: 1,
+    throttle: throttle.value,
+    timeoutSeconds: timeoutSeconds.value,
+    trigger: {
+      eventTypeKey: eventTypeKey.value,
+      filter: triggerFilter.value,
+      matchCondition: matchCondition.value.trim().length > 0 ? matchCondition.value.trim() : null
+    },
+    matchCondition: matchCondition.value.trim().length > 0 ? matchCondition.value.trim() : null,
+    isSubWorkflow: isSubWorkflow.value
   };
 
   submitting.value = true;
@@ -154,10 +187,17 @@ function describeError(caught: unknown): string {
         />
       </label>
 
-      <div class="form-field">
-        <span class="form-label">{{ t("ruleEditor.eventTypeKey") }}</span>
-        <EventTypeKeyDropdown v-model="eventTypeKey" />
-      </div>
+      <label class="form-field form-field-inline">
+        <input v-model="isSubWorkflow" type="checkbox" data-testid="rule-editor-sub-workflow" />
+        <span>{{ t("ruleEditor.isSubWorkflow") }}</span>
+      </label>
+
+      <TriggerEditor
+        v-if="!isSubWorkflow"
+        v-model:event-type-key="eventTypeKey"
+        v-model:filter="triggerFilter"
+        v-model:match-condition="matchCondition"
+      />
 
       <label class="form-field">
         <span class="form-label">{{ t("ruleEditor.priority") }}</span>
@@ -175,6 +215,19 @@ function describeError(caught: unknown): string {
         <span>{{ t("ruleEditor.isEnabled") }}</span>
       </label>
 
+      <label class="form-field">
+        <span class="form-label">{{ t("ruleEditor.timeoutSeconds") }}</span>
+        <input
+          v-model.number="timeoutSeconds"
+          type="number"
+          min="0"
+          max="86400"
+          data-testid="rule-editor-timeout"
+        />
+      </label>
+
+      <ThrottleEditor v-model="throttle" />
+
       <div class="form-field">
         <span class="form-label">{{ t("ruleEditor.conditions") }}</span>
         <RuleJsonEditor
@@ -191,6 +244,9 @@ function describeError(caught: unknown): string {
           :aria-label="t('ruleEditor.actions')"
         />
       </div>
+
+      <StepConditionInput v-model="actionsText" />
+      <OnFailureEditor v-model="onFailureText" />
 
       <p
         v-if="submitError"

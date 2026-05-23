@@ -5,6 +5,7 @@ import MembersView from "@/views/admin/MembersView.vue";
 import RuleEditorView from "@/views/admin/RuleEditorView.vue";
 import RulesView from "@/views/admin/RulesView.vue";
 import SimulateView from "@/views/admin/SimulateView.vue";
+import TimersView from "@/views/admin/TimersView.vue";
 import TwitchAuthView from "@/views/admin/TwitchAuthView.vue";
 import AlertOverlayView from "@/views/overlay/AlertOverlayView.vue";
 import ChatOverlayView from "@/views/overlay/ChatOverlayView.vue";
@@ -18,6 +19,7 @@ export const router = createRouter({
     { path: "/events", name: "event-monitor", component: EventMonitorView },
     { path: "/members", name: "members", component: MembersView },
     { path: "/rules", name: "rules", component: RulesView },
+    { path: "/timers", name: "timers", component: TimersView },
     { path: "/rules/new", name: "rule-create", component: RuleEditorView },
     { path: "/rules/:id/edit", name: "rule-edit", component: RuleEditorView, props: true },
     { path: "/twitch", name: "twitch-auth", component: TwitchAuthView },

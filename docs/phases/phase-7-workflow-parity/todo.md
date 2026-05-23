@@ -99,14 +99,14 @@
 
 ## Task 33 - Web UI Builder Upgrade
 
-- [ ] Task 33a：`TriggerEditor.vue`（EventTypeKey dropdown + Filter key/value 表格 + MatchCondition input）。
-- [ ] Task 33b：`ThrottleEditor.vue`（MaxConcurrent / Cooldown / PerUserCooldown）。
-- [ ] Task 33c：`OnFailureEditor.vue`（OnFailureSteps 編輯 tab，沿用 RuleJsonEditor 或 simple form）。
-- [ ] Task 33d：`StepConditionInput.vue`（per-step ExecutionCondition + OutputVariable inline 編輯）。
-- [ ] Task 33e：`IsSubWorkflow` toggle + 隱藏 trigger 區（sub-workflow 不需 trigger）。
-- [ ] Task 33f：新路由 `/timers` 含 list/show/create/edit/delete。
-- [ ] Task 33g：i18n keys 雙語覆蓋。
-- [ ] Task 33h：Vitest per 新 component。
+- [x] Task 33a：`TriggerEditor.vue`（EventTypeKey dropdown + Filter key/value 表格 + MatchCondition input）。
+- [x] Task 33b：`ThrottleEditor.vue`（MaxConcurrent / Cooldown / PerUserCooldown）。
+- [x] Task 33c：`OnFailureEditor.vue`（OnFailureSteps 編輯 tab，沿用 RuleJsonEditor 或 simple form）。
+- [x] Task 33d：`StepConditionInput.vue`（per-step ExecutionCondition + OutputVariable inline 編輯）。
+- [x] Task 33e：`IsSubWorkflow` toggle + 隱藏 trigger 區（sub-workflow 不需 trigger）。
+- [x] Task 33f：新路由 `/timers` 含 list/show/create/edit/delete。
+- [x] Task 33g：i18n keys 雙語覆蓋。
+- [x] Task 33h：Vitest per 新 component。
 
 ## Task 34 - Plugin Action Variable Surface
 
