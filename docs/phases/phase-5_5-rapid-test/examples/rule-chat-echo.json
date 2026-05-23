@@ -1,0 +1,16 @@
+{
+  "name": "Chat Echo",
+  "eventTypeKey": "user.message",
+  "isEnabled": true,
+  "priority": 10,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "sendChatMessage",
+      "template": "Echo: {event.message}",
+      "targetPlatform": "loopback"
+    }
+  ],
+  "executionMode": "Serial",
+  "maxParallelism": 1
+}

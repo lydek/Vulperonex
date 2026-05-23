@@ -109,6 +109,25 @@
 
 ---
 
+## Phase 5.5：Rapid-Test Enablement
+
+> 詳細切片清單：`docs/phases/phase-5_5-rapid-test/todo.md`
+
+- [x] **Task 17a** — CLI rule create / update
+- [x] **Task 17b** — chat.html overlay 移植與架構測試
+- [x] **Task 17c** — E2E fixture chat → workflow → overlay 整合測試 (ChatReplyChainTests)
+- [x] **Task 17d** — Cookbook 文件撰寫與 PASS 記錄
+- [x] **Task 17e** — CLI ID 解析 + 缺 arg UX + 破壞性操作確認
+
+### ✅ Checkpoint 5.5
+- [x] 0 警告編譯與測試全綠
+- [x] CLI `rule create/update` 與 4xx 透傳綠
+- [x] CLI 缺 arg / prefix / `--name` / `--yes` 互動流程全綠
+- [x] `chat.html` payload key 架構測試綠
+- [x] Cookbook AI Agent + 人物理驗證 PASS
+
+---
+
 ## Phase 6：日誌 + 前端 + Photino
 
 > 詳細切片清單：`docs/phases/phase-6-web-ui/todo.md`
