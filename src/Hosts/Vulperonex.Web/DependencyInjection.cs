@@ -149,10 +149,12 @@ public static class DependencyInjection
             new AppLogsSink(provider.GetRequiredService<IServiceScopeFactory>()));
         services.AddHostedService<AppLogsCleanupWorker>();
         services.AddHostedService<Vulperonex.Web.Logging.LogLevelHotReloadWorker>();
+        services.AddSingleton<SqliteBusyTimeoutInterceptor>(_ => new SqliteBusyTimeoutInterceptor(5000));
         services.AddDbContext<VulperonexDbContext>((serviceProvider, options) =>
         {
             var databasePath = serviceProvider.GetRequiredService<IDatabasePathResolver>().Resolve();
             options.UseSqlite($"Data Source={databasePath}");
+            options.AddInterceptors(serviceProvider.GetRequiredService<SqliteBusyTimeoutInterceptor>());
         });
 
         return services;

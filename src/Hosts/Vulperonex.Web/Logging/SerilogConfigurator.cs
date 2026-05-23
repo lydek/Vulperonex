@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Core;
 using Serilog.Events;
+using Serilog.Filters;
 using Vulperonex.Application.Settings;
 using Vulperonex.Infrastructure.Logging;
 
@@ -54,8 +55,25 @@ public static class SerilogConfigurator
         AppLogsSink appLogsSink,
         string logDirectory)
     {
-        return new LoggerConfiguration()
+        return ConfigureLogger(new LoggerConfiguration(), levelSwitch, appLogsSink, logDirectory);
+    }
+
+    public static LoggerConfiguration ConfigureLogger(
+        LoggerConfiguration configuration,
+        LoggingLevelSwitch levelSwitch,
+        AppLogsSink appLogsSink,
+        string logDirectory)
+    {
+        return configuration
             .MinimumLevel.ControlledBy(levelSwitch)
+            // EF Core's Database.Command source logs every SQL roundtrip at
+            // Information. With several BackgroundService workers polling the
+            // SQLite DB on 1-10s intervals, this floods the rolling file sink
+            // and saturates the disk. Raise EF's floor to Warning so command
+            // execution stays silent on the happy path but failures still
+            // surface.
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.AspNetCore", LogEventLevel.Warning)
             .Enrich.FromLogContext()
             .WriteTo.Console(outputTemplate:
                 "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
@@ -68,7 +86,14 @@ public static class SerilogConfigurator
                 outputTemplate:
                     "[{Timestamp:yyyy-MM-ddTHH:mm:ss.fffzzz} {Level:u3}] {Message:lj} "
                     + "{EventTypeKey} {Platform} {MemberId} {WorkflowRuleId} {ActionType}{NewLine}{Exception}")
-            .WriteTo.Sink(appLogsSink);
+            // AppLogsSink writes through EF Core, which itself logs SQL via
+            // Serilog. Without this filter, every persisted batch generates new
+            // EF "Executed DbCommand" events that re-enter the sink and create
+            // an unbounded feedback loop. Route the sink through a sub-logger
+            // that drops EF Core's own diagnostic stream.
+            .WriteTo.Logger(sub => sub
+                .Filter.ByExcluding(Matching.FromSource("Microsoft.EntityFrameworkCore"))
+                .WriteTo.Sink(appLogsSink));
     }
 
     public static IDisposable BindHotReload(

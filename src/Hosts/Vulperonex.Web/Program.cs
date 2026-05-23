@@ -121,11 +121,7 @@ public static partial class VulperonexWebApplication
         {
             var sink = serviceProvider.GetRequiredService<AppLogsSink>();
             var directory = SerilogConfigurator.ResolveLogDirectory();
-            var built = SerilogConfigurator.BuildLoggerConfiguration(levelSwitch, sink, directory);
-            loggerConfiguration
-                .MinimumLevel.ControlledBy(levelSwitch)
-                .Enrich.FromLogContext()
-                .WriteTo.Logger(built.CreateLogger());
+            SerilogConfigurator.ConfigureLogger(loggerConfiguration, levelSwitch, sink, directory);
         });
     }
 
