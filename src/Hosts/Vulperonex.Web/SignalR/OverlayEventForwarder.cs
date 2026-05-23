@@ -1,3 +1,4 @@
+using System.Reactive.Linq;
 using Microsoft.AspNetCore.SignalR;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Overlay;
@@ -21,12 +22,24 @@ public sealed class OverlayEventForwarder(
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _subscriptions.Add(eventBus.Subscribe<IStreamEvent>(ForwardManagementEventAsync));
-        _subscriptions.Add(eventBus.Subscribe<UserSentMessageEvent>(ForwardChatEventAsync));
-        _subscriptions.Add(eventBus.Subscribe<UserFollowedEvent>((streamEvent, token) =>
-            ForwardAlertEventAsync(streamEvent.EventId, streamEvent.User.DisplayName, "followed", null, token)));
-        _subscriptions.Add(eventBus.Subscribe<UserSubscribedEvent>((streamEvent, token) =>
-            ForwardAlertEventAsync(streamEvent.EventId, streamEvent.User.DisplayName, "subscribed", streamEvent.Tier, token)));
+        var stream = eventBus.Events;
+
+        // Each Subscribe lambda is synchronous push from the bus dispatch
+        // loop. Forwarding to SignalR is fire-and-forget on purpose — the
+        // hub has its own buffering, and SafeSendAsync swallows shutdown
+        // cancellation so it cannot escape back into Subject.OnNext.
+        _subscriptions.Add(stream.Subscribe(streamEvent =>
+            _ = ForwardManagementEventAsync(streamEvent, cancellationToken)));
+
+        _subscriptions.Add(stream.OfType<UserSentMessageEvent>().Subscribe(streamEvent =>
+            _ = ForwardChatEventAsync(streamEvent, cancellationToken)));
+
+        _subscriptions.Add(stream.OfType<UserFollowedEvent>().Subscribe(streamEvent =>
+            _ = ForwardAlertEventAsync(streamEvent.EventId, streamEvent.User.DisplayName, "followed", null, cancellationToken)));
+
+        _subscriptions.Add(stream.OfType<UserSubscribedEvent>().Subscribe(streamEvent =>
+            _ = ForwardAlertEventAsync(streamEvent.EventId, streamEvent.User.DisplayName, "subscribed", streamEvent.Tier, cancellationToken)));
+
         return Task.CompletedTask;
     }
 
