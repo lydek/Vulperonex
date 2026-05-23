@@ -277,7 +277,7 @@ frontend (Vue SPA)
 
 #### Task 7：MemberResolver + PlatformUserDisplayCache（Infrastructure-only）
 
-**描述：** 實作 `MemberResolver`（`INSERT OR IGNORE + SELECT` atomic GetOrCreate）與 `PlatformUserDisplayCache`（L1 in-memory LRU + L2 SQLite，`IPlatformUserInfoCache` 介面）。包含 `UserDisplayInfo` record 和 TTL 清理背景 worker。**注意：`PlatformUserDisplayCache` 屬於 Adapter Infrastructure 層，Application/Domain 不知道其存在（不注入至 MemberModule 等 Application 服務）；adapter 在事件回調中直接呼叫快取更新。**
+**描述：** 實作 `MemberResolver`（`INSERT OR IGNORE + SELECT` atomic GetOrCreate）與 `PlatformUserDisplayCache`（L1 in-memory LRU + L2 SQLite，`IPlatformUserInfoCache` 介面）。包含 `UserDisplayInfo` record 和 TTL 清理背景 worker。**注意：`PlatformUserDisplayCache` 屬於 Adapter Infrastructure 層，Application/Domain 不知道其存在（不注入至 MemberModule 等 Application 服務）；adapter 在事件回呼中直接呼叫快取更新。**
 
 **驗收標準：**
 - [ ] 並行呼叫 `MemberResolver` 不產生重複 `MemberRecord`（ULID 唯一）
@@ -760,7 +760,7 @@ frontend (Vue SPA)
 
 #### Task 20：Web 管理主控台 (Web Admin UI)
 
-**描述：** 實作可長時間操作的本機控制台：Dashboard status cards、Simulate panel、Event monitor、Member read-only panel、Rule JSON Textarea CRUD、Twitch auth panel、i18n error handling、SignalR reconnect/polling fallback。
+**描述：** 實作可長時間操作的本機主控台：Dashboard status cards、Simulate panel、Event monitor、Member read-only panel、Rule JSON Textarea CRUD、Twitch auth panel、i18n error handling、SignalR reconnect/polling fallback。
 
 **驗收摘要：**
 - [ ] Member panel 僅支援 list/show 唯讀操作，**不提供 seed/delete 按鈕，不新增 member CRUD 端點**；測試資料建立與清理留給 CLI/manual test surface
@@ -961,7 +961,7 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 **描述：** 對齊 Omni-Commander 的可用性核心，不要求完整 drag-and-drop graph，但要提供可發現的 variable picker 與文字欄位插入體驗。
 **驗收標準：**
 - [ ] variable picker 至少分成 `Trigger`、`Args`、`Step Outputs`、`Member`、`Failure` 幾個群組。
-- [ ] picker 可插入到 action 參數、`ExecutionCondition`、`MatchCondition`、filter value、`OutputVariable` 以外的模板文字欄位。
+- [ ] picker 可插入到 action 參數、`ExecutionCondition`、`MatchCondition`、filter value、`OutputVariable` 以外的範本文字欄位。
 - [ ] 插入格式固定為 Phase 7 expression/template contract：`{Trigger.*}`、`{Args.*}`、`{Step.*}`、`{Member.*}`；不引入第二套 DSL。
 - [ ] 針對 `ExecutionCondition` / `MatchCondition` 提供至少一種「視覺化條件模式 + 原始表達式模式」切換；視覺化模式至少涵蓋單一變數、operator、單一比較值的常見條件。
 - [ ] 文字欄位可直接打字，也可插入變數 chip；不要求一次做到 ProseMirror/drag-drop editor，但不可比現況 textarea 更難用。
@@ -993,6 +993,8 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 
 ### Phase 7B：Chat Output Observability and Overlay Template Presets
 
+> 詳細計畫：`docs/phases/phase-7b-chat-overlay-presets/plan.md`
+> 詳細待辦：`docs/phases/phase-7b-chat-overlay-presets/todo.md`
 > 目的：補齊 workflow `SendChatMessage` 在 simulation / local 模式下的可觀測性缺口，並把聊天 overlay 從單一實作提升為可切換樣板系統。OneComme 相容定位為 extension/plugin slice，不直接併入 core。
 
 #### Task 41 - Simulation Chat Output Observable Surface
@@ -1034,7 +1036,7 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 |------|------|------|
 | npm dependencies 撞版本或下載失敗 | 中 | Task 19a 先做 `corepack enable`，若 Windows shim 權限受阻改用 `corepack pnpm@9.15.4 <command>`；以 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts` 做預檢；首次安裝前 ask-first |
 | Rule visual builder 膨脹 | 中 | MVP 只做 JSON editor + 輕量表單；完整 builder 後續切片 |
-| Twitch OAuth 與 Web UI callback UX 混淆 | 中 | OAuth `code` 僅由後端 loopback callback 消費；Web UI 只讀 status/event |
+| Twitch OAuth 與 Web UI callback UX 混淆 | 中 | OAuth `code` 僅由後端 loopback callback 消費；Web UI 唯讀 status/event |
 | SignalR/Polling 測試 flake | 中 | 核心 reducer/backoff 用 fake timer 單元測試；端到端留 manual verification |
 | Desktop/Photino 問題遮蔽 Web UI 問題 | 中 | 先以瀏覽器驗證 Web host，再進 Task 21 Desktop shell |
 | .NET 10.0 + Photino 3.x 相容性 | 中 | Task 21 做 compatibility 預驗；必要時使用 WebView2 fallback 或獨立 Kestrel 模式 |

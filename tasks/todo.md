@@ -203,8 +203,11 @@
 
 ## Phase 7B：Chat Output Observability and Overlay Template Presets
 
+> 詳細計畫：`docs/phases/phase-7b-chat-overlay-presets/plan.md`
+> 詳細待辦：`docs/phases/phase-7b-chat-overlay-presets/todo.md`
+
 - [ ] **Task 41** — Simulation chat output observable surface：workflow `SendChatMessage` 在 simulation/local 模式下可直接看到 message / platform / channel / dedupKey / status
-- [ ] **Task 42** — Chat overlay preset system：`/overlay/chat` 支援至少兩個可切換內建樣板，且切換不需改前端原始碼
+- [ ] **Task 42** — Chat overlay preset system：`/overlay/chat` 支援至少兩個可切換內建樣板，且切換不需改前端原始程式碼
 - [ ] **Task 43** — OneComme compatibility path：以 extension/plugin 方式提供 OneComme 相容 / 匯入 / 映射策略，不直接併入 core
 
 ### Checkpoint：Phase 7B
