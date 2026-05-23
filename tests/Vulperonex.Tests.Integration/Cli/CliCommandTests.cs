@@ -52,6 +52,8 @@ public sealed class CliCommandTests
     [Theory]
     [InlineData(new[] { "config", "get", "log.min_level" }, "GET", "/api/config/log.min_level")]
     [InlineData(new[] { "member", "list" }, "GET", "/api/members")]
+    [InlineData(new[] { "timer", "list" }, "GET", "/api/timers")]
+    [InlineData(new[] { "timer", "show", "timer-1" }, "GET", "/api/timers/timer-1")]
     [InlineData(new[] { "simulate", "follow" }, "POST", "/api/simulate/follow")]
     [InlineData(new[] { "simulate", "sub" }, "POST", "/api/simulate/sub")]
     [InlineData(new[] { "twitch", "auth", "reset" }, "DELETE", "/api/twitch/auth/token")]
@@ -75,6 +77,61 @@ public sealed class CliCommandTests
         var exitCode = await VulperonexCli.RunAsync(args, client, output, error);
 
         exitCode.Should().Be(0);
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_TimerCreateCommand_When_Executed_Then_TimerApiReceivesExpectedPayload()
+    {
+        using var client = new HttpClient(new StubHandler(async request =>
+        {
+            request.Method.Should().Be(HttpMethod.Post);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/timers");
+            var payload = await request.Content!.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            using var document = JsonDocument.Parse(payload);
+            document.RootElement.GetProperty("ruleId").GetString().Should().Be("rule-1");
+            document.RootElement.GetProperty("intervalSeconds").GetInt32().Should().Be(30);
+            document.RootElement.GetProperty("isEnabled").GetBoolean().Should().BeFalse();
+            document.RootElement.GetProperty("nextFireAt").GetDateTimeOffset()
+                .Should().Be(new DateTimeOffset(2026, 5, 23, 0, 0, 30, TimeSpan.Zero));
+            return JsonResponse(HttpStatusCode.Created, """{"id":"timer-1"}""");
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(
+            ["timer", "create", "rule-1", "30", "2026-05-23T00:00:30Z", "--disabled"],
+            client,
+            output,
+            error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Should().Contain("timer-1");
+        error.ToString().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_TimerDeleteCommand_When_YesFlagProvided_Then_ConfirmationIsSkipped()
+    {
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            request.Method.Should().Be(HttpMethod.Delete);
+            request.RequestUri?.PathAndQuery.Should().Be("/api/timers/timer-1");
+            return new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
+        }))
+        {
+            BaseAddress = new Uri("http://localhost"),
+        };
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+
+        var exitCode = await VulperonexCli.RunAsync(["timer", "delete", "timer-1", "--yes"], client, output, error);
+
+        exitCode.Should().Be(0);
+        output.ToString().Trim().Should().Be("OK timer deleted: timer-1");
         error.ToString().Should().BeEmpty();
     }
 

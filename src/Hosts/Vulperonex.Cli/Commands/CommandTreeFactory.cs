@@ -5,6 +5,7 @@ internal static class CommandTreeFactory
         var commands = new List<IConsoleCommand>
         {
             new RuleCommand(),
+            new TimerCommand(),
             new ConfigCommand(),
             new MemberCommand(),
             new SimulateCommand(),
