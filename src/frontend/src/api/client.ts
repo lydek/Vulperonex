@@ -292,6 +292,51 @@ export async function resetTwitchAuth(signal?: AbortSignal): Promise<void> {
   }
 }
 
+export interface TwitchDeviceAuthorizationResponse {
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  expiresIn: number;
+  interval: number;
+}
+
+export async function startTwitchDeviceAuth(signal?: AbortSignal): Promise<TwitchDeviceAuthorizationResponse> {
+  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/device/start`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<TwitchDeviceAuthorizationResponse>;
+}
+
+export async function completeTwitchDeviceAuth(
+  deviceCode: string,
+  signal?: AbortSignal
+): Promise<boolean> {
+  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/device/complete`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ deviceCode }),
+    signal
+  });
+  if (response.status === 202) {
+    return false;
+  }
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return true;
+}
+
 export interface WorkflowRuleUpsertRequest {
   id?: string;
   name: string;
