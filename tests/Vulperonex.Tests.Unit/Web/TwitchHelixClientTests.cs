@@ -38,6 +38,7 @@ public sealed class TwitchHelixClientTests
         var client = new TwitchHelixClient(
             NewConfiguration(),
             NewTokenProvider(),
+            new FakeSettingsService(),
             httpClient);
 
         var user = await client.LookupUserAsync("alice", userId: null, TestContext.Current.CancellationToken);
@@ -68,6 +69,7 @@ public sealed class TwitchHelixClientTests
         var client = new TwitchHelixClient(
             NewConfiguration(),
             NewTokenProvider(),
+            new FakeSettingsService(),
             httpClient);
 
         var user = await client.LookupUserAsync(login: null, userId: "user-404", TestContext.Current.CancellationToken);
@@ -105,6 +107,7 @@ public sealed class TwitchHelixClientTests
         var client = new TwitchHelixClient(
             NewConfiguration(),
             NewTokenProvider(),
+            new FakeSettingsService(),
             httpClient);
 
         var result = await client.SendShoutoutAsync("alice", TestContext.Current.CancellationToken);
@@ -139,6 +142,7 @@ public sealed class TwitchHelixClientTests
         var client = new TwitchHelixClient(
             NewConfiguration(),
             NewTokenProvider(),
+            new FakeSettingsService(),
             httpClient);
 
         var refunded = await client.RefundRedemptionAsync("reward-1", "redemption-1", TestContext.Current.CancellationToken);
@@ -226,6 +230,26 @@ public sealed class TwitchHelixClientTests
             CancellationToken cancellationToken)
         {
             return Task.FromResult(handler(request));
+        }
+    }
+
+    private sealed class FakeSettingsService : Vulperonex.Application.Settings.ISystemSettingsService
+    {
+        public IObservable<Vulperonex.Application.Settings.SettingChangedEvent> Changes => throw new NotImplementedException();
+
+        public Task<T> GetAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(defaultValue);
+        }
+
+        public Task SetAsync<T>(string key, T value, string category, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

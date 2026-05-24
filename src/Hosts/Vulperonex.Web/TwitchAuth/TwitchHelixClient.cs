@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Application.Settings;
 using Vulperonex.Application.Twitch;
 
 namespace Vulperonex.Web.TwitchAuth;
@@ -9,6 +10,7 @@ namespace Vulperonex.Web.TwitchAuth;
 public sealed class TwitchHelixClient(
     IConfiguration configuration,
     TwitchAccessTokenProvider accessTokenProvider,
+    ISystemSettingsService settings,
     HttpClient? httpClient = null) : ITwitchHelixClient
 {
     private readonly HttpClient _httpClient = httpClient ?? new HttpClient
@@ -100,8 +102,13 @@ public sealed class TwitchHelixClient(
         }
 
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessTokenProvider.AccessToken);
-        request.Headers.Add("Client-Id", configuration["Twitch:ClientId"]
-            ?? throw new InvalidOperationException("Twitch:ClientId is required."));
+        var dbClientId = await settings.GetAsync<string?>(SystemSettingKey.TwitchClientId, null, cancellationToken);
+        var clientId = !string.IsNullOrWhiteSpace(dbClientId) ? dbClientId : configuration["Twitch:ClientId"];
+        if (string.IsNullOrWhiteSpace(clientId))
+        {
+            throw new InvalidOperationException("Twitch:ClientId is required.");
+        }
+        request.Headers.Add("Client-Id", clientId);
     }
 
     private static string? BuildUserQuery(string? login, string? userId)

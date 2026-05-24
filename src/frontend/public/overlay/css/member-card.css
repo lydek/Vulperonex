@@ -1,0 +1,461 @@
+/* =========================================================
+   Vulperonex Member Card — Base + Default (Rotan Red/Gold)
+   結構與動畫為通用層。主題切換僅需覆蓋 :root tokens。
+   依賴：overlay-base.css (提供 gradientBorder keyframe + font)
+========================================================= */
+
+:root {
+    /* === 預設主題 token (rotan-checkin 紅/金) === */
+    --mc-accent: #ffd700;
+    --mc-accent-rgb: 255, 215, 0;
+    --mc-accent-light: #fff7a0;
+    --mc-accent-secondary: #ffb700;
+
+    --mc-stamp-rgb: 255, 51, 102;
+    --mc-vip-bg: linear-gradient(135deg, #c59b27 0%, #ecd06f 50%, #c59b27 100%);
+    --mc-vip-color: #111;
+    --mc-vip-border: #7a5c13;
+    --mc-frame-bg: linear-gradient(135deg, var(--mc-accent), var(--mc-accent-secondary), var(--mc-accent));
+    --mc-frame-gradient: linear-gradient(45deg, var(--mc-accent), var(--mc-accent-secondary), var(--mc-accent-light), var(--mc-accent));
+    --mc-card-overlay-gradient: linear-gradient(135deg, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0.8) 100%);
+    --mc-card-inner-shadow-alpha: 0.8;
+    --mc-card-inner-highlight-alpha: 0.1;
+    --mc-watermark-size: 160px;
+    --mc-watermark-color: rgba(var(--mc-accent-rgb), 0.1);
+
+    /* 內聯爪印 SVG。主題覆蓋時整段重定義 stroke/fill 顏色。 */
+    --stamp-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="%23ff3366" stroke-width="6" stroke-dasharray="8 4"/><circle cx="50" cy="50" r="38" fill="none" stroke="%23ff3366" stroke-width="2"/><g transform="rotate(-15 50 50) translate(8, 12) scale(0.85)" fill="%23ff3366"><path d="M 50,45 C 75,45 85,60 85,75 C 85,90 65,95 50,90 C 35,95 15,90 15,75 C 15,60 25,45 50,45 Z"/><ellipse cx="25" cy="35" rx="10" ry="15" transform="rotate(-30 25 35)"/><ellipse cx="40" cy="20" rx="10" ry="15"/><ellipse cx="60" cy="20" rx="10" ry="15"/><ellipse cx="75" cy="35" rx="10" ry="15" transform="rotate(30 75 35)"/></g></svg>');
+    --card-bg-image: linear-gradient(135deg, rgba(20, 20, 25, 0.85) 0%, rgba(45, 45, 50, 0.95) 100%);
+}
+
+/* =========================================================
+   結構：卡片容器與外殼
+========================================================= */
+
+.card-container {
+    position: absolute;
+    top: 50px;
+    left: -1200px;
+    transition: left 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform: scale(1.5);
+    transform-origin: top left;
+}
+
+.card-container.show {
+    left: 50px;
+}
+
+.loyalty-card {
+    width: 600px;
+    height: 300px;
+    border-radius: 24px;
+    position: relative;
+    background: var(--mc-frame-bg);
+    padding: 2px;
+    box-sizing: border-box;
+    transition: box-shadow 0.8s ease, transform 0.4s ease;
+    box-shadow: 0 4px 15px rgba(var(--mc-accent-rgb), 0.25);
+    overflow: visible;
+}
+
+body.inline-mode .loyalty-card {
+    padding: 8px !important;
+    overflow: visible;
+}
+
+/* 獨立發光層 */
+.loyalty-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    box-shadow:
+        0 0 4px var(--mc-accent),
+        0 0 12px rgba(var(--mc-accent-rgb), 0.3);
+}
+
+body.inline-mode .loyalty-card::before {
+    padding: 8px !important;
+    animation: gradientBorder 4s ease infinite;
+}
+
+body.inline-mode .loyalty-card.full-stamps::before {
+    animation: gradientBorder 4s ease infinite, mcPulseBorder 2s infinite alternate !important;
+}
+
+body.inline-mode .loyalty-card:not(.full-stamps) {
+    box-shadow: none !important;
+}
+
+body.inline-mode .card-inner-bg {
+    border-radius: 16px !important;
+}
+
+.loyalty-card.full-stamps {
+    box-shadow: 0 0 25px var(--mc-accent), inset 0 0 60px rgba(var(--mc-accent-rgb), 0.5);
+    animation: mcPulse 2s infinite alternate;
+}
+
+.loyalty-card.full-stamps::after {
+    opacity: 1;
+    animation: mcPulseOuterInline 2s 0.8s infinite alternate;
+}
+
+body.inline-mode .loyalty-card.full-stamps .card-inner-bg {
+    animation: mcPulseInner 2s infinite alternate !important;
+}
+
+/* 流光燙金/紫金框 */
+.loyalty-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 24px;
+    padding: 3px;
+    background: var(--mc-frame-gradient);
+    background-size: 300% 300%;
+    animation: gradientBorder 4s ease infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* =========================================================
+   內側真實背景容器
+========================================================= */
+
+.card-inner-bg {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 21px;
+    background: var(--card-bg-image);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    display: flex;
+    box-sizing: border-box;
+    color: #fff;
+    box-shadow:
+        inset 0 0 10px rgba(0, 0, 0, var(--mc-card-inner-shadow-alpha)),
+        inset 0 1px 0 rgba(255, 255, 255, var(--mc-card-inner-highlight-alpha));
+    z-index: 1;
+}
+
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    background: var(--mc-card-overlay-gradient);
+    z-index: 1;
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.round-watermark {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: var(--mc-watermark-size);
+    font-weight: 900;
+    font-style: italic;
+    color: var(--mc-watermark-color);
+    z-index: 1;
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+    letter-spacing: -2px;
+}
+
+.card-bg-pattern {
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+    background-size: 15px 15px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+/* =========================================================
+   左側：頭像 + 名稱 + VIP 徽章
+========================================================= */
+
+.card-left {
+    width: 220px;
+    background: transparent;
+    padding: 30px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    position: relative;
+}
+
+.card-left::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 1px;
+    background: rgba(var(--mc-accent-rgb), 0.3);
+}
+
+.user-avatar-wrap {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    margin-bottom: 20px;
+}
+
+.user-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 3px solid var(--mc-accent);
+    box-shadow: 0 0 15px rgba(var(--mc-accent-rgb), 0.4);
+    object-fit: cover;
+    background-color: #222;
+    animation: avatarPulse 3s infinite alternate;
+}
+
+.user-name-container {
+    width: 100%;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 5px;
+}
+
+.user-name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    text-align: center;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9);
+    width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-wrap: break-word;
+    word-break: break-all;
+    line-height: 1.2;
+    letter-spacing: 1px;
+    color: #fff;
+}
+
+.vip-badge {
+    margin-top: 10px;
+    background: var(--mc-vip-bg);
+    color: var(--mc-vip-color);
+    font-size: 14px;
+    font-weight: 900;
+    padding: 4px 16px;
+    border-radius: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--mc-vip-border);
+}
+
+/* =========================================================
+   右側：標題 + 進度 + 集章 grid
+========================================================= */
+
+.card-right {
+    flex: 1;
+    padding: 25px 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    border-bottom: 1px solid rgba(var(--mc-accent-rgb), 0.3);
+    padding-bottom: 10px;
+}
+
+.card-title {
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--mc-accent);
+    text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+.progress-badge {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--mc-accent);
+    border: 1px solid rgba(var(--mc-accent-rgb), 0.3);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--mc-accent-secondary), var(--mc-accent), var(--mc-accent-light), var(--mc-accent), var(--mc-accent-secondary));
+    background-size: 200% 100%;
+    border-radius: 4px;
+    transition: width 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    animation: moveGradient 2s linear infinite;
+    box-shadow: 0 0 10px rgba(var(--mc-accent-rgb), 0.5);
+}
+
+.stamps-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+}
+
+.stamp-slot {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 1px solid rgba(var(--mc-accent-rgb), 0.15);
+    box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.6), 0 1px 0 rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background: rgba(0, 0, 0, 0.5);
+    font-size: 18px;
+    color: rgba(var(--mc-accent-rgb), 0.2);
+    font-weight: bold;
+    overflow: visible;
+}
+
+.stamp-slot.stamped::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 54px;
+    height: 54px;
+    background-image: var(--stamp-image);
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.95;
+    transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) rotate(var(--rot, -15deg)) scale(var(--scale, 1));
+    filter: drop-shadow(0 0 5px rgba(var(--mc-stamp-rgb), 0.5));
+}
+
+.stamp-slot.animate-stamp::after {
+    animation: stampInWithVars 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.shake {
+    animation: cardShake 0.4s ease-in-out;
+}
+
+/* =========================================================
+   Animations (使用 var() 解析主題顏色)
+========================================================= */
+
+@keyframes mcPulse {
+    0% {
+        box-shadow: 0 0 15px rgba(var(--mc-accent-rgb), 0.5), inset 0 0 30px rgba(var(--mc-accent-rgb), 0.3);
+    }
+    100% {
+        box-shadow: 0 0 35px var(--mc-accent), inset 0 0 60px rgba(var(--mc-accent-rgb), 0.5);
+    }
+}
+
+@keyframes mcPulseOuterInline {
+    0% {
+        box-shadow:
+            0 0 4px var(--mc-accent),
+            0 0 12px rgba(var(--mc-accent-rgb), 0.3);
+    }
+    100% {
+        box-shadow:
+            0 0 10px var(--mc-accent),
+            0 0 25px rgba(var(--mc-accent-rgb), 0.6);
+    }
+}
+
+@keyframes mcPulseInner {
+    0% { box-shadow: inset 0 0 20px rgba(var(--mc-accent-rgb), 0.2), 0 0 10px rgba(var(--mc-accent-rgb), 0.2) !important; }
+    100% { box-shadow: inset 0 0 60px rgba(var(--mc-accent-rgb), 0.5), 0 0 20px rgba(var(--mc-accent-rgb), 0.4) !important; }
+}
+
+@keyframes mcPulseBorder {
+    0% {
+        filter: brightness(1) contrast(1);
+        opacity: 0.95;
+    }
+    100% {
+        filter: brightness(1.3) contrast(1.1) drop-shadow(0 0 15px var(--mc-accent-light));
+        opacity: 1;
+    }
+}
+
+@keyframes avatarPulse {
+    0% { box-shadow: 0 0 15px rgba(var(--mc-accent-rgb), 0.3); border-color: var(--mc-accent); }
+    100% { box-shadow: 0 0 25px rgba(var(--mc-accent-rgb), 0.7); border-color: var(--mc-accent-light); }
+}
+
+@keyframes moveGradient {
+    0% { background-position: 100% 0; }
+    100% { background-position: -100% 0; }
+}
+
+@keyframes stampInWithVars {
+    0% {
+        transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(3) rotate(calc(var(--rot, -15deg) + 30deg));
+        opacity: 0;
+    }
+    50% {
+        transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(calc(var(--scale, 1) * 0.8)) rotate(calc(var(--rot, -15deg) - 10deg));
+        opacity: 1;
+        filter: drop-shadow(0 0 10px rgba(var(--mc-stamp-rgb), 0.8));
+    }
+    100% {
+        transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(var(--scale, 1)) rotate(var(--rot, -15deg));
+        opacity: 0.9;
+    }
+}
+
+@keyframes cardShake {
+    0% { transform: translate(0, 0) rotate(0); }
+    20% { transform: translate(-3px, 2px) rotate(-1deg); }
+    40% { transform: translate(3px, -2px) rotate(1deg); }
+    60% { transform: translate(-2px, 1px) rotate(-0.5deg); }
+    80% { transform: translate(2px, -1px) rotate(0.5deg); }
+    100% { transform: translate(0, 0) rotate(0); }
+}

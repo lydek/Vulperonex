@@ -11,8 +11,12 @@ export interface OverlayHubEvent {
   sentAt?: string;
   displayName?: string;
   eventType?: string;
-  segments?: Array<{ kind: string; text: string }>;
+  segments?: Array<{ kind?: string; text?: string; type?: string; value?: string }>;
   replayed?: boolean;
+  colorHex?: string | null;
+  badges?: string[];
+  avatarUrl?: string | null;
+  checkInCount?: number;
 }
 
 export interface OverlayClearedPayload {

@@ -1,23 +1,25 @@
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.DependencyInjection;
 using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Application.Settings;
 
 namespace Vulperonex.Web.TwitchAuth;
 
-public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchTokenEndpoint
+public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceScopeFactory scopeFactory) : ITwitchTokenEndpoint
 {
     private static readonly Uri TokenEndpoint = new("https://id.twitch.tv/oauth2/token");
     private static readonly Uri DeviceEndpoint = new("https://id.twitch.tv/oauth2/device");
 
-    public Task<TwitchTokenResponse> ExchangeCodeAsync(
+    public async Task<TwitchTokenResponse> ExchangeCodeAsync(
         string code,
         string codeVerifier,
         CancellationToken cancellationToken = default)
     {
-        var clientId = GetClientId();
+        var clientId = await GetClientIdAsync(cancellationToken);
         var redirectUri = configuration["Twitch:RedirectUri"]
             ?? throw new InvalidOperationException("Twitch redirect URI must be supplied by the OAuth session.");
-        return SendTokenRequestAsync(
+        return await SendTokenRequestAsync(
             new Dictionary<string, string>
             {
                 ["client_id"] = clientId,
@@ -30,11 +32,11 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
             cancellationToken);
     }
 
-    public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+    public async Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
     {
         var form = new Dictionary<string, string>
             {
-                ["client_id"] = GetClientId(),
+                ["client_id"] = await GetClientIdAsync(cancellationToken),
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = refreshToken,
             };
@@ -44,7 +46,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
             form["client_secret"] = clientSecret;
         }
 
-        return SendTokenRequestAsync(form, cancellationToken);
+        return await SendTokenRequestAsync(form, cancellationToken);
     }
 
     public async Task<TwitchTokenResponse> ExchangeCodeAsync(
@@ -56,7 +58,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
         return await SendTokenRequestAsync(
             new Dictionary<string, string>
             {
-                ["client_id"] = GetClientId(),
+                ["client_id"] = await GetClientIdAsync(cancellationToken),
                 ["client_secret"] = GetClientSecret(),
                 ["grant_type"] = "authorization_code",
                 ["code"] = code,
@@ -70,12 +72,13 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
         string scopes,
         CancellationToken cancellationToken = default)
     {
+        var clientId = await GetClientIdAsync(cancellationToken);
         using var httpClient = new HttpClient();
         using var response = await httpClient.PostAsync(
             DeviceEndpoint,
             new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["client_id"] = GetClientId(),
+                ["client_id"] = clientId,
                 ["scopes"] = scopes,
             }),
             cancellationToken);
@@ -93,14 +96,15 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
             payload.Interval);
     }
 
-    public Task<TwitchTokenResponse> CompleteDeviceAuthorizationAsync(
+    public async Task<TwitchTokenResponse> CompleteDeviceAuthorizationAsync(
         string deviceCode,
         CancellationToken cancellationToken = default)
     {
-        return SendTokenRequestAsync(
+        var clientId = await GetClientIdAsync(cancellationToken);
+        return await SendTokenRequestAsync(
             new Dictionary<string, string>
             {
-                ["client_id"] = GetClientId(),
+                ["client_id"] = clientId,
                 ["device_code"] = deviceCode,
                 ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
             },
@@ -129,8 +133,16 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration) : ITwitchT
         return new TwitchTokenResponse(token!.AccessToken, token.RefreshToken);
     }
 
-    private string GetClientId()
+    private async Task<string> GetClientIdAsync(CancellationToken cancellationToken)
     {
+        using var scope = scopeFactory.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingsService>();
+        var dbClientId = await settings.GetAsync<string?>(SystemSettingKey.TwitchClientId, null, cancellationToken);
+        if (!string.IsNullOrWhiteSpace(dbClientId))
+        {
+            return dbClientId;
+        }
+
         return configuration["Twitch:ClientId"]
             ?? throw new InvalidOperationException("Twitch:ClientId is required.");
     }

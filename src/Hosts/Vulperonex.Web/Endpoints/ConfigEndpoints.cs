@@ -16,6 +16,9 @@ public static class ConfigEndpoints
         SystemSettingKey.LogDbMaxSizeMb,
         SystemSettingKey.LogFileRetentionDays,
         SystemSettingKey.OverlayChatPreset,
+        SystemSettingKey.TwitchClientId,
+        SystemSettingKey.OverlayMemberBackgroundUrl,
+        SystemSettingKey.OverlayMemberStampUrl,
     }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
 
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder endpoints)

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulperonex - OBS 聊天室 Web Overlay</title>
+    <!-- 引入 Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- 載入經典炫紫主題 -->
+    <link rel="stylesheet" href="css/overlay-base.css?v=2">
+    <link rel="stylesheet" href="css/style-twitch.css?v=2">
+</head>
+
+<body>
+    <div id="app">
+        <transition-group name="ice-spring" tag="div" class="chat-container">
+            <div v-for="msg in messages" :key="msg.id" class="chat-line">
+                <!-- 徽章在名稱之前 -->
+                <img v-for="(badgeUrl, index) in msg.badges" :key="index" :src="badgeUrl" class="chat-badge" />
+                <!-- 暱稱 -->
+                <span class="chat-username" :style="{ color: msg.nameColorHex }">{{ msg.username }}</span>
+                <!-- 冒號 -->
+                <span class="chat-colon">:</span>
+                <!-- 內容 -->
+                <span class="chat-content" v-html="msg.message"></span>
+            </div>
+        </transition-group>
+    </div>
+    <!-- 引入 Vue 3 (Local) -->
+    <script src="libs/vue.global.js"></script>
+    <!-- 引入 SignalR 客戶端 (Local) -->
+    <script src="libs/signalr.min.js"></script>
+
+    <!-- 引入自製的 Overlay 共用工具 -->
+    <script src="js/overlay-common.js"></script>
+
+    <!-- 啟動 Vue 應用與 SignalR 連線 -->
+    <script>
+        const { createApp, ref, onMounted } = Vue;
+
+        const app = createApp({
+            setup() {
+                const messages = ref([]);
+                let messageCounter = 0;
+
+                // 畫面最多同時容納 15 則訊息，超過時最頂端的會自動被擠出畫面並觸發消失動畫
+                const MAX_MESSAGES = 15;
+
+                onMounted(() => {
+                    OverlayCommon.initSignalRConnection('/hubs/overlay/chat', {
+                        event: (data) => {
+                            console.log("[DEBUG] SignalR 接收到聊天室封包: ", data);
+
+                            // 解析 segments 以安全地渲染 HTML (特別是表情圖示)
+                            let messageHtml = "";
+                            if (data.segments && Array.isArray(data.segments)) {
+                                messageHtml = data.segments.map(seg => {
+                                    const type = seg.type || seg.kind || 'text';
+                                    const value = seg.value || seg.text || '';
+                                    if (type === 'emote') {
+                                        return `<img src="${value}" class="chat-emote" />`;
+                                    }
+                                    return value
+                                        .replace(/&/g, "&amp;")
+                                        .replace(/</g, "&lt;")
+                                        .replace(/>/g, "&gt;")
+                                        .replace(/"/g, "&quot;")
+                                        .replace(/'/g, "&#039;");
+                                }).join("");
+                            } else {
+                                messageHtml = (data.htmlMessage || data.HtmlMessage || "").trim();
+                            }
+
+                            const newMsg = {
+                                id: ++messageCounter,
+                                username: data.displayName || data.DisplayName || "未知使用者",
+                                nameColorHex: data.colorHex || data.ColorHex || '',
+                                message: messageHtml,
+                                badges: data.badges || data.Badges || []
+                            };
+
+                            messages.value.push(newMsg);
+
+                            if (messages.value.length > MAX_MESSAGES) {
+                                messages.value.shift();
+                            }
+                        },
+                        cleared: () => {
+                            console.log("🧹 收到清空聊天室指令");
+                            messages.value = [];
+                        }
+                    });
+                });
+
+                return { messages };
+            }
+        });
+
+        app.mount('#app');
+    </script>
+</body>
+
+</html>

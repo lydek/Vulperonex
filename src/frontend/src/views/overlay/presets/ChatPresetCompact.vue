@@ -8,7 +8,7 @@ function combinedText(event: OverlayHubEvent): string {
   if (!event.segments) {
     return "";
   }
-  return event.segments.map((segment) => segment.text).join(" ");
+  return event.segments.map((segment) => segment.text || segment.value || "").join(" ");
 }
 
 const recent = computed(() => props.events.slice(-10));

@@ -1,5 +1,6 @@
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Application.Auth;
+using Vulperonex.Application.Settings;
 using Vulperonex.Web.Errors;
 using Vulperonex.Web.SignalR;
 using Vulperonex.Web.TwitchAuth;
@@ -16,10 +17,12 @@ public static class TwitchAuthEndpoints
 
         group.MapGet("/status", async (
             IConfiguration configuration,
+            ISystemSettingsService settings,
             IOAuthTokenStore tokenStore,
             CancellationToken cancellationToken) =>
         {
-            var clientIdConfigured = !string.IsNullOrWhiteSpace(configuration["Twitch:ClientId"]);
+            var clientId = await ResolveClientIdAsync(settings, configuration, cancellationToken);
+            var clientIdConfigured = !string.IsNullOrWhiteSpace(clientId);
             var clientSecretConfigured = !string.IsNullOrWhiteSpace(configuration["Twitch:ClientSecret"]);
             var hasRefreshToken = await tokenStore.HasRefreshTokenAsync("twitch", cancellationToken);
             return Results.Ok(new TwitchAuthStatusResponse(clientIdConfigured, clientSecretConfigured, hasRefreshToken));
@@ -35,13 +38,15 @@ public static class TwitchAuthEndpoints
             return Results.NoContent();
         });
 
-        group.MapPost("/start", (
+        group.MapPost("/start", async (
             HttpContext context,
             TwitchAuthStartRequest request,
             IConfiguration configuration,
-            TwitchOAuthSessionStore sessions) =>
+            ISystemSettingsService settings,
+            TwitchOAuthSessionStore sessions,
+            CancellationToken cancellationToken) =>
         {
-            var clientId = configuration["Twitch:ClientId"];
+            var clientId = await ResolveClientIdAsync(settings, configuration, cancellationToken);
             if (string.IsNullOrWhiteSpace(clientId))
             {
                 return ApiErrors.ToResult(ErrorCodes.TwitchClientIdMissing, StatusCodes.Status400BadRequest);
@@ -110,10 +115,12 @@ public static class TwitchAuthEndpoints
 
         group.MapPost("/device/start", async (
             IConfiguration configuration,
+            ISystemSettingsService settings,
             TwitchTokenEndpoint tokenEndpoint,
             CancellationToken cancellationToken) =>
         {
-            if (string.IsNullOrWhiteSpace(configuration["Twitch:ClientId"]))
+            var clientId = await ResolveClientIdAsync(settings, configuration, cancellationToken);
+            if (string.IsNullOrWhiteSpace(clientId))
             {
                 return ApiErrors.ToResult(ErrorCodes.TwitchClientIdMissing, StatusCodes.Status400BadRequest);
             }
@@ -153,6 +160,15 @@ public static class TwitchAuthEndpoints
         });
 
         return endpoints;
+    }
+
+    private static async Task<string?> ResolveClientIdAsync(
+        ISystemSettingsService settings,
+        IConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        var dbClientId = await settings.GetAsync<string?>(SystemSettingKey.TwitchClientId, null, cancellationToken);
+        return !string.IsNullOrWhiteSpace(dbClientId) ? dbClientId : configuration["Twitch:ClientId"];
     }
 
     private static bool IsAllowedCallbackPort(int port)

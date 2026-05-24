@@ -10,6 +10,8 @@ import {
   startTwitchAuth,
   startTwitchDeviceAuth,
   completeTwitchDeviceAuth,
+  getTwitchClientId,
+  saveTwitchClientId,
   type TwitchAuthStatusResponse
 } from "@/api/client";
 import { useExponentialPollingFallback } from "@/composables/useExponentialPollingFallback";
@@ -26,6 +28,10 @@ const lastError = ref<string | null>(null);
 const lastStartUrl = ref<string | null>(null);
 const confirmResetOpen = ref(false);
 const pollingActive = ref(false);
+
+const inputClientId = ref("");
+const savingClientId = ref(false);
+const clientIdSaveSuccess = ref(false);
 
 // Device flow states
 const deviceAuth = ref<{
@@ -110,11 +116,30 @@ async function loadStatus(): Promise<void> {
   lastError.value = null;
   try {
     status.value = await getTwitchAuthStatus();
+    const currentId = await getTwitchClientId();
+    inputClientId.value = currentId;
   } catch (caught) {
     status.value = null;
     lastError.value = describeError(caught);
   } finally {
     loadingStatus.value = false;
+  }
+}
+
+async function saveClientId(): Promise<void> {
+  savingClientId.value = true;
+  clientIdSaveSuccess.value = false;
+  try {
+    await saveTwitchClientId(inputClientId.value.trim());
+    clientIdSaveSuccess.value = true;
+    setTimeout(() => {
+      clientIdSaveSuccess.value = false;
+    }, 3000);
+    await loadStatus();
+  } catch (caught) {
+    lastError.value = describeError(caught);
+  } finally {
+    savingClientId.value = false;
   }
 }
 
@@ -233,9 +258,8 @@ function describeError(caught: unknown): string {
 
     <p
       v-if="lastError"
-      class="status-error"
+      class="status-error twitch-error-banner"
       role="alert"
-      style="margin-bottom: 1.5rem; text-align: left; padding: 1rem; border-radius: 6px;"
     >
       ⚠️ <strong>授權問題</strong>：<span data-testid="twitch-error">{{ lastError }}</span>
     </p>
@@ -260,24 +284,54 @@ function describeError(caught: unknown): string {
       </article>
     </div>
 
-    <!-- Device Flow Guide Panel -->
-    <div v-if="deviceAuth && deviceAuthStatus === 'pending'" class="status-card" style="margin-top: 1.5rem; border: 1.5px solid #6441a5; background-color: rgba(100, 65, 165, 0.05); padding: 1.5rem; border-radius: 8px; text-align: center;">
-      <h3 style="margin-top: 0; color: #6441a5; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-        <span>🔑</span> Twitch 裝置授權流程中
+    <div class="status-card twitch-client-id-panel">
+      <h3 class="twitch-section-title">
+        <span aria-hidden="true">⚙️</span> {{ t("twitchAuth.clientIdEdit.title") }}
       </h3>
-      <p style="margin-bottom: 1rem;">系統已在新分頁開啟 Twitch 驗證網頁。若新分頁被瀏覽器阻擋，請手動點選下方按鈕前往：</p>
-      <div style="margin: 1.5rem 0;">
-        <a :href="deviceAuth.verificationUri" target="_blank" class="primary-button" style="text-decoration: none; display: inline-block; padding: 0.6rem 1.5rem; background-color: #6441a5; border-color: #6441a5;">
+      <p class="twitch-section-description">
+        {{ t("twitchAuth.clientIdEdit.description") }}
+      </p>
+      <div class="twitch-client-id-row">
+        <input
+          v-model="inputClientId"
+          type="text"
+          :placeholder="t('twitchAuth.clientIdEdit.placeholder')"
+          class="rule-editor-textarea twitch-client-id-input"
+        />
+        <button
+          type="button"
+          class="primary-button twitch-section-button"
+          :disabled="savingClientId"
+          @click="saveClientId"
+        >
+          {{ savingClientId ? t("twitchAuth.clientIdEdit.saving") : t("twitchAuth.clientIdEdit.save") }}
+        </button>
+      </div>
+      <p v-if="clientIdSaveSuccess" class="twitch-save-success" role="status">
+        ✓ {{ t("twitchAuth.clientIdEdit.saveSuccess") }}
+      </p>
+    </div>
+
+    <div v-if="deviceAuth && deviceAuthStatus === 'pending'" class="status-card twitch-device-panel">
+      <h3 class="twitch-section-title twitch-device-title">
+        <span aria-hidden="true">🔑</span> Twitch 裝置授權流程中
+      </h3>
+      <p>系統已在新分頁開啟 Twitch 驗證網頁。若新分頁被瀏覽器阻擋，請手動點選下方按鈕前往：</p>
+      <div class="twitch-device-cta">
+        <a
+          :href="deviceAuth.verificationUri"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="primary-button twitch-device-link"
+        >
           前往 Twitch 驗證網頁
         </a>
       </div>
-      <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">請於驗證網頁中輸入以下代碼完成登入：</p>
-      <div style="background-color: rgba(0, 0, 0, 0.05); border: 1px dashed #6441a5; padding: 0.8rem; border-radius: 6px; display: inline-block; min-width: 200px;">
-        <strong style="font-size: 1.8rem; letter-spacing: 2px; color: #6441a5; font-family: monospace;">
-          {{ deviceAuth.userCode }}
-        </strong>
+      <p class="twitch-device-instruction">請於驗證網頁中輸入以下代碼完成登入：</p>
+      <div class="twitch-device-code-box">
+        <strong class="twitch-device-code">{{ deviceAuth.userCode }}</strong>
       </div>
-      <p class="rule-editor-hint" style="margin-top: 1rem; color: #666;">
+      <p class="rule-editor-hint twitch-device-hint">
         ⏳ 正在偵測授權結果... 請在代碼失效前完成輸入。
       </p>
     </div>
@@ -332,3 +386,114 @@ function describeError(caught: unknown): string {
     />
   </section>
 </template>
+
+<style scoped>
+.twitch-error-banner {
+  margin-bottom: 1.5rem;
+  text-align: left;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.twitch-client-id-panel {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.twitch-section-title {
+  margin-top: 0;
+  color: #6441a5;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.twitch-section-description {
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+  color: #666;
+}
+
+.twitch-client-id-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  max-width: 500px;
+}
+
+.twitch-client-id-input {
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  flex-grow: 1;
+  height: 38px;
+  box-sizing: border-box;
+}
+
+.twitch-section-button {
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #6441a5;
+  border-color: #6441a5;
+}
+
+.twitch-save-success {
+  color: #1b6a4f;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.twitch-device-panel {
+  margin-top: 1.5rem;
+  border: 1.5px solid #6441a5;
+  background-color: rgba(100, 65, 165, 0.05);
+  padding: 1.5rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.twitch-device-title {
+  justify-content: center;
+}
+
+.twitch-device-cta {
+  margin: 1.5rem 0;
+}
+
+.twitch-device-link {
+  text-decoration: none;
+  display: inline-block;
+  padding: 0.6rem 1.5rem;
+  background-color: #6441a5;
+  border-color: #6441a5;
+}
+
+.twitch-device-instruction {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.twitch-device-code-box {
+  background-color: rgba(0, 0, 0, 0.05);
+  border: 1px dashed #6441a5;
+  padding: 0.8rem;
+  border-radius: 6px;
+  display: inline-block;
+  min-width: 200px;
+}
+
+.twitch-device-code {
+  font-size: 1.8rem;
+  letter-spacing: 2px;
+  color: #6441a5;
+  font-family: monospace;
+}
+
+.twitch-device-hint {
+  margin-top: 1rem;
+  color: #666;
+}
+</style>

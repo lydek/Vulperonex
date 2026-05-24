@@ -1,0 +1,29 @@
+/* =========================================================
+   Twitch Purple-Gold Theme — token override 層
+   依賴：member-card.css (結構與動畫)。HTML 載入順序：
+     1. overlay-base.css
+     2. member-card.css
+     3. member-card-twitch.css
+========================================================= */
+
+:root {
+    --mc-accent: #9146FF;
+    --mc-accent-rgb: 145, 70, 255;
+    --mc-accent-light: #bf94ff;
+    --mc-accent-secondary: #ffb700;
+
+    --mc-stamp-rgb: 145, 70, 255;
+    --mc-vip-bg: linear-gradient(135deg, #9146FF 0%, #bf94ff 100%);
+    --mc-vip-color: #fff;
+    --mc-vip-border: rgba(145, 70, 255, 0.5);
+    --mc-frame-bg: linear-gradient(135deg, var(--mc-accent), var(--mc-accent-secondary), var(--mc-accent));
+    --mc-frame-gradient: linear-gradient(45deg, var(--mc-accent), var(--mc-accent-secondary), var(--mc-accent-light), var(--mc-accent));
+    --mc-card-overlay-gradient: linear-gradient(135deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0.9) 100%);
+    --mc-card-inner-shadow-alpha: 0.9;
+    --mc-card-inner-highlight-alpha: 0.05;
+    --mc-watermark-size: 110px;
+    --mc-watermark-color: rgba(145, 70, 255, 0.08);
+
+    --stamp-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="%239146ff" stroke-width="6" stroke-dasharray="8 4"/><circle cx="50" cy="50" r="38" fill="none" stroke="%239146ff" stroke-width="2"/><g transform="rotate(-15 50 50) translate(8, 12) scale(0.85)" fill="%239146ff"><path d="M 50,45 C 75,45 85,60 85,75 C 85,90 65,95 50,90 C 35,95 15,90 15,75 C 15,60 25,45 50,45 Z"/><ellipse cx="25" cy="35" rx="10" ry="15" transform="rotate(-30 25 35)"/><ellipse cx="40" cy="20" rx="10" ry="15"/><ellipse cx="60" cy="20" rx="10" ry="15"/><ellipse cx="75" cy="35" rx="10" ry="15" transform="rotate(30 75 35)"/></g></svg>');
+    --card-bg-image: linear-gradient(135deg, rgba(14, 14, 16, 0.9) 0%, rgba(45, 15, 85, 0.95) 100%);
+}

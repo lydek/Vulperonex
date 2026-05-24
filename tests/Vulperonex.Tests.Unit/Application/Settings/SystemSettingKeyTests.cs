@@ -40,6 +40,9 @@ public sealed class SystemSettingKeyTests
             "workflow.template.strict_missing",
             "chat.outbox.per_second",
             "chat.outbox.dedup_ttl_hours",
-            "overlay.chat.preset");
+            "overlay.chat.preset",
+            "twitch.client_id",
+            "overlay.member.background_url",
+            "overlay.member.stamp_url");
     }
 }

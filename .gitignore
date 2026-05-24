@@ -34,6 +34,7 @@ App_Data/
 *.key
 machine.key
 appsettings.Development.json
+src/Hosts/Vulperonex.Desktop/appsettings.json
 
 # IDE/editor noise
 .vs/

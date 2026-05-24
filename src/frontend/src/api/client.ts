@@ -514,3 +514,32 @@ export class ApiError extends Error {
     }
   }
 }
+
+export interface ConfigValueResponse {
+  key: string;
+  value: string | null;
+}
+
+export async function getTwitchClientId(signal?: AbortSignal): Promise<string> {
+  try {
+    const res = await getJson<ConfigValueResponse>("/api/config/twitch.client_id", signal);
+    return res.value || "";
+  } catch {
+    return "";
+  }
+}
+
+export async function saveTwitchClientId(clientId: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/config/twitch.client_id`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ value: clientId }),
+    signal
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}

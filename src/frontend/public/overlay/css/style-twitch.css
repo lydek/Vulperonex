@@ -1,0 +1,111 @@
+@import url('overlay-base.css');
+
+/* =========================================================
+   KapChat Style - Twitch Transparent Theme
+   經典透明、文字單行緊湊排版風格 (全域第一預設)
+========================================================= */
+
+:root {
+    --twitch-purple: #9146FF;
+    --twitch-purple-light: #bf94ff;
+    --text-shadow-heavy: 1px 1px 2px rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.9);
+}
+
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-start;
+    height: 95vh;
+    gap: 8px; /* 行與行之間緊湊排列 */
+    width: 100%;
+    max-width: 100%;
+    min-width: 360px;
+    box-sizing: border-box;
+    overflow: hidden;
+    background: transparent;
+    padding: 10px;
+}
+
+/* 經典 KapChat 單行文字樣式 */
+.chat-line {
+    position: relative;
+    background: transparent; /* 完全透明無背景氣泡 */
+    border: none;
+    border-radius: 0;
+    padding: 2px 4px;
+    display: block; /* 讓每一條留言自成一行，寬度 100% 自動折行 */
+    width: 100%;
+    word-wrap: break-word;
+    box-sizing: border-box;
+    transition: transform 0.3s ease;
+    line-height: 1.4;
+}
+
+/* 經典 KapChat 貼齊名稱左側的徽章 */
+.chat-badge {
+    height: 18px;
+    vertical-align: middle;
+    margin-right: 6px;
+    margin-bottom: 2px;
+    border-radius: 2px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    display: inline-block;
+}
+
+.chat-username {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: var(--twitch-purple-light);
+    letter-spacing: 0.5px;
+    text-shadow: var(--text-shadow-heavy);
+    display: inline;
+    vertical-align: middle;
+}
+
+.chat-colon {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: #EFEFF1;
+    margin-right: 6px;
+    text-shadow: var(--text-shadow-heavy);
+    display: inline;
+    vertical-align: middle;
+}
+
+.chat-content {
+    font-size: 1.05rem;
+    color: #FFFFFF; /* 純白色字體以防刺眼，在深色/亮色畫面上由 text-shadow 保障可讀性 */
+    line-height: 1.4;
+    font-weight: 700; /* 粗體字，完美還原 KapChat 電競視覺 */
+    display: inline;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    text-shadow: var(--text-shadow-heavy);
+    vertical-align: middle;
+}
+
+.chat-emote {
+    vertical-align: middle;
+    margin: -4px 2px;
+    height: 1.8em; /* 表情圖示隨字體自動縮放 */
+    display: inline-block;
+}
+
+/* ✦ ice-spring 登場動畫 */
+.ice-spring-enter-active {
+    animation: iceSpring 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.ice-spring-leave-active {
+    transition: all 0.3s ease;
+}
+
+.ice-spring-leave-to {
+    opacity: 0;
+    transform: translateX(-30px);
+}
+
+.ice-spring-move {
+    transition: transform 0.3s ease;
+}

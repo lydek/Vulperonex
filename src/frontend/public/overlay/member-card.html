@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vulperonex ?????/title>
+
+    <!-- 撘 SignalR (Local) -->
+    <script src="libs/signalr.min.js"></script>
+
+    <!-- 頛蝬??銝駁? -->
+    <link rel="stylesheet" href="css/overlay-base.css?v=1.0.1">
+    <link rel="stylesheet" href="css/member-card.css?v=1.0.1">
+</head>
+
+<body>
+
+    <div id="card-container" class="card-container">
+        <div class="loyalty-card" id="loyalty-card">
+
+            <div class="card-inner-bg">
+                <div class="card-overlay" id="card-overlay"></div>
+                <div class="card-bg-pattern"></div>
+
+                <div class="card-left">
+                    <div class="user-avatar-wrap">
+                        <img id="user-avatar" class="user-avatar"
+                            src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23666'/></svg>" />
+                    </div>
+                    <div class="user-name-container">
+                        <div id="user-name" class="user-name">?梁迂??銝?/div>
+                    </div>
+                    <div class="vip-badge" id="vip-badge-text">?駁?撠惇????/div>
+                </div>
+
+                <div class="card-right">
+                    <div class="card-header">
+                        <div class="card-title">????蝣?/div>
+                    </div>
+                    <div class="stamps-grid" id="stamps-grid">
+                        <!-- JS ???? -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 撘?梁?摩???∪撠惇?批??-->
+    <script src="js/overlay-common.js?v=1.0.1"></script>
+    <script src="js/member-card.js?v=1.0.1"></script>
+</body>
+
+</html>
