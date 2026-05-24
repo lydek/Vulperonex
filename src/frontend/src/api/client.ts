@@ -266,13 +266,14 @@ export async function startTwitchAuth(
   callbackPort?: number,
   signal?: AbortSignal
 ): Promise<TwitchAuthStartResponse> {
+  const port = callbackPort ?? (typeof window !== "undefined" && window.location.port ? parseInt(window.location.port, 10) : undefined);
   const response = await fetch(`${apiBaseUrl}/api/twitch/auth/start`, {
     method: "POST",
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ callbackPort }),
+    body: JSON.stringify({ callbackPort: port }),
     signal
   });
   if (!response.ok) {

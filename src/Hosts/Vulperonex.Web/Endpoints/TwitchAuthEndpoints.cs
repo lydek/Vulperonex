@@ -36,6 +36,7 @@ public static class TwitchAuthEndpoints
         });
 
         group.MapPost("/start", (
+            HttpContext context,
             TwitchAuthStartRequest request,
             IConfiguration configuration,
             TwitchOAuthSessionStore sessions) =>
@@ -53,6 +54,11 @@ public static class TwitchAuthEndpoints
             }
 
             var customRedirectUri = configuration["Twitch:RedirectUri"];
+            if (string.IsNullOrWhiteSpace(customRedirectUri) && !AllowedCallbackPorts.Contains(callbackPort))
+            {
+                customRedirectUri = $"{context.Request.Scheme}://{context.Request.Host.Host}:{callbackPort}/api/auth/twitch/callback";
+            }
+
             var session = sessions.Create(callbackPort, customRedirectUri);
             var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit";
             var authorizeUrl = BuildAuthorizeUrl(clientId, scopes, session);
