@@ -262,6 +262,54 @@
 - [ ] Security review：path traversal、CSS injection、member snapshot 白名單、loopback-only、size cap 全 PASS
 - [ ] `docs/phases/phase-7c-member-overlay-extension/manual-verification.md` 紀錄 dated entries + evidence commits
 
+## Phase 7D：CheckIn→Member 綁定、Custom HTML 編輯器、統一監控頁、會員可編輯
+
+> 詳細計畫：`docs/phases/phase-7d-checkin-binding-editor-monitor-member/plan.md`
+> 詳細待辦：`docs/phases/phase-7d-checkin-binding-editor-monitor-member/todo.md`
+> SPEC 對應：`docs/SPEC.md` §4.14.2、§4.14.3、§4.18、§4.19
+> 動機：Phase 7C 補齊 overlay 基礎但留下四個使用者缺口 — checkin 無 push、custom HTML 無驗證、跨頁切換成本高、member 唯讀不合理。
+
+### Track A — CheckIn → MemberOverlay 綁定
+
+- [ ] **Task 50** — `MemberCheckedInEvent` 領域事件
+- [ ] **Task 51** — `TriggerCheckInActionExecutor` 發 event
+- [ ] **Task 52** — `OverlayEventForwarder` 訂閱並 forward
+- [ ] **Task 53** — `OverlayMemberPayload` 加 RoundIndex/StampSlotInRound + 反射測試
+- [ ] **Task 54** — CLI `simulate checkin` 走 publish path
+
+### Track B — Custom HTML 編輯器
+
+- [ ] **Task 55** — Draft/Production 目錄重構 + middleware rewrite + 自動 migration
+- [ ] **Task 56** — Files API (list/read/write/delete)
+- [ ] **Task 57** — Validation Gate（AngleSharp/ExCSS/Jint + SignalR contract probe）
+- [ ] **Task 58** — Deploy/Rollback/History endpoints
+- [ ] **Task 59** — `/admin/overlay-editor` Monaco UI
+- [ ] **Task 60** — Zip upload 整合（解壓改 draft + 自動 validate）
+
+### Track C — 統一即時監控頁
+
+- [ ] **Task 61** — `/monitor` Dashboard 骨架 + 響應式 layout
+- [ ] **Task 62** — Simulate Controls Panel（抽共用元件 + 批次 checkin）
+- [ ] **Task 63** — Overlay Preview iframe（hub/preset/背景切換）
+- [ ] **Task 64** — Chat Stream Panel（純資料表格 + member chip）
+
+### Track D — 會員可編輯介面
+
+- [ ] **Task 65** — `MemberAuditLogs` migration + repository + cleanup worker
+- [ ] **Task 66** — Mutation endpoints（PATCH loyalty / POST reset / DELETE + token / GET audit）+ If-Match concurrency
+- [ ] **Task 67** — Member Edit UI（AdjustModal / ResetModal / DeleteDialog / AuditDrawer）
+- [ ] **Task 68** — Workflow audit 整合（TriggerCheckIn 寫 audit）
+
+### Checkpoint：Phase 7D
+
+- [ ] 全部 Task 50-68 sub-task 達成驗收標準
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] Browser manual：checkin → member overlay / editor flow / monitor 三欄 / member edit + concurrency 全 PASS
+- [ ] Security review：path traversal 三層、editor production 唯讀、delete token TTL、audit append-only、反射白名單擴充、loopback-only、concurrency etag
+- [ ] `docs/phases/phase-7d-checkin-binding-editor-monitor-member/manual-verification.md` 紀錄 dated entries
+
 ## Architecture / Security / Testing Gates
 
 | Gate | Task |

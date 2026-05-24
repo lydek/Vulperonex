@@ -196,8 +196,8 @@ Vulperonex 在應用層邊界使用輕量級 CQRS：
 | 項目 | 決策 |
 |---|---|
 | 順序性 | **不保證。** 無跨處理程式的順序契約。 |
-| 異常隔離 | 每個處理程式都包裹在 try/catch 中。異常 → 記錄日誌 (LOG)，其他處理程式繼續執行不受影響。 |
-| 背壓 (Backpressure) | 預設：記憶體內 `Channel<IStreamEvent>` (10,000 個槽位)。當深度超過閾值時 → 溢出寫入 **臨時交付隊列 (TDQ)** SQLite 資料表。TDQ 語意：有效負載儲存至處理完成，成功後立即刪除，若未處理則在啟動時重播。TDQ **不是**事件持久化 — 不保留歷史記錄。閾值可透過 `SystemSettings` 配置。 |
+| 例外隔離 | 每個處理程式都包裹在 try/catch 中。例外 → 記錄日誌 (LOG)，其他處理程式繼續執行不受影響。 |
+| 背壓 (Backpressure) | 預設：記憶體內 `Channel<IStreamEvent>` (10,000 個槽位)。當深度超過閾值時 → 溢出寫入 **臨時交付佇列 (TDQ)** SQLite 資料表。TDQ 語意：有效負載儲存至處理完成，成功後立即刪除，若未處理則在啟動時重播。TDQ **不是**事件持久化 — 不保留歷史記錄。閾值可透過 `SystemSettings` 配置。 |
 | 交付語意 | **至少一次 (At-least-once)。** 啟動時的 TDQ 重播意味著事件可能被處理多次。內建副作用（`SendChatMessageAction`, `InvokePluginAction`）以 `ActionExecutionLog` 去重。**`MemberModule` 使用 `INSERT OR IGNORE` 原子 GetOrCreate — 重播安全。** **`PlatformUserDisplayCache` 更新必須使用「狀態替換」而非「delta 累加」語意**（`TotalBitsGiven` 儲存 platform payload 中的絕對值，不做 `+= amount`；TDQ 重播不造成重複累加）。內建的副作用操作（`SendChatMessageAction`, `InvokePluginAction`）使用**基於狀態的 `ActionExecutionLog`** 資料表。去重唯一鍵為 `(EventId, WorkflowRuleId, ActionIndex)` — 僅靠 `ActionIndex` 是不夠的，因為同一個事件可以匹配多個 `WorkflowRule`。**已知限制：rule 更新後 action 順序可能改變，舊 TDQ event 重播時同一 `ActionIndex` 可能指向不同 action。MVP 接受此限制（TDQ 重播窗口短，rule 更新機率低）；需要 stable action identity 屬 post-MVP。**對於子工作流調用，會追加一個額外的 `InvocationId` (每次 `InvokeSubWorkflowAction` 調用生成的 ULID) 以形成 `(EventId, WorkflowRuleId, ActionIndex, InvocationId?)`。去重協議：(1) `INSERT OR IGNORE (key, Status=Pending, AttemptCount=0)`；(2) 如果被忽略且 `Status=Completed` → 跳過；`Status=Failed` → 跳過（永久失敗，不重試）；`Status=Pending` 且 elapsed > 30秒（stale crash） → 重試，`AttemptCount++`；`AttemptCount >= MaxRetries+1` 且仍失敗 → `UPDATE Status=Failed`（永久停止，下次重播不再重試）；(3) 執行副作用；(4) `UPDATE Status=Completed`。**stale 閾值 30秒透過 `IClock` 抽象注入（Task 6 補 fake clock 實作），不寫死 `DateTime.UtcNow`。** **`InvocationId` 必須在 action 執行前即產生並持久化（或納入 TDQ payload），確保 TDQ 重播時使用同一 InvocationId — 若在每次執行時動態產生新 ULID，重播會得到不同 dedup key，造成 sub-workflow 重複執行。**外掛程式操作透過 `IPluginActionContext.ActionExecutionKey`（見第 6.3 節）接收完整的執行鍵，且文件**必須**要求將此鍵用於任何外部副作用。 |
 | 發布模式 | **發後不理 (Fire-and-forget)。** `PublishAsync` 入隊後立即返回。呼叫端執行緒絕不被處理程式執行所阻塞。 |
 
@@ -849,12 +849,12 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 - `/overlay/chat` 必須支援**多個內建樣板 / preset**，至少包含 Vulperonex 預設樣板；內建樣板需可對應「單一樣板目錄 / 單一樣板封包」概念，而不是寫死單版面。
 - 樣板選擇必須是**設定層級**能力，而不是要求使用者直接改前端原始碼；後續可擴充為樣板清單、預覽、匯入 / 匯出。
 - 樣板渲染仍必須遵守 MVP 安全界線：使用 DTO 白名單與 text binding；**不得以 `v-html` 或任意 raw HTML 直接穿透 event payload**。
-- **OneComme 相容屬於擴充功能 / 插件類型能力，不屬於 core 直接內建整合。** Core 只需提供可擴充的樣板 preset / package contract；OneComme 相容可透過外掛、樣板匯入器、或 adapter 套件實作。
+- **OneComme 相容屬於擴充功能 / 外掛程式類型能力，不屬於 core 直接內建整合。** Core 只需提供可擴充的樣板 preset / package contract；OneComme 相容可透過外掛、樣板匯入器、或 adapter 套件實作。
 - 以 **OneComme** 作為優先相容目標之一。目的不是 1:1 複製其內部實作，而是提供足夠接近的樣板結構 / 匯入映射 / 相容契約，降低既有 OneComme 使用者的遷移成本，同時維持 core 與第三方樣板生態的邊界。
 
 #### 4.14.1 Overlay Preset Contract (Vue 預設 + 自訂 HTML 擴充)
 
-**動機：** 一般實況主想客製 overlay 視覺，不應被迫安裝 Node.js / pnpm / Vite。同時 Vulperonex 仍要提供高品質預設 Vue 版本，並支援第三方擴充（含未來 OneComme 模板匯入）。
+**動機：** 一般實況主想客製 overlay 視覺，不應被迫安裝 Node.js / pnpm / Vite。同時 Vulperonex 仍要提供高品質預設 Vue 版本，並支援第三方擴充（含未來 OneComme 範本匯入）。
 
 **雙軌渲染管道：**
 
@@ -891,9 +891,9 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 
 控制旗標：`overlay.chat.show_member_card`（bool，預設 `false`，於系統設定切換）。預設 false 以維持 KapChat 的極簡視覺。
 
-**OneComme 模板匯入（外掛擴充路徑，非 core）：**
+**OneComme 範本匯入（外掛擴充路徑，非 core）：**
 
-- Core 僅提供「自訂 HTML 上傳」契約；OneComme 模板匯入由獨立 plugin (`Vulperonex.Plugins.OneCommeBridge`) 實作。
+- Core 僅提供「自訂 HTML 上傳」契約；OneComme 範本匯入由獨立 plugin (`Vulperonex.Plugins.OneCommeBridge`) 實作。
 - Plugin 職責：解析 OneComme `template.html` + `template.css`，映射 OneComme `comment.*` 變數到 Vulperonex 事件 DTO 欄位，產生 standalone HTML 並透過上傳契約落地到 `wwwroot/overlay/custom/oc-{slug}/`。
 - 映射表與 OneComme 變數對照詳列於 `docs/plugins/onecomme-bridge.md`（待寫）。
 
@@ -924,13 +924,121 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 
 **事件 → 疊層映射：**
 
-| 領域事件 | 疊層目標 |
-|---|---|
-| `UserSentMessageEvent` | `/overlay/chat` |
-| `UserFollowedEvent`, `UserSubscribedEvent`, `UserGiftedSubscriptionEvent`, `ChannelRaidedEvent` | `/overlay/alerts` |
-| *(MVP 之後的 `SystemEvent` — 簽到, 抽獎)* | `/overlay/member` — **MVP 僅為骨架**；SignalR 組已註冊但無事件驅動；為安全起見強制執行 DTO 白名單 |
+| 領域事件 / Workflow Action | 主要疊層目標 | 可選嵌入點 |
+|---|---|---|
+| `UserSentMessageEvent` | `/overlay/chat` | `memberSnapshot` 帶入 chat payload（依 `overlay.chat.show_member_card`）|
+| `UserFollowedEvent`, `UserSubscribedEvent`, `UserGiftedSubscriptionEvent`, `ChannelRaidedEvent` | `/overlay/alerts` | — |
+| `TriggerCheckInAction` 執行成功 | `/overlay/member` 主視覺集點卡（Phase 7D 起 first-class）| 同步 `memberSnapshot` 出現在後續該會員的 chat payload |
+| *(未來 `SystemEvent` — 抽獎等)* | `/overlay/member` 視 preset 而定 | — |
 
 疊層頁面從事件負載中讀取 `DisplayHints` 以獲取頭像、顏色、徽章 — 在渲染路徑中無額外的 API 呼叫。
+
+---
+
+#### 4.14.2 CheckIn → Member Overlay 綁定（Phase 7D）
+
+**背景：** Phase 7C 已建立 `MemberOverlayView` + member-card preset + `OverlayMemberHub`，但 `TriggerCheckInActionExecutor` 僅寫入 SQLite `MemberStreamState`，從未發布事件給 `OverlayEventForwarder`，使 `/overlay/member` 在實際運作時收不到任何 push。Phase 7C cross-hub chat embed (`memberSnapshot`) 也只在 chat 事件路徑查 DB，與 checkin action 無連動。
+
+**Phase 7D 設計：**
+
+1. **新增領域事件 `MemberCheckedInEvent`**（於 `Vulperonex.Domain.Events`）：
+   - 欄位：`EventId`、`OccurredAt`、`Platform`、`PlatformUserId`、`DisplayName`、`AvatarUrl?`、`CheckInCount`、`TotalLoyalty`、`RoundIndex`、`StampSlotInRound`。
+   - `RoundIndex = ceil(CheckInCount / overlay.member.stamps_per_round)`；`StampSlotInRound = ((CheckInCount - 1) mod stampsPerRound) + 1`。
+   - 由 `TriggerCheckInActionExecutor` 在 `IncrementCheckInAsync` 成功後 publish 到 `IStreamEventBus`。
+2. **`OverlayEventForwarder` 訂閱 `MemberCheckedInEvent`**，映射為 `OverlayMemberPayload` 推到 `OverlayMemberHub` group，並寫入 `IOverlayHistoryService<OverlayMemberPayload>`。
+3. **Chat embed sync 重用同一路徑**：chat hub 仍在 `UserSentMessageEvent` 處理路徑查 member cache 取 snapshot（既有 Phase 7C 行為），不依賴 `MemberCheckedInEvent`，但 cache TTL 必須短於 stamps_per_round 週期，使 chat chip 在 checkin 後立即反映新次數。`PlatformUserInfoCache` 既有 TTL 確認。
+4. **顯示控制：**
+   - `/overlay/member` 預設**啟用**接收（OBS browser source 主要落點）。
+   - `/overlay/chat` 是否內嵌 chip 由 `overlay.chat.show_member_card`（bool，預設 false）控制（既有 Phase 7C 設定）。
+   - 兩條路徑互不阻擋；任一單獨啟用皆可。
+5. **DTO 白名單擴充：** `OverlayMemberPayload` 新增 `RoundIndex`、`StampSlotInRound` 欄位後，反射測試（既有 `OverlayDtoWhitelistTests`）必須同步擴充並維持 `memberId/totalLoyalty/linkedPlatforms` 排除規則。`TotalLoyalty` **不**進 overlay payload（仍敏感）；overlay 只看 `CheckInCount`。
+6. **CLI 端：** `simulate checkin` CLI 子指令需發布 `MemberCheckedInEvent`（而非直接呼叫 repository），以便走完整 overlay 推播鏈路驗證。
+
+**驗證：**
+- 反射測試：`OverlayMemberPayload` JSON key set 精確符合新白名單。
+- Integration test：`TriggerCheckInActionExecutor` 執行後，`OverlayMemberHub` group 收到 `OverlayMemberPayload`，且 history endpoint 可查到。
+- Browser manual：simulate checkin → `/overlay/member` 在 5 秒內顯示卡片。
+
+---
+
+#### 4.14.3 自訂 HTML Overlay 編輯與部署 Pipeline（Phase 7D 取代 Phase 7C 純 zip upload）
+
+**背景：** Phase 7C 已落地 `POST /api/overlay/custom-presets` 純 zip 上傳，但有兩個結構性問題：
+
+- **無法驗證樣板合法性**：上傳即落地 `wwwroot/overlay/custom/{slug}/`，HTML 是否能正常掛 SignalR / 是否符合 DTO 契約完全靠使用者自己跑 OBS 才知道。
+- **使用者修改成本高**：改一個 CSS 顏色就要重新打包 zip 再上傳，無線上 iterate 體驗。
+
+Phase 7D 引入**雙模式 pipeline**：
+
+| 模式 | 入口 | 目標 |
+|------|------|------|
+| **線上 Monaco 編輯器 (主)** | `/admin/overlay-editor` | 線上編輯 HTML/CSS/JS，draft/production 雙環境，iframe live preview，部署前 lint+probe |
+| **Zip upload (fallback)** | 既有 `POST /api/overlay/custom-presets` | 整包匯入第三方樣板。落地後可在 Monaco editor 開啟繼續調 |
+
+**檔案存放結構：**
+
+```
+wwwroot/overlay/custom/{slug}/
+├── production/        # 已部署版本，OBS 載入路徑：/overlay/custom/{slug}/index.html → /overlay/custom/{slug}/production/index.html
+│   ├── index.html
+│   ├── styles.css
+│   └── ...
+├── draft/             # 草稿版本，編輯中。預覽路徑：/overlay/custom/{slug}/draft/index.html
+│   ├── index.html
+│   └── ...
+└── history/           # 部署歷史，留最近 N 份（預設 10）
+    └── {iso-timestamp}/
+```
+
+**API 增補：**
+
+| Method | Path | 用途 |
+|--------|------|------|
+| `GET` | `/api/overlay/custom-presets/{slug}/files` | 列 slug 內所有相對檔案路徑 + draft/production 差異 |
+| `GET` | `/api/overlay/custom-presets/{slug}/files/{path}?env=draft\|production` | 讀單檔內容 (UTF-8 text) |
+| `PUT` | `/api/overlay/custom-presets/{slug}/files/{path}` body=raw | 寫單檔到 draft |
+| `DELETE` | `/api/overlay/custom-presets/{slug}/files/{path}` | 刪 draft 單檔 |
+| `POST` | `/api/overlay/custom-presets/{slug}/validate` | 對 draft 跑 validation gate，回 issues list |
+| `POST` | `/api/overlay/custom-presets/{slug}/deploy` | draft → production 原子複製，舊 production 移到 history/{ts} |
+| `POST` | `/api/overlay/custom-presets/{slug}/rollback?to={ts}` | history/{ts} → production |
+| `GET` | `/api/overlay/custom-presets/{slug}/history` | 列 history 時間戳 + size |
+
+**Validation Gate：**
+
+部署前 `POST /validate` 必過，否則 `POST /deploy` 回 422 + issues list。檢查項：
+
+1. **檔案結構：** `index.html` 必存在於 draft 根目錄。
+2. **HTML 語法：** 用 `AngleSharp` parse `index.html`，parse error 阻斷。
+3. **CSS 語法：** 用 `ExCSS` parse 所有 `*.css`，parse error 阻斷。
+4. **JS 語法：** 用 `Jint` 嘗試 parse 所有 `*.js`（只 parse，不執行），syntax error 阻斷。
+5. **SignalR contract probe：** 對 `index.html` 內所有 `<script>` 與外部 `*.js` regex 偵測：
+   - 必須出現 `OverlayCommon.initSignalRConnection(` 或 `signalR.HubConnectionBuilder` 字串（確認有掛 hub）。
+   - 必須引用至少一個 `/hubs/overlay/{chat|alerts|member}` URL pattern。
+   - 缺一者降為 warning，不阻斷部署（樣板可能是純展示）。
+6. **檔案大小：** 單檔上限 2MB，整 slug 上限 10MB（含 history）。超過阻斷。
+7. **路徑安全：** 所有檔案路徑必相對且不含 `..`；`PUT /files/{path}` server-side 重新驗證。
+8. **外部資源警告：** HTML/CSS 內 `<script src="http...">`、`<link href="http...">`、`@import url(http...)`、`url(http...)` 等外部 URL 一律列 warning（不阻斷），提醒實況主離線環境會失效。
+
+**Draft/Production 隔離：**
+
+- Draft 編輯不影響 OBS 載入的 production。
+- `GET /overlay/custom/{slug}/index.html`（無 path 後綴）統一映射到 `production/index.html`。OBS 不直接觸碰 draft。
+- 預覽 iframe 走 `/overlay/custom/{slug}/draft/index.html`，與 production 隔離。
+- Deploy 為**原子操作**：先驗 history 寫入完成，再把 draft 內容**整目錄複製**到 production（不是 rename，避部分檔案失效）；複製完成才回 200。
+
+**Zip upload fallback 整合：**
+
+- `POST /api/overlay/custom-presets` 既有 zip upload 仍可用。解壓縮目標改為 `wwwroot/overlay/custom/{slug}/draft/`（不直接 production）。
+- 上傳後自動跑一次 validation，回傳結果到管理 UI。
+- 使用者可在 Monaco editor 開啟調整，按 deploy 才上線。
+
+**安全：**
+- 沿用 Phase 6 loopback-only 契約。
+- 所有 path 參數需經 slug + relative path sanitize（無 `..`，無絕對路徑，無控制字元）。
+- 寫檔前驗最終絕對路徑必在 `wwwroot/overlay/custom/{slug}/draft/` 內。
+- History 留存上限以筆數（10）+ 整 slug 大小（10MB）雙重防爆。
+
+---
 
 ---
 
@@ -1050,6 +1158,199 @@ builder.WebHost.ConfigureKestrel(options =>
 
 ---
 
+### 4.18 統一即時監控頁 Unified Monitor Page（Phase 7D）
+
+**背景：** 目前 simulate 事件、看 chat overlay、看 member-card 各在不同分頁/路由。實況主 debug 流程要：admin simulate → 切到 `/overlay/chat` 看結果 → 切到 `/overlay/member` 看 member 卡 → 回 simulate 再試。Context switch 多，driver friction 高。
+
+**Phase 7D 設計：** 新增 `/monitor` 統一頁，舊 simulate / overlay 獨立頁保留作 debug / e2e 用途。
+
+**版型（寬螢幕 ≥1280px）：**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Header: 平台連線狀態 + SignalR 狀態 + Live/Settings 切換     │
+├──────────────┬──────────────────────────────┬───────────────┤
+│              │                              │               │
+│  Simulate    │  Overlay Preview (iframe)    │  Chat Stream  │
+│  Controls    │                              │  (live)       │
+│  (sider)     │  ┌────────────────────────┐  │               │
+│              │  │ 預覽切換: chat / member│  │  使用者: 訊息 │
+│  • chat      │  │                        │  │  ...          │
+│  • follow    │  │  iframe                │  │               │
+│  • sub       │  │                        │  │               │
+│  • giftsub   │  │                        │  │               │
+│  • raid      │  └────────────────────────┘  │               │
+│  • bits      │  背景: transparent/green/    │               │
+│  • redeem    │       pink/color/image       │               │
+│  • checkin   │  Preset 切換 dropdown        │               │
+│  • batch     │  Reload 按鈕                 │               │
+│              │                              │               │
+└──────────────┴──────────────────────────────┴───────────────┘
+```
+
+**版型（窄螢幕 <1280px）：**
+
+- Simulate controls 改為右側 drawer，header 加開關按鈕。
+- Overlay preview + chat stream 上下堆疊。
+
+**功能：**
+
+1. **Simulate controls sider**：包含所有 simulate event subcommand UI（chat / follow / sub / giftsub / raid / bits / redeem / checkin），對應後端既有 `/api/simulate/*` 端點。新增「批次模擬打卡」工具單鍵發 N 個 checkin。
+2. **Overlay preview iframe**：
+   - 動態 iframe `src` 切換 chat / member / alerts，內含 `?preset={key}&t={ts}` query。
+   - 預覽背景切換（transparent / green key / pink key / 純色 / 自訂背景圖 URL），給 OBS 預先看不同背景下視覺。
+   - Reload 按鈕（bump query timestamp）。
+   - 進階：選 custom preset 時可切 draft / production 預覽（與 §4.14.3 整合）。
+3. **Chat stream panel**：訂閱 `/hubs/overlay/chat`，列最新 N 則訊息（純文字、含 member chip 預覽），不渲染 preset CSS（純表格樣式），讓實況主看「資料層」是否正確（與 overlay 視覺解耦）。
+4. **Header 狀態**：平台連線狀態（Twitch ✅/❌）、SignalR 連線狀態、目前 preset 設定摘要。
+
+**路由保留：**
+
+- `/simulate` 既有獨立 simulate 頁不刪（CLI E2E、自動化 test 用）。
+- `/overlay/chat`、`/overlay/member`、`/overlay/alerts` 既有獨立 overlay route 不刪（OBS browser source 仍直接走這幾個 URL）。
+- `/monitor` 為**新預設 landing**（取代目前 `/` 預設）；既有 admin 入口仍在 sidebar。
+
+**事件 → UI 即時反應：** SignalR 已連線時，simulate 動作觸發後，預覽 iframe（透過 hub 反向通知）+ chat stream 同步更新，無須手動 reload。
+
+**i18n：** 完整 zh-TW + en-US。
+
+**a11y：** sider 開關有 `aria-label`，drawer focus trap 沿用 ConfirmDialog 模式。
+
+---
+
+### 4.19 會員管理可編輯介面 Member Admin Editable Surface（Phase 7D）
+
+**背景：** Phase 6 `/admin/members` 為唯讀檢視，理由是 MVP 安全防呆。但實況主真實使用情境需要：
+
+- 手動調整某會員 loyalty / checkin 次數（補錯誤、活動補償）
+- 查特定會員的歷史變動軌跡（誰、何時、為何改）
+- 重設特定會員的 loyalty 不刪除身份
+- 完全刪除測試會員
+
+CLI 雖能做但實況中切視窗成本高。
+
+**Phase 7D 設計：** Member admin 改為可編輯。**所有變動寫 audit log**，保留可追溯性。
+
+**新增 endpoint：**
+
+| Method | Path | 用途 | 必填 body |
+|--------|------|------|----------|
+| `PATCH` | `/api/members/{memberId}/loyalty` | 調整 totalLoyalty / checkInCount | `{ totalLoyalty?: int, checkInCount?: int, reason: string }` |
+| `POST` | `/api/members/{memberId}/reset` | 重設 loyalty 歸零（保留 identity）| `{ resetLoyalty: bool, resetCheckIn: bool, reason: string }` |
+| `DELETE` | `/api/members/{memberId}` | 完全刪除會員（含 identity）| `{ reason: string }` |
+| `GET` | `/api/members/{memberId}/audit` | 取會員變動歷史 | query: `?limit=50&offset=0` |
+
+**Audit table：** 新增 `MemberAuditLogs` SQLite table：
+
+```
+MemberAuditLogs:
+  Id              ULID PK
+  MemberId        ULID FK
+  OccurredAt      DateTimeOffset
+  ActorKind       enum { 'user' | 'workflow' | 'cli' | 'system' }
+  ActorId         string?         -- workflow rule id / cli session id / null for user
+  Operation       enum { 'adjust_loyalty' | 'adjust_checkin' | 'reset' | 'delete' | 'create' }
+  BeforeJson      string?         -- snapshot before
+  AfterJson       string?         -- snapshot after
+  Reason          string          -- required, non-empty
+```
+
+**Concurrency：** 所有 mutation endpoint 採 `If-Match` header 帶 `etag`（基於 `MemberRecord.UpdatedAt` ticks hash）。版本不符 → 409 Conflict。前端遇 409 → 提示 reload。
+
+**Validation：**
+- `totalLoyalty >= 0`, `checkInCount >= 0`
+- `reason.Length in [3, 500]`
+- DELETE 需 confirm token：先 `POST /api/members/{id}/delete-token` 拿 30s token，DELETE body 必帶 token，防誤點
+
+**前端 UI：**
+
+| 元件 | 對應 endpoint | 模式 |
+|------|--------------|------|
+| AdjustLoyaltyModal | `PATCH /loyalty` | 表單：新數值 + 變更原因。顯示 before/after diff。 |
+| ResetModal | `POST /reset` | 確認 dialog：重設 loyalty / checkIn checkboxes + 原因 |
+| DeleteConfirmDialog | `DELETE /` | 二段確認：第一段拿 token，第二段確認執行 |
+| AuditLogDrawer | `GET /audit` | 右側 drawer，timeline 列變動歷史，含 actor + before/after + reason |
+
+**Workflow integration：** `TriggerCheckInAction` 在 increment 後寫一筆 audit log，ActorKind='workflow'，ActorId=ruleId。`TriggerAdjustLoyaltyAction`（若 Phase 7D 新增）同理。
+
+**安全：**
+- 沿用 loopback-only。
+- DELETE token + reason required 防誤刪。
+- Audit log 不可刪改（append-only），保留期沿用 `log.db_retention_days`（但會員 audit 獨立計算，預設 365 天）。
+- 反射測試：endpoint 回傳 DTO 不包含 `MemberId` 以外的內部 PK。
+
+### 4.20 模組與外掛程式管理系統 Module & Plugin Management (Phase 7D)
+
+**背景與動機：**
+目前核心服務（打卡、計數器、抽獎點數、音效畫面、外部 OneComme Bridge 等）雖然作為 Hosted Services 或外掛外掛程式運行，但沒有提供集中管理其啟用/停用（ON/OFF）狀態的頁面。當特定模組關閉時，其相依之模組仍盲目運行可能導致狀態漂移。
+
+**設計與規格：**
+1. **模組/外掛程式開關狀態儲存**：
+   - 透過 `ISystemSettingsService` 將模組啟用狀態儲存在資料庫/系統設定檔中，使用鍵名 `modules.enabled.{moduleName}`。
+   - 所有核心 Hosted Services 在 `ExecuteAsync` 或 `StartAsync` 時需動態偵測該設定值，若為 `false` 則跳過註冊、攔截或動作執行（No-Op 狀態），已在運行的 Hosted Services 在偵測到設定變更時應即時切換狀態。
+   - 對於 `IWorkflowActionExecutor`（例如 `TriggerCheckInActionExecutor`），若關聯的模組（如打卡模組）已關閉，則應拒絕執行動作並拋出對應的 `WorkflowExecutionException`。
+
+2. **模組相依性解析 (Dependency Resolution)**：
+   - **相依定義**：
+     - `CheckInModule` (打卡模組) -> 相依於 `MemberModule` (會員核心)
+     - `LotteryModule` (抽獎點數) -> 相依於 `MemberModule` (會員核心)
+     - `OneCommeBridge` (OneComme 外掛程式) -> 無相依，但需 Core Event Bus
+     - `OverlayModule` (畫面模組) -> 無相依
+   - **拓撲聯鎖關閉 (Cascading Disable)**：
+     - 當使用者在 UI 上**停用**一個被其他模組相依的模組時（例如停用 `MemberModule`），系統**必須**觸發拓撲依賴關閉。
+     - **UI 聯鎖警告閘門**：前端將跳出警告確認：「停用『會員核心模組』將一併關閉以下相依模組：打卡模組，抽獎模組。是否確認關閉？」。
+     - 使用者確認後，API 將同時對相依模組寫入 `false`，並在系統 Audit Log 留下 `ActorKind = 'user'`、`Operation = 'disable_module'` 記錄。
+   - **自動聯鎖啟用 (Cascading Enable)**：
+     - 當使用者在 UI 上**啟用**一個具有相依性的模組時（例如啟用 `CheckInModule`），若其相依模組（例如 `MemberModule`）為關閉狀態，系統應**自動一併開啟**其相依模組，或**彈出警示並拒絕啟動**。
+
+3. **模組管理端點 (API)**：
+   - `GET /api/plugins-modules`：列出所有模組/外掛名稱、中文顯示名稱、說明、目前是否運行 (`IsActive`) 以及相依列表。
+   - `POST /api/plugins-modules/{name}/toggle`：參數為 `enabled: bool`。觸發相依性計算，成功執行後回傳拓撲變動後的所有模組狀態清單。
+
+4. **UI 管理頁面**：
+   - 於 `/admin/settings` 下新增「功能模組與外掛程式」分頁，以卡片化 Grid 呈現各功能之 ON/OFF 開關、分類標籤（核心服務、互動功能、視聽媒體、外部外掛程式）以及相依性圖示提示。
+
+---
+
+### 4.21 事件與忠誠度模擬功能擴充 Event & Loyalty Simulation (Phase 7D)
+
+**背景與動機：**
+現存事件模擬僅限於 `chat`, `follow`, `sub` 等基礎行為，對於關鍵的「身分組（Custom Roles/StreamRole）」與「忠誠點數/打卡」缺乏 UI 與 API 的模擬支援，導致實況主無法直接在 Admin 面板驗證與除錯複雜的工作流（例如：只允許 Moderator 參與的打卡獎勵、只對 VIP 觸發的特效等）。
+
+**設計與規格：**
+1. **身分組模擬 (StreamRole flags)**：
+   - 擴充 `/api/simulate/*` 所接受的 `SimulateRequest` DTO：其 `Roles` 屬性不僅可為 single string/number，亦支援字串陣列（如 `["subscriber", "moderator", "vip"]`），允許將多重 `StreamRole` 標誌包裝進模擬事件的 User payload 中。
+   - 模擬器 UI 提供勾選框 (Checkbox Group)，讓實況主可任意勾選與疊加身份別。
+
+2. **打卡與忠誠度模擬端點**：
+   - 新增 `POST /api/simulate/checkin` 端點。
+   - 接收參數：
+     - `platformUserId`: string (要模擬打卡的會員 ID，預設隨機)
+     - `displayName`: string (要模擬打卡的會員顯示名稱，預設隨機)
+     - `skipCooldown`: bool (是否繞過打卡冷卻限制，預設 true)
+     - `stampCount`: int (本次要直接累積的印章/打卡次數，預設 1)
+   - **行為**：端點直接調用 `IMemberResolver` 與 `IMemberStreamStateRepository` 將打卡次數增量，並在 SQLite 中成功變更後，發布 `MemberCheckedInEvent` 事件到事件匯流排 (Event Bus)，以便 OBS Overlay 與預覽 Hub 能即時觸發集點卡視覺效果。
+
+---
+
+### 4.22 視覺化與直覺化工作流設定 UI Intuitive Workflow Rule Editor (Phase 7D)
+
+**背景與動機：**
+現有的工作流規則設定界面要求使用者手動輸入特定 JSON 或純文字表達式，對不熟悉技術的實況主而言極不直覺。此階段將引進視覺化引導編輯界面，徹底摒棄低效的自由文字設定。
+
+**設計與規格：**
+1. **條件建構器 (Condition Builder)**：
+   - 摒棄純手寫 NCalc 文字，改用視覺化規則列表（Row-based list）。
+   - 每筆條件由三大下拉選單組成：`[變數選擇器]` -> `[比較運算子]` -> `[目標值/常數]`。
+   - 變數選擇器將動態讀取 `StreamEventTypeRegistry` 及 Workflow 預先提供的 Context 變數列表（如 `user.name`, `message.text`, `member.stamps`），以點選下拉式清單的方式防呆。
+   - 前端元件最終自動將視覺化設定轉換並輸出成標準的 NCalc 運算式（例如：`member.stamps >= 10`）傳給後端 API。
+
+2. **動態動作表單 (Dynamic Action Form)**：
+   - 針對每個 Action 類型（例如 `TriggerCheckIn`、`RefundTwitchRedemption`、`TriggerEffect` 等），根據後端註冊的 `ActionParameterMetadata`（型別含 string, number, boolean, select, text）動態生成對應的強型別輸入控制項。
+   - 元件內整合「變數選擇器浮動面板」，使用者於輸入框內游標點選或輸入 `{` 時，即時跳出可用變數列表，點擊即可插入變數範本字串（如 `{user.displayName}`），避免拼寫錯誤。
+
+---
+
 ## 5. 指令
 
 ```bash
@@ -1145,7 +1446,7 @@ public interface IStreamEventBus
     IDisposable Subscribe<T>(Func<T, CancellationToken, Task> handler) where T : IStreamEvent;
 
     /// <summary>
-    /// 等待直到記憶體隊列清空且所有活動的處理程式都已完成。
+    /// 等待直到記憶體佇列清空且所有活動的處理程式都已完成。
     /// 語意：handler 例外被隔離後以 warning 記錄；WaitForIdleAsync 本身不聚合或拋出 handler 錯誤，
     ///       完成後回傳 Task.CompletedTask（不反映 handler 是否出錯）。
     ///       CLI --wait 使用此方法，同樣不依賴 handler 錯誤計數。
@@ -1334,7 +1635,7 @@ dotnet test tests/Vulperonex.Tests.Unit \
 
 - 向解決方案添加新的頂級專案（**Task 1 初始專案已授權，不需逐一詢問；Task 1 以外的額外新專案才 ask-first**）。
 - 刪除或重命名欄位的架構遷移。
-- 添加新的 NuGet / npm **依賴項**（包含 oxlint 等 dev tool — 詢問後安裝一次，**已安裝後執行 lint 屬驗證步驟，不需再詢問**）。例外：Phase 1 Task 1c 所需且本 SPEC 已命名的測試/coverage 套件已預先授權，不需逐一詢問：`xUnit 3`、`NSubstitute`、`FluentAssertions 7`、`NetArchTest`、`coverlet.msbuild 6.0.2`。
+- 添加新的 NuGet / npm **相依套件**（包含 oxlint 等 dev tool — 詢問後安裝一次，**已安裝後執行 lint 屬驗證步驟，不需再詢問**）。例外：Phase 1 Task 1c 所需且本 SPEC 已命名的測試/coverage 套件已預先授權，不需逐一詢問：`xUnit 3`、`NSubstitute`、`FluentAssertions 7`、`NetArchTest`、`coverlet.msbuild 6.0.2`。
 - 更改公共外掛程式契約 (`IVulperonexPlugin`)。
 - 在第二階段之後修改核心領域事件的形狀。
 
