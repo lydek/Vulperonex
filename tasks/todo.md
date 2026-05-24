@@ -243,14 +243,14 @@
 > SPEC 對應：`docs/SPEC.md` §4.14.1 Overlay Preset Contract
 > 補建立背景：Task 44/45 大部分先實作後補 spec / plan / task；Task 46-49 為新 scope，待 ACK 後開工。
 
-- [ ] **Task 44** — Member Card Overlay Default Preset (Rotan-Checkin)：Vue preset + CSS base+theme tokens + standalone HTML 一致視覺
-- [ ] **Task 45** — Member Card Admin Controller：背景/印章 URL 設定面板 + i18n + URL sanitize + setInterval lifecycle
+- [/] **Task 44** — Member Card Overlay Default Preset (Rotan-Checkin)：Vue preset + CSS base+theme tokens + standalone HTML 一致視覺
+- [/] **Task 45** — Member Card Admin Controller：背景/印章 URL 設定面板 + i18n + URL sanitize + setInterval lifecycle
 - [ ] **Task 46** — Custom HTML Overlay Upload Infrastructure：multipart upload + zip path traversal 防護 + admin UI
 - [ ] **Task 47** — Overlay Preset Resolver Backend Route：`overlay.{hub}.preset` 設定支援 `custom:{slug}` + 302 redirect
 - [ ] **Task 48** — Member Snapshot in Chat Hub：cross-hub DTO + 反射白名單 + chip preset + 旗標控制
 - [ ] **Task 49** — OneComme Bridge Plugin Contract (Scaffold Only)：interface + project scaffold，importer 實作延後 Phase 7D
 
-> 圖例：`[x]` 完成、`[/]` 部分完成、`[ ]` 未開工
+> 圖例：`[x]` 完成、`[/]` 部分完成（Task 44/45 約 85%；剩餘子項見子 todo.md）、`[ ]` 未開工
 
 ### Checkpoint：Phase 7C
 
