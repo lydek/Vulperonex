@@ -425,6 +425,20 @@ export interface ConfigValueResponse {
   value: string | null;
 }
 
+export interface OverlayCustomPresetMetadata {
+  slug: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+export interface OverlayPresetDescriptor {
+  hubName: "chat" | "member" | "alerts";
+  key: string;
+  kind: string;
+  label: string;
+  relativeUrl: string;
+}
+
 export async function getConfigValue(
   key: string,
   signal?: AbortSignal
@@ -449,6 +463,43 @@ export async function setConfigValue(
   if (!response.ok) {
     throw new ApiError(response.status, await safeReadBody(response));
   }
+}
+
+export async function getOverlayCustomPresets(signal?: AbortSignal): Promise<OverlayCustomPresetMetadata[]> {
+  return getJson<OverlayCustomPresetMetadata[]>("/api/overlay/custom-presets", signal);
+}
+
+export async function getOverlayPresetCatalog(signal?: AbortSignal): Promise<OverlayPresetDescriptor[]> {
+  return getJson<OverlayPresetDescriptor[]>("/api/overlay/presets", signal);
+}
+
+export async function deleteOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}`, {
+    method: "DELETE",
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export async function uploadOverlayCustomPreset(
+  slug: string,
+  file: File,
+  signal?: AbortSignal
+): Promise<OverlayCustomPresetMetadata> {
+  const form = new FormData();
+  form.set("slug", slug);
+  form.set("file", file);
+  const response = await fetch(`${apiBaseUrl}/api/overlay/custom-presets`, {
+    method: "POST",
+    body: form,
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<OverlayCustomPresetMetadata>;
 }
 
 export async function postSimulate(

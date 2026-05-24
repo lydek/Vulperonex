@@ -3,6 +3,7 @@ import AdminStatusView from "@/views/admin/AdminStatusView.vue";
 import ChatOutboxView from "@/views/admin/ChatOutboxView.vue";
 import EventMonitorView from "@/views/admin/EventMonitorView.vue";
 import MembersView from "@/views/admin/MembersView.vue";
+import OverlayPresetsView from "@/views/admin/OverlayPresetsView.vue";
 import RuleEditorView from "@/views/admin/RuleEditorView.vue";
 import RulesView from "@/views/admin/RulesView.vue";
 import SimulateView from "@/views/admin/SimulateView.vue";
@@ -19,6 +20,7 @@ export const router = createRouter({
     { path: "/simulate", name: "simulate", component: SimulateView },
     { path: "/events", name: "event-monitor", component: EventMonitorView },
     { path: "/members", name: "members", component: MembersView },
+    { path: "/overlay-presets", name: "overlay-presets", component: OverlayPresetsView },
     { path: "/rules", name: "rules", component: RulesView },
     { path: "/timers", name: "timers", component: TimersView },
     { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },

@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import type { OverlayHubEvent } from "@/composables/useOverlayHub";
+import ChatMemberChip from "./ChatMemberChip.vue";
 
-defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string }>();
+defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean }>();
 
-// ?? Segment ??摮摰?(?詨捆 text ??value)
-function getSegmentText(segment: any): string {
+function getSegmentText(segment: { text?: string; value?: string }): string {
   return segment.text || segment.value || "";
 }
 
-// ?? Segment ????(?詨捆 kind ??type)
-function getSegmentType(segment: any): string {
+function getSegmentType(segment: { kind?: string; type?: string }): string {
   return segment.kind || segment.type || "text";
 }
 </script>
@@ -31,7 +30,6 @@ function getSegmentType(segment: any): string {
       class="chat-line"
       role="listitem"
     >
-      <!-- 蝬 KapChat: 敺賜??典?蝔曹???-->
       <img
         v-for="(badgeUrl, badgeIndex) in event.badges"
         :key="`badge-${badgeIndex}`"
@@ -40,50 +38,44 @@ function getSegmentType(segment: any): string {
         alt="badge"
       />
 
-      <!-- ?梁迂 -->
-      <span
-        class="chat-username"
-        :style="{ color: event.colorHex || 'var(--twitch-purple-light)' }"
-      >
-        {{ event.displayName || "?芰雿輻?? }}
+      <span class="chat-username" :style="{ color: event.colorHex || 'var(--twitch-purple-light)' }">
+        {{ event.displayName || "Unknown user" }}
       </span>
 
-      <!-- ?? -->
       <span class="chat-colon">:</span>
 
-      <!-- ?批捆 -->
       <span class="chat-content">
-        <template
-          v-for="(segment, segmentIndex) in event.segments"
-          :key="`seg-${segmentIndex}`"
-        >
-          <!-- ?亦銵冽??內嚗葡???? -->
+        <template v-for="(segment, segmentIndex) in event.segments" :key="`seg-${segmentIndex}`">
           <img
             v-if="getSegmentType(segment) === 'emote'"
             :src="getSegmentText(segment)"
             class="chat-emote"
             alt="emote"
           />
-          <!-- ?血?嚗?仿＊蝷箇??? -->
           <span v-else>{{ getSegmentText(segment) }}</span>
         </template>
       </span>
+
+      <ChatMemberChip
+        v-if="showMemberCard && event.memberSnapshot"
+        :display-name="event.memberSnapshot.displayName"
+        :avatar-url="event.memberSnapshot.avatarUrl"
+        :check-in-count="event.memberSnapshot.checkInCount"
+      />
     </div>
   </transition-group>
 </template>
 
 <style scoped>
-/* ?詨?閮剛?霈 - 蝬?? KapChat 憸冽 */
 .chat-preset-default {
   --twitch-purple-light: #bf94ff;
   --text-shadow-heavy: 1px 1px 2px rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.9);
-
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: flex-start;
   height: calc(100vh - 120px);
-  gap: 8px; /* 銵?銵???撖???*/
+  gap: 8px;
   width: 100%;
   box-sizing: border-box;
   overflow: hidden;
@@ -97,14 +89,11 @@ function getSegmentType(segment: any): string {
   padding: 10px;
 }
 
-/* 蝬 KapChat ?株???銵?*/
 .chat-line {
   position: relative;
-  background: transparent; /* 摰?? */
   border: none;
-  border-radius: 0;
   padding: 2px 4px;
-  display: block; /* 撖砍漲 100% ?芸??? */
+  display: block;
   width: 100%;
   word-wrap: break-word;
   box-sizing: border-box;
@@ -112,7 +101,6 @@ function getSegmentType(segment: any): string {
   line-height: 1.4;
 }
 
-/* 蝬 KapChat 鞎潮??迂撌血?噬蝡?*/
 .chat-badge {
   height: 18px;
   vertical-align: middle;
@@ -123,35 +111,31 @@ function getSegmentType(segment: any): string {
   display: inline-block;
 }
 
-.chat-username {
-  font-size: 1.05rem;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  text-shadow: var(--text-shadow-heavy);
-  display: inline;
+.chat-username,
+.chat-colon,
+.chat-content {
   vertical-align: middle;
+  text-shadow: var(--text-shadow-heavy);
 }
 
+.chat-username,
 .chat-colon {
   font-size: 1.05rem;
   font-weight: 900;
-  color: #EFEFF1;
+}
+
+.chat-colon {
+  color: #efeff1;
   margin-right: 6px;
-  text-shadow: var(--text-shadow-heavy);
-  display: inline;
-  vertical-align: middle;
 }
 
 .chat-content {
   font-size: 1.05rem;
-  color: #FFFFFF; /* 蝝?脣?擃??梢敶望???霅霈??*/
+  color: #fff;
   line-height: 1.4;
-  font-weight: 700; /* 蝎?摮?璆菔皜 */
-  display: inline;
+  font-weight: 700;
   word-break: break-word;
   overflow-wrap: anywhere;
-  text-shadow: var(--text-shadow-heavy);
-  vertical-align: middle;
 }
 
 .chat-emote {
@@ -161,14 +145,13 @@ function getSegmentType(segment: any): string {
   display: inline-block;
 }
 
-/* ??ice-spring ?脣?宏????*/
 .ice-spring-enter-active {
   animation: iceSpring 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
 .ice-spring-leave-active {
   transition: all 0.3s ease;
-  position: absolute; /* 撟單??Ｗ皛曉? */
+  position: absolute;
 }
 
 .ice-spring-leave-to {
@@ -185,6 +168,7 @@ function getSegmentType(segment: any): string {
     opacity: 0;
     transform: translateX(-20px) scale(0.8);
   }
+
   100% {
     opacity: 1;
     transform: translateX(0) scale(1);

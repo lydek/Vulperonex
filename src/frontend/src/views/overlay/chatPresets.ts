@@ -1,6 +1,7 @@
 import type { Component } from "vue";
 import ChatPresetCompact from "./presets/ChatPresetCompact.vue";
 import ChatPresetDefault from "./presets/ChatPresetDefault.vue";
+import ChatPresetMemberCardEmbed from "./presets/ChatPresetMemberCardEmbed.vue";
 
 export interface ChatOverlayPreset {
   id: string;
@@ -19,8 +20,14 @@ export const chatOverlayPresets: ChatOverlayPreset[] = [
   {
     id: "compact-line",
     label: "Compact line",
-    description: "Single-line `name › message` rows for dense chat overlays.",
+    description: "Single-line name and message rows for dense chat overlays.",
     component: ChatPresetCompact
+  },
+  {
+    id: "member-card-inline",
+    label: "Member card inline",
+    description: "Chat rows with an optional member loyalty chip.",
+    component: ChatPresetMemberCardEmbed
   }
 ];
 
@@ -30,5 +37,6 @@ export function findChatOverlayPreset(id: string | null | undefined): ChatOverla
   if (!id) {
     return chatOverlayPresets[0];
   }
+
   return chatOverlayPresets.find((preset) => preset.id === id) ?? chatOverlayPresets[0];
 }

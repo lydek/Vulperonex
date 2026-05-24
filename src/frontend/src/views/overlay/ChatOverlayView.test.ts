@@ -12,12 +12,27 @@ vi.mock("vue-router", () => ({
 
 vi.mock("@/composables/useOverlayHub", () => ({
   useOverlayHub: () => ({
-    events: ref([{ eventId: "e1", displayName: "Streamer", segments: [{ kind: "text", text: "hi" }] }]),
+    events: ref([{
+      eventId: "e1",
+      displayName: "Streamer",
+      segments: [{ kind: "text", text: "hi" }],
+      memberSnapshot: { displayName: "Streamer", avatarUrl: "https://cdn/avatar.png", checkInCount: 5 }
+    }]),
     start: vi.fn(async () => undefined),
     state: ref(1),
     lastEventAt: ref(null),
     error: ref(null),
     clear: vi.fn(async () => undefined)
+  })
+}));
+
+vi.mock("@/composables/useStreamEvents", () => ({
+  useStreamEvents: () => ({
+    events: ref([]),
+    start: vi.fn(async () => undefined),
+    state: ref(1),
+    error: ref(null),
+    stop: vi.fn(async () => undefined)
   })
 }));
 
@@ -49,12 +64,11 @@ describe("ChatOverlayView preset switching", () => {
   });
 
   it("falls back to default preset when config has no value", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ key: "overlay.chat.preset", value: null }), { status: 200 })
-      )
-    );
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const value = url.includes("overlay.chat.show_member_card") ? "false" : null;
+      return new Response(JSON.stringify({ key: "k", value }), { status: 200 });
+    }));
 
     const wrapper = mountView();
     await flushPromises();
@@ -64,12 +78,11 @@ describe("ChatOverlayView preset switching", () => {
   });
 
   it("switches to compact preset via the dropdown", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ key: "overlay.chat.preset", value: null }), { status: 200 })
-      )
-    );
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const value = url.includes("overlay.chat.show_member_card") ? "false" : null;
+      return new Response(JSON.stringify({ key: "k", value }), { status: 200 });
+    }));
 
     const wrapper = mountView();
     await flushPromises();
@@ -82,16 +95,29 @@ describe("ChatOverlayView preset switching", () => {
   });
 
   it("respects the preset stored in system settings", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        new Response(JSON.stringify({ key: "overlay.chat.preset", value: "compact-line" }), { status: 200 })
-      )
-    );
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const value = url.includes("overlay.chat.show_member_card") ? "false" : "compact-line";
+      return new Response(JSON.stringify({ key: "k", value }), { status: 200 });
+    }));
 
     const wrapper = mountView();
     await flushPromises();
 
     expect(wrapper.find('[data-testid="chat-preset-compact"]').exists()).toBe(true);
+  });
+
+  it("renders the member chip only when the config flag is enabled", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const value = url.includes("overlay.chat.show_member_card") ? "true" : "member-card-inline";
+      return new Response(JSON.stringify({ key: "k", value }), { status: 200 });
+    }));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="chat-preset-member-card"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="chat-member-chip"]').exists()).toBe(true);
   });
 });

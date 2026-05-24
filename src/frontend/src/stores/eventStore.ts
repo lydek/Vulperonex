@@ -6,6 +6,8 @@ export interface StreamEventEnvelope {
   eventId: string;
   platform: string;
   occurredAt?: string;
+  key?: string;
+  value?: string | null;
 }
 
 export const useEventStore = defineStore("events", () => {

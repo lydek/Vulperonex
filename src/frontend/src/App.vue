@@ -15,6 +15,7 @@ import { RouterLink, RouterView } from "vue-router";
           <RouterLink to="/simulate" class="nav-link">{{ $t("nav.simulate") }}</RouterLink>
           <RouterLink to="/events" class="nav-link">{{ $t("nav.eventMonitor") }}</RouterLink>
           <RouterLink to="/members" class="nav-link">{{ $t("nav.members") }}</RouterLink>
+          <RouterLink to="/overlay-presets" class="nav-link">{{ $t("nav.overlayPresets") }}</RouterLink>
           <RouterLink to="/rules" class="nav-link">{{ $t("nav.rules") }}</RouterLink>
           <RouterLink to="/timers" class="nav-link">{{ $t("nav.timers") }}</RouterLink>
           <RouterLink to="/chat-outbox" class="nav-link">{{ $t("nav.chatOutbox") }}</RouterLink>

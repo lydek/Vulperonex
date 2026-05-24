@@ -17,6 +17,11 @@ export interface OverlayHubEvent {
   badges?: string[];
   avatarUrl?: string | null;
   checkInCount?: number;
+  memberSnapshot?: {
+    displayName: string;
+    avatarUrl?: string | null;
+    checkInCount: number;
+  } | null;
 }
 
 export interface OverlayClearedPayload {

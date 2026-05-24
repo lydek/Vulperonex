@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import HubStatusChip from "@/components/admin/HubStatusChip.vue";
+import { useStreamEvents } from "@/composables/useStreamEvents";
 import { useOverlayHub } from "@/composables/useOverlayHub";
 import { ApiError, getConfigValue } from "@/api/client";
 import {
@@ -14,31 +15,50 @@ import {
 
 const { t } = useI18n();
 const route = useRoute();
+const { events: systemEvents, start: startSystemEvents } = useStreamEvents();
 const { events, start, state, lastEventAt, error, clear } = useOverlayHub("chat");
 const confirmOpen = ref(false);
 const clearing = ref(false);
 const presetId = ref<string>(defaultChatOverlayPresetId);
+const showMemberCard = ref(false);
 const presetError = ref<string | null>(null);
 
 const activePreset = computed(() => findChatOverlayPreset(presetId.value));
 
 onMounted(async () => {
   await resolvePreset();
+  void startSystemEvents();
   void start();
 });
+
+watch(
+  () => systemEvents.value[0]?.eventId,
+  () => {
+    const latest = systemEvents.value[0];
+    if (!latest || latest.type !== "system.config_changed") {
+      return;
+    }
+
+    if (latest.key === "overlay.chat.preset" || latest.key === "overlay.chat.show_member_card") {
+      void resolvePreset();
+    }
+  }
+);
 
 async function resolvePreset(): Promise<void> {
   const queryPreset = route.query.preset;
   if (typeof queryPreset === "string" && queryPreset.length > 0) {
     presetId.value = queryPreset;
-    return;
   }
 
   try {
-    const config = await getConfigValue("overlay.chat.preset");
-    if (config.value) {
-      presetId.value = config.value;
+    const presetConfig = await getConfigValue("overlay.chat.preset");
+    if (presetConfig.value && !(typeof queryPreset === "string" && queryPreset.length > 0)) {
+      presetId.value = presetConfig.value;
     }
+
+    const memberCardConfig = await getConfigValue("overlay.chat.show_member_card");
+    showMemberCard.value = memberCardConfig.value === "true";
   } catch (caught) {
     if (caught instanceof ApiError) {
       presetError.value = caught.errorCode ?? `HTTP_${caught.status}`;
@@ -107,6 +127,7 @@ function onPresetChange(value: string): void {
       :is="activePreset.component"
       :events="events"
       :empty-label="t('overlay.empty')"
+      :show-member-card="showMemberCard"
     />
 
     <ConfirmDialog
