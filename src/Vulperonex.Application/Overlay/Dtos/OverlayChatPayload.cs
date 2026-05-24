@@ -7,7 +7,13 @@ public sealed record OverlayChatPayload(
     string DisplayName,
     string? ColorHex,
     IReadOnlyCollection<OverlayTextSegment> Segments,
-    IReadOnlyCollection<string> Badges);
+    IReadOnlyCollection<string> Badges,
+    OverlayMemberSnapshot? MemberSnapshot = null);
+
+public sealed record OverlayMemberSnapshot(
+    string DisplayName,
+    string? AvatarUrl,
+    int CheckInCount);
 
 public sealed record OverlayTextSegment(string Type, string Value)
 {

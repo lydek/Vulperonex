@@ -26,6 +26,7 @@ using Vulperonex.Infrastructure.Counters;
 using Vulperonex.Infrastructure.EventBus;
 using Vulperonex.Infrastructure.EventTypes;
 using Vulperonex.Infrastructure.Expressions;
+using Vulperonex.Infrastructure.Cache;
 using Vulperonex.Infrastructure.Logging;
 using Vulperonex.Infrastructure.Members;
 using Vulperonex.Infrastructure.Overlay;
@@ -35,6 +36,7 @@ using Vulperonex.Infrastructure.Time;
 using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web.Configuration;
 using Vulperonex.Web.Members;
+using Vulperonex.Web.Overlay;
 using Vulperonex.Web.Ports;
 using Vulperonex.Web.Simulation;
 using Vulperonex.Web.SignalR;
@@ -85,6 +87,7 @@ public static class DependencyInjection
         services.AddSingleton<IOverlayEffectEmitter, SignalROverlayEffectEmitter>();
         services.AddSingleton<TwitchOAuthSessionStore>();
         services.AddSingleton<PlatformConnectionNotifier>();
+        services.AddSingleton<OverlayPresetStore>();
         services.AddSingleton<IFileSystem, LocalFileSystem>();
         services.AddSingleton<MachineKeyProvider>(serviceProvider =>
             new MachineKeyProvider(
@@ -108,6 +111,8 @@ public static class DependencyInjection
         services.AddScoped<IMemberAdminService, MemberAdminService>();
         services.AddScoped<IMemberResolver, MemberResolver>();
         services.AddScoped<IMemberStreamStateRepository, MemberStreamStateRepository>();
+        services.AddScoped<Vulperonex.Adapters.Abstractions.IPlatformUserInfoCache>(serviceProvider =>
+            new PlatformUserDisplayCache(serviceProvider.GetRequiredService<VulperonexDbContext>()));
         services.AddScoped<ICounterRepository, CounterRepository>();
         services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
         services.AddScoped<WorkflowConditionEvaluator>();
@@ -153,6 +158,7 @@ public static class DependencyInjection
         services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<WorkflowEngineDispatcher>();
         services.AddHostedService<OverlayEventForwarder>();
+        services.AddHostedService<SystemConfigChangedForwarder>();
         services.AddHostedService<ChatOutboxDispatcher>();
         services.AddHostedService<WorkflowTimerHostedService>();
         services.AddSingleton<AppLogsSink>(provider =>

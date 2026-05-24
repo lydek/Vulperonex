@@ -15,6 +15,9 @@ public static class SystemSettingKey
     public const string ChatOutboxPerSecond = "chat.outbox.per_second";
     public const string ChatOutboxDedupTtlHours = "chat.outbox.dedup_ttl_hours";
     public const string OverlayChatPreset = "overlay.chat.preset";
+    public const string OverlayMemberPreset = "overlay.member.preset";
+    public const string OverlayAlertsPreset = "overlay.alerts.preset";
+    public const string OverlayChatShowMemberCard = "overlay.chat.show_member_card";
     public const string TwitchClientId = "twitch.client_id";
     public const string OverlayMemberBackgroundUrl = "overlay.member.background_url";
     public const string OverlayMemberStampUrl = "overlay.member.stamp_url";

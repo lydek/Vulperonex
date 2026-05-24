@@ -41,6 +41,9 @@ public sealed class SystemSettingKeyTests
             "chat.outbox.per_second",
             "chat.outbox.dedup_ttl_hours",
             "overlay.chat.preset",
+            "overlay.member.preset",
+            "overlay.alerts.preset",
+            "overlay.chat.show_member_card",
             "twitch.client_id",
             "overlay.member.background_url",
             "overlay.member.stamp_url");

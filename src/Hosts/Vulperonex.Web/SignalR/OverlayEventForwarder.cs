@@ -1,10 +1,13 @@
 using System.Reactive.Linq;
+using Vulperonex.Adapters.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Members;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
 using Vulperonex.Domain.Events;
+using Vulperonex.Domain.Members;
 
 namespace Vulperonex.Web.SignalR;
 
@@ -15,6 +18,7 @@ public sealed class OverlayEventForwarder(
     IHubContext<OverlayAlertsHub> alertsHub,
     IOverlayHistoryService<OverlayChatPayload> chatHistory,
     IOverlayHistoryService<OverlayAlertPayload> alertsHistory,
+    IServiceScopeFactory scopeFactory,
     IClock clock,
     ILogger<OverlayEventForwarder> logger) : IHostedService
 {
@@ -67,17 +71,53 @@ public sealed class OverlayEventForwarder(
 
     private async Task ForwardChatEventAsync(UserSentMessageEvent streamEvent, CancellationToken cancellationToken)
     {
+        var memberSnapshot = await TryResolveMemberSnapshotAsync(streamEvent, cancellationToken);
         var payload = new OverlayChatPayload(
             1,
             streamEvent.EventId,
             clock.UtcNow,
             streamEvent.User.DisplayName,
-            null,
+            memberSnapshot?.ColorHex,
             [new OverlayTextSegment("text", streamEvent.MessageText)],
-            []);
+            memberSnapshot?.Badges ?? [],
+            memberSnapshot?.Snapshot);
 
         await TryPersistAsync(chatHistory, payload, cancellationToken);
         await SafeSendAsync(() => chatHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
+    }
+
+    private async Task<ResolvedMemberSnapshot?> TryResolveMemberSnapshotAsync(
+        UserSentMessageEvent streamEvent,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var members = scope.ServiceProvider.GetRequiredService<IMemberQueryService>();
+            var displayCache = scope.ServiceProvider.GetRequiredService<IPlatformUserInfoCache>();
+            var identity = PlatformIdentity.Create(streamEvent.Platform, streamEvent.User.UserId);
+            var member = await members.FindByIdentityAsync(identity, cancellationToken);
+            var display = await displayCache.GetAsync(identity.Platform, identity.PlatformUserId, cancellationToken);
+
+            return new ResolvedMemberSnapshot(
+                display?.ColorHex,
+                display?.Badges ?? [],
+                member is null
+                    ? null
+                    : new OverlayMemberSnapshot(
+                        streamEvent.User.DisplayName,
+                        display?.AvatarUrl,
+                        member.Loyalty.CheckInCount));
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Failed to resolve chat member snapshot for {Platform}/{UserId}.",
+                streamEvent.Platform,
+                streamEvent.User.UserId);
+            return null;
+        }
     }
 
     private async Task ForwardAlertEventAsync(
@@ -137,4 +177,11 @@ public sealed record StreamEventEnvelope(
     string Type,
     string EventId,
     string Platform,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    string? Key = null,
+    string? Value = null);
+
+internal sealed record ResolvedMemberSnapshot(
+    string? ColorHex,
+    IReadOnlyCollection<string> Badges,
+    OverlayMemberSnapshot? Snapshot);

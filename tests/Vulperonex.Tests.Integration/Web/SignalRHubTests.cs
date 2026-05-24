@@ -15,6 +15,7 @@ using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Infrastructure.Data;
+using Vulperonex.Infrastructure.Data.Entities;
 using Vulperonex.Web;
 using Xunit;
 
@@ -79,6 +80,91 @@ public sealed class SignalRHubTests
         payload.GetProperty("type").GetString().Should().Be("user.message");
         payload.GetProperty("eventId").GetString().Should().NotBeNullOrWhiteSpace();
         payload.TryGetProperty("$type", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Given_MemberAndDisplayCacheExist_When_ChatIsSimulated_Then_OverlayChatPayloadIncludesMemberSnapshot()
+    {
+        await using var app = await StartAppAsync();
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
+            context.Members.Add(new MemberEntity
+            {
+                MemberId = "member-1",
+                CheckInCount = 7,
+                TotalLoyalty = 21,
+            });
+            context.PlatformIdentities.Add(new PlatformIdentityEntity
+            {
+                MemberId = "member-1",
+                Platform = "simulation",
+                PlatformUserId = "member-chat-user",
+            });
+            context.PlatformUserDisplayInfo.Add(new PlatformUserDisplayInfoEntity
+            {
+                Platform = "simulation",
+                PlatformUserId = "member-chat-user",
+                AvatarUrl = "https://cdn.example/avatar.png",
+                ColorHex = "#12abef",
+                BadgesJson = "[\"subscriber/1\"]",
+                FetchedAt = DateTimeOffset.UtcNow,
+            });
+            await context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        using var client = CreateClient(app);
+        var message = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/chat"))
+            .Build();
+
+        connection.On<JsonElement>("event", payload => message.TrySetResult(payload));
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new { platformUserId = "member-chat-user", displayName = "Member User", message = "snapshot me" },
+            TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await message.Task.WaitAsync(TestContext.Current.CancellationToken);
+        payload.GetProperty("colorHex").GetString().Should().Be("#12abef");
+        payload.GetProperty("badges")[0].GetString().Should().Be("subscriber/1");
+        payload.GetProperty("memberSnapshot").GetProperty("displayName").GetString().Should().Be("Member User");
+        payload.GetProperty("memberSnapshot").GetProperty("avatarUrl").GetString().Should().Be("https://cdn.example/avatar.png");
+        payload.GetProperty("memberSnapshot").GetProperty("checkInCount").GetInt32().Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Given_ConfigEndpointWritesSetting_When_EventsHubConnected_Then_SystemConfigChangedIsBroadcast()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var message = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/events"))
+            .Build();
+
+        connection.On<JsonElement>("event", payload =>
+        {
+            if (payload.TryGetProperty("type", out var type) && type.GetString() == "system.config_changed")
+            {
+                message.TrySetResult(payload);
+            }
+        });
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+
+        var response = await client.PutAsJsonAsync(
+            "/api/config/overlay.chat.show_member_card",
+            new { value = "true" },
+            TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await message.Task.WaitAsync(TestContext.Current.CancellationToken);
+        payload.GetProperty("platform").GetString().Should().Be("system");
+        payload.GetProperty("key").GetString().Should().Be("overlay.chat.show_member_card");
+        payload.GetProperty("value").GetString().Should().Be("true");
     }
 
     [Fact]

@@ -10,9 +10,17 @@ public sealed class OverlayDtoWhitelistTests
     [Fact]
     public void Given_OverlayChatPayload_When_Serialized_Then_JsonKeySetIsExact()
     {
-        var payload = new OverlayChatPayload(1, "evt-1", DateTimeOffset.UnixEpoch, "Alice", "#ffffff", [new("text", "hello")], ["subscriber/1"]);
+        var payload = new OverlayChatPayload(
+            1,
+            "evt-1",
+            DateTimeOffset.UnixEpoch,
+            "Alice",
+            "#ffffff",
+            [new("text", "hello")],
+            ["subscriber/1"],
+            new OverlayMemberSnapshot("Alice", "https://cdn/avatar.png", 3));
 
-        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "displayName", "colorHex", "segments", "badges");
+        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "displayName", "colorHex", "segments", "badges", "memberSnapshot");
     }
 
     [Fact]
