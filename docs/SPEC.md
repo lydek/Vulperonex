@@ -1,4 +1,4 @@
-﻿# 規格書：Vulperonex — 多平台直播自動化平台
+# 規格書：Vulperonex — 多平台直播自動化平台
 
 > **狀態：** 已批准 v0.3 (MVP 範圍 — 多輪審查完成，準備進行第一階段實作)
 > **最後更新：** 2026-05-13
@@ -851,6 +851,76 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 - 樣板渲染仍必須遵守 MVP 安全界線：使用 DTO 白名單與 text binding；**不得以 `v-html` 或任意 raw HTML 直接穿透 event payload**。
 - **OneComme 相容屬於擴充功能 / 插件類型能力，不屬於 core 直接內建整合。** Core 只需提供可擴充的樣板 preset / package contract；OneComme 相容可透過外掛、樣板匯入器、或 adapter 套件實作。
 - 以 **OneComme** 作為優先相容目標之一。目的不是 1:1 複製其內部實作，而是提供足夠接近的樣板結構 / 匯入映射 / 相容契約，降低既有 OneComme 使用者的遷移成本，同時維持 core 與第三方樣板生態的邊界。
+
+#### 4.14.1 Overlay Preset Contract (Vue 預設 + 自訂 HTML 擴充)
+
+**動機：** 一般實況主想客製 overlay 視覺，不應被迫安裝 Node.js / pnpm / Vite。同時 Vulperonex 仍要提供高品質預設 Vue 版本，並支援第三方擴充（含未來 OneComme 模板匯入）。
+
+**雙軌渲染管道：**
+
+| 管道 | 適用對象 | 路徑模式 | 實作位置 |
+|------|---------|----------|----------|
+| **Vue 預設 Preset** | 一般使用者，零設定可用 | `/overlay/chat`、`/overlay/member`、`/overlay/alerts` | `src/frontend/src/views/overlay/**` + `presets/*.vue` |
+| **靜態 HTML 覆蓋 (Override)** | 進階使用者 / 第三方樣板 | `/overlay/{hub}.html`、`/overlay/custom/{slug}.html` | 後端 `wwwroot/overlay/` 目錄；對應原始碼為 `src/frontend/public/overlay/`（Vite build 時複製） |
+
+**Preset 選擇優先順序（後端解析）：**
+
+1. URL 直接指向 `*.html` → 載入靜態檔案
+2. URL 指向 `/overlay/{hub}` 且 `overlay.{hub}.preset` 系統設定指向 `custom:{slug}` → redirect 到 `/overlay/custom/{slug}.html`
+3. URL 指向 `/overlay/{hub}` 且 `overlay.{hub}.preset` 指向內建 preset key (例如 `kapchat`、`bubble`、`compact`) → 載入對應 Vue preset 元件
+4. 預設 fallback → KapChat preset (chat)、Rotan 風集章卡 (member)、Vulperonex 預設警報 (alerts)
+
+**自訂 HTML 上傳（Phase 7C — 此 PR 之後）：**
+
+- 管理 UI 在「Overlay 設定」頁提供 HTML/CSS/JS bundle 上傳介面。
+- Bundle 格式：單一 `.html` 檔（自包含 inline CSS/JS）或 zip 含 `index.html` + 相對引用資源。
+- 上傳目標：`wwwroot/overlay/custom/{slug}/`（slug 由檔名 sanitize，禁止 `..`、絕對路徑、非 `[a-z0-9-]` 字元）。
+- 安全：
+  - 上傳者必須為已通過 admin auth 的本機使用者（loopback only，沿用 Phase 6 安全契約）。
+  - 上傳檔案大小上限 5MB。
+  - Zip 解壓使用 path traversal 防護，逐檔驗證解出路徑必在目標目錄內。
+  - 上傳檔案 **不執行伺服器端 sanitization**（HTML overlay 預期含 script），但檔案僅由 loopback OBS 載入，不對外曝光。
+
+**靜態 HTML SignalR 資料契約：**
+
+靜態 HTML 透過 `js/overlay-common.js` 提供的 `OverlayCommon.initSignalRConnection(hubUrl, handlers)` 連線至 `/hubs/overlay/{chat|alerts|member}`。事件 payload 結構**與 Vue preset 共用同一 DTO 白名單**（見 4.14 事件 → 疊層映射、Phase 6 Task 15 反射驗證）。任何新增欄位必須先過反射測試。
+
+**Member Card in Chat Overlay（cross-hub 嵌入）：**
+
+當會員觸發 chat 訊息時，後端 `OverlayModule` 在 chat hub payload 額外帶可選 `memberSnapshot` 欄位（DTO 同 member hub 白名單，excludes `memberId`/`totalLoyalty`/`linkedPlatforms`）。前端 / 靜態 HTML preset 可選擇是否渲染 inline 會員卡 chip（顯示頭像 + 簽到次數）。
+
+控制旗標：`overlay.chat.show_member_card`（bool，預設 `false`，於系統設定切換）。預設 false 以維持 KapChat 的極簡視覺。
+
+**OneComme 模板匯入（外掛擴充路徑，非 core）：**
+
+- Core 僅提供「自訂 HTML 上傳」契約；OneComme 模板匯入由獨立 plugin (`Vulperonex.Plugins.OneCommeBridge`) 實作。
+- Plugin 職責：解析 OneComme `template.html` + `template.css`，映射 OneComme `comment.*` 變數到 Vulperonex 事件 DTO 欄位，產生 standalone HTML 並透過上傳契約落地到 `wwwroot/overlay/custom/oc-{slug}/`。
+- 映射表與 OneComme 變數對照詳列於 `docs/plugins/onecomme-bridge.md`（待寫）。
+
+**內建 Preset 視覺基線：**
+
+| Preset | Hub | 視覺特色 | 來源啟發 |
+|--------|-----|---------|----------|
+| `kapchat` (預設) | chat | 透明無框、單行緊湊、`text-shadow` 描邊保證遊戲畫面可讀性。徽章 → 名稱 → 冒號 → 內容 | nightdev.com/kapchat |
+| `compact` | chat | 兩行緊縮、最近 10 則 | Vulperonex 自製 |
+| `rotan-checkin` (預設) | member | 紫金燙金流光邊框 + SVG 爪印章 + 網點圖騰背景；左頭像/名稱、右 10 格集章 grid | menber_byRotan（重寫，未直接引用任何原始資產） |
+
+**會員集章卡 Controller（admin 設定）：**
+
+| 設定 key | 型別 | 預設 | 說明 |
+|---------|------|------|------|
+| `overlay.member.background_url` | string (URL) | 空 | 卡片背景圖。空值則用內建漸層 |
+| `overlay.member.stamp_url` | string (URL) | 空 | 自訂印章圖。空值則用內建 SVG 爪印 |
+| `overlay.member.stamps_per_round` | int | 10 | 一輪集滿格數 |
+| `overlay.chat.show_member_card` | bool | false | 是否在 chat overlay 內嵌會員卡 chip |
+| `overlay.chat.preset` | string | `kapchat` | Chat preset key（內建 key 或 `custom:{slug}`） |
+| `overlay.member.preset` | string | `rotan-checkin` | Member preset key |
+
+**URL 安全（前端 sanitization）：** 任何由設定注入到 CSS `url()` 的值，僅接受 `https?:` 或 `data:image/(png\|jpe?g\|gif\|svg+xml\|webp);` scheme，並禁止含 `"`、`'`、`(`、`)`、`\`、`;` 等可跳出 `url()` 的字元（防 CSS injection）。
+
+**Twitch Client ID 設定 namespace 歸屬（ADR）：**
+
+`twitch.client_id` 不屬於 `oauth.*` 受保護命名空間（refresh token 才屬於 `oauth.*`，由 PKCE 流程獨家寫入）。`twitch.client_id` 為一般使用者可透過 admin UI 設定的公開值（OAuth client_id 在 PKCE public client 流程下本來就會曝光在前端授權 URL），因此歸入一般 `twitch.*` namespace 允許 `/api/config` CRUD。Authorization gate（admin only + loopback only）仍由 Phase 6 既有安全契約覆蓋。
 
 **事件 → 疊層映射：**
 

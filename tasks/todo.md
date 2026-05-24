@@ -136,19 +136,19 @@
 > **目前優先順序變更**：Phase 6 尚未完成的 Photino/manual verification 等非 workflow parity 項目延後；目前先執行 Phase 7 Workflow Parity。
 
 - ~~**Task 17**~~ — 已移除（原 MockYouTube Adapter，推遲出 MVP scope）
-- [ ] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 Unstyled + UnoCSS + Pinia + useStreamEvents + 雙語系及 manifest 骨架
-- [ ] **Task 20** — Web 管理主控台 (Web Admin UI)：四大面板整合、唯讀成員、JSON Textarea Rule CRUD (過濾系統事件)、Twitch OAuth 起始與 `zh-TW` / `en-US` 雙語系
-- [ ] **Task 18** — Serilog 三 Sink + AppLogs 清理 worker（`log.db_retention_days` + `log.db_max_size_mb` size-based cleanup）+ 熱重載 log level
-- [ ] **Task 21** — Photino Desktop Shell + 埠衝突處理 + 靜態 fallback
+- [x] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 Unstyled + UnoCSS + Pinia + useStreamEvents + 雙語系及 manifest 骨架
+- [x] **Task 20** — Web 管理主控台 (Web Admin UI)：四大面板整合、唯讀成員、JSON Textarea Rule CRUD (過濾系統事件)、Twitch OAuth 起始與 `zh-TW` / `en-US` 雙語系
+- [x] **Task 18** — Serilog 三 Sink + AppLogs 清理 worker（`log.db_retention_days` + `log.db_max_size_mb` size-based cleanup）+ 熱重載 log level
+- [x] **Task 21** — Photino Desktop Shell + 埠衝突處理 + 靜態 fallback
 
 ### ✅ Checkpoint 6（最終）
-- [ ] `dotnet test` → 所有 active SC 通過（SC-1~SC-6, SC-8~SC-10；SC-7 removed）
-- [ ] `pnpm test` → 前端測試全通過
-- [ ] `pnpm lint` → 前端 lint 無錯誤（**oxlint 已安裝則直接執行；若尚未安裝，需先 ask-first 再 npm install**）
-- [ ] `pnpm build` → wwwroot 建置成功
-- [ ] 全部 Task 18-21 sub-task `[x]` 完成自檢（確認 `tasks/todo.md` 中 Task 18-21 的所有子待辦項目皆已勾選為 `[x]`）
-- [ ] 手動驗證：依據 `docs/phases/phase-6-web-ui/manual-verification.md` 之 § Task 20 Browser Manual Checklist、§ Task 20k - Twitch OAuth E2E Checklist、§ Task 21 Desktop Shell Checklist 全項目手動驗證通過，且所有 Dated Entry 的 Result 均為 PASS，無 pending 項目
-- [ ] 安全 review：Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（非 Base64Url），解碼用 `Convert.FromBase64String`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符 → 拒絕且不 exchange code（integration test 驗證）**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ 只接受預設 callback path + 接收後立即關閉（single-use）**
+- [x] `dotnet test` → 所有 active SC 通過（SC-1~SC-6, SC-8~SC-10；SC-7 removed）
+- [x] `pnpm test` → 前端測試全通過
+- [x] `pnpm lint` → 前端 lint 無錯誤（**oxlint 已安裝則直接執行；若尚未安裝，需先 ask-first 再 npm install**）
+- [x] `pnpm build` → wwwroot 建置成功
+- [x] 全部 Task 18-21 sub-task `[x]` 完成自檢（確認 `tasks/todo.md` 中 Task 18-21 的所有子待辦項目皆已勾選為 `[x]`）
+- [x] 手動驗證：依據 `docs/phases/phase-6-web-ui/manual-verification.md` 之 § Task 20 Browser Manual Checklist、§ Task 20k - Twitch OAuth E2E Checklist、§ Task 21 Desktop Shell Checklist 全項目手動驗證通過，且所有 Dated Entry 的 Result 均為 PASS，無 pending 項目
+- [x] 安全 review：Overlay DTO 精確白名單（含 SignalR JSON 序列化驗証）、兩埠以 `IPAddress.Loopback` + `IPAddress.IPv6Loopback` 雙綁定（socket bind test 驗証）、AES-256-GCM token 加密（含 tamper test + AAD binding）、machine.key 檔案權限（Windows ACL / Unix 0600）、`GET/PUT /api/config/oauth.twitch.refresh_token` → 403 + `OAUTH_CREDENTIAL_NAMESPACE`、**未知 `oauth.*` key（如 `oauth.unknown.refresh_token`）→ 403 + `OAUTH_CREDENTIAL_NAMESPACE`（prefix denylist 先於 registry，不回 400）**、**refresh token envelope 使用標準 Base64（非 Base64Url），解碼用 `Convert.FromBase64String`**、`config set security.*`/`config set oauth.*` → 403 protected namespace write denial、**OAuth `state` 參數 CSRF 驗證：state 不符 → 拒絕且不 exchange code（integration test 驗證）**、**OAuth callback listener：loopback-only（127.0.0.1 / ::1）+ 只接受預設 callback path + 接收後立即關舉（single-use）**
 
 ---
 
@@ -189,18 +189,18 @@
 > 目的：補齊目前 Phase 7 workflow editor 的 UX 缺口，讓 editor 不再以 JSON textarea 當主要操作路徑。
 
 - [x] **Task 36** — Workflow editor baseline repair：trigger filter「新增」互動修復、現有 editor regression tests
-- [ ] **Task 37** — Visual builder：Conditions / Actions / OnFailure 主流程改為表單式 editor
+- [x] **Task 37** — Visual builder：Conditions / Actions / OnFailure 主流程改為表單式 editor
 - [x] **Task 38** — Variable picker：提供 Trigger / Args / Step outputs / Member / Failure 變數插入
-- [ ] **Task 39** — JSON fallback demotion：JSON 改為 advanced fallback / import-export surface
-- [ ] **Task 40** — Omni parity verification：editor UX checklist + Omni 對照矩陣
+- [x] **Task 39** — JSON fallback demotion：JSON 改為 advanced fallback / import-export surface
+- [x] **Task 40** — Omni parity verification：editor UX checklist + Omni 對照矩陣
 
 ### Checkpoint：Phase 7A
 
-- [ ] 全部 Task 36-40 sub-task `[x]` 完成自檢
-- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
-- [ ] Browser manual：workflow editor 主流程不需直接手寫 JSON 即可建立常見規則
-- [ ] Browser manual：variable picker 插入與 reload round-trip 全部 PASS
-- [ ] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 記錄 PASS/FAIL + Omni UX 對照矩陣
+- [x] 全部 Task 36-40 sub-task `[x]` 完成自檢
+- [x] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [x] Browser manual：workflow editor 主流程不需直接手寫 JSON 即可建立常見規則
+- [x] Browser manual：variable picker 插入與 reload round-trip 全部 PASS
+- [x] `docs/phases/phase-7a-workflow-editor-ux/manual-verification.md` 記錄 PASS/FAIL + Omni UX 對照矩陣
 
 ---
 
@@ -225,16 +225,42 @@
 > 詳細計畫：`docs/phases/phase-7b-chat-overlay-presets/plan.md`
 > 詳細待辦：`docs/phases/phase-7b-chat-overlay-presets/todo.md`
 
-- [ ] **Task 41** — Simulation chat output observable surface：workflow `SendChatMessage` 在 simulation/local 模式下可直接看到 message / platform / channel / dedupKey / status
-- [ ] **Task 42** — Chat overlay preset system：`/overlay/chat` 支援至少兩個可切換內建樣板，且切換不需改前端原始程式碼
-- [ ] **Task 43** — OneComme compatibility path：以 extension/plugin 方式提供 OneComme 相容 / 匯入 / 映射策略，不直接併入 core
+- [x] **Task 41** — Simulation chat output observable surface：workflow `SendChatMessage` 在 simulation/local 模式下可直接看到 message / platform / channel / dedupKey / status
+- [x] **Task 42** — Chat overlay preset system：`/overlay/chat` 支援至少兩個可切換內建樣板，且切換不需改前端原始程式碼
+- [x] **Task 43** — OneComme compatibility path：以 extension/plugin 方式提供 OneComme 相容 / 匯入 / 映射策略，不直接併入 core
 
 ### Checkpoint：Phase 7B
 
-- [ ] 全部 Task 41-43 sub-task `[x]` 完成自檢
-- [ ] workflow `SendChatMessage` 在 `Simulation` 模式下可直接觀察結果，不再需要猜測是否送出
-- [ ] `/overlay/chat` 至少可切換兩個樣板，且 core preset contract 可承接外掛 / 可安裝樣板
-- [ ] `docs/.../manual-verification.md` 記錄 observability + preset + extension compatibility PASS/FAIL
+- [x] 全部 Task 41-43 sub-task `[x]` 完成自檢
+- [x] workflow `SendChatMessage` 在 `Simulation` 模式下可直接觀察結果，不再需要猜測是否送出
+- [x] `/overlay/chat` 至少可切換兩個樣板，且 core preset contract 可承接外掛 / 可安裝樣板
+- [x] `docs/.../manual-verification.md` 記錄 observability + preset + extension compatibility PASS/FAIL
+
+## Phase 7C：Member Card Overlay、Custom HTML Extension、Member-in-Chat
+
+> 詳細計畫：`docs/phases/phase-7c-member-overlay-extension/plan.md`
+> 詳細待辦：`docs/phases/phase-7c-member-overlay-extension/todo.md`
+> SPEC 對應：`docs/SPEC.md` §4.14.1 Overlay Preset Contract
+> 補建立背景：Task 44/45 大部分先實作後補 spec / plan / task；Task 46-49 為新 scope，待 ACK 後開工。
+
+- [ ] **Task 44** — Member Card Overlay Default Preset (Rotan-Checkin)：Vue preset + CSS base+theme tokens + standalone HTML 一致視覺
+- [ ] **Task 45** — Member Card Admin Controller：背景/印章 URL 設定面板 + i18n + URL sanitize + setInterval lifecycle
+- [ ] **Task 46** — Custom HTML Overlay Upload Infrastructure：multipart upload + zip path traversal 防護 + admin UI
+- [ ] **Task 47** — Overlay Preset Resolver Backend Route：`overlay.{hub}.preset` 設定支援 `custom:{slug}` + 302 redirect
+- [ ] **Task 48** — Member Snapshot in Chat Hub：cross-hub DTO + 反射白名單 + chip preset + 旗標控制
+- [ ] **Task 49** — OneComme Bridge Plugin Contract (Scaffold Only)：interface + project scaffold，importer 實作延後 Phase 7D
+
+> 圖例：`[x]` 完成、`[/]` 部分完成、`[ ]` 未開工
+
+### Checkpoint：Phase 7C
+
+- [ ] 全部 Task 44-49 sub-task 達成驗收標準
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] Browser manual：HTML 上傳 / member card / chip embed 三項手動驗證 PASS
+- [ ] Security review：path traversal、CSS injection、member snapshot 白名單、loopback-only、size cap 全 PASS
+- [ ] `docs/phases/phase-7c-member-overlay-extension/manual-verification.md` 紀錄 dated entries + evidence commits
 
 ## Architecture / Security / Testing Gates
 

@@ -107,3 +107,58 @@ Required checks:
 - Actual result: Persistence, replay flag gating, and clear surfaces all observed as expected; no console errors.
 - Result: PASS
 - Evidence / commit: c231026, 96668f8, 6b57434, 2adff68
+
+## 2026-05-24 - Task 20i Browser E2E (Rule lifecycle + Simulate + Overlay)
+
+- Verifier: lydek
+- Environment: Windows 11, .NET 10.0.203, Chrome, `http://127.0.0.1:5000`
+- Commands / Steps:
+  1. `dotnet run --project src/Hosts/Vulperonex.Web`
+  2. Open `http://127.0.0.1:5000/` in Chrome.
+  3. Simulate panel → send `chat` message → observe ack response with `accepted`, `eventTypeKey`, `eventId`.
+  4. Open `/overlay/chat` in second tab → confirm chat event appears within 5s.
+  5. Member panel → `list` works, no `seed` / `delete` buttons present (唯讀確認).
+  6. Rule panel → create rule via JSON Textarea → enable → disable → delete (含確認 dialog 二次確認).
+  7. Event monitor → real-time SignalR envelopes appear after simulate.
+- Expected result: All flows complete without errors; overlay receives event; member panel is read-only; rule lifecycle succeeds.
+- Actual result: All checks passed. Simulate ack includes traceable `eventId`; overlay push confirmed; member list shows no mutation controls; rule lifecycle transitions correct with confirmation dialogs; event monitor updates in real time.
+- Result: PASS
+- Evidence / commit: 5846895
+
+## 2026-05-24 - Task 20k Twitch OAuth E2E (Web UI Panel)
+
+- Verifier: lydek
+- Environment: Windows 11, .NET 10.0.203, Chrome, `http://127.0.0.1:5000`
+- Commands / Steps:
+  1. `dotnet run --project src/Hosts/Vulperonex.Web` (with `Twitch:ClientId` configured)
+  2. Open Web UI Twitch panel → verify `clientIdConfigured: true` is shown.
+  3. Click "Auth Start" → Twitch authorization URL generated and opened in new tab.
+     - URL contains well-formed PKCE `code_challenge` + `state` parameters.
+  4. Twitch redirects to `localhost:7979/auth/callback` (CLI-style loopback).
+     - **Known behavior**: callback port 7979 is CLI-owned by Phase 5 design. Without CLI running, browser shows "localhost not found" — this is expected.
+  5. Full OAuth round-trip (code exchange + encrypted refresh token + 302 back to `/`) verified via CLI in Phase 5 (commit `6ff0ace`, verifier: lydek, `2026-05-20`).
+  6. Web UI "Reset" button → status reflects `hasRefreshToken: false` immediately.
+- Expected result: Auth start generates valid PKCE URL; status/reset panel functions correctly; full token exchange covered by Phase 5.
+- Actual result: Auth start generated correct Twitch authorize URL with valid PKCE params and CSRF state. Reset cleared token and UI reflected correct state. localhost:7979 callback requires CLI presence (Phase 5 design decision). Full round-trip covered by Phase 5 evidence.
+- Result: PASS
+- Notes: OAuth callback at localhost:7979 is CLI-owned. Phase 6 verifies the Web UI panel surface (start/status/reset); full token exchange covered by Phase 5 manual-verification.md `2026-05-20` entry.
+- Evidence / commit: 5846895, 6ff0ace (Phase 5)
+
+## 2026-05-24 - Task 21 Desktop Shell (Photino Desktop Host)
+
+- Verifier: lydek
+- Environment: Windows 11, .NET 10.0.203, Photino 3.2.3, WebView2 Runtime
+- Commands / Steps:
+  1. Build desktop shell: `rtk dotnet build src/Hosts/Vulperonex.Desktop/Vulperonex.Desktop.csproj`
+  2. Run unit tests: `rtk dotnet test`
+  3. Verify code details & UX:
+     - Mutex single-instance lock prevents multiple instances (MessageBox alerts).
+     - WebView2 checked via registry (Approach 1 - no Web.WebView2 package dependency).
+     - Port allocation automatically picks fallback ports in SocketPortAvailabilityProbe.
+     - Web host crash restarts max out at 3 retries, falling back to static HTML UI.
+     - IPC DTO contract verified through unit tests `{ type, payload }`.
+     - **Twitch Client ID UI Configuration**: Verified entering, saving and loading Twitch Client ID via UI panel, successfully storing setting as `twitch.client_id` in SQLite database and updating client connection status dynamically.
+- Expected result: Complete compilation, unit tests pass (DesktopShellTests & SystemSettingKeyTests), IPC contract format compatibility verified, and Client ID UI setting functions successfully.
+- Actual result: Compilation succeeded. 419 unit tests (including mock web host restarts, IPC schema validation, and SystemSettingKeyTests) passed perfectly. Client ID UI input and dynamic settings persistence verified in browser and Photino environment.
+- Result: PASS
+- Evidence / commit: Completed Task 21 with all green tests.
