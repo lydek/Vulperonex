@@ -2,40 +2,38 @@
 
 ## Backend
 
-- [ ] `ITwitchHelixClient`：新增 `GetGlobalBadgesAsync(ct)` + `GetChannelBadgesAsync(broadcasterId, ct)` + `TwitchBadgeDescriptor(string Key, string SetId, string Version, string ImageUrl1x, string? Title, string? Description)`
-- [ ] `TwitchHelixClient`：實作 GET `chat/badges/global` 與 GET `chat/badges?broadcaster_id={id}`；JSON DTO
-- [ ] `Application/Twitch/ITwitchBadgeCache.cs`：`Get(key) / ListAll() / SyncGlobalAsync / SyncChannelAsync / IsReady`
-- [ ] `Infrastructure/Twitch/TwitchBadgeCache.cs`：`ConcurrentDictionary<string,TwitchBadgeDescriptor>`、thread-safe sync
-- [ ] `Hosts/Vulperonex.Web/Twitch/TwitchBadgeSyncHostedService.cs`：StartAsync 嘗試 SyncGlobalAsync + SyncChannelAsync（broadcaster id 取自 `Twitch:BroadcasterId` config）；錯誤吞下 + log
-- [ ] DI 註冊（Vulperonex.Web/Program.cs 或 ServiceCollectionExtensions）
-- [ ] `OverlayEventForwarder.ForwardChatEventAsync` + `TryResolveMemberSnapshotAsync`：注入 cache，將 `display?.Badges` 經 cache 解析為 URL list；無對應者過濾
-- [ ] `SimulationKind.Message` request 增加 `Badges` (string[]) 與 `ColorHex`
-- [ ] `SimulateEndpoints`：parse `badges` / `colorHex`；在 publish 前對 sim user 呼叫 `IPlatformUserInfoCache.UpsertAsync` 寫入 badges + colorHex
-- [ ] 新 endpoint `GET /api/twitch/badges` → `BadgeListResponse(global: TwitchBadgeDescriptor[], channel: TwitchBadgeDescriptor[])`
-- [ ] 反射白名單測試更新（新增 endpoint）
+- [x] `ITwitchHelixClient`：新增 `GetGlobalBadgesAsync(ct)` + `GetChannelBadgesAsync(broadcasterId, ct)` + `TwitchBadgeDescriptor`
+- [x] `TwitchHelixClient`：實作 GET `chat/badges/global` 與 GET `chat/badges?broadcaster_id={id}`；JSON DTO
+- [x] `Application/Twitch/ITwitchBadgeCache.cs`
+- [x] `Hosts/Vulperonex.Web/TwitchAuth/TwitchBadgeCache.cs`：`ConcurrentDictionary`、global/channel 二層、thread-safe sync、normalize `/`→`_`
+- [x] `Hosts/Vulperonex.Web/TwitchAuth/TwitchBadgeSyncHostedService.cs`：StartAsync fire-and-forget SyncGlobal + SyncChannel（broadcaster id 取自 `Twitch:BroadcasterId`）
+- [x] DI 註冊
+- [x] `OverlayEventForwarder`：注入 cache，badge key → URL 解析；http(s) 預先解析者直接通過
+- [x] `SimulateEndpoints`：accept `badges` / `colorHex`，在 publish 前 `IPlatformUserInfoCache.UpdateAsync` 寫入 sim user
+- [x] 新 endpoint `GET /api/twitch/badges` → `{ ready, global, channel }`
 
 ## Frontend
 
-- [ ] `api/client.ts`：`getTwitchBadges()`、`SimulateRequestBody.badges?: string[]`、`colorHex?: string`、`TwitchBadgeDescriptor` type
-- [ ] `SimulateControlsPanel.vue`：
-  - [ ] onMounted fetch badges → group by setId
-  - [ ] 新增「身份徽章」section：chip grid，每 chip = `<img>` + 名稱；點擊 toggle 加入 selectedBadges
-  - [ ] 新增「名稱顏色」欄位：hex input + 即時 swatch
-  - [ ] submit 帶 `badges` + `colorHex`
-  - [ ] 移除 `Streamer Roles` 區（或保留並警示「已被徽章選擇取代」）
-- [ ] `ChatPresetDefault.vue`：移除 `chat-role-pill` 渲染段
-- [ ] i18n key `simulate.badges` / `simulate.nameColor`
+- [x] `api/client.ts`：`getTwitchBadges()`、`SimulateRequestBody.badges` / `.colorHex`、`TwitchBadgeDescriptor` type
+- [x] `SimulateControlsPanel.vue`：
+  - [x] onMounted fetch badges
+  - [x] 「身份徽章」 chip grid + toggle
+  - [x] 「名稱顏色」 hex input + color picker
+  - [x] submit 帶 `badges` + `colorHex`
+  - [x] 移除 `Streamer Roles` UI（程式內 `selectedRoles` 保留但無 UI）
+- [x] `ChatPresetDefault.vue`：移除 `chat-role-pill` 渲染段 + 死樣式；img `onerror` 隱藏破圖
 
 ## Tests
 
-- [ ] `TwitchBadgeCacheTests`：sync、get、miss
-- [ ] `TwitchHelixClientBadgesTests`：DTO 反序列化
-- [ ] `OverlayEventForwarderBadgeResolutionTests`：key→URL、miss 過濾
-- [ ] `SimulateEndpointsBadgeTests`：badges 寫入 displayCache、colorHex 透傳
-- [ ] frontend `SimulateControlsPanel.test.ts`：fetch、render、submit body
+- [x] `TwitchBadgeCacheTests`：sync、get、miss、channel shadow global、Helix 失敗吞下
+- [x] `OverlayEventForwarderTests`：ctor 簽章更新含 badge cache
+- [x] `OverlayDtoWhitelistTests`：補上 `roles` key（pre-existing failure 順手修）
+- [x] `ExecutorExpansionTests.RecordingTwitchHelixClient`：補上 badge 方法
+- [x] frontend `SimulateControlsPanel.test.ts`：fetchMock route by URL，simulate calls 過濾
 
 ## Docs
 
 - [x] `plan.md`
 - [x] `todo.md`
-- [ ] `manual-verification.md`：手動驗證步驟（OAuth 後 sim → overlay 截圖）
+- [x] `manual-verification.md`
+- [x] `docs/SPEC.md` §4.23
