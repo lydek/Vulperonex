@@ -11,8 +11,17 @@ import {
   type OverlayCustomPresetMetadata,
   type OverlayPresetDescriptor
 } from "@/api/client";
+import OverlayEditorModal from "@/components/admin/OverlayEditorModal.vue";
 
 const { t } = useI18n();
+
+const editorSlug = ref("");
+const editorVisible = ref(false);
+
+function openEditor(slug: string): void {
+  editorSlug.value = slug;
+  editorVisible.value = true;
+}
 
 const catalog = ref<OverlayPresetDescriptor[]>([]);
 const customPresets = ref<OverlayCustomPresetMetadata[]>([]);
@@ -166,14 +175,25 @@ async function removePreset(slug: string): Promise<void> {
             <strong>{{ preset.slug }}</strong>
             <span class="monitor-mono">{{ preset.sizeBytes }} B</span>
           </div>
-          <button type="button" class="icon-button" @click="removePreset(preset.slug)">
-            {{ t("overlayPresets.delete") }}
-          </button>
+          <div class="preset-actions" style="display: flex; gap: 8px;">
+            <button type="button" class="icon-button edit-draft-btn" @click="openEditor(preset.slug)">
+              🛠️ 編輯草稿
+            </button>
+            <button type="button" class="icon-button" @click="removePreset(preset.slug)">
+              {{ t("overlayPresets.delete") }}
+            </button>
+          </div>
         </li>
       </ul>
       <p v-else role="status">{{ t("overlayPresets.empty") }}</p>
     </section>
   </section>
+
+  <OverlayEditorModal
+    :slug="editorSlug"
+    :visible="editorVisible"
+    @close="editorVisible = false"
+  />
 </template>
 
 <style scoped>

@@ -163,6 +163,7 @@ describe("RuleEditorView", () => {
 
     const createObjectURL = vi.fn(() => "blob:rule");
     const revokeObjectURL = vi.fn();
+    const anchorClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     const originalCreate = (globalThis.URL as { createObjectURL?: unknown }).createObjectURL;
     const originalRevoke = (globalThis.URL as { revokeObjectURL?: unknown }).revokeObjectURL;
     (globalThis.URL as unknown as { createObjectURL: typeof createObjectURL }).createObjectURL = createObjectURL;
@@ -171,6 +172,7 @@ describe("RuleEditorView", () => {
     try {
       await wrapper.find('[data-testid="rule-export"]').trigger("click");
     } finally {
+      anchorClick.mockRestore();
       (globalThis.URL as unknown as { createObjectURL: unknown }).createObjectURL = originalCreate;
       (globalThis.URL as unknown as { revokeObjectURL: unknown }).revokeObjectURL = originalRevoke;
     }

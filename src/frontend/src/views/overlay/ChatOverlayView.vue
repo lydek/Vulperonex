@@ -17,6 +17,7 @@ const { t } = useI18n();
 const route = useRoute();
 const { events: systemEvents, start: startSystemEvents } = useStreamEvents();
 const { events, start, state, lastEventAt, error, clear } = useOverlayHub("chat");
+const isPreview = computed(() => route.query.preview === "1");
 const confirmOpen = ref(false);
 const clearing = ref(false);
 const presetId = ref<string>(defaultChatOverlayPresetId);
@@ -87,7 +88,7 @@ function onPresetChange(value: string): void {
 
 <template>
   <section class="overlay-panel" aria-labelledby="chat-overlay-title">
-    <header class="page-header">
+    <header v-if="!isPreview" class="page-header">
       <h1 id="chat-overlay-title" class="page-title">{{ t("overlay.chat.title") }}</h1>
       <div class="overlay-toolbar">
         <HubStatusChip :state="state" :last-event-at="lastEventAt" :error="error" />
@@ -128,9 +129,11 @@ function onPresetChange(value: string): void {
       :events="events"
       :empty-label="t('overlay.empty')"
       :show-member-card="showMemberCard"
+      :is-preview="isPreview"
     />
 
     <ConfirmDialog
+      v-if="!isPreview"
       :open="confirmOpen"
       :title="t('overlay.clearConfirmTitle')"
       :message="t('overlay.clearConfirmMessage', { hub: t('overlay.chat.title') })"

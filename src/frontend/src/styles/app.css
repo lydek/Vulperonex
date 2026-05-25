@@ -12,6 +12,12 @@ body {
   min-width: 320px;
 }
 
+html.overlay-preview-shell,
+body.overlay-preview-shell,
+body.overlay-preview-shell #app {
+  background: transparent;
+}
+
 button,
 input,
 select,
@@ -85,6 +91,16 @@ textarea {
 .app-main {
   min-width: 0;
   padding: 24px;
+}
+
+.app-shell--bare {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-main--bare {
+  padding: 0;
+  background: transparent;
 }
 
 .page-header {

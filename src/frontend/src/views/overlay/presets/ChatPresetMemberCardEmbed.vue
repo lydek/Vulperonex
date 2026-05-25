@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { OverlayHubEvent } from "@/composables/useOverlayHub";
 import ChatMemberChip from "./ChatMemberChip.vue";
 
-defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean }>();
+const props = defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean; isPreview?: boolean }>();
+
+const orderedEvents = computed(() => [...props.events].reverse());
 
 function combinedText(event: OverlayHubEvent): string {
   return (event.segments ?? []).map((segment) => segment.text || segment.value || "").join(" ");
@@ -10,15 +13,22 @@ function combinedText(event: OverlayHubEvent): string {
 </script>
 
 <template>
-  <p v-if="events.length === 0" role="status">{{ emptyLabel }}</p>
+  <p v-if="orderedEvents.length === 0 && !props.isPreview" role="status">{{ emptyLabel }}</p>
   <div v-else class="member-inline-list" data-testid="chat-preset-member-card">
     <article
-      v-for="(event, eventIndex) in events"
+      v-for="(event, eventIndex) in orderedEvents"
       :key="event.eventId ?? `chat-member-card-${eventIndex}`"
       class="member-inline-row"
     >
       <header class="member-inline-row__header">
         <strong class="member-inline-row__name">{{ event.displayName }}</strong>
+        <span
+          v-for="(role, roleIndex) in event.roles"
+          :key="`member-role-${roleIndex}`"
+          class="member-inline-row__role"
+        >
+          {{ role }}
+        </span>
         <ChatMemberChip
           v-if="showMemberCard && event.memberSnapshot"
           :display-name="event.memberSnapshot.displayName"
@@ -54,6 +64,18 @@ function combinedText(event: OverlayHubEvent): string {
 
 .member-inline-row__name {
   color: #f8fbff;
+}
+
+.member-inline-row__role {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d6dde7;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
 }
 
 .member-inline-row__message {

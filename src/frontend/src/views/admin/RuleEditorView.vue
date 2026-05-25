@@ -3,10 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { onBeforeRouteLeave, useRoute, useRouter, type RouteLocationRaw } from "vue-router";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
+import WorkflowConditionsEditor from "@/components/admin/WorkflowConditionsEditor.vue";
+import WorkflowActionsEditor from "@/components/admin/WorkflowActionsEditor.vue";
 import ThrottleEditor from "@/components/admin/ThrottleEditor.vue";
 import TriggerEditor from "@/components/admin/TriggerEditor.vue";
-import WorkflowActionsEditor from "@/components/admin/WorkflowActionsEditor.vue";
-import WorkflowConditionsEditor from "@/components/admin/WorkflowConditionsEditor.vue";
 import {
   ApiError,
   createRule,

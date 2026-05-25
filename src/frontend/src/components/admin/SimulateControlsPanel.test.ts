@@ -1,0 +1,103 @@
+import { flushPromises, mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createI18n } from "vue-i18n";
+import enUS from "@/i18n/en-US.json";
+import zhTW from "@/i18n/zh-TW.json";
+import SimulateControlsPanel from "./SimulateControlsPanel.vue";
+
+function buildI18n() {
+  return createI18n({
+    legacy: false,
+    locale: "en-US",
+    fallbackLocale: "en-US",
+    missing: (_locale, key) => key,
+    messages: { "en-US": enUS, "zh-TW": zhTW }
+  });
+}
+
+function mountView() {
+  return mount(SimulateControlsPanel, {
+    global: {
+      plugins: [buildI18n(), createPinia()]
+    }
+  });
+}
+
+describe("SimulateControlsPanel", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("should post checkin payload to the dedicated endpoint and render ack", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      accepted: true,
+      eventTypeKey: "system.member.checked_in",
+      eventId: "evt-checkin-1",
+      platform: "simulation",
+      platformUserId: "sim-user",
+      displayName: "Sim User",
+      occurredAt: "2026-05-24T00:00:00Z"
+    }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    const selects = wrapper.findAll("select");
+
+    await selects[0].setValue("checkin");
+    await wrapper.find('input[placeholder="e.g. sim-user-id"]').setValue("sim-user");
+    await wrapper.find('input[placeholder="e.g. Sim User"]').setValue("Sim User");
+    await wrapper.find('input[type="number"]').setValue("3");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/simulate/checkin",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          platformUserId: "sim-user",
+          displayName: "Sim User",
+          stampCount: 3
+        })
+      })
+    );
+    expect(wrapper.find('[data-testid="simulate-ack"]').exists()).toBe(true);
+  });
+
+  it("should run batch checkin sequentially and emit latest ack", async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+      accepted: true,
+      eventTypeKey: "system.member.checked_in",
+      eventId: "evt-batch",
+      platform: "simulation",
+      platformUserId: "batch-user",
+      displayName: "Batch User",
+      occurredAt: "2026-05-24T00:00:00Z"
+    }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    const selects = wrapper.findAll("select");
+
+    await selects[0].setValue("checkin");
+    await wrapper.find('input[placeholder="e.g. sim-user-id"]').setValue("batch-user");
+    await wrapper.find('input[placeholder="e.g. Sim User"]').setValue("Batch User");
+
+    const numberInputs = wrapper.findAll('input[type="number"]');
+    await numberInputs[1].setValue("2");
+    await wrapper.find(".batch-button").trigger("click");
+
+    await flushPromises();
+    await vi.runAllTimersAsync();
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(wrapper.emitted("simulated")).toHaveLength(2);
+  });
+});

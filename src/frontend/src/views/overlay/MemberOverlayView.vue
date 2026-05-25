@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute } from "vue-router";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import HubStatusChip from "@/components/admin/HubStatusChip.vue";
 import { useOverlayHub } from "@/composables/useOverlayHub";
@@ -24,8 +25,10 @@ interface QueueItem {
 }
 
 const { t } = useI18n();
+const route = useRoute();
 const { events, start, state, lastEventAt, error, clear } = useOverlayHub("member");
 const { events: systemEvents, start: startSystemEvents } = useStreamEvents();
+const isPreview = computed(() => route.query.preview === "1");
 const confirmOpen = ref(false);
 const clearing = ref(false);
 const showCard = ref(false);
@@ -202,8 +205,12 @@ async function onConfirm(): Promise<void> {
 </script>
 
 <template>
-  <section class="overlay-panel" aria-labelledby="member-overlay-title">
-    <header class="page-header visually-hidden-obs">
+  <section
+    class="overlay-panel"
+    :class="{ 'overlay-panel--preview member-overlay--preview': isPreview }"
+    aria-labelledby="member-overlay-title"
+  >
+    <header v-if="!isPreview" class="page-header visually-hidden-obs">
       <h1 id="member-overlay-title" class="page-title">{{ t("overlay.member.title") }}</h1>
       <div class="overlay-toolbar">
         <HubStatusChip :state="state" :last-event-at="lastEventAt" :error="error" />
@@ -269,6 +276,7 @@ async function onConfirm(): Promise<void> {
     </div>
 
     <ConfirmDialog
+      v-if="!isPreview"
       :open="confirmOpen"
       :title="t('overlay.clearConfirmTitle')"
       :message="t('overlay.clearConfirmMessage', { hub: t('overlay.member.title') })"
@@ -298,6 +306,15 @@ async function onConfirm(): Promise<void> {
 </style>
 
 <style scoped>
+.overlay-panel--preview {
+  background: transparent;
+  border: none;
+  padding: 0;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
 .card-container {
   position: absolute;
   top: 50px;
@@ -310,6 +327,27 @@ async function onConfirm(): Promise<void> {
 
 .card-container.show {
   left: 50px;
+}
+
+.member-overlay--preview .card-container {
+  inset: 0;
+  left: 0;
+  top: 0;
+  transform: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.member-overlay--preview .card-container.show {
+  left: 0;
+}
+
+.member-overlay--preview .loyalty-card {
+  width: min(600px, calc(100vw - 48px));
+  height: auto;
+  aspect-ratio: 2 / 1;
 }
 
 .loyalty-card {

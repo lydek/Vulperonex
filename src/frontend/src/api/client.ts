@@ -8,13 +8,19 @@ export interface TwitchAuthStatusResponse {
   hasRefreshToken: boolean;
 }
 
-export type SimulateAlias = "chat" | "follow" | "sub";
+export type SimulateAlias = "chat" | "follow" | "sub" | "giftsub" | "raid" | "bits" | "redeem" | "checkin";
 
 export interface SimulateRequestBody {
   platformUserId?: string;
   displayName?: string;
+  roles?: string[];
   message?: string;
   tier?: string;
+  recipientDisplayName?: string;
+  bits?: number;
+  rewardId?: string;
+  userInput?: string;
+  stampCount?: number;
 }
 
 export interface SimulateAck {
@@ -55,6 +61,8 @@ export interface MemberReadModel {
   memberId: string;
   identities: PlatformIdentity[];
   loyalty: MemberLoyalty;
+  updatedAtTicks: number;
+  etag?: string;
 }
 
 export interface MemberListQuery {
@@ -133,7 +141,7 @@ export async function setRuleEnabled(
   signal?: AbortSignal
 ): Promise<void> {
   const path = isEnabled ? "enable" : "disable";
-  const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}/${path}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}/${path}`, {
     method: "PUT",
     signal
   });
@@ -143,7 +151,7 @@ export async function setRuleEnabled(
 }
 
 export async function deleteRule(id: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
     method: "DELETE",
     signal
   });
@@ -179,7 +187,7 @@ export async function createTimer(
   body: WorkflowTimerUpsertRequest,
   signal?: AbortSignal
 ): Promise<WorkflowTimerDto> {
-  const response = await fetch(`${apiBaseUrl}/api/timers/`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/timers/`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -199,7 +207,7 @@ export async function updateTimer(
   body: WorkflowTimerUpsertRequest,
   signal?: AbortSignal
 ): Promise<WorkflowTimerDto> {
-  const response = await fetch(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
@@ -215,7 +223,7 @@ export async function updateTimer(
 }
 
 export async function deleteTimer(id: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
     method: "DELETE",
     signal
   });
@@ -267,7 +275,7 @@ export async function startTwitchAuth(
   signal?: AbortSignal
 ): Promise<TwitchAuthStartResponse> {
   const port = callbackPort ?? (typeof window !== "undefined" && window.location.port ? parseInt(window.location.port, 10) : undefined);
-  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/start`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/twitch/auth/start`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -283,7 +291,7 @@ export async function startTwitchAuth(
 }
 
 export async function resetTwitchAuth(signal?: AbortSignal): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/token`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/twitch/auth/token`, {
     method: "DELETE",
     signal
   });
@@ -301,7 +309,7 @@ export interface TwitchDeviceAuthorizationResponse {
 }
 
 export async function startTwitchDeviceAuth(signal?: AbortSignal): Promise<TwitchDeviceAuthorizationResponse> {
-  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/device/start`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/twitch/auth/device/start`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -319,7 +327,7 @@ export async function completeTwitchDeviceAuth(
   deviceCode: string,
   signal?: AbortSignal
 ): Promise<boolean> {
-  const response = await fetch(`${apiBaseUrl}/api/twitch/auth/device/complete`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/twitch/auth/device/complete`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -359,7 +367,7 @@ export async function createRule(
   body: WorkflowRuleUpsertRequest,
   signal?: AbortSignal
 ): Promise<WorkflowRuleDetail> {
-  const response = await fetch(`${apiBaseUrl}/api/rules/`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/rules/`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -379,7 +387,7 @@ export async function updateRule(
   body: WorkflowRuleUpsertRequest,
   signal?: AbortSignal
 ): Promise<WorkflowRuleDetail> {
-  const response = await fetch(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/rules/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
@@ -410,7 +418,7 @@ export async function clearOverlayHistory(
   hubName: OverlayHubName,
   signal?: AbortSignal
 ): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/overlay/${hubName}/messages`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/${hubName}/messages`, {
     method: "DELETE",
     signal
   });
@@ -439,6 +447,20 @@ export interface OverlayPresetDescriptor {
   relativeUrl: string;
 }
 
+export interface PluginModule {
+  name: string;
+  displayName: string;
+  kind: string;
+  enabled: boolean;
+  dependencies: string[];
+  dependents: string[];
+}
+
+export interface TogglePluginModuleResponse {
+  module: PluginModule;
+  changedModules: PluginModule[];
+}
+
 export async function getConfigValue(
   key: string,
   signal?: AbortSignal
@@ -451,7 +473,7 @@ export async function setConfigValue(
   value: string,
   signal?: AbortSignal
 ): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/config/${encodeURIComponent(key)}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/config/${encodeURIComponent(key)}`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
@@ -469,13 +491,164 @@ export async function getOverlayCustomPresets(signal?: AbortSignal): Promise<Ove
   return getJson<OverlayCustomPresetMetadata[]>("/api/overlay/custom-presets", signal);
 }
 
+export async function getPluginModules(signal?: AbortSignal): Promise<PluginModule[]> {
+  return getJson<PluginModule[]>("/api/plugins-modules", signal);
+}
+
+export async function togglePluginModule(
+  name: string,
+  enabled: boolean,
+  signal?: AbortSignal
+): Promise<TogglePluginModuleResponse> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/plugins-modules/${encodeURIComponent(name)}/toggle`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ enabled }),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<TogglePluginModuleResponse>;
+}
+
 export async function getOverlayPresetCatalog(signal?: AbortSignal): Promise<OverlayPresetDescriptor[]> {
   return getJson<OverlayPresetDescriptor[]>("/api/overlay/presets", signal);
 }
 
 export async function deleteOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}`, {
     method: "DELETE",
+    headers: {
+      "X-Admin-Csrf": "true"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export interface OverlayFileDescriptor {
+  relativePath: string;
+  sizeBytes: number;
+  lastModifiedAt: string;
+}
+
+export interface OverlayHistoryVersion {
+  versionStamp: string;
+  createdAt: string;
+}
+
+export interface OverlayValidationIssue {
+  severity: string;
+  code: string;
+  message: string;
+  filePath: string | null;
+  line: number | null;
+}
+
+export async function getOverlayCustomPresetFiles(slug: string, signal?: AbortSignal): Promise<OverlayFileDescriptor[]> {
+  return getJson<OverlayFileDescriptor[]>(`/api/overlay/custom-presets/${encodeURIComponent(slug)}/files`, signal);
+}
+
+export async function readOverlayCustomPresetFile(slug: string, path: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/files/${path}`, {
+    headers: {
+      Accept: "text/plain",
+      "X-Admin-Csrf": "true"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.text();
+}
+
+export async function writeOverlayCustomPresetFile(
+  slug: string,
+  path: string,
+  content: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/files/${path}`, {
+    method: "PUT",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "X-Admin-Csrf": "true"
+    },
+    body: JSON.stringify({ content }),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export async function deleteOverlayCustomPresetFile(
+  slug: string,
+  path: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/files/${path}`, {
+    method: "DELETE",
+    headers: {
+      "X-Admin-Csrf": "true"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export async function deployOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/deploy`, {
+    method: "POST",
+    headers: {
+      "X-Admin-Csrf": "true"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export async function validateOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<OverlayValidationIssue[]> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/validate`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "X-Admin-Csrf": "true"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<OverlayValidationIssue[]>;
+}
+
+export async function getOverlayCustomPresetHistory(slug: string, signal?: AbortSignal): Promise<OverlayHistoryVersion[]> {
+  return getJson<OverlayHistoryVersion[]>(`/api/overlay/custom-presets/${encodeURIComponent(slug)}/history`, signal);
+}
+
+export async function rollbackOverlayCustomPreset(
+  slug: string,
+  versionStamp: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/rollback/${encodeURIComponent(versionStamp)}`, {
+    method: "POST",
+    headers: {
+      "X-Admin-Csrf": "true"
+    },
     signal
   });
   if (!response.ok) {
@@ -491,8 +664,11 @@ export async function uploadOverlayCustomPreset(
   const form = new FormData();
   form.set("slug", slug);
   form.set("file", file);
-  const response = await fetch(`${apiBaseUrl}/api/overlay/custom-presets`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets`, {
     method: "POST",
+    headers: {
+      "X-Admin-Csrf": "true"
+    },
     body: form,
     signal
   });
@@ -507,7 +683,7 @@ export async function postSimulate(
   body: SimulateRequestBody,
   signal?: AbortSignal
 ): Promise<SimulateAck> {
-  const response = await fetch(`${apiBaseUrl}/api/simulate/${alias}`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/simulate/${alias}`, {
     method: "POST",
     headers: {
       Accept: "application/json",
@@ -524,9 +700,77 @@ export async function postSimulate(
   return response.json() as Promise<SimulateAck>;
 }
 
+export async function postSimulateCheckIn(
+  body: { platformUserId?: string; displayName?: string; stampCount?: number; skipCooldown?: boolean },
+  signal?: AbortSignal
+): Promise<SimulateAck> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/simulate/checkin`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+
+  return response.json() as Promise<SimulateAck>;
+}
+
+let sessionCsrfToken: string | null = (
+  (typeof process !== "undefined" && process.env?.NODE_ENV === "test") ||
+  (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test")
+) ? "true" : null;
+let csrfPromise: Promise<string> | null = null;
+
+async function getSessionCsrfToken(): Promise<string> {
+  if (sessionCsrfToken) return sessionCsrfToken;
+  if (!csrfPromise) {
+    csrfPromise = window.fetch(`${apiBaseUrl}/api/overlay/csrf-token`)
+      .then(async res => {
+        if (!res.ok) {
+          throw new Error(`Failed to fetch CSRF token: ${res.status}`);
+        }
+        const data = await res.json() as { token: string };
+        sessionCsrfToken = data.token;
+        return data.token;
+      })
+      .catch(err => {
+        csrfPromise = null;
+        throw err;
+      });
+  }
+  return csrfPromise;
+}
+
+async function fetchWithCsrf(url: string, options: RequestInit = {}): Promise<Response> {
+  const method = options.method?.toUpperCase() || "GET";
+  const headers = { ...(options.headers as Record<string, string>) };
+  
+  const isCsrfRequest = url.endsWith("/api/overlay/csrf-token");
+  if (!isCsrfRequest && (method !== "GET" || url.includes("/api/overlay/"))) {
+    try {
+      const token = await getSessionCsrfToken();
+      headers["X-Admin-Csrf"] = token;
+    } catch (err) {
+      console.error("Failed to inject CSRF token", err);
+    }
+  }
+  
+  return window.fetch(url, {
+    ...options,
+    headers
+  });
+}
+
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: { Accept: "application/json" },
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const response = await fetchWithCsrf(`${apiBaseUrl}${path}`, {
+    headers,
     signal
   });
 
@@ -581,7 +825,7 @@ export async function getTwitchClientId(signal?: AbortSignal): Promise<string> {
 }
 
 export async function saveTwitchClientId(clientId: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetch(`${apiBaseUrl}/api/config/twitch.client_id`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/config/twitch.client_id`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -594,3 +838,119 @@ export async function saveTwitchClientId(clientId: string, signal?: AbortSignal)
     throw new ApiError(response.status, await safeReadBody(response));
   }
 }
+
+export interface MemberAuditLog {
+  id: string;
+  memberId: string;
+  occurredAt: string;
+  actorKind: string;
+  actorId: string | null;
+  operation: string;
+  beforeJson: string | null;
+  afterJson: string | null;
+  reason: string;
+}
+
+export async function getMemberAuditLogs(
+  memberId: string,
+  limit?: number,
+  offset?: number,
+  signal?: AbortSignal
+): Promise<MemberAuditLog[]> {
+  const params = new URLSearchParams();
+  if (limit !== undefined) params.set("limit", String(limit));
+  if (offset !== undefined) params.set("offset", String(offset));
+  const search = params.toString();
+  const path = search
+    ? `/api/members/${encodeURIComponent(memberId)}/audit?${search}`
+    : `/api/members/${encodeURIComponent(memberId)}/audit`;
+  return getJson<MemberAuditLog[]>(path, signal);
+}
+
+export async function adjustMemberLoyalty(
+  memberId: string,
+  etag: string,
+  body: { totalLoyalty?: number; checkInCount?: number; reason: string },
+  signal?: AbortSignal
+): Promise<void> {
+  const formattedEtag = etag.startsWith('"') ? etag : `"${etag}"`;
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/members/${encodeURIComponent(memberId)}/loyalty`, {
+    method: "PATCH",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "If-Match": formattedEtag
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export async function resetMemberLoyalty(
+  memberId: string,
+  etag: string,
+  body: { resetLoyalty: boolean; resetCheckIn: boolean; reason: string },
+  signal?: AbortSignal
+): Promise<void> {
+  const formattedEtag = etag.startsWith('"') ? etag : `"${etag}"`;
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/members/${encodeURIComponent(memberId)}/reset`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "If-Match": formattedEtag
+    },
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+export interface DeleteTokenResponse {
+  token: string;
+}
+
+export async function generateDeleteToken(
+  memberId: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/members/${encodeURIComponent(memberId)}/delete-token`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json"
+    },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  const res = await response.json() as DeleteTokenResponse;
+  return res.token;
+}
+
+export async function deleteMemberWithToken(
+  memberId: string,
+  token: string,
+  reason: string,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/members/${encodeURIComponent(memberId)}`, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ token, reason }),
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
+

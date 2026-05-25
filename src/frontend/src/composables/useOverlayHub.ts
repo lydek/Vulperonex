@@ -9,12 +9,14 @@ export type OverlayHubName = "chat" | "alerts" | "member";
 export interface OverlayHubEvent {
   eventId?: string;
   sentAt?: string;
+  timestamp?: string;
   displayName?: string;
   eventType?: string;
   segments?: Array<{ kind?: string; text?: string; type?: string; value?: string }>;
   replayed?: boolean;
   colorHex?: string | null;
   badges?: string[];
+  roles?: string[];
   avatarUrl?: string | null;
   checkInCount?: number;
   memberSnapshot?: {

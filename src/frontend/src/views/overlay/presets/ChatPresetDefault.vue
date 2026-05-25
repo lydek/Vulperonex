@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { computed } from "vue";
 import type { OverlayHubEvent } from "@/composables/useOverlayHub";
 import ChatMemberChip from "./ChatMemberChip.vue";
 
-defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean }>();
+const props = defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean; isPreview?: boolean }>();
+
+const orderedEvents = computed(() => [...props.events].reverse());
 
 function getSegmentText(segment: { text?: string; value?: string }): string {
   return segment.text || segment.value || "";
@@ -14,18 +17,18 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
 </script>
 
 <template>
-  <p v-if="events.length === 0" role="status" class="empty-label">{{ emptyLabel }}</p>
+  <p v-if="orderedEvents.length === 0 && !props.isPreview" role="status" class="empty-label">{{ emptyLabel }}</p>
 
   <transition-group
     v-else
     name="ice-spring"
     tag="div"
-    class="chat-container chat-preset-default"
+    :class="['chat-container chat-preset-default', { 'is-preview': props.isPreview }]"
     role="list"
     data-testid="chat-preset-default"
   >
     <div
-      v-for="(event, eventIndex) in events"
+      v-for="(event, eventIndex) in orderedEvents"
       :key="event.eventId ?? `chat-${eventIndex}`"
       class="chat-line"
       role="listitem"
@@ -37,6 +40,14 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
         class="chat-badge"
         alt="badge"
       />
+
+      <span
+        v-for="(role, roleIndex) in event.roles"
+        :key="`role-${roleIndex}`"
+        class="chat-role-pill"
+      >
+        {{ role }}
+      </span>
 
       <span class="chat-username" :style="{ color: event.colorHex || 'var(--twitch-purple-light)' }">
         {{ event.displayName || "Unknown user" }}
@@ -83,6 +94,11 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
   background: transparent;
 }
 
+.chat-preset-default.is-preview {
+  height: 100vh;
+  padding: 18px 24px;
+}
+
 .empty-label {
   color: #97a3b3;
   font-style: italic;
@@ -109,6 +125,23 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
   border-radius: 2px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   display: inline-block;
+}
+
+.chat-role-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  margin-bottom: 2px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(24, 32, 42, 0.82);
+  border: 1px solid rgba(214, 221, 229, 0.5);
+  color: #f8fafc;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
 }
 
 .chat-username,

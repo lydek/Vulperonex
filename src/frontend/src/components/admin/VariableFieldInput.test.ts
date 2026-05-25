@@ -3,17 +3,25 @@ import { describe, expect, it } from "vitest";
 import VariableFieldInput from "./VariableFieldInput.vue";
 
 describe("VariableFieldInput", () => {
-  it("should insert placeholder variables into the current field", async () => {
+  it("inserts the selected variable at the current cursor position", async () => {
     const wrapper = mount(VariableFieldInput, {
       props: {
-        modelValue: "",
-        placeholder: "Template"
+        modelValue: "Hello  world"
+      },
+      global: {
+        stubs: {
+          VariablePicker: {
+            template: '<button type="button" data-testid="picker" @click="$emit(\'select\', \'{user.name}\')">pick</button>'
+          }
+        }
       }
     });
 
-    await wrapper.find('[data-testid="variable-picker-toggle"]').trigger("click");
-    await wrapper.findAll("button").find((entry) => entry.text().includes("{Trigger.DisplayName}"))!.trigger("click");
+    const input = wrapper.get("input");
+    (input.element as HTMLInputElement).setSelectionRange(6, 6);
 
-    expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe("{Trigger.DisplayName}");
+    await wrapper.get('[data-testid="picker"]').trigger("click");
+
+    expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe("Hello {user.name} world");
   });
 });

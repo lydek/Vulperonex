@@ -24,6 +24,26 @@ function mountView() {
   });
 }
 
+function createMembersFetchMock(detailResponse?: Response) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+
+    if (url === "/api/members/" || url.startsWith("/api/members/?")) {
+      return new Response(JSON.stringify(sampleMembers), { status: 200 });
+    }
+
+    if (url === "/api/config/overlay.member.background_url" || url === "/api/config/overlay.member.stamp_url") {
+      return new Response(JSON.stringify({ value: "" }), { status: 200 });
+    }
+
+    if (url === "/api/members/MBR-01" && detailResponse) {
+      return detailResponse;
+    }
+
+    return new Response(null, { status: 404 });
+  });
+}
+
 const sampleMembers = [
   {
     memberId: "MBR-01",
@@ -46,10 +66,7 @@ describe("MembersView", () => {
   });
 
   it("should render member rows when list endpoint returns members", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify(sampleMembers), { status: 200 }))
-    );
+    vi.stubGlobal("fetch", createMembersFetchMock());
 
     const wrapper = mountView();
     await flushPromises();
@@ -60,11 +77,13 @@ describe("MembersView", () => {
     expect(rows[1].text()).toContain("MBR-02");
   });
 
-  it("should expose neither seed nor delete controls on the read-only members panel (Z10)", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(sampleMembers), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(sampleMembers[0]), { status: 200 }));
+  it("should expose member edit actions on the editable members panel", async () => {
+    const fetchMock = createMembersFetchMock(
+      new Response(JSON.stringify({
+        ...sampleMembers[0],
+        updatedAtTicks: 123
+      }), { status: 200 })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const wrapper = mountView();
@@ -81,20 +100,19 @@ describe("MembersView", () => {
       .map((node) => `${node.text()} ${node.attributes("aria-label") ?? ""}`)
       .join(" ");
 
-    expect(interactiveText).not.toMatch(/seed/i);
-    expect(interactiveText).not.toMatch(/delete/i);
+    expect(interactiveText).toMatch(/adjust/i);
+    expect(interactiveText).toMatch(/reset/i);
+    expect(interactiveText).toMatch(/audit/i);
+    expect(interactiveText).toMatch(/delete/i);
     expect(wrapper.findAll('form[data-testid="members-edit-form"]')).toHaveLength(0);
     expect(wrapper.findAll('[data-testid="members-delete"]')).toHaveLength(0);
     expect(wrapper.findAll('[data-testid="members-seed"]')).toHaveLength(0);
   });
 
   it("should load detail when a row is clicked and surface error code on detail failure", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(sampleMembers), { status: 200 }))
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "MEMBER_NOT_FOUND" }), { status: 404 })
-      );
+    const fetchMock = createMembersFetchMock(
+      new Response(JSON.stringify({ error: "MEMBER_NOT_FOUND" }), { status: 404 })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const wrapper = mountView();
@@ -104,15 +122,17 @@ describe("MembersView", () => {
     await flushPromises();
 
     expect(wrapper.find('[data-testid="members-detail-error"]').text())
-      .toBe("MEMBER_NOT_FOUND");
+      .toBe("Member was not found.");
     expect(wrapper.find('[data-testid="members-detail"]').exists()).toBe(false);
   });
 
   it("should render detail when getMember returns the member", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify(sampleMembers), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify(sampleMembers[0]), { status: 200 }));
+    const fetchMock = createMembersFetchMock(
+      new Response(JSON.stringify({
+        ...sampleMembers[0],
+        updatedAtTicks: 123
+      }), { status: 200 })
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     const wrapper = mountView();

@@ -6,9 +6,11 @@ import MembersView from "@/views/admin/MembersView.vue";
 import OverlayPresetsView from "@/views/admin/OverlayPresetsView.vue";
 import RuleEditorView from "@/views/admin/RuleEditorView.vue";
 import RulesView from "@/views/admin/RulesView.vue";
+import SettingsView from "@/views/admin/SettingsView.vue";
 import SimulateView from "@/views/admin/SimulateView.vue";
 import TimersView from "@/views/admin/TimersView.vue";
 import TwitchAuthView from "@/views/admin/TwitchAuthView.vue";
+import MonitorDashboardView from "@/views/admin/MonitorDashboardView.vue";
 import AlertOverlayView from "@/views/overlay/AlertOverlayView.vue";
 import ChatOverlayView from "@/views/overlay/ChatOverlayView.vue";
 import MemberOverlayView from "@/views/overlay/MemberOverlayView.vue";
@@ -16,11 +18,14 @@ import MemberOverlayView from "@/views/overlay/MemberOverlayView.vue";
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: "/", name: "status", component: AdminStatusView },
+    { path: "/", redirect: "/monitor" },
+    { path: "/monitor", name: "monitor", component: MonitorDashboardView },
+    { path: "/status", name: "status", component: AdminStatusView },
     { path: "/simulate", name: "simulate", component: SimulateView },
     { path: "/events", name: "event-monitor", component: EventMonitorView },
     { path: "/members", name: "members", component: MembersView },
     { path: "/overlay-presets", name: "overlay-presets", component: OverlayPresetsView },
+    { path: "/settings", name: "settings", component: SettingsView },
     { path: "/rules", name: "rules", component: RulesView },
     { path: "/timers", name: "timers", component: TimersView },
     { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },

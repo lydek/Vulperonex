@@ -52,23 +52,34 @@ describe("WCAG AA a11y baseline (II16)", () => {
   });
 
   it("MembersView rows should be keyboard activatable with role=button and tabindex=0", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(new Response(JSON.stringify([
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+
+      if (url === "/api/members/" || url.startsWith("/api/members/?")) {
+        return new Response(JSON.stringify([
           {
             memberId: "M-1",
             identities: [{ platform: "twitch", platformUserId: "u-1" }],
             loyalty: { totalLoyalty: 5, checkInCount: 1 }
           }
-        ]), { status: 200 }))
-        .mockResolvedValueOnce(new Response(JSON.stringify({
+        ]), { status: 200 });
+      }
+
+      if (url === "/api/members/M-1") {
+        return new Response(JSON.stringify({
           memberId: "M-1",
           identities: [{ platform: "twitch", platformUserId: "u-1" }],
-          loyalty: { totalLoyalty: 5, checkInCount: 1 }
-        }), { status: 200 }))
-    );
+          loyalty: { totalLoyalty: 5, checkInCount: 1 },
+          updatedAtTicks: 123
+        }), { status: 200 });
+      }
+
+      if (url === "/api/config/overlay.member.background_url" || url === "/api/config/overlay.member.stamp_url") {
+        return new Response(JSON.stringify({ value: "" }), { status: 200 });
+      }
+
+      return new Response(null, { status: 404 });
+    }));
 
     const wrapper = mount(MembersView, {
       global: { plugins: [buildI18n(), createPinia()] }
