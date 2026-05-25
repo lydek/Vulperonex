@@ -70,6 +70,65 @@ public sealed class TwitchHelixClient(
         return new PlatformShoutoutResult(true, target.Login, target.UserId, target.DisplayName);
     }
 
+    public async Task<IReadOnlyList<TwitchBadgeDescriptor>> GetGlobalBadgesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "chat/badges/global");
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<TwitchBadgesResponse>(cancellationToken);
+        return MapBadges(payload, isChannel: false);
+    }
+
+    public async Task<IReadOnlyList<TwitchBadgeDescriptor>> GetChannelBadgesAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(broadcasterId))
+        {
+            throw new ArgumentException("Broadcaster id is required.", nameof(broadcasterId));
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"chat/badges?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<TwitchBadgesResponse>(cancellationToken);
+        return MapBadges(payload, isChannel: true);
+    }
+
+    private static IReadOnlyList<TwitchBadgeDescriptor> MapBadges(TwitchBadgesResponse? payload, bool isChannel)
+    {
+        if (payload?.Data is null || payload.Data.Count == 0)
+        {
+            return [];
+        }
+
+        var result = new List<TwitchBadgeDescriptor>();
+        foreach (var set in payload.Data)
+        {
+            if (set.Versions is null) continue;
+            foreach (var version in set.Versions)
+            {
+                result.Add(new TwitchBadgeDescriptor(
+                    Key: $"{set.SetId}_{version.Id}",
+                    SetId: set.SetId,
+                    Version: version.Id,
+                    ImageUrl1x: version.ImageUrl1x ?? string.Empty,
+                    Title: version.Title,
+                    Description: version.Description,
+                    IsChannel: isChannel));
+            }
+        }
+
+        return result;
+    }
+
     public async Task<bool> RefundRedemptionAsync(
         string rewardId,
         string redemptionId,
@@ -132,4 +191,21 @@ public sealed class TwitchHelixClient(
         [property: JsonPropertyName("profile_image_url")] string? ProfileImageUrl,
         [property: JsonPropertyName("description")] string? Description,
         [property: JsonPropertyName("broadcaster_type")] string? BroadcasterType);
+
+    private sealed record TwitchBadgesResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<TwitchBadgeSetJson> Data);
+
+    private sealed record TwitchBadgeSetJson(
+        [property: JsonPropertyName("set_id")] string SetId,
+        [property: JsonPropertyName("versions")] IReadOnlyList<TwitchBadgeVersionJson> Versions);
+
+    private sealed record TwitchBadgeVersionJson(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("image_url_1x")] string? ImageUrl1x,
+        [property: JsonPropertyName("image_url_2x")] string? ImageUrl2x,
+        [property: JsonPropertyName("image_url_4x")] string? ImageUrl4x,
+        [property: JsonPropertyName("title")] string? Title,
+        [property: JsonPropertyName("description")] string? Description,
+        [property: JsonPropertyName("click_action")] string? ClickAction,
+        [property: JsonPropertyName("click_url")] string? ClickUrl);
 }

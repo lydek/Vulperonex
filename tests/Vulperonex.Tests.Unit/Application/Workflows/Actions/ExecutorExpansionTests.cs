@@ -507,6 +507,19 @@ public sealed class ExecutorExpansionTests
             Refunds.Add((rewardId, redemptionId));
             return Task.FromResult(RefundResult);
         }
+
+        public Task<IReadOnlyList<TwitchBadgeDescriptor>> GetGlobalBadgesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<TwitchBadgeDescriptor>>([]);
+        }
+
+        public Task<IReadOnlyList<TwitchBadgeDescriptor>> GetChannelBadgesAsync(
+            string broadcasterId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<TwitchBadgeDescriptor>>([]);
+        }
     }
 
     private sealed class FakeClock : IClock

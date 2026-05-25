@@ -100,6 +100,7 @@ public static class DependencyInjection
         services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
         services.AddScoped<TwitchAccessTokenProvider>();
         services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
+        services.AddSingleton<ITwitchBadgeCache, TwitchBadgeCache>();
         services.AddSingleton<TwitchTokenEndpoint>();
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
@@ -162,6 +163,7 @@ public static class DependencyInjection
         // later, those reads hit a database that has no schema yet.
         services.AddHostedService<DatabaseMigrationStartupService>();
         services.AddHostedService<SimulationAdapterStartupService>();
+        services.AddHostedService<TwitchBadgeSyncHostedService>();
         services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<WorkflowEngineDispatcher>();
         services.AddHostedService<OverlayEventForwarder>();

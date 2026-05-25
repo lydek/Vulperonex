@@ -105,6 +105,7 @@ public static class SimulateEndpoints
             SimulateRequest request,
             SimulationAliasRegistry aliases,
             ISimulationAdapter adapter,
+            IPlatformUserInfoCache userInfoCache,
             CancellationToken cancellationToken) =>
         {
             var resolved = aliases.Find(alias);
@@ -118,6 +119,8 @@ public static class SimulateEndpoints
             {
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
+
+            await UpsertSimDisplayInfoAsync(userInfoCache, simulationRequest, request, cancellationToken);
 
             var streamEvent = await adapter.SimulateAsync(simulationRequest, cancellationToken);
             return Results.Accepted(
@@ -136,6 +139,58 @@ public static class SimulateEndpoints
     }
 
 
+
+    private static async Task UpsertSimDisplayInfoAsync(
+        IPlatformUserInfoCache cache,
+        SimulationRequest simulationRequest,
+        SimulateRequest payload,
+        CancellationToken cancellationToken)
+    {
+        var badges = NormalizeBadgeKeys(payload.Badges);
+        var colorHex = string.IsNullOrWhiteSpace(payload.ColorHex) ? null : payload.ColorHex.Trim();
+
+        if (badges.Count == 0 && colorHex is null)
+        {
+            return;
+        }
+
+        await cache.UpdateAsync(
+            simulationRequest.Platform,
+            simulationRequest.User.UserId,
+            current => current with
+            {
+                DisplayName = simulationRequest.User.DisplayName,
+                ColorHex = colorHex ?? current.ColorHex,
+                Badges = badges.Count > 0 ? badges : current.Badges,
+                FetchedAt = DateTimeOffset.UtcNow,
+            },
+            cancellationToken);
+    }
+
+    private static IReadOnlyCollection<string> NormalizeBadgeKeys(JsonElement? badges)
+    {
+        if (badges is null || badges.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return [];
+        }
+
+        if (badges.Value.ValueKind != JsonValueKind.Array)
+        {
+            return [];
+        }
+
+        var result = new List<string>();
+        foreach (var item in badges.Value.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.String) continue;
+            var raw = item.GetString();
+            if (string.IsNullOrWhiteSpace(raw)) continue;
+            // Storage uses '_' separator to align with Helix descriptor Key format.
+            result.Add(raw.Trim().Replace('/', '_'));
+        }
+
+        return result;
+    }
 
     private static SimulationRequest? ToSimulationRequest(SimulationKind kind, SimulateRequest request)
     {
@@ -222,7 +277,9 @@ public static class SimulateEndpoints
         string? DisplayName,
         JsonElement? Roles = null,
         string? Message = null,
-        string? Tier = null);
+        string? Tier = null,
+        JsonElement? Badges = null,
+        string? ColorHex = null);
 
     private sealed record SimulateResponse(
         bool Accepted,

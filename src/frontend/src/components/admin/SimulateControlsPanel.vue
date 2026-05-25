@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   ApiError,
+  getTwitchBadges,
   postSimulate,
   postSimulateCheckIn,
   type SimulateAck,
   type SimulateAlias,
-  type SimulateRequestBody
+  type SimulateRequestBody,
+  type TwitchBadgeDescriptor
 } from "@/api/client";
 
 interface Props {
@@ -35,6 +37,12 @@ const rewardId = ref("custom-reward");
 const stampCount = ref(1);
 const rolesOptions = ["Subscriber", "Moderator", "VIP", "Follower"];
 const selectedRoles = ref<string[]>([]);
+const colorHex = ref("#FFCA28");
+const selectedBadgeKeys = ref<string[]>([]);
+const globalBadges = ref<TwitchBadgeDescriptor[]>([]);
+const channelBadges = ref<TwitchBadgeDescriptor[]>([]);
+const badgesReady = ref(false);
+const badgesError = ref<string | null>(null);
 const batchSize = ref(5);
 const batchProgress = ref(0);
 const batchRunning = ref(false);
@@ -55,6 +63,36 @@ const aliasOptions: SimulateAlias[] = [
 ];
 
 const showMessageInput = computed(() => alias.value === "chat" || alias.value === "redeem");
+const showIdentityInputs = computed(() => alias.value !== "checkin");
+const featuredBadges = computed<TwitchBadgeDescriptor[]>(() => {
+  const featuredSets = new Set(["broadcaster", "moderator", "vip", "subscriber", "founder", "premium"]);
+  const featured = globalBadges.value.filter((b) => featuredSets.has(b.setId));
+  return [...featured, ...channelBadges.value];
+});
+
+function toggleBadge(key: string): void {
+  const idx = selectedBadgeKeys.value.indexOf(key);
+  if (idx >= 0) {
+    selectedBadgeKeys.value.splice(idx, 1);
+  } else {
+    selectedBadgeKeys.value.push(key);
+  }
+}
+
+function isBadgeSelected(key: string): boolean {
+  return selectedBadgeKeys.value.includes(key);
+}
+
+onMounted(async () => {
+  try {
+    const response = await getTwitchBadges();
+    badgesReady.value = response?.ready ?? false;
+    globalBadges.value = response?.global ?? [];
+    channelBadges.value = response?.channel ?? [];
+  } catch (caught) {
+    badgesError.value = caught instanceof Error ? caught.message : String(caught);
+  }
+});
 const showTierInput = computed(() => alias.value === "sub" || alias.value === "giftsub");
 const showRecipientInput = computed(() => alias.value === "giftsub");
 const showBitsInput = computed(() => alias.value === "bits");
@@ -91,6 +129,12 @@ async function onSubmit(event: Event): Promise<void> {
       if (showBitsInput.value) body.bits = bits.value;
       if (showRewardInput.value && rewardId.value.trim()) body.rewardId = rewardId.value.trim();
       if (selectedRoles.value.length > 0) body.roles = [...selectedRoles.value];
+      if (showIdentityInputs.value && selectedBadgeKeys.value.length > 0) {
+        body.badges = [...selectedBadgeKeys.value];
+      }
+      if (showIdentityInputs.value && colorHex.value.trim()) {
+        body.colorHex = colorHex.value.trim();
+      }
 
       result = await postSimulate(alias.value, body);
     }
@@ -243,15 +287,51 @@ async function startBatchCheckin(): Promise<void> {
           <input v-model="stampCount" type="number" min="1" max="100" :disabled="batchRunning" />
         </label>
 
-        <div v-if="alias !== 'checkin'" class="form-field">
-          <span class="form-label">Streamer Roles</span>
-          <div class="roles-grid">
-            <label v-for="role in rolesOptions" :key="role" class="role-checkbox">
-              <input v-model="selectedRoles" type="checkbox" :value="role" :disabled="batchRunning" />
-              <span>{{ role }}</span>
-            </label>
+        <div v-if="showIdentityInputs" class="form-field">
+          <span class="form-label">名稱顏色</span>
+          <div class="color-picker-row">
+            <input
+              v-model="colorHex"
+              type="color"
+              class="color-swatch"
+              :disabled="batchRunning"
+              aria-label="名稱顏色"
+            />
+            <input
+              v-model="colorHex"
+              type="text"
+              class="color-hex-input"
+              :disabled="batchRunning"
+              placeholder="#FFCA28"
+              maxlength="7"
+            />
           </div>
-          <p class="field-help">聊天事件現在會把這些角色一起送進聊天室 overlay 與事件流。</p>
+        </div>
+
+        <div v-if="showIdentityInputs" class="form-field">
+          <span class="form-label">身份徽章</span>
+          <p v-if="badgesError" class="field-help error">{{ badgesError }}</p>
+          <p v-else-if="!badgesReady" class="field-help">
+            徽章快取尚未就緒（Twitch 尚未授權或同步中），仍可送出但 overlay 不會顯示徽章。
+          </p>
+          <div v-if="featuredBadges.length > 0" class="badge-grid">
+            <button
+              v-for="badge in featuredBadges"
+              :key="badge.key"
+              type="button"
+              class="badge-chip"
+              :class="{ selected: isBadgeSelected(badge.key) }"
+              :disabled="batchRunning"
+              :title="`${badge.title ?? badge.setId} (${badge.key})`"
+              @click="toggleBadge(badge.key)"
+            >
+              <img v-if="badge.imageUrl1x" :src="badge.imageUrl1x" alt="" class="badge-chip-img" />
+              <span class="badge-chip-label">{{ badge.title ?? badge.setId }}</span>
+            </button>
+          </div>
+          <p v-if="featuredBadges.length === 0 && badgesReady" class="field-help">
+            尚未取得可用徽章。請確認 Twitch OAuth 已完成且 `Twitch:BroadcasterId` 已設定。
+          </p>
         </div>
 
         <div class="action-buttons-group">
@@ -432,6 +512,88 @@ async function startBatchCheckin(): Promise<void> {
 
 .role-checkbox input {
   accent-color: #2d9d78;
+}
+
+.color-picker-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.color-swatch {
+  width: 56px;
+  height: 44px;
+  border: 1px solid #cfdcd6;
+  border-radius: 12px;
+  background: #fff;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.color-hex-input {
+  font-family: Consolas, "Courier New", monospace;
+  text-transform: uppercase;
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #d6e0db;
+  border-radius: 16px;
+  background: rgba(244, 248, 246, 0.9);
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.badge-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid #cfdcd6;
+  background: #fff;
+  color: #213a34;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
+}
+
+.badge-chip:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.badge-chip.selected {
+  border-color: #2d9d78;
+  background: #e7f4ee;
+  color: #145a44;
+}
+
+.badge-chip:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.badge-chip-img {
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.badge-chip-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.field-help.error {
+  color: #b43a3a;
 }
 
 .field-help {

@@ -39,15 +39,8 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
         :src="badgeUrl"
         class="chat-badge"
         alt="badge"
+        @error="($event.target as HTMLImageElement).style.display = 'none'"
       />
-
-      <span
-        v-for="(role, roleIndex) in event.roles"
-        :key="`role-${roleIndex}`"
-        class="chat-role-pill"
-      >
-        {{ role }}
-      </span>
 
       <span class="chat-username" :style="{ color: event.colorHex || 'var(--twitch-purple-light)' }">
         {{ event.displayName || "Unknown user" }}
@@ -125,23 +118,6 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
   border-radius: 2px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   display: inline-block;
-}
-
-.chat-role-pill {
-  display: inline-flex;
-  align-items: center;
-  margin-right: 6px;
-  margin-bottom: 2px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: rgba(24, 32, 42, 0.82);
-  border: 1px solid rgba(214, 221, 229, 0.5);
-  color: #f8fafc;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  vertical-align: middle;
 }
 
 .chat-username,

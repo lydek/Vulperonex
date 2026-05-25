@@ -6,6 +6,7 @@ using Vulperonex.Application.Members;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
+using Vulperonex.Application.Twitch;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -22,6 +23,7 @@ public sealed class OverlayEventForwarder(
     IOverlayHistoryService<OverlayAlertPayload> alertsHistory,
     IOverlayHistoryService<OverlayMemberPayload> memberHistory,
     IServiceScopeFactory scopeFactory,
+    ITwitchBadgeCache badgeCache,
     IClock clock,
     ILogger<OverlayEventForwarder> logger) : IHostedService
 {
@@ -78,6 +80,7 @@ public sealed class OverlayEventForwarder(
     private async Task ForwardChatEventAsync(UserSentMessageEvent streamEvent, CancellationToken cancellationToken)
     {
         var memberSnapshot = await TryResolveMemberSnapshotAsync(streamEvent, cancellationToken);
+        var badgeUrls = ResolveBadgeUrls(memberSnapshot?.Badges);
         var payload = new OverlayChatPayload(
             1,
             streamEvent.EventId,
@@ -85,7 +88,7 @@ public sealed class OverlayEventForwarder(
             streamEvent.User.DisplayName,
             memberSnapshot?.ColorHex,
             [new OverlayTextSegment("text", streamEvent.MessageText)],
-            memberSnapshot?.Badges ?? [],
+            badgeUrls,
             ExtractRoles(streamEvent.User.Roles),
             memberSnapshot?.Snapshot);
 
@@ -193,6 +196,39 @@ public sealed class OverlayEventForwarder(
         {
             // Shutdown cancellation should not escape into the event bus subscription path.
         }
+    }
+
+    private IReadOnlyCollection<string> ResolveBadgeUrls(IReadOnlyCollection<string>? badgeKeys)
+    {
+        if (badgeKeys is null || badgeKeys.Count == 0)
+        {
+            return [];
+        }
+
+        var urls = new List<string>(badgeKeys.Count);
+        foreach (var key in badgeKeys)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                continue;
+            }
+
+            // Accept pre-resolved URLs (legacy callers may already pass them).
+            if (key.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || key.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                urls.Add(key);
+                continue;
+            }
+
+            var url = badgeCache.GetUrl(key);
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                urls.Add(url);
+            }
+        }
+
+        return urls;
     }
 
     private static IReadOnlyCollection<string> ExtractRoles(StreamRole roles)

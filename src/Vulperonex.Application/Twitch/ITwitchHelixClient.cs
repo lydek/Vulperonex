@@ -15,6 +15,13 @@ public interface ITwitchHelixClient
         string rewardId,
         string redemptionId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TwitchBadgeDescriptor>> GetGlobalBadgesAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TwitchBadgeDescriptor>> GetChannelBadgesAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record PlatformUserProfile(

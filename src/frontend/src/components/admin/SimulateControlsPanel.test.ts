@@ -24,6 +24,18 @@ function mountView() {
   });
 }
 
+function badgesEmptyResponse(): Response {
+  return new Response(JSON.stringify({ ready: false, global: [], channel: [] }), { status: 200 });
+}
+
+function routeFetch(simulateResponse: () => Response) {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    if (url.includes("/api/twitch/badges")) return badgesEmptyResponse();
+    return simulateResponse();
+  });
+}
+
 describe("SimulateControlsPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -35,7 +47,7 @@ describe("SimulateControlsPanel", () => {
   });
 
   it("should post checkin payload to the dedicated endpoint and render ack", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = routeFetch(() => new Response(JSON.stringify({
       accepted: true,
       eventTypeKey: "system.member.checked_in",
       eventId: "evt-checkin-1",
@@ -71,7 +83,7 @@ describe("SimulateControlsPanel", () => {
   });
 
   it("should run batch checkin sequentially and emit latest ack", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
+    const fetchMock = routeFetch(() => new Response(JSON.stringify({
       accepted: true,
       eventTypeKey: "system.member.checked_in",
       eventId: "evt-batch",
@@ -97,7 +109,11 @@ describe("SimulateControlsPanel", () => {
     await vi.runAllTimersAsync();
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const simulateCalls = fetchMock.mock.calls.filter((call) => {
+      const url = typeof call[0] === "string" ? call[0] : call[0] instanceof URL ? call[0].toString() : (call[0] as Request).url;
+      return url.includes("/api/simulate/");
+    });
+    expect(simulateCalls).toHaveLength(2);
     expect(wrapper.emitted("simulated")).toHaveLength(2);
   });
 });

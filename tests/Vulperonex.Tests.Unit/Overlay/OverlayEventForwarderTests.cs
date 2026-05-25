@@ -11,6 +11,7 @@ using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
+using Vulperonex.Application.Twitch;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -34,6 +35,7 @@ public sealed class OverlayEventForwarderTests
     private readonly IOverlayHistoryService<OverlayMemberPayload> _mockMemberHistory = Substitute.For<IOverlayHistoryService<OverlayMemberPayload>>();
 
     private readonly IServiceScopeFactory _mockScopeFactory = Substitute.For<IServiceScopeFactory>();
+    private readonly ITwitchBadgeCache _mockBadgeCache = Substitute.For<ITwitchBadgeCache>();
     private readonly IClock _mockClock = Substitute.For<IClock>();
 
     public OverlayEventForwarderTests()
@@ -70,6 +72,7 @@ public sealed class OverlayEventForwarderTests
             _mockAlertsHistory,
             _mockMemberHistory,
             _mockScopeFactory,
+            _mockBadgeCache,
             _mockClock,
             NullLogger<OverlayEventForwarder>.Instance);
 

@@ -21,6 +21,24 @@ export interface SimulateRequestBody {
   rewardId?: string;
   userInput?: string;
   stampCount?: number;
+  badges?: string[];
+  colorHex?: string;
+}
+
+export interface TwitchBadgeDescriptor {
+  key: string;
+  setId: string;
+  version: string;
+  imageUrl1x: string;
+  title: string | null;
+  description: string | null;
+  isChannel: boolean;
+}
+
+export interface TwitchBadgesListResponse {
+  ready: boolean;
+  global: TwitchBadgeDescriptor[];
+  channel: TwitchBadgeDescriptor[];
 }
 
 export interface SimulateAck {
@@ -45,6 +63,10 @@ export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
 
 export async function getTwitchAuthStatus(signal?: AbortSignal): Promise<TwitchAuthStatusResponse> {
   return getJson<TwitchAuthStatusResponse>("/api/twitch/auth/status", signal);
+}
+
+export async function getTwitchBadges(signal?: AbortSignal): Promise<TwitchBadgesListResponse> {
+  return getJson<TwitchBadgesListResponse>("/api/twitch/badges", signal);
 }
 
 export interface PlatformIdentity {
