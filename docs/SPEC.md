@@ -1349,6 +1349,72 @@ MemberAuditLogs:
    - 針對每個 Action 類型（例如 `TriggerCheckIn`、`RefundTwitchRedemption`、`TriggerEffect` 等），根據後端註冊的 `ActionParameterMetadata`（型別含 string, number, boolean, select, text）動態生成對應的強型別輸入控制項。
    - 元件內整合「變數選擇器浮動面板」，使用者於輸入框內游標點選或輸入 `{` 時，即時跳出可用變數列表，點擊即可插入變數範本字串（如 `{user.displayName}`），避免拼寫錯誤。
 
+### 4.23 Twitch 徽章快取與模擬器徽章 UI Twitch Badge Cache & Simulator Badge UI (Phase 7E)
+
+**背景與動機：**
+聊天 overlay 必須能正確顯示 Twitch 原生徽章圖示（VIP / Moderator / Subscriber / Founder / 頻道自訂徽章如「繪師」「贊助者」）。當前實作存在兩個缺陷：
+
+1. **真實 Twitch 路徑徽章圖示壞掉**：IRC parser 將 `badges` IRC tag 解析為 `subscriber/0`、`vip/1` 等 *key* 字串並寫入 `PlatformUserDisplayInfo.Badges`。`OverlayEventForwarder.ForwardChatEventAsync` 直接將這些 key 當作 URL 透過 SignalR 廣播給 overlay，導致 `<img :src>` 永遠為 key 字串而非真實圖片 URL。
+2. **模擬器無徽章選擇能力**：`SimulateControlsPanel.vue` 僅能勾選 `Subscriber/Moderator/VIP/Follower` 文字角色，overlay 渲染為 `chat-role-pill` 文字膠囊；無法觸發徽章圖示路徑，也無法選擇自訂頻道徽章。
+
+對照來源：`ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChannelApiService.cs`（`GetGlobalBadgesAsync` / `GetChannelBadgesAsync`）、`ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/IdentityService.cs`（`SyncBadgesAsync` / `GetBadgeUrl` 以 7 天 TTL 快取 `badge_{set}_{ver}` → URL）、`ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchMessageEnricher.cs`（在訊息 enrich 時將 badges KVP 解析為 URL list 寫入 ChatMessage）。
+
+**設計與規格：**
+
+1. **`ITwitchHelixClient` 徽章端點**：
+   - 新增 `Task<IReadOnlyDictionary<string, TwitchBadgeDescriptor>> GetGlobalBadgesAsync(CancellationToken)`：對應 `GET helix/chat/badges/global`。
+   - 新增 `Task<IReadOnlyDictionary<string, TwitchBadgeDescriptor>> GetChannelBadgesAsync(string broadcasterId, CancellationToken)`：對應 `GET helix/chat/badges?broadcaster_id={id}`。
+   - 回傳字典 key 格式為 `{set_id}_{version}`，value 為 descriptor（含 `SetId`, `Version`, `ImageUrl1x`, `Title?`, `Description?`）。
+
+2. **`ITwitchBadgeCache`（Application 介面）+ `TwitchBadgeCache`（Infrastructure 實作）**：
+   - 介面：`string? Get(string key)`、`IReadOnlyList<TwitchBadgeDescriptor> ListAll()`、`Task SyncGlobalAsync(CancellationToken)`、`Task SyncChannelAsync(string broadcasterId, CancellationToken)`、`bool IsReady`。
+   - 實作：`ConcurrentDictionary<string, TwitchBadgeDescriptor>` thread-safe；sync 失敗時保留舊資料、log warning。
+   - 注意：cache 為 in-memory，應用重啟需重新同步；不做磁碟持久化。
+
+3. **`TwitchBadgeSyncHostedService`**：
+   - `StartAsync` 中 fire-and-forget 呼叫 `SyncGlobalAsync` + `SyncChannelAsync(broadcasterId)`（broadcaster id 來自 `Twitch:BroadcasterId` config，未設定則略過 channel sync）。
+   - sync 失敗不阻擋應用啟動。
+
+4. **`OverlayEventForwarder` 徽章解析**：
+   - `ForwardChatEventAsync` 與 `TryResolveMemberSnapshotAsync` 注入 `ITwitchBadgeCache`，將 `display?.Badges` 之 key list 透過 `cache.Get` 轉換為 URL list，無對應 URL 之 key 被過濾（避免 overlay 出現破圖）。
+   - 廣播至 SignalR 之 `OverlayChatPayload.Badges` 改為已解析之 URL 列表（contract schemaVersion 不變，僅內容語意修正）。
+   - `ExtractRoles` 文字角色維持輸出（`event.roles`），供 future preset 使用；本期 `ChatPresetDefault.vue` 不再渲染文字角色 chips。
+
+5. **模擬路徑徽章/顏色透傳**：
+   - `SimulationRequest`（`SimulationKind.Message`）新增 `IReadOnlyCollection<string> Badges` 與 `string? ColorHex`。
+   - `SimulateEndpoints` 接受 request body 之 `badges: string[]`、`colorHex: string?`；在 `adapter.SimulateAsync` 之前對 sim user (`simulation:{userId}`) 呼叫 `IPlatformUserInfoCache.UpsertAsync`，將 `Badges` + `ColorHex` 寫入快取，使後續 forwarder 之解析路徑與真實 Twitch 路徑統一。
+   - 此設計避免在 domain event 上新增徽章欄位污染領域模型。
+
+6. **新 API endpoint `GET /api/twitch/badges`**：
+   - 回傳 `{ global: TwitchBadgeDescriptor[], channel: TwitchBadgeDescriptor[] }`，供前端 picker UI 列出可選徽章。
+   - cache 未就緒時回傳空 array 並附 `Cache-Control: no-store` header。
+   - 受 admin auth 限制（與其他 `/api/twitch/*` 端點一致）。
+
+7. **前端 `SimulateControlsPanel.vue` UI 改造**：
+   - onMounted 呼叫 `getTwitchBadges()` 並依 `setId` 分組顯示為徽章 chip grid，每 chip 為 `<img>` + tooltip 標題；點擊 toggle 加入 `selectedBadges`。
+   - 新增「名稱顏色」欄位：hex input 配對即時 color swatch（預設 `#FFCA28`）。
+   - submit 時於 request body 帶入 `badges: selectedBadges` 與 `colorHex`。
+   - 移除「Streamer Roles」文字角色多選區（向後相容：若舊測試傳 `roles` 仍解析為對應 badge key，由後端 derive；本期前端 UI 不曝光）。
+
+8. **前端 `ChatPresetDefault.vue` 調整**：
+   - 移除 `chat-role-pill` 文字角色 chip 渲染段；徽章圖示為唯一身份標示。
+   - badge `<img>` 渲染保持現狀；新增 `onerror` fallback 隱藏破圖。
+
+**驗收：**
+- 模擬器傳送含徽章之聊天訊息，`/overlay/chat` 顯示 Twitch 原生徽章 PNG 而非文字 chips。
+- 真實 Twitch IRC 聊天訊息（VIP / Moderator / Subscriber）overlay 圖示正常。
+- `GET /api/twitch/badges` 回傳 global 集合（含 broadcaster / moderator / vip / subscriber / founder 等）與 channel 自訂徽章。
+- 名稱顏色 hex 套用至 overlay `chat-username` 之 `style="color"`。
+- Cache miss 時 overlay 不出現破圖。
+- 單元測試覆蓋：`TwitchBadgeCacheTests`、`OverlayEventForwarderBadgeResolutionTests`、`SimulateEndpointsBadgeTests`、frontend `SimulateControlsPanel.test.ts`。
+
+**邊界：**
+- 不下載徽章圖檔做 base64 內嵌，全程走 Twitch CDN URL。
+- 不支援上傳自訂徽章（僅顯示已於 Twitch 註冊者）。
+- 不整合 BTTV / 7TV / FFZ 徽章與表情。
+- 不做徽章變更 audit log。
+- Cache 無背景定期 refresh（自訂徽章新增後需重啟；後續 phase 可加 24h refresh hosted service）。
+
 ---
 
 ## 5. 指令
