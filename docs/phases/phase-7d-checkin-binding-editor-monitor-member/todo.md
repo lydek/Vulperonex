@@ -205,33 +205,33 @@
 
 ### Task 69 - 模組與外掛程式狀態持久化與 API 整合
 
-- [ ] Task 69a：支援以 `modules.enabled.{name}` 設定鍵值儲存開關狀態
-- [ ] Task 69b：實作 `GET /api/plugins-modules` 端點，回傳模組狀態與相依性
-- [ ] Task 69c：實作 `POST /api/plugins-modules/{name}/toggle` 端點，更新狀態並傳送 `SettingChangedEvent`
-- [ ] Task 69d：狀態變更寫入系統 Audit Log（`ActorKind='user'`, `Operation='disable_module'`）
-- [ ] Task 69e：單元與整合測試覆蓋 API 正確性
+- [x] Task 69a：支援以 `modules.enabled.{name}` 設定鍵值儲存開關狀態
+- [x] Task 69b：實作 `GET /api/plugins-modules` 端點，回傳模組狀態與相依性
+- [x] Task 69c：實作 `POST /api/plugins-modules/{name}/toggle` 端點，更新狀態並傳送 `SettingChangedEvent`
+- [x] Task 69d：狀態變更寫入系統 Audit Log（`ActorKind='user'`, `Operation='disable_module'`）
+- [x] Task 69e：單元與整合測試覆蓋 API 正確性
 
 ### Task 70 - 模組相依性拓撲連鎖反應實作
 
-- [ ] Task 70a：後端實作拓撲相依性分析與連鎖狀態更新
-- [ ] Task 70b：停用 `MemberModule` 時，拓撲判定自動連鎖停用 `CheckInModule` 與 `LotteryModule`
-- [ ] Task 70c：啟用 `CheckInModule` 時，若 `MemberModule` 關閉，自動開啟相依或提示拒絕
-- [ ] Task 70d：前端 Switch 控制項與連鎖確認 Dialog 整合，展示受影響模組清單
-- [ ] Task 70e：測試連鎖啟用與連鎖停用邏輯，防範無效狀態
+- [x] Task 70a：後端實作拓撲相依性分析與連鎖狀態更新
+- [x] Task 70b：停用 `MemberModule` 時，拓撲判定自動連鎖停用 `CheckInModule` 與 `LotteryModule`
+- [x] Task 70c：啟用 `CheckInModule` 時，若 `MemberModule` 關閉，自動開啟相依或提示拒絕
+- [x] Task 70d：前端 Switch 控制項與連鎖確認 Dialog 整合，展示受影響模組清單
+- [x] Task 70e：測試連鎖啟用與連鎖停用邏輯，防範無效狀態
 
 ### Task 71 - Hosted Services 動態啟閉與 No-Op 設計
 
-- [ ] Task 71a：Hosted Services 啟動時偵測對應模組開關狀態
-- [ ] Task 71b：訂閱 `SettingChangedEvent`，在狀態變更為 `false` 時取消 EventBus 訂閱並切換至 No-Op
-- [ ] Task 71c：`IWorkflowActionExecutor` 執行時若模組關閉則拋出 `DependencyMissingException`
-- [ ] Task 71d：單元測試 mock 服務狀態驗證 Workflow Action 阻擋
+- [x] Task 71a：Hosted Services 啟動時偵測對應模組開關狀態
+- [x] Task 71b：訂閱 `SettingChangedEvent`，在狀態變更為 `false` 時取消 EventBus 訂閱並切換至 No-Op
+- [x] Task 71c：`IWorkflowActionExecutor` 執行時若模組關閉則拋出 `DependencyMissingException`
+- [x] Task 71d：單元測試 mock 服務狀態驗證 Workflow Action 阻擋
 
 ### Task 72 - 模組管理 UI 頁面 (Module Management)
 
-- [ ] Task 72a：於 `/admin/settings` 下建立「功能模組與外掛程式」分頁
-- [ ] Task 72b：卡片化 Grid 展現核心 Hosted Services 與 OneComme 外掛程式
-- [ ] Task 72c：整合 ON/OFF 開關 Switch 與相依性圖示提示
-- [ ] Task 72d：Vitest 覆蓋模組卡片渲染與 Toggle 互動
+- [x] Task 72a：於 `/admin/settings` 下建立「功能模組與外掛程式」分頁
+- [x] Task 72b：卡片化 Grid 展現核心 Hosted Services 與 OneComme 外掛程式
+- [x] Task 72c：整合 ON/OFF 開關 Switch 與相依性圖示提示
+- [x] Task 72d：Vitest 覆蓋模組卡片渲染與 Toggle 互動
 
 ---
 
@@ -239,25 +239,25 @@
 
 ### Task 73 - 模擬 API 擴充身分組 (StreamRole Flags)
 
-- [ ] Task 73a：`SimulateRequest` DTO 之 `Roles` 欄位支援多重陣列解析
-- [ ] Task 73b：字串陣列成功對應至 `StreamRole` 的 Flags 組合
-- [ ] Task 73c：帶入模擬事件的 User context 中，保證事件匯流排收到的 flag 完整
-- [ ] Task 73d：單元測試涵蓋多角色結合與邊界解析
+- [x] Task 73a：`SimulateRequest` DTO 之 `Roles` 欄位支援多重陣列解析
+- [x] Task 73b：字串陣列成功對應至 `StreamRole` 的 Flags 組合
+- [x] Task 73c：帶入模擬事件的 User context 中，保證事件匯流排收到的 flag 完整
+- [x] Task 73d：單元測試涵蓋多角色結合與邊界解析
 
 ### Task 74 - 打卡與忠誠度模擬端點
 
-- [ ] Task 74a：實作 `POST /api/simulate/checkin` 端點
-- [ ] Task 74b：端點接收 `platformUserId`, `displayName`, `skipCooldown`, `stampCount`
-- [ ] Task 74c：調用 `IMemberResolver` 與 `IMemberStreamStateRepository` 增量
-- [ ] Task 74d：成功寫入資料庫後發布 `MemberCheckedInEvent` 事件到 EventBus
-- [ ] Task 74e：整合測試模擬端點行為與狀態變更
+- [x] Task 74a：實作 `POST /api/simulate/checkin` 端點
+- [x] Task 74b：端點接收 `platformUserId`, `displayName`, `skipCooldown`, `stampCount`
+- [x] Task 74c：調用 `IMemberResolver` 與 `IMemberStreamStateRepository` 增量
+- [x] Task 74d：成功寫入資料庫後發布 `MemberCheckedInEvent` 事件到 EventBus
+- [x] Task 74e：整合測試模擬端點行為與狀態變更
 
 ### Task 75 - 監控控制台模擬 UI 擴充 (SimulateControlsPanel)
 
-- [ ] Task 75a：`SimulateControlsPanel.vue` 加入身分組多選勾選框 (Checkbox Group)
-- [ ] Task 75b：新增忠誠度與打卡模擬專用區塊表單
-- [ ] Task 75c：模擬按鈕點選調用 `POST /api/simulate/checkin` 端點
-- [ ] Task 75d：Vitest 測試各模擬控制元件之互動
+- [x] Task 75a：`SimulateControlsPanel.vue` 加入身分組多選勾選框 (Checkbox Group)
+- [x] Task 75b：新增忠誠度與打卡模擬專用區塊表單
+- [x] Task 75c：模擬按鈕點選調用 `POST /api/simulate/checkin` 端點
+- [x] Task 75d：Vitest 測試各模擬控制元件之互動
 
 ---
 
@@ -265,25 +265,25 @@
 
 ### Task 76 - 條件建構器前端元件 (ConditionBuilder)
 
-- [ ] Task 76a：實作 `ConditionBuilder.vue` 以視覺化行編輯取代純文字
-- [ ] Task 76b：行內支援 `[變數]` `[比較運算子]` `[目標值]` 下拉
-- [ ] Task 76c：讀取 `StreamEventTypeRegistry` 與 Context 變數進行防呆
-- [ ] Task 76d：前端自動將視覺化條件組裝成 NCalc 表示式字串
-- [ ] Task 76e：Vitest 測試條件列增刪與表示式生成
+- [x] Task 76a：實作 `ConditionBuilder.vue` 以視覺化行編輯取代純文字
+- [x] Task 76b：行內支援 `[變數]` `[比較運算子]` `[目標值]` 下拉
+- [x] Task 76c：讀取 `StreamEventTypeRegistry` 與 Context 變數進行防呆
+- [x] Task 76d：前端自動將視覺化條件組裝成 NCalc 表示式字串
+- [x] Task 76e：Vitest 測試條件列增刪與表示式生成
 
 ### Task 77 - 強型別動作動態表單 (DynamicActionForm)
 
-- [ ] Task 77a：實作 `DynamicActionForm.vue` 元件
-- [ ] Task 77b：讀取後端 `ActionParameterMetadata` 生成強型別輸入元件
-- [ ] Task 77c：去除自由文字 JSON，改為 Slider, Toggle, Select 等精緻控制項
-- [ ] Task 77d：Vitest 測試不同動作參數類型之對應渲染
+- [x] Task 77a：實作 `DynamicActionForm.vue` 元件
+- [x] Task 77b：讀取後端 `ActionParameterMetadata` 生成強型別輸入元件
+- [x] Task 77c：去除自由文字 JSON，改為 Slider, Toggle, Select 等精緻控制項
+- [x] Task 77d：Vitest 測試不同動作參數類型之對應渲染
 
 ### Task 78 - 變數選擇器浮動面板 (Variable Picker)
 
-- [ ] Task 78a：實作變數 Picker 浮動按鈕或鍵入 `{` 彈出面板
-- [ ] Task 78b：展示當前事件與全域可用之變數列表
-- [ ] Task 78c：點選自動以 `{user.name}` 格式將變數插入文字框游標處
-- [ ] Task 78d：Vitest 測試游標位置定位與字串插入
+- [x] Task 78a：實作變數 Picker 浮動按鈕或鍵入 `{` 彈出面板
+- [x] Task 78b：展示當前事件與全域可用之變數列表
+- [x] Task 78c：點選自動以 `{user.name}` 格式將變數插入文字框游標處
+- [x] Task 78d：Vitest 測試游標位置定位與字串插入
 
 ---
 
