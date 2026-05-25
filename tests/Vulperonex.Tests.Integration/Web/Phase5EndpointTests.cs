@@ -700,7 +700,17 @@ public sealed class Phase5EndpointTests
         }
 
         using var client = CreateClient(app);
-        var delete = await client.DeleteAsync("/api/members/member-delete", TestContext.Current.CancellationToken);
+        var tokenResponse = await client.PostAsync("/api/members/member-delete/delete-token", null, TestContext.Current.CancellationToken);
+        tokenResponse.EnsureSuccessStatusCode();
+        var body = await tokenResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        using var doc = JsonDocument.Parse(body);
+        var token = doc.RootElement.GetProperty("token").GetString();
+
+        var delete = await client.SendAsync(new HttpRequestMessage(HttpMethod.Delete, "/api/members/member-delete")
+        {
+            Content = JsonContent.Create(new Vulperonex.Web.Endpoints.DeleteMemberRequest(token, "Dangerous user"))
+        }, TestContext.Current.CancellationToken);
+
         var show = await client.GetAsync("/api/members/member-delete", TestContext.Current.CancellationToken);
         await using var verifyScope = app.Services.CreateAsyncScope();
         var verifyContext = verifyScope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
@@ -803,10 +813,12 @@ public sealed class Phase5EndpointTests
                 EnvironmentName = "Development",
             },
             configureDefaultLoopbackPorts: false);
+        var securityRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         var configuration = new Dictionary<string, string?>
         {
             ["Database:Path"] = databasePath,
-            ["Security:RootPath"] = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N")),
+            ["Security:RootPath"] = securityRoot,
+            ["Security:CsrfTokenPath"] = Path.Combine(securityRoot, ".admin-csrf-token"),
         };
         configurationPairs ??= [];
         for (var index = 0; index < configurationPairs.Length; index += 2)
@@ -840,7 +852,13 @@ public sealed class Phase5EndpointTests
             ?.Addresses
             .Single();
 
-        return new HttpClient { BaseAddress = new Uri(address!) };
+        var tokenProvider = app.Services.GetRequiredService<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
+
+        var client = new HttpClient { BaseAddress = new Uri(address!) };
+        client.DefaultRequestHeaders.Add("X-Admin-Csrf", tokenProvider.Token);
+        client.DefaultRequestHeaders.Add("Origin", address);
+        client.DefaultRequestHeaders.Add("Referer", address);
+        return client;
     }
 
     private static async Task EventuallyMemberListContainsAsync(HttpClient client, string platformUserId)

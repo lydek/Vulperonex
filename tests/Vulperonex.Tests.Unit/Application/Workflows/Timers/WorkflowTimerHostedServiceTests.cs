@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Vulperonex.Application.Modules;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Timers;
 using Vulperonex.Domain.Events;
@@ -87,6 +88,36 @@ public sealed class WorkflowTimerHostedServiceTests
     }
 
     [Fact]
+    public async Task Given_WorkflowModuleDisabled_When_Ticked_Then_NoTimerWorkRuns()
+    {
+        var now = new DateTimeOffset(2026, 5, 23, 0, 1, 0, TimeSpan.Zero);
+        var repository = new FakeWorkflowTimerRepository(
+            new WorkflowTimer
+            {
+                Id = "timer-1",
+                RuleId = "rule-1",
+                IntervalSeconds = 30,
+                IsEnabled = true,
+                NextFireAt = now.AddSeconds(-30),
+            });
+        var invoker = new RecordingWorkflowRuleInvoker();
+        var provider = new ServiceCollection()
+            .AddSingleton<IWorkflowTimerRepository>(repository)
+            .AddSingleton<IWorkflowRuleInvoker>(invoker)
+            .BuildServiceProvider();
+        var service = new WorkflowTimerHostedService(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            new DisabledModuleStateService(),
+            TimeProvider.System,
+            NullLogger<WorkflowTimerHostedService>.Instance);
+
+        var fired = await service.TickAsync(now, TestContext.Current.CancellationToken);
+
+        fired.Should().Be(0);
+        invoker.Invocations.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Given_ScopedAsyncDisposableInvoker_When_Ticked_Then_ScopeDisposesAsynchronously()
     {
         var now = new DateTimeOffset(2026, 5, 23, 0, 1, 0, TimeSpan.Zero);
@@ -105,6 +136,7 @@ public sealed class WorkflowTimerHostedServiceTests
             .BuildServiceProvider();
         var service = new WorkflowTimerHostedService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new AlwaysEnabledModuleStateService(),
             TimeProvider.System,
             NullLogger<WorkflowTimerHostedService>.Instance);
 
@@ -124,6 +156,7 @@ public sealed class WorkflowTimerHostedServiceTests
 
         return new WorkflowTimerHostedService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new AlwaysEnabledModuleStateService(),
             TimeProvider.System,
             NullLogger<WorkflowTimerHostedService>.Instance);
     }
@@ -218,4 +251,28 @@ public sealed class WorkflowTimerHostedServiceTests
         IStreamEvent StreamEvent,
         string InvocationId,
         IReadOnlyDictionary<string, string>? Args);
+
+    private sealed class AlwaysEnabledModuleStateService : IModuleStateService
+    {
+        public Task<IReadOnlyList<ModuleStateSnapshot>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ModuleStateSnapshot>>([]);
+
+        public Task<bool> IsEnabledAsync(string moduleName, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+
+        public Task<ModuleToggleResult> ToggleAsync(string moduleName, bool enabled, string actorKind, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class DisabledModuleStateService : IModuleStateService
+    {
+        public Task<IReadOnlyList<ModuleStateSnapshot>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ModuleStateSnapshot>>([]);
+
+        public Task<bool> IsEnabledAsync(string moduleName, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<ModuleToggleResult> ToggleAsync(string moduleName, bool enabled, string actorKind, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
 }

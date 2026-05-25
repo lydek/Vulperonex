@@ -130,6 +130,44 @@ public sealed class Phase7cOverlayPresetTests
         tooLarge.StatusCode.Should().Be((HttpStatusCode)413);
     }
 
+    [Fact]
+    public async Task Given_InvalidDraftJavaScript_When_DeployRequested_Then_ValidationBlocksProductionDeploy()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        await using var zipStream = new MemoryStream();
+        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var indexEntry = archive.CreateEntry("index.html");
+            await using (var writer = new StreamWriter(indexEntry.Open(), Encoding.UTF8, leaveOpen: false))
+            {
+                await writer.WriteAsync("<!DOCTYPE html><html><body><script src=\"app.js\"></script></body></html>");
+            }
+
+            var scriptEntry = archive.CreateEntry("app.js");
+            await using var scriptWriter = new StreamWriter(scriptEntry.Open(), Encoding.UTF8, leaveOpen: false);
+            await scriptWriter.WriteAsync("function broken( {");
+        }
+
+        zipStream.Position = 0;
+        using var upload = new MultipartFormDataContent();
+        upload.Add(new StringContent("invalid-js"), "slug");
+        var file = new StreamContent(zipStream);
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse("application/zip");
+        upload.Add(file, "file", "invalid-js.zip");
+
+        var create = await client.PostAsync("/api/overlay/custom-presets", upload, TestContext.Current.CancellationToken);
+        create.StatusCode.Should().Be(HttpStatusCode.Created);
+
+        var validate = await client.PostAsync("/api/overlay/custom-presets/invalid-js/validate", null, TestContext.Current.CancellationToken);
+        validate.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await validate.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Contain("js_parse_error");
+
+        var deploy = await client.PostAsync("/api/overlay/custom-presets/invalid-js/deploy", null, TestContext.Current.CancellationToken);
+        deploy.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
     private static MultipartFormDataContent BuildMultipartHtml(string slug, string html)
     {
         var content = new MultipartFormDataContent();
@@ -155,10 +193,12 @@ public sealed class Phase7cOverlayPresetTests
                 WebRootPath = webRoot,
             },
             configureDefaultLoopbackPorts: false);
+        var securityRoot = Path.Combine(workingRoot, "security");
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Database:Path"] = databasePath,
-            ["Security:RootPath"] = Path.Combine(workingRoot, "security"),
+            ["Security:RootPath"] = securityRoot,
+            ["Security:CsrfTokenPath"] = Path.Combine(securityRoot, ".admin-csrf-token"),
         });
         builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
 
@@ -182,13 +222,20 @@ public sealed class Phase7cOverlayPresetTests
             ?.Addresses
             .Single();
 
-        return new HttpClient(new HttpClientHandler
+        var tokenProvider = app.Services.GetRequiredService<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
+
+        var client = new HttpClient(new HttpClientHandler
         {
             AllowAutoRedirect = allowAutoRedirect,
         })
         {
             BaseAddress = new Uri(address!)
         };
+
+        client.DefaultRequestHeaders.Add("X-Admin-Csrf", tokenProvider.Token);
+        client.DefaultRequestHeaders.Add("Origin", address);
+        client.DefaultRequestHeaders.Add("Referer", address);
+        return client;
     }
 
     private static string ResolveSolutionRoot()

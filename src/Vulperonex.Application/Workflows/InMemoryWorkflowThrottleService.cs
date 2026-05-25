@@ -26,6 +26,9 @@ public sealed class InMemoryWorkflowThrottleService(IClock clock) : IWorkflowThr
 
         public IAsyncDisposable? TryAcquire(WorkflowRule rule, IStreamEvent streamEvent, DateTimeOffset now)
         {
+            var skipCooldown = streamEvent is Vulperonex.Domain.Events.ICooldownSkippable { SkipCooldown: true } &&
+                               streamEvent.Platform == "simulation";
+
             lock (this)
             {
                 if (IsConcurrencyRejected(rule.Throttle))
@@ -33,22 +36,26 @@ public sealed class InMemoryWorkflowThrottleService(IClock clock) : IWorkflowThr
                     return null;
                 }
 
-                if (IsGlobalCooldownRejected(rule.Throttle, now))
+                if (!skipCooldown)
                 {
-                    return null;
-                }
+                    if (IsGlobalCooldownRejected(rule.Throttle, now))
+                    {
+                        return null;
+                    }
 
-                var userKey = ResolveUserKey(streamEvent);
-                if (IsPerUserCooldownRejected(rule.Throttle, userKey, now))
-                {
-                    return null;
+                    var userKey = ResolveUserKey(streamEvent);
+                    if (IsPerUserCooldownRejected(rule.Throttle, userKey, now))
+                    {
+                        return null;
+                    }
                 }
 
                 _running++;
                 _lastFireAt = now;
-                if (rule.Throttle.PerUserCooldown && userKey is not null)
+                var uKey = ResolveUserKey(streamEvent);
+                if (rule.Throttle.PerUserCooldown && uKey is not null)
                 {
-                    _lastFireByUser[userKey] = now;
+                    _lastFireByUser[uKey] = now;
                 }
 
                 return new Lease(this);

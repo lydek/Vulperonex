@@ -19,6 +19,8 @@ public sealed class VulperonexDbContext(DbContextOptions<VulperonexDbContext> op
 
     public DbSet<AppLogEntity> AppLogs => Set<AppLogEntity>();
 
+    public DbSet<MemberAuditLogEntity> MemberAuditLogs => Set<MemberAuditLogEntity>();
+
     public DbSet<PlatformUserDisplayInfoEntity> PlatformUserDisplayInfo => Set<PlatformUserDisplayInfoEntity>();
 
     public DbSet<TransientDeliveryQueueEntity> TransientDeliveryQueue => Set<TransientDeliveryQueueEntity>();

@@ -4,4 +4,6 @@ public sealed record OverlayMemberPayload(
     int SchemaVersion,
     string DisplayName,
     string? AvatarUrl,
-    int CheckInCount);
+    int CheckInCount,
+    int RoundIndex,
+    int StampSlotInRound);

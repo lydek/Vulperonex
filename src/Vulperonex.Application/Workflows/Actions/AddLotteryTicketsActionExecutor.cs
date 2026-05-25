@@ -1,11 +1,13 @@
 using Vulperonex.Application.Counters;
 using Vulperonex.Application.Expressions;
+using Vulperonex.Application.Modules;
 
 namespace Vulperonex.Application.Workflows.Actions;
 
 public sealed class AddLotteryTicketsActionExecutor(
     ICounterRepository counterRepository,
-    ITemplateResolver templateResolver) : IWorkflowActionExecutor
+    ITemplateResolver templateResolver,
+    IModuleStateService moduleStateService) : IWorkflowActionExecutor
 {
     public string ActionType => AddLotteryTicketsAction.ActionType;
 
@@ -17,6 +19,11 @@ public sealed class AddLotteryTicketsActionExecutor(
         if (action is not AddLotteryTicketsAction addLotteryTicketsAction)
         {
             return ActionExecutionResult.Completed;
+        }
+
+        if (!await moduleStateService.IsEnabledAsync("lottery", cancellationToken).ConfigureAwait(false))
+        {
+            throw new DependencyMissingException("Lottery Module is disabled.");
         }
 
         var userId = templateResolver.Resolve(addLotteryTicketsAction.UserId, context.ExpressionContext);

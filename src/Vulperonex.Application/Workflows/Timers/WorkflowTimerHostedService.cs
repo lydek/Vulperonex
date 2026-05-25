@@ -1,12 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Vulperonex.Application.Modules;
 using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Application.Workflows.Timers;
 
 public sealed class WorkflowTimerHostedService(
     IServiceScopeFactory scopeFactory,
+    IModuleStateService moduleStateService,
     TimeProvider timeProvider,
     ILogger<WorkflowTimerHostedService> logger) : BackgroundService
 {
@@ -14,6 +16,11 @@ public sealed class WorkflowTimerHostedService(
 
     public async Task<int> TickAsync(DateTimeOffset now, CancellationToken cancellationToken = default)
     {
+        if (!await moduleStateService.IsEnabledAsync("workflow", cancellationToken).ConfigureAwait(false))
+        {
+            return 0;
+        }
+
         await using var scope = scopeFactory.CreateAsyncScope();
         var timers = scope.ServiceProvider.GetRequiredService<IWorkflowTimerRepository>();
         var invoker = scope.ServiceProvider.GetRequiredService<IWorkflowRuleInvoker>();

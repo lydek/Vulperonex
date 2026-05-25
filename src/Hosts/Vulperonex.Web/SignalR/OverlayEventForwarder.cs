@@ -6,6 +6,7 @@ using Vulperonex.Application.Members;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
+using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
 
@@ -16,8 +17,10 @@ public sealed class OverlayEventForwarder(
     IHubContext<EventsHub> eventsHub,
     IHubContext<OverlayChatHub> chatHub,
     IHubContext<OverlayAlertsHub> alertsHub,
+    IHubContext<OverlayMemberHub> memberHub,
     IOverlayHistoryService<OverlayChatPayload> chatHistory,
     IOverlayHistoryService<OverlayAlertPayload> alertsHistory,
+    IOverlayHistoryService<OverlayMemberPayload> memberHistory,
     IServiceScopeFactory scopeFactory,
     IClock clock,
     ILogger<OverlayEventForwarder> logger) : IHostedService
@@ -43,6 +46,9 @@ public sealed class OverlayEventForwarder(
 
         _subscriptions.Add(stream.OfType<UserSubscribedEvent>().Subscribe(streamEvent =>
             _ = ForwardAlertEventAsync(streamEvent.EventId, streamEvent.User.DisplayName, "subscribed", streamEvent.Tier, cancellationToken)));
+
+        _subscriptions.Add(stream.OfType<MemberCheckedInEvent>().Subscribe(streamEvent =>
+            _ = ForwardMemberCheckInEventAsync(streamEvent, cancellationToken)));
 
         return Task.CompletedTask;
     }
@@ -80,6 +86,7 @@ public sealed class OverlayEventForwarder(
             memberSnapshot?.ColorHex,
             [new OverlayTextSegment("text", streamEvent.MessageText)],
             memberSnapshot?.Badges ?? [],
+            ExtractRoles(streamEvent.User.Roles),
             memberSnapshot?.Snapshot);
 
         await TryPersistAsync(chatHistory, payload, cancellationToken);
@@ -139,6 +146,22 @@ public sealed class OverlayEventForwarder(
         await SafeSendAsync(() => alertsHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
     }
 
+    private async Task ForwardMemberCheckInEventAsync(
+        MemberCheckedInEvent streamEvent,
+        CancellationToken cancellationToken)
+    {
+        var payload = new OverlayMemberPayload(
+            SchemaVersion: 1,
+            DisplayName: streamEvent.User.DisplayName,
+            AvatarUrl: streamEvent.AvatarUrl,
+            CheckInCount: streamEvent.CheckInCount,
+            RoundIndex: streamEvent.RoundIndex,
+            StampSlotInRound: streamEvent.StampSlotInRound);
+
+        await TryPersistAsync(memberHistory, payload, cancellationToken);
+        await SafeSendAsync(() => memberHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
+    }
+
     private async Task TryPersistAsync<TPayload>(
         IOverlayHistoryService<TPayload> history,
         TPayload payload,
@@ -170,6 +193,18 @@ public sealed class OverlayEventForwarder(
         {
             // Shutdown cancellation should not escape into the event bus subscription path.
         }
+    }
+
+    private static IReadOnlyCollection<string> ExtractRoles(StreamRole roles)
+    {
+        var resolved = new List<string>(4);
+
+        if (roles.HasFlag(StreamRole.Subscriber)) resolved.Add("Subscriber");
+        if (roles.HasFlag(StreamRole.Moderator)) resolved.Add("Moderator");
+        if (roles.HasFlag(StreamRole.Vip)) resolved.Add("Vip");
+        if (roles.HasFlag(StreamRole.Follower)) resolved.Add("Follower");
+
+        return resolved;
     }
 }
 

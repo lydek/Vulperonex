@@ -30,7 +30,11 @@ public sealed class MemberResolver(VulperonexDbContext context) : IMemberResolve
             }
 
             var memberId = NewUlidString();
-            context.Members.Add(new MemberEntity { MemberId = memberId });
+            context.Members.Add(new MemberEntity 
+            { 
+                MemberId = memberId,
+                UpdatedAtTicks = DateTimeOffset.UtcNow.Ticks
+            });
             context.PlatformIdentities.Add(new PlatformIdentityEntity
             {
                 MemberId = memberId,

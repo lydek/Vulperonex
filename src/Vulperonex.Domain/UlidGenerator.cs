@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Vulperonex.Domain;
 
-internal static class UlidGenerator
+public static class UlidGenerator
 {
     private const string CrockfordBase32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 

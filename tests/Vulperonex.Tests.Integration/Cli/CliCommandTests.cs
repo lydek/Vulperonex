@@ -506,9 +506,15 @@ public sealed class CliCommandTests
         using var client = new HttpClient(new StubHandler(request =>
         {
             seen.Add((request.Method.Method, request.RequestUri?.PathAndQuery ?? string.Empty));
-            return request.Method == HttpMethod.Get
-                ? JsonResponse(HttpStatusCode.OK, MemberListItemJson)
-                : new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
+            if (request.Method == HttpMethod.Get)
+            {
+                return JsonResponse(HttpStatusCode.OK, MemberListItemJson);
+            }
+            if (request.Method == HttpMethod.Post && request.RequestUri?.PathAndQuery == "/api/members/user-1/delete-token")
+            {
+                return JsonResponse(HttpStatusCode.OK, """{"token":"test-delete-token"}""");
+            }
+            return new HttpResponseMessage(HttpStatusCode.NoContent) { Content = new ByteArrayContent([]) };
         }))
         {
             BaseAddress = new Uri("http://localhost"),
@@ -523,6 +529,7 @@ public sealed class CliCommandTests
         seen.Should().BeEquivalentTo(new[]
         {
             ("GET", "/api/members/user-1"),
+            ("POST", "/api/members/user-1/delete-token"),
             ("DELETE", "/api/members/user-1"),
         }, options => options.WithStrictOrdering());
     }

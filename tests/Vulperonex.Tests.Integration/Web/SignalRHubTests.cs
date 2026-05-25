@@ -435,9 +435,12 @@ public sealed class SignalRHubTests
                 EnvironmentName = "Development",
             },
             configureDefaultLoopbackPorts: false);
+        var securityRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
         builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["Database:Path"] = databasePath,
+            ["Security:RootPath"] = securityRoot,
+            ["Security:CsrfTokenPath"] = Path.Combine(securityRoot, ".admin-csrf-token"),
         });
         builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
 
@@ -461,7 +464,13 @@ public sealed class SignalRHubTests
             ?.Addresses
             .Single();
 
-        return new HttpClient { BaseAddress = new Uri(address!) };
+        var tokenProvider = app.Services.GetRequiredService<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
+
+        var client = new HttpClient { BaseAddress = new Uri(address!) };
+        client.DefaultRequestHeaders.Add("X-Admin-Csrf", tokenProvider.Token);
+        client.DefaultRequestHeaders.Add("Origin", address);
+        client.DefaultRequestHeaders.Add("Referer", address);
+        return client;
     }
 
     private static int GetAvailablePort()

@@ -46,6 +46,7 @@ public sealed class SystemSettingKeyTests
             "overlay.chat.show_member_card",
             "twitch.client_id",
             "overlay.member.background_url",
-            "overlay.member.stamp_url");
+            "overlay.member.stamp_url",
+            "members.audit_retention_days");
     }
 }

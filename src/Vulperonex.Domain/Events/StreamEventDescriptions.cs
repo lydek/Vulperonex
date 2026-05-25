@@ -12,6 +12,7 @@ public static class StreamEventDescriptions
         [StreamEventKeys.ChannelRaided] = new("頻道被突襲", IsSystemEvent: false),
         [StreamEventKeys.RewardRedeemed] = new("使用者兌換了獎勵", IsSystemEvent: false),
         [StreamEventKeys.PlatformConnectionChanged] = new("平台連線狀態變更", IsSystemEvent: true),
+        [StreamEventKeys.MemberCheckedIn] = new("會員完成打卡簽到", IsSystemEvent: true),
     };
 
     public static string? GetDescription(string eventTypeKey)

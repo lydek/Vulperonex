@@ -1,7 +1,10 @@
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Modules;
+using Vulperonex.Application.Settings;
 using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Application.Workflows;
@@ -18,22 +21,31 @@ namespace Vulperonex.Application.Workflows;
 /// </summary>
 public sealed class WorkflowEngineDispatcher(
     IStreamEventBus eventBus,
+    IModuleStateService moduleStateService,
+    IObservable<SettingChangedEvent> settingChanges,
     IServiceScopeFactory scopeFactory,
     ILogger<WorkflowEngineDispatcher> logger) : IHostedService
 {
     private IDisposable? _subscription;
+    private IDisposable? _settingSubscription;
+    private readonly SemaphoreSlim _lock = new(1, 1);
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        _subscription = eventBus.Subscribe<IStreamEvent>(DispatchAsync);
-        return Task.CompletedTask;
+        _settingSubscription = settingChanges.Subscribe(new SettingObserver(this));
+        if (await moduleStateService.IsEnabledAsync("workflow", cancellationToken).ConfigureAwait(false))
+        {
+            _subscription = eventBus.Subscribe<IStreamEvent>(DispatchAsync);
+        }
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
         _subscription?.Dispose();
         _subscription = null;
+        _settingSubscription?.Dispose();
+        _settingSubscription = null;
         return Task.CompletedTask;
     }
 
@@ -49,6 +61,10 @@ public sealed class WorkflowEngineDispatcher(
         {
             // Shutdown cancellation must not escape into the bus dispatch loop.
         }
+        catch (DependencyMissingException ex)
+        {
+            logger.LogWarning("Workflow engine blocked due to disabled dependency: {Message}", ex.Message);
+        }
         catch (Exception ex)
         {
             logger.LogError(
@@ -56,6 +72,48 @@ public sealed class WorkflowEngineDispatcher(
                 "WorkflowEngine failed to process event {EventId} of type {EventTypeKey}.",
                 streamEvent.EventId,
                 streamEvent.EventTypeKey);
+        }
+    }
+
+    private async void ApplySettingChangeAsync(SettingChangedEvent changedEvent)
+    {
+        if (!string.Equals(changedEvent.Key, SystemSettingKey.ModuleEnabled("workflow"), StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        await _lock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var enabled = await moduleStateService.IsEnabledAsync("workflow").ConfigureAwait(false);
+            if (enabled)
+            {
+                _subscription ??= eventBus.Subscribe<IStreamEvent>(DispatchAsync);
+                return;
+            }
+
+            _subscription?.Dispose();
+            _subscription = null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to apply setting change in WorkflowEngineDispatcher.");
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    private sealed class SettingObserver(WorkflowEngineDispatcher dispatcher) : IObserver<SettingChangedEvent>
+    {
+        public void OnCompleted() { }
+
+        public void OnError(Exception error) { }
+
+        public void OnNext(SettingChangedEvent value)
+        {
+            dispatcher.ApplySettingChangeAsync(value);
         }
     }
 }

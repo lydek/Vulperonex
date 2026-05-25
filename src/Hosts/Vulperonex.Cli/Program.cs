@@ -68,7 +68,8 @@ public static class VulperonexCli
             throw new CliApiUrlNotLoopbackException();
         }
 
-        return new HttpClient { BaseAddress = uri };
+        var handler = new AdminGuardHttpClientHandler(new HttpClientHandler(), uri);
+        return new HttpClient(handler) { BaseAddress = uri };
     }
 
     private static bool IsAllowedLoopbackBaseUrl(Uri uri)
@@ -79,4 +80,81 @@ public static class VulperonexCli
     }
 
     private sealed class CliApiUrlNotLoopbackException : Exception;
+
+    private sealed class AdminGuardHttpClientHandler : DelegatingHandler
+    {
+        private string? _token;
+        private readonly Uri _baseAddress;
+
+        public AdminGuardHttpClientHandler(HttpMessageHandler innerHandler, Uri baseAddress) 
+            : base(innerHandler)
+        {
+            _baseAddress = baseAddress;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var path = request.RequestUri?.OriginalString;
+            if (path == null && request.RequestUri != null)
+            {
+                path = request.RequestUri.ToString();
+            }
+
+            if (path != null && (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) || path.Contains("/api/")))
+            {
+                var address = _baseAddress.ToString().TrimEnd('/');
+                if (!request.Headers.Contains("Origin"))
+                {
+                    request.Headers.Add("Origin", address);
+                }
+                if (!request.Headers.Contains("Referer"))
+                {
+                    request.Headers.Add("Referer", address);
+                }
+
+                var method = request.Method;
+                bool isGetCsrfToken = path.EndsWith("/api/overlay/csrf-token", StringComparison.OrdinalIgnoreCase)
+                    || path.Contains("/api/overlay/csrf-token");
+                
+                bool shouldProtect = !isGetCsrfToken && 
+                    ((path.Contains("/api/overlay/") || path.StartsWith("/api/overlay/", StringComparison.OrdinalIgnoreCase))
+                    || (path.Contains("/api/") && method != HttpMethod.Get));
+
+                if (shouldProtect && !request.Headers.Contains("X-Admin-Csrf"))
+                {
+                    if (_token == null)
+                    {
+                        using var tokenClient = new HttpClient { BaseAddress = _baseAddress };
+                        tokenClient.DefaultRequestHeaders.Add("Origin", address);
+                        tokenClient.DefaultRequestHeaders.Add("Referer", address);
+
+                        try
+                        {
+                            var tokenResponse = await tokenClient.GetAsync("/api/overlay/csrf-token", cancellationToken).ConfigureAwait(false);
+                            if (tokenResponse.IsSuccessStatusCode)
+                            {
+                                var json = await tokenResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                                using var doc = JsonDocument.Parse(json);
+                                if (doc.RootElement.TryGetProperty("token", out var tokenProp))
+                                {
+                                    _token = tokenProp.GetString();
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore token fetch exception and let the middleware deny it with 400
+                        }
+                    }
+
+                    if (_token != null)
+                    {
+                        request.Headers.Add("X-Admin-Csrf", _token);
+                    }
+                }
+            }
+
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+    }
 }

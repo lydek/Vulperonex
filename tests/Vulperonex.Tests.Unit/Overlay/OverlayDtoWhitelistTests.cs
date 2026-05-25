@@ -34,9 +34,9 @@ public sealed class OverlayDtoWhitelistTests
     [Fact]
     public void Given_OverlayMemberPayload_When_Serialized_Then_JsonKeySetIsExact()
     {
-        var payload = new OverlayMemberPayload(1, "Alice", "avatar", 3);
+        var payload = new OverlayMemberPayload(1, "Alice", "avatar", 3, 1, 3);
 
-        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "displayName", "avatarUrl", "checkInCount");
+        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "displayName", "avatarUrl", "checkInCount", "roundIndex", "stampSlotInRound");
     }
 
     [Fact]

@@ -40,6 +40,7 @@ public sealed class VulperonexDbContextTests
             nameof(TransientDeliveryQueueEntity),
             nameof(ActionExecutionLogEntity),
             nameof(CounterEntity),
-            nameof(WorkflowTimerEntity));
+            nameof(WorkflowTimerEntity),
+            nameof(MemberAuditLogEntity));
     }
 }

@@ -26,10 +26,11 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        // 1. NamedMutex ?桀祕靘皜?        _mutex = new Mutex(true, "Global\\Vulperonex.Desktop.Mutex", out var createdNew);
+        // 1. NamedMutex 偵測重複啟動
+        _mutex = new Mutex(true, "Global\\Vulperonex.Desktop.Mutex", out var createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("Vulperonex 撌脣?瑁?銝准?, "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Vulperonex 已在運行中。", "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _mutex.Dispose();
             return;
         }
@@ -48,12 +49,12 @@ internal static class Program
     private static void RunDesktop(string[] args)
     {
 
-        // 2. WebView2 蝻箏仃?菜葫
+        // 2. WebView2 執行階段偵測
         if (!CheckWebView2Installed())
         {
             var result = MessageBox.Show(
-                "?芸皜砍蝟餌絞摰? Microsoft Edge WebView2 Runtime?n暺??Ⅱ摰???摰雯?脰?銝?摰??n銝????嚗ttps://go.microsoft.com/fwlink/p/?LinkId=2124703",
-                "WebView2 蝻箏仃",
+                "系統未偵測到 Microsoft Edge WebView2 Runtime。\n按「確定」將開啟網頁進行下載與安裝，安裝後請重試。\n下載網址：https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+                "缺少 WebView2 執行階段",
                 MessageBoxButtons.OKCancel,
                 MessageBoxIcon.Error);
             if (result == DialogResult.OK)
@@ -69,17 +70,18 @@ internal static class Program
         var ports = allocator.TryAllocate();
         if (ports == null)
         {
-            MessageBox.Show("?⊥??????????????航撌脰◤雿??, "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("無法配置連接埠，所有可用連接埠可能已被其他程序占用。", "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         // 4. Initialize Photino Window
         var window = new PhotinoWindow()
-            .SetTitle("Vulperonex ?批??)
+            .SetTitle("Vulperonex 桌面主機")
             .SetSize(1200, 800)
             .Center();
 
-        // 5. Setup IPC Bridge DTO ?詨捆??        window.RegisterWebMessageReceivedHandler((_, message) =>
+        // 5. Setup IPC Bridge DTO
+        window.RegisterWebMessageReceivedHandler((_, message) =>
         {
             try
             {
@@ -141,8 +143,8 @@ internal static class Program
                     if (!_cts.Token.IsCancellationRequested && _crashCount == 1)
                     {
                         var result = MessageBox.Show(
-                            $"???????澈?瑞宏憭望?嚗n?航炊??嚗ex.Message}\n暺??Ⅱ摰????亥?鞈?憭暸脰????,
-                            "??憭望?",
+                            $"服務啟動失敗，請重試。\n詳細錯誤：\n{ex.Message}\n按「確定」開啟日誌資料夾，或按「取消」關閉。",
+                            "服務啟動失敗",
                             MessageBoxButtons.OKCancel,
                             MessageBoxIcon.Error);
                         if (result == DialogResult.OK)
@@ -210,7 +212,7 @@ internal static class Program
         <html lang="zh-TW">
         <head>
             <meta charset="utf-8" />
-            <title>Vulperonex ???啣虜</title>
+            <title>Vulperonex 啟動失敗</title>
             <style>
                 body {
                     font-family: 'Segoe UI', Microsoft JhengHei, sans-serif;
@@ -242,8 +244,8 @@ internal static class Program
         </head>
         <body>
             <div class="error-container">
-                <h1>?? 憭活???憭望?</h1>
-                <p>??憭活??憭望?嚗?????? Vulperonex ????/p>
+                <h1>抱歉，多次嘗試啟動失敗</h1>
+                <p>程式多次啟動失敗，請重新安裝並重試。</p>
             </div>
         </body>
         </html>

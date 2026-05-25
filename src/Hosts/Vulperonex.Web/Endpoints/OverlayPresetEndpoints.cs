@@ -15,11 +15,6 @@ public static class OverlayPresetEndpoints
             OverlayPresetStore store,
             CancellationToken cancellationToken) =>
         {
-            if (!IsLoopbackRequest(context.Connection.RemoteIpAddress))
-            {
-                return Results.StatusCode(StatusCodes.Status403Forbidden);
-            }
-
             if (!context.Request.HasFormContentType)
             {
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
@@ -52,25 +47,202 @@ public static class OverlayPresetEndpoints
             {
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Another operation is already in progress"))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PresetLocked, StatusCodes.Status409Conflict);
+            }
         })
         .DisableAntiforgery();
 
-        endpoints.MapGet("/api/overlay/custom-presets", (OverlayPresetStore store) =>
-            Results.Ok(store.ListCustom()));
+        endpoints.MapGet("/api/overlay/custom-presets", (HttpContext context, OverlayPresetStore store) =>
+        {
+            return Results.Ok(store.ListCustom());
+        });
 
-        endpoints.MapDelete("/api/overlay/custom-presets/{slug}", (string slug, OverlayPresetStore store) =>
+        endpoints.MapDelete("/api/overlay/custom-presets/{slug}", async (
+            HttpContext context,
+            string slug,
+            OverlayPresetStore store,
+            CancellationToken cancellationToken) =>
         {
             if (!store.IsValidSlug(slug))
             {
                 return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
             }
 
-            store.Delete(slug);
-            return Results.NoContent();
+            try
+            {
+                var deleted = await store.DeleteAsync(slug, cancellationToken);
+                if (!deleted)
+                {
+                    return ApiErrors.ToResult(ErrorCodes.PresetNotFound, StatusCodes.Status404NotFound);
+                }
+                return Results.NoContent();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Another operation is already in progress"))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PresetLocked, StatusCodes.Status409Conflict);
+            }
         });
 
-        endpoints.MapGet("/api/overlay/presets", (OverlayPresetStore store) =>
-            Results.Ok(store.ListAll()));
+        endpoints.MapGet("/api/overlay/presets", (HttpContext context, OverlayPresetStore store) =>
+        {
+            return Results.Ok(store.ListAll());
+        });
+
+        endpoints.MapGet("/api/overlay/custom-presets/{slug}/files", async (
+            HttpContext context,
+            string slug,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            return Results.Ok(await store.ListDraftFilesAsync(slug));
+        });
+
+        endpoints.MapGet("/api/overlay/custom-presets/{slug}/files/{*path}", async (
+            HttpContext context,
+            string slug,
+            string path,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            try
+            {
+                var content = await store.ReadDraftFileAsync(slug, path);
+                return Results.Text(content, "text/plain; charset=utf-8");
+            }
+            catch (FileNotFoundException)
+            {
+                return Results.NotFound();
+            }
+            catch (InvalidOperationException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidFilePath, StatusCodes.Status400BadRequest);
+            }
+        });
+
+        endpoints.MapPut("/api/overlay/custom-presets/{slug}/files/{*path}", async (
+            HttpContext context,
+            string slug,
+            string path,
+            WriteFileRequest request,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+
+            // Extension validation
+            var extension = Path.GetExtension(path).ToLowerInvariant();
+            string[] allowedExtensions = [".html", ".htm", ".css", ".js", ".json", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".woff2"];
+            if (!allowedExtensions.Contains(extension) || path.EndsWith("web.config", StringComparison.OrdinalIgnoreCase))
+            {
+                return ApiErrors.ToResult(ErrorCodes.UnsupportedFileExtension, StatusCodes.Status400BadRequest);
+            }
+
+            try
+            {
+                await store.WriteDraftFileAsync(slug, path, request.Content ?? string.Empty);
+                return Results.NoContent();
+            }
+            catch (InvalidDataException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Another operation is already in progress"))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PresetLocked, StatusCodes.Status409Conflict);
+            }
+            catch (InvalidOperationException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidFilePath, StatusCodes.Status400BadRequest);
+            }
+        });
+
+        endpoints.MapDelete("/api/overlay/custom-presets/{slug}/files/{*path}", async (
+            HttpContext context,
+            string slug,
+            string path,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            try
+            {
+                await store.DeleteDraftFileAsync(slug, path);
+                return Results.NoContent();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Another operation is already in progress"))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PresetLocked, StatusCodes.Status409Conflict);
+            }
+            catch (InvalidOperationException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.InvalidFilePath, StatusCodes.Status400BadRequest);
+            }
+        });
+
+        endpoints.MapPost("/api/overlay/custom-presets/{slug}/deploy", async (
+            HttpContext context,
+            string slug,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            try
+            {
+                await store.DeployDraftAsync(slug);
+                return Results.NoContent();
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Another operation is already in progress"))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PresetLocked, StatusCodes.Status409Conflict);
+            }
+            catch (InvalidOperationException ex)
+            {
+                if (ex.Message.StartsWith("Draft validation failed", StringComparison.Ordinal))
+                {
+                    return ApiErrors.ToResult(ErrorCodes.DraftValidationFailed, StatusCodes.Status400BadRequest);
+                }
+                return ApiErrors.ToResult(ErrorCodes.DeployFailed, StatusCodes.Status400BadRequest);
+            }
+        });
+
+        endpoints.MapPost("/api/overlay/custom-presets/{slug}/validate", async (
+            HttpContext context,
+            string slug,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            return Results.Ok(await store.ValidateDraftAsync(slug));
+        });
+
+        endpoints.MapGet("/api/overlay/custom-presets/{slug}/history", async (
+            HttpContext context,
+            string slug,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            return Results.Ok(await store.ListHistoryVersionsAsync(slug));
+        });
+
+        endpoints.MapPost("/api/overlay/custom-presets/{slug}/rollback/{versionStamp}", async (
+            HttpContext context,
+            string slug,
+            string versionStamp,
+            OverlayPresetStore store) =>
+        {
+            if (!store.IsValidSlug(slug)) return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
+            try
+            {
+                await store.RollbackToVersionAsync(slug, versionStamp);
+                return Results.NoContent();
+            }
+            catch (FileNotFoundException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.VersionNotFound, StatusCodes.Status404NotFound);
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("Another operation is already in progress"))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PresetLocked, StatusCodes.Status409Conflict);
+            }
+        });
 
         endpoints.MapGet("/overlay/{hub}", async (
             string hub,
@@ -126,8 +298,5 @@ public static class OverlayPresetEndpoints
         return Results.File(indexFile.PhysicalPath, "text/html; charset=utf-8");
     }
 
-    private static bool IsLoopbackRequest(IPAddress? remoteIpAddress)
-    {
-        return remoteIpAddress is null || IPAddress.IsLoopback(remoteIpAddress);
-    }
+    private sealed record WriteFileRequest(string? Content);
 }

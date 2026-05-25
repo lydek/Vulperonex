@@ -32,6 +32,7 @@ public static partial class VulperonexWebApplication
         var builder = WebApplication.CreateBuilder(options);
 
         builder.Services.AddVulperonexWeb();
+        builder.Services.AddSingleton<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
         if (configureDefaultLoopbackPorts)
         {
             ConfigureDefaultLoopbackPorts(builder);
@@ -55,8 +56,46 @@ public static partial class VulperonexWebApplication
             app.UseDeveloperExceptionPage();
         }
 
+        app.UseMiddleware<Vulperonex.Web.Middleware.AdminGuardMiddleware>();
+
+        app.Use(async (context, next) =>
+        {
+            context.Response.OnStarting(() =>
+            {
+                if (context.Response.StatusCode != StatusCodes.Status302Found && 
+                    context.Response.StatusCode != StatusCodes.Status301MovedPermanently)
+                {
+                    var contentType = context.Response.ContentType;
+                    var isHtml = contentType != null && contentType.StartsWith("text/html", StringComparison.OrdinalIgnoreCase);
+
+                    var path = context.Request.Path.Value;
+                    var isOverlay = path != null && path.StartsWith("/overlay", StringComparison.OrdinalIgnoreCase);
+
+                    var isDevException = app.Environment.IsDevelopment() && context.Response.StatusCode >= 500;
+
+                    if ((isHtml || isOverlay) && !isDevException)
+                    {
+                        context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(isOverlay);
+                    }
+                }
+                return Task.CompletedTask;
+            });
+            await next();
+        });
+
         app.UseDefaultFiles();
         app.UseStaticFiles();
+
+        // 取得管理端點 CSRF Token (受 Loopback 與 Host 允許清單限制)
+        // 【安全架構決策設計與權衡】：
+        // 1. 每當 Kestrel 重啟，AdminCsrfTokenProvider 將會生成全新的隨機 session token，
+        //    這意味著所有打開的管理頁面 (Browser Tabs) 需重新整理刷新以取得新 Token。
+        // 2. 本端點不使用進一步的進程間認證，本機內的其他信任程序可直接拉取此 Token，
+        //    此為本機 Desktop loopback 應用程式已知的安全信任邊界妥協。
+        app.MapGet("/api/overlay/csrf-token", (Vulperonex.Web.Security.AdminCsrfTokenProvider tokenProvider) => 
+        {
+            return Results.Ok(new { token = tokenProvider.Token });
+        });
 
         app.MapOpenApi("/openapi/v1.json");
         app.MapHealthEndpoints();
@@ -65,6 +104,7 @@ public static partial class VulperonexWebApplication
         app.MapEventTypeEndpoints();
         app.MapConfigEndpoints();
         app.MapMemberEndpoints();
+        app.MapPluginModuleEndpoints();
         app.MapSimulateEndpoints();
         app.MapTwitchAuthEndpoints();
         app.MapOAuthCallbackEndpoints();
@@ -104,6 +144,13 @@ public static partial class VulperonexWebApplication
             || path.StartsWithSegments("/openapi")
             || path.StartsWithSegments("/auth")
             || path.Equals("/health");
+    }
+
+    private static string BuildContentSecurityPolicy(bool allowSameOriginFraming)
+    {
+        var frameAncestors = allowSameOriginFraming ? "'self'" : "'none'";
+
+        return $"default-src 'self'; connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:*; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors {frameAncestors}; object-src 'none'; base-uri 'self';";
     }
 
     private static string ResolveWebRootPath()

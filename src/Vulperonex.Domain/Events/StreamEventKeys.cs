@@ -11,4 +11,5 @@ public static class StreamEventKeys
     public const string RewardRedeemed = "reward.redeemed";
     public const string PlatformConnectionChanged = "platform.connection_changed";
     public const string WorkflowTimer = "workflow.timer";
+    public const string MemberCheckedIn = "system.member.checked_in";
 }

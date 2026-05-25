@@ -6,10 +6,12 @@ using Vulperonex.Adapters.Simulation;
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Application.Auth;
 using Vulperonex.Application.Counters;
+using Vulperonex.Application.Data;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.EventTypes;
 using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Members;
+using Vulperonex.Application.Modules;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Settings;
@@ -29,6 +31,7 @@ using Vulperonex.Infrastructure.Expressions;
 using Vulperonex.Infrastructure.Cache;
 using Vulperonex.Infrastructure.Logging;
 using Vulperonex.Infrastructure.Members;
+using Vulperonex.Infrastructure.Modules;
 using Vulperonex.Infrastructure.Overlay;
 using Vulperonex.Infrastructure.Settings;
 using Vulperonex.Infrastructure.Security;
@@ -111,6 +114,10 @@ public static class DependencyInjection
         services.AddScoped<IMemberAdminService, MemberAdminService>();
         services.AddScoped<IMemberResolver, MemberResolver>();
         services.AddScoped<IMemberStreamStateRepository, MemberStreamStateRepository>();
+        services.AddScoped<IMemberAuditLogRepository, MemberAuditLogRepository>();
+        services.AddScoped<ITransactionProvider, EfTransactionProvider>();
+        services.AddSingleton<IModuleStateService, ModuleStateService>();
+        services.AddScoped<IPlatformUserDisplayInfoProvider, PlatformUserDisplayInfoProvider>();
         services.AddScoped<Vulperonex.Adapters.Abstractions.IPlatformUserInfoCache>(serviceProvider =>
             new PlatformUserDisplayCache(serviceProvider.GetRequiredService<VulperonexDbContext>()));
         services.AddScoped<ICounterRepository, CounterRepository>();
@@ -164,6 +171,7 @@ public static class DependencyInjection
         services.AddSingleton<AppLogsSink>(provider =>
             new AppLogsSink(provider.GetRequiredService<IServiceScopeFactory>()));
         services.AddHostedService<AppLogsCleanupWorker>();
+        services.AddHostedService<MemberAuditLogsPruningWorker>();
         services.AddSingleton<SqliteBusyTimeoutInterceptor>(_ => new SqliteBusyTimeoutInterceptor(5000));
         services.AddDbContext<VulperonexDbContext>((serviceProvider, options) =>
         {

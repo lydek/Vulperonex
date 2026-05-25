@@ -24,4 +24,22 @@ public static class ErrorCodes
     public const string TwitchClientSecretMissing = "TWITCH_CLIENT_SECRET_MISSING";
     public const string TwitchOAuthStateInvalid = "TWITCH_OAUTH_STATE_INVALID";
     public const string TwitchOAuthExchangeFailed = "TWITCH_OAUTH_EXCHANGE_FAILED";
+    public const string PreconditionRequired = "PRECONDITION_REQUIRED";
+    public const string InvalidPrecondition = "INVALID_PRECONDITION";
+    public const string MemberConcurrencyConflict = "MEMBER_CONCURRENCY_CONFLICT";
+    public const string ModuleDisabled = "MODULE_DISABLED";
+    public const string PresetLocked = "PRESET_LOCKED";
+    public const string PresetNotFound = "PRESET_NOT_FOUND";
+    public const string DraftValidationFailed = "DRAFT_VALIDATION_FAILED";
+    public const string VersionNotFound = "VERSION_NOT_FOUND";
+    public const string InvalidModuleName = "INVALID_MODULE_NAME";
+    public const string MissingOrInvalidCsrfHeader = "MISSING_OR_INVALID_CSRF_HEADER";
+    public const string MissingOriginOrRefererHeader = "MISSING_ORIGIN_OR_REFERER_HEADER";
+    public const string OriginMismatch = "ORIGIN_MISMATCH";
+    public const string InvalidOriginHeader = "INVALID_ORIGIN_HEADER";
+    public const string RefererMismatch = "REFERER_MISMATCH";
+    public const string InvalidRefererHeader = "INVALID_REFERER_HEADER";
+    public const string InvalidFilePath = "INVALID_FILE_PATH";
+    public const string UnsupportedFileExtension = "UNSUPPORTED_FILE_EXTENSION";
+    public const string DeployFailed = "DEPLOY_FAILED";
 }

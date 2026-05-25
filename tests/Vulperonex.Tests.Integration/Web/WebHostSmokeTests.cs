@@ -142,6 +142,30 @@ public sealed class WebHostSmokeTests
             .NotContain("phase6-spa");
     }
 
+    [Fact]
+    public async Task Given_WebHostWithStaticIndex_When_OverlayRouteIsCalled_Then_CspAllowsSameOriginFraming()
+    {
+        using var contentRoot = TestContentRoot.Create();
+        await contentRoot.WriteWebRootFileAsync(
+            "index.html",
+            "<!doctype html><html><body><div id=\"app\">phase7d-monitor</div></body></html>");
+        await using var app = await StartAppAsync(contentRoot.Path);
+
+        using var client = CreateClient(app);
+        var overlayResponse = await client.GetAsync("/overlay/chat", TestContext.Current.CancellationToken);
+        var rootResponse = await client.GetAsync("/", TestContext.Current.CancellationToken);
+
+        overlayResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        overlayResponse.Headers.TryGetValues("Content-Security-Policy", out var overlayCspValues).Should().BeTrue();
+        overlayCspValues.Should().ContainSingle()
+            .Which.Should().Contain("frame-ancestors 'self'");
+
+        rootResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        rootResponse.Headers.TryGetValues("Content-Security-Policy", out var rootCspValues).Should().BeTrue();
+        rootCspValues.Should().ContainSingle()
+            .Which.Should().Contain("frame-ancestors 'none'");
+    }
+
     private static async Task<WebApplication> StartAppAsync(string? contentRootPath = null)
     {
         var builder = CreateTestBuilder(contentRootPath);
@@ -166,6 +190,11 @@ public sealed class WebHostSmokeTests
                 ContentRootPath = contentRootPath,
             },
             configureDefaultLoopbackPorts: false);
+
+        var securityRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        builder.Configuration["Security:RootPath"] = securityRoot;
+        builder.Configuration["Security:CsrfTokenPath"] = Path.Combine(securityRoot, ".admin-csrf-token");
+
         builder.Logging.ClearProviders();
         return builder;
     }
@@ -181,10 +210,16 @@ public sealed class WebHostSmokeTests
         var address = addresses?.Single()
             ?? throw new InvalidOperationException("Web host did not expose a server address.");
 
-        return new HttpClient
+        var tokenProvider = app.Services.GetRequiredService<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
+
+        var client = new HttpClient
         {
             BaseAddress = new Uri(address),
         };
+        client.DefaultRequestHeaders.Add("X-Admin-Csrf", tokenProvider.Token);
+        client.DefaultRequestHeaders.Add("Origin", address);
+        client.DefaultRequestHeaders.Add("Referer", address);
+        return client;
     }
 
     private static int GetAvailablePort()

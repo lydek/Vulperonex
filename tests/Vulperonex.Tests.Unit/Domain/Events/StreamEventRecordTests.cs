@@ -23,6 +23,7 @@ public sealed partial class StreamEventRecordTests
             new ChannelRaidedEvent { Platform = "twitch", User = user },
             new RewardRedeemedEvent { Platform = "twitch", User = user },
             new PlatformConnectionChangedEvent { Platform = "twitch", IsConnected = true },
+            new MemberCheckedInEvent { Platform = "twitch", User = user },
         ];
 
         events.Select(streamEvent => streamEvent.EventTypeKey)
@@ -35,7 +36,8 @@ public sealed partial class StreamEventRecordTests
                 StreamEventKeys.UserGiftedSubscription,
                 StreamEventKeys.ChannelRaided,
                 StreamEventKeys.RewardRedeemed,
-                StreamEventKeys.PlatformConnectionChanged);
+                StreamEventKeys.PlatformConnectionChanged,
+                StreamEventKeys.MemberCheckedIn);
     }
 
     [Fact]
@@ -53,6 +55,7 @@ public sealed partial class StreamEventRecordTests
             new ChannelRaidedEvent { Platform = "twitch", User = user },
             new RewardRedeemedEvent { Platform = "twitch", User = user },
             new PlatformConnectionChangedEvent { Platform = "twitch", IsConnected = false },
+            new MemberCheckedInEvent { Platform = "twitch", User = user },
         ];
 
         events.Should().OnlyContain(streamEvent => UlidPattern().IsMatch(streamEvent.EventId));
@@ -70,6 +73,28 @@ public sealed partial class StreamEventRecordTests
 
         streamEvent.User.Should().BeNull();
         streamEvent.Reason.Should().Be("reconnecting");
+    }
+
+    [Fact]
+    public void Given_MemberCheckedInEvent_When_Constructed_Then_PropertiesAreCorrect()
+    {
+        var user = new StreamUser("twitch", "12345", "alice");
+        var streamEvent = new MemberCheckedInEvent
+        {
+            Platform = "twitch",
+            User = user,
+            AvatarUrl = "http://avatar",
+            CheckInCount = 5,
+            TotalLoyalty = 100,
+            RoundIndex = 1,
+            StampSlotInRound = 5,
+        };
+
+        streamEvent.AvatarUrl.Should().Be("http://avatar");
+        streamEvent.CheckInCount.Should().Be(5);
+        streamEvent.TotalLoyalty.Should().Be(100);
+        streamEvent.RoundIndex.Should().Be(1);
+        streamEvent.StampSlotInRound.Should().Be(5);
     }
 
     [GeneratedRegex("^[0-9A-HJKMNP-TV-Z]{26}$")]

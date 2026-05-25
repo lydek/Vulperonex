@@ -17,6 +17,7 @@ public sealed class SimulationAdapter(
         new(StreamEventKeys.UserGiftedSubscription, "Simulated gifted subscription"),
         new(StreamEventKeys.ChannelRaided, "Simulated raid"),
         new(StreamEventKeys.RewardRedeemed, "Simulated reward redemption"),
+        new(StreamEventKeys.MemberCheckedIn, "Simulated member check-in", IsSystemEvent: true),
     ];
 
     public Task StartAsync(CancellationToken cancellationToken = default)

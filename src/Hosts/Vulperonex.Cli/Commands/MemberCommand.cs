@@ -85,8 +85,29 @@ internal sealed class MemberCommand : CompositeConsoleCommand
             return 1;
         }
 
+        var tokenResponse = await context.Client.PostAsync($"/api/members/{Uri.EscapeDataString(resolved.Member.MemberId)}/delete-token", null, ct);
+        if (!tokenResponse.IsSuccessStatusCode)
+        {
+            return await context.WriteResponseAsync(tokenResponse);
+        }
+
+        var json = await tokenResponse.Content.ReadAsStringAsync(ct);
+        using var doc = System.Text.Json.JsonDocument.Parse(json);
+        if (!doc.RootElement.TryGetProperty("token", out var tokenProp))
+        {
+            return await context.WriteResponseAsync(tokenResponse);
+        }
+        var token = tokenProp.GetString();
+
+        var deleteResponse = await context.Client.SendAsync(new HttpRequestMessage
+        {
+            Method = HttpMethod.Delete,
+            RequestUri = new Uri($"/api/members/{Uri.EscapeDataString(resolved.Member.MemberId)}", UriKind.Relative),
+            Content = JsonContent.Create(new { token, reason = "CLI delete request" })
+        }, ct);
+
         return await context.WriteResponseAsync(
-            await context.Client.DeleteAsync($"/api/members/{Uri.EscapeDataString(resolved.Member.MemberId)}", ct),
+            deleteResponse,
             $"OK member deleted: {resolved.Member.MemberId}");
     }
 

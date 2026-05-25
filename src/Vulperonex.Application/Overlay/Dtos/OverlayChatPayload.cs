@@ -8,6 +8,7 @@ public sealed record OverlayChatPayload(
     string? ColorHex,
     IReadOnlyCollection<OverlayTextSegment> Segments,
     IReadOnlyCollection<string> Badges,
+    IReadOnlyCollection<string>? Roles = null,
     OverlayMemberSnapshot? MemberSnapshot = null);
 
 public sealed record OverlayMemberSnapshot(

@@ -7,6 +7,7 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
         AddSubCommand(new ChatCommand());
         AddSubCommand(new EventCommand("follow", "command.simulate.follow.description", "command.simulate.follow.usage"));
         AddSubCommand(new EventCommand("sub", "command.simulate.sub.description", "command.simulate.sub.usage"));
+        AddSubCommand(new CheckInCommand());
     }
 
     public override string Name => "simulate";
@@ -113,6 +114,107 @@ internal sealed class SimulateCommand : CompositeConsoleCommand
         }
 
         public IReadOnlyList<string> GetSuggestions(string[] args) => SimulateOptions.GetSuggestions(args, AllowedFlags);
+    }
+
+    private sealed class CheckInCommand : IConsoleCommand
+    {
+        private static readonly IReadOnlySet<string> AllowedFlags = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "--user-id",
+            "--display-name",
+            "--stamp-count",
+            "--skip-cooldown"
+        };
+
+        public string Name => "checkin";
+
+        public IReadOnlyList<string> Aliases => [];
+
+        public string Category => "category.stream";
+
+        public string Description => CliText.Get("command.simulate.checkin.description") ?? "Simulate member check-in";
+
+        public string Usage => CliText.Get("command.simulate.checkin.usage") ?? "simulate checkin [--user-id <id>] [--display-name <name>] [--stamp-count <count>] [--skip-cooldown]";
+
+        public async Task<int> ExecuteAsync(
+            string triggerName,
+            string[] args,
+            CliExecutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            string? userId = null;
+            string? displayName = null;
+            var stampCount = 1;
+            var skipCooldown = false;
+
+            for (var index = 0; index < args.Length; index++)
+            {
+                var arg = args[index];
+                if (arg.StartsWith("--", StringComparison.Ordinal))
+                {
+                    if (!AllowedFlags.Contains(arg))
+                    {
+                        return await context.FailAsync("INVALID_ARGS");
+                    }
+
+                    if (arg == "--skip-cooldown")
+                    {
+                        skipCooldown = true;
+                        continue;
+                    }
+
+                    if (index + 1 >= args.Length)
+                    {
+                        return await context.FailAsync("INVALID_ARGS");
+                    }
+
+                    var value = args[++index];
+                    switch (arg)
+                    {
+                        case "--user-id":
+                            userId = value;
+                            break;
+                        case "--display-name":
+                            displayName = value;
+                            break;
+                        case "--stamp-count":
+                            var parsedCount = -1;
+                            if (int.TryParse(value, out var parsed))
+                            {
+                                parsedCount = parsed;
+                            }
+                            if (parsedCount <= 0)
+                            {
+                                return await context.FailAsync("INVALID_STAMP_COUNT");
+                            }
+                            stampCount = parsedCount;
+                            break;
+                    }
+                }
+            }
+
+            var response = await context.Client.PostAsJsonAsync(
+                "/api/simulate/checkin",
+                new
+                {
+                    platformUserId = userId,
+                    displayName = displayName,
+                    skipCooldown = skipCooldown,
+                    stampCount = stampCount,
+                },
+                cancellationToken);
+
+            return await context.WriteResponseAsync(response, "OK simulated checkin");
+        }
+
+        public IReadOnlyList<string> GetSuggestions(string[] args)
+        {
+            var prefix = args.Length == 0 ? string.Empty : args[^1];
+            return AllowedFlags
+                .Where(name => name.StartsWith(prefix, StringComparison.Ordinal))
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+        }
     }
 
     private sealed record SimulateOptions(string? PlatformUserId, string? DisplayName, string? Tier, string Message)

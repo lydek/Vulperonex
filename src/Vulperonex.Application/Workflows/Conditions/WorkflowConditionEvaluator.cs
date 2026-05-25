@@ -70,6 +70,12 @@ public sealed class WorkflowConditionEvaluator(IClock clock)
 
     private bool MatchesCooldown(CooldownCondition condition, ConditionEvaluationContext context)
     {
+        if (context.StreamEvent is Vulperonex.Domain.Events.ICooldownSkippable { SkipCooldown: true } &&
+            context.StreamEvent.Platform == "simulation")
+        {
+            return true;
+        }
+
         var key = BuildCooldownKey(condition, context);
         var now = clock.UtcNow;
 

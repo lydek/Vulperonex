@@ -7,15 +7,13 @@ using Vulperonex.Infrastructure.Data;
 
 #nullable disable
 
-namespace Vulperonex.Infrastructure.Migrations;
-
-[DbContext(typeof(VulperonexDbContext))]
-partial class VulperonexDbContextModelSnapshot : ModelSnapshot
+namespace Vulperonex.Infrastructure.Migrations
 {
-    protected override void BuildModel(ModelBuilder modelBuilder) => BuildCurrentModel(modelBuilder);
-
-    internal static void BuildCurrentModel(ModelBuilder modelBuilder)
+    [DbContext(typeof(VulperonexDbContext))]
+    partial class VulperonexDbContextModelSnapshot : ModelSnapshot
     {
+        protected override void BuildModel(ModelBuilder modelBuilder)
+        {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.7");
 
@@ -100,6 +98,50 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
                     b.ToTable("Counters", (string)null);
                 });
 
+            modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.MemberAuditLogEntity", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ActorKind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AfterJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BeforeJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MemberId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Operation")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubjectKind")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MemberId", "SubjectKind", "OccurredAt");
+
+                    b.ToTable("MemberAuditLogs", (string)null);
+                });
+
             modelBuilder.Entity("Vulperonex.Infrastructure.Data.Entities.MemberEntity", b =>
                 {
                     b.Property<string>("MemberId")
@@ -108,8 +150,19 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
                     b.Property<int>("CheckInCount")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTimeOffset?>("DeleteTokenExpiry")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DeleteTokenHash")
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("TotalLoyalty")
                         .HasColumnType("INTEGER");
+
+                    b.Property<long>("UpdatedAtTicks")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0L);
 
                     b.HasKey("MemberId");
 
@@ -342,5 +395,6 @@ partial class VulperonexDbContextModelSnapshot : ModelSnapshot
                         .IsRequired();
                 });
 #pragma warning restore 612, 618
+        }
     }
 }

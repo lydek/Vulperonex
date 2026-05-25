@@ -66,7 +66,8 @@ public sealed class MemberQueryService(VulperonexDbContext context) : IMemberQue
                 return new MemberReadModel(
                     member.MemberId,
                     memberIdentities ?? [],
-                    new LoyaltyReadModel(member.TotalLoyalty, member.CheckInCount));
+                    new LoyaltyReadModel(member.TotalLoyalty, member.CheckInCount),
+                    member.UpdatedAtTicks);
             })
             .ToArray();
     }
@@ -93,7 +94,8 @@ public sealed class MemberQueryService(VulperonexDbContext context) : IMemberQue
         return new MemberReadModel(
             member.MemberId,
             identities,
-            new LoyaltyReadModel(member.TotalLoyalty, member.CheckInCount));
+            new LoyaltyReadModel(member.TotalLoyalty, member.CheckInCount),
+            member.UpdatedAtTicks);
     }
 
     public async Task<MemberReadModel?> FindByIdentityAsync(

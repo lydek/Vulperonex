@@ -5,7 +5,8 @@ using Vulperonex.Infrastructure.Data;
 
 namespace Vulperonex.Infrastructure.Members;
 
-public sealed class MemberStreamStateRepository(VulperonexDbContext context) : IMemberStreamStateRepository
+public sealed class MemberStreamStateRepository(
+    VulperonexDbContext context) : IMemberStreamStateRepository
 {
     public Task MarkFollowerAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
     {
@@ -39,6 +40,9 @@ public sealed class MemberStreamStateRepository(VulperonexDbContext context) : I
             .SingleAsync(candidate => candidate.MemberId == platformIdentity.MemberId, cancellationToken);
 
         member.CheckInCount++;
+        member.TotalLoyalty++;
+        member.UpdatedAtTicks = DateTimeOffset.UtcNow.Ticks;
+
         await context.SaveChangesAsync(cancellationToken);
         return member.CheckInCount;
     }

@@ -1,6 +1,15 @@
+using System.Net;
 using System.Text.Json;
+using Microsoft.AspNetCore.Http;
+using Vulperonex.Adapters.Abstractions;
 using Vulperonex.Adapters.Simulation;
+using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Members;
+using Vulperonex.Application.Modules;
+using Vulperonex.Application.Settings;
 using Vulperonex.Domain;
+using Vulperonex.Domain.Events;
+using Vulperonex.Domain.Members;
 using Vulperonex.Web.Errors;
 using Vulperonex.Web.Simulation;
 
@@ -10,7 +19,88 @@ public static class SimulateEndpoints
 {
     public static IEndpointRouteBuilder MapSimulateEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapPost("/api/simulate/checkin", async (
+            HttpContext context,
+            SimulateCheckInRequest request,
+            IMemberResolver memberResolver,
+            IMemberStreamStateRepository streamStateRepository,
+            IMemberQueryService memberQueryService,
+            IStreamEventBus eventBus,
+            ISystemSettingsService systemSettingsService,
+            IPlatformUserInfoCache userInfoCache,
+            IModuleStateService modules,
+            CancellationToken cancellationToken) =>
+        {
+            if (!await modules.IsEnabledAsync("checkin", cancellationToken).ConfigureAwait(false))
+            {
+                return ApiErrors.ToResult(ErrorCodes.ModuleDisabled, StatusCodes.Status503ServiceUnavailable);
+            }
+
+            var skipCooldown = request.SkipCooldown ?? false;
+
+            var platform = "simulation";
+            var userId = request.PlatformUserId ?? "sim-user";
+            var displayName = request.DisplayName ?? "Sim User";
+            var stampCount = request.StampCount ?? 1;
+
+            var identity = PlatformIdentity.Create(platform, userId);
+            await memberResolver.ResolveMemberIdAsync(identity, cancellationToken);
+
+            var count = 0;
+            for (var i = 0; i < stampCount; i++)
+            {
+                count = await streamStateRepository.IncrementCheckInAsync(identity, cancellationToken);
+            }
+
+            var member = await memberQueryService.FindByIdentityAsync(identity, cancellationToken)
+                ?? throw new InvalidOperationException($"Member '{platform}:{userId}' was not found after simulated check-in.");
+
+            var stampsPerRound = await systemSettingsService.GetAsync<int>("overlay.member.stamps_per_round", 10, cancellationToken);
+            if (stampsPerRound <= 0) stampsPerRound = 10;
+
+            var roundIndex = (int)Math.Ceiling((double)count / stampsPerRound);
+            var stampSlotInRound = ((count - 1) % stampsPerRound) + 1;
+
+            var streamRole = StreamRole.None;
+            var displayInfo = await userInfoCache.GetAsync(platform, userId, cancellationToken);
+            string? avatarUrl = null;
+            if (displayInfo != null)
+            {
+                displayName = displayInfo.DisplayName ?? displayName;
+                avatarUrl = displayInfo.AvatarUrl;
+                if (displayInfo.IsSubscriber) streamRole |= StreamRole.Subscriber;
+            }
+
+            var streamUser = new StreamUser(platform, userId, displayName, streamRole);
+
+            var checkInEvent = new MemberCheckedInEvent
+            {
+                Platform = platform,
+                User = streamUser,
+                AvatarUrl = avatarUrl,
+                CheckInCount = count,
+                TotalLoyalty = member.Loyalty.TotalLoyalty,
+                RoundIndex = roundIndex,
+                StampSlotInRound = stampSlotInRound,
+                SkipCooldown = skipCooldown
+            };
+
+            await eventBus.PublishAsync(checkInEvent, cancellationToken);
+
+            return Results.Accepted(
+                $"/api/simulate/events/{checkInEvent.EventId}",
+                new SimulateResponse(
+                    true,
+                    checkInEvent.EventTypeKey,
+                    checkInEvent.EventId,
+                    checkInEvent.Platform,
+                    checkInEvent.User?.UserId,
+                    checkInEvent.User?.DisplayName,
+                    checkInEvent.OccurredAt));
+        });
+
         endpoints.MapPost("/api/simulate/{alias}", async (
+            HttpContext context,
             string alias,
             SimulateRequest request,
             SimulationAliasRegistry aliases,
@@ -44,6 +134,8 @@ public static class SimulateEndpoints
 
         return endpoints;
     }
+
+
 
     private static SimulationRequest? ToSimulationRequest(SimulationKind kind, SimulateRequest request)
     {
@@ -118,6 +210,12 @@ public static class SimulateEndpoints
         const int allKnownFlags = (int)(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Vip | StreamRole.Follower);
         return numericRoles >= 0 && (numericRoles & ~allKnownFlags) == 0;
     }
+
+    private sealed record SimulateCheckInRequest(
+        string? PlatformUserId,
+        string? DisplayName,
+        bool? SkipCooldown,
+        int? StampCount);
 
     private sealed record SimulateRequest(
         string? PlatformUserId,

@@ -3,6 +3,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Vulperonex.Application.Modules;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Timers;
 using Vulperonex.Domain.Events;
@@ -116,6 +117,7 @@ public sealed class WorkflowTimerHostedServiceIntegrationTests
 
         return new WorkflowTimerHostedService(
             provider.GetRequiredService<IServiceScopeFactory>(),
+            new AlwaysEnabledModuleStateService(),
             TimeProvider.System,
             NullLogger<WorkflowTimerHostedService>.Instance);
     }
@@ -137,4 +139,16 @@ public sealed class WorkflowTimerHostedServiceIntegrationTests
     }
 
     private sealed record Invocation(string RuleId, IStreamEvent StreamEvent, string InvocationId);
+
+    private sealed class AlwaysEnabledModuleStateService : IModuleStateService
+    {
+        public Task<IReadOnlyList<ModuleStateSnapshot>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ModuleStateSnapshot>>([]);
+
+        public Task<bool> IsEnabledAsync(string moduleName, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+
+        public Task<ModuleToggleResult> ToggleAsync(string moduleName, bool enabled, string actorKind, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
 }

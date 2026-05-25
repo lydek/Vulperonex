@@ -1,7 +1,9 @@
 using FluentAssertions;
 using Vulperonex.Application.Counters;
+using Vulperonex.Application.Data;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Members;
+using Vulperonex.Application.Modules;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
@@ -72,7 +74,14 @@ public sealed class ExecutorExpansionTests
     public async Task Given_TriggerCheckInAction_When_Executed_Then_OutputContainsCheckInCount()
     {
         var repository = new RecordingMemberStreamStateRepository();
-        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver());
+        var bus = new RecordingStreamEventBus();
+        var settings = new FakeSystemSettingsService();
+        var modules = new AlwaysEnabledModuleStateService();
+        var cache = new FakePlatformUserDisplayInfoProvider();
+        var queryService = new FakeMemberQueryService();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        var transactionProvider = new FakeTransactionProvider();
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, queryService, auditLogRepository, transactionProvider);
 
         var result = await executor.ExecuteAsync(
             new TriggerCheckInAction { UserId = "{Member.UserId}" },
@@ -84,13 +93,24 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["Platform"].Should().Be("twitch");
         result.OutputValues!["UserId"].Should().Be("alice");
         result.OutputValues!["CheckInCount"].Should().Be(1);
+
+        var checkInEvent = bus.Published.Should().ContainSingle().Subject.Should().BeOfType<MemberCheckedInEvent>().Subject;
+        checkInEvent.Platform.Should().Be("twitch");
+        checkInEvent.User.UserId.Should().Be("alice");
+        checkInEvent.CheckInCount.Should().Be(1);
+        checkInEvent.TotalLoyalty.Should().Be(7);
+        checkInEvent.RoundIndex.Should().Be(1);
+        checkInEvent.StampSlotInRound.Should().Be(1);
+        auditLogRepository.Logs.Should().ContainSingle();
+        auditLogRepository.Logs[0].ActorKind.Should().Be("workflow");
+        auditLogRepository.Logs[0].ActorId.Should().Be("rule-1");
     }
 
     [Fact]
     public async Task Given_AddLotteryTicketsAction_When_Executed_Then_CounterUsesLotteryTicketKey()
     {
         var repository = new RecordingCounterRepository();
-        var executor = new AddLotteryTicketsActionExecutor(repository, new TemplateResolver());
+        var executor = new AddLotteryTicketsActionExecutor(repository, new TemplateResolver(), new AlwaysEnabledModuleStateService());
 
         var result = await executor.ExecuteAsync(
             new AddLotteryTicketsAction
@@ -107,6 +127,48 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["UserId"].Should().Be("alice");
         result.OutputValues!["TicketsAdded"].Should().Be(5);
         result.OutputValues!["TicketCount"].Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Given_CheckInModuleDisabled_When_TriggerCheckInRuns_Then_DependencyMissingIsThrown()
+    {
+        var executor = new TriggerCheckInActionExecutor(
+            new RecordingMemberStreamStateRepository(),
+            new TemplateResolver(),
+            new RecordingStreamEventBus(),
+            new DisabledModuleStateService("checkin"),
+            new FakeSystemSettingsService(),
+            new FakePlatformUserDisplayInfoProvider(),
+            new FakeMemberQueryService(),
+            new RecordingMemberAuditLogRepository(),
+            new FakeTransactionProvider());
+
+        var act = () => executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<DependencyMissingException>();
+    }
+
+    [Fact]
+    public async Task Given_LotteryModuleDisabled_When_AddLotteryTicketsRuns_Then_DependencyMissingIsThrown()
+    {
+        var executor = new AddLotteryTicketsActionExecutor(
+            new RecordingCounterRepository(),
+            new TemplateResolver(),
+            new DisabledModuleStateService("lottery"));
+
+        var act = () => executor.ExecuteAsync(
+            new AddLotteryTicketsAction
+            {
+                UserId = "{Member.UserId}",
+                Amount = 5,
+            },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<DependencyMissingException>();
     }
 
     [Fact]
@@ -450,5 +512,105 @@ public sealed class ExecutorExpansionTests
     private sealed class FakeClock : IClock
     {
         public DateTimeOffset UtcNow { get; } = new(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
+    }
+
+    private sealed class FakeSystemSettingsService : Vulperonex.Application.Settings.ISystemSettingsService
+    {
+        public IObservable<Vulperonex.Application.Settings.SettingChangedEvent> Changes => 
+            new System.Reactive.Subjects.Subject<Vulperonex.Application.Settings.SettingChangedEvent>();
+
+        public Task<T> GetAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
+        {
+            if (key == "overlay.member.stamps_per_round" && typeof(T) == typeof(int))
+            {
+                return Task.FromResult((T)(object)10);
+            }
+            return Task.FromResult(defaultValue);
+        }
+
+        public Task SetAsync<T>(string key, T value, string category, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task DeleteAsync(string key, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    }
+
+    private sealed class FakePlatformUserDisplayInfoProvider : IPlatformUserDisplayInfoProvider
+    {
+        public Task<PlatformUserDisplayInfo?> GetAsync(
+            string platform, 
+            string platformUserId, 
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<PlatformUserDisplayInfo?>(null);
+        }
+    }
+
+    private sealed class FakeMemberQueryService : IMemberQueryService
+    {
+        public Task<IReadOnlyList<MemberReadModel>> ListAsync(string? platform = null, int limit = 50, int offset = 0, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<MemberReadModel>>([]);
+
+        public Task<MemberReadModel?> FindByMemberIdAsync(string memberId, CancellationToken cancellationToken = default)
+            => Task.FromResult<MemberReadModel?>(null);
+
+        public Task<MemberReadModel?> FindByIdentityAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<MemberReadModel?>(new MemberReadModel(
+                "member-1",
+                [new PlatformIdentityReadModel(identity.Platform, identity.PlatformUserId)],
+                new LoyaltyReadModel(7, 1),
+                123L));
+        }
+    }
+
+    private sealed class RecordingMemberAuditLogRepository : IMemberAuditLogRepository
+    {
+        public List<MemberAuditLog> Logs { get; } = [];
+
+        public Task AppendAsync(MemberAuditLog log, CancellationToken cancellationToken)
+        {
+            Logs.Add(log);
+            return Task.CompletedTask;
+        }
+
+        public Task<IReadOnlyList<MemberAuditLog>> QueryAsync(string memberId, int limit = 50, int offset = 0, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<MemberAuditLog>>([]);
+    }
+
+    private sealed class AlwaysEnabledModuleStateService : IModuleStateService
+    {
+        public Task<IReadOnlyList<ModuleStateSnapshot>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ModuleStateSnapshot>>([]);
+
+        public Task<bool> IsEnabledAsync(string moduleName, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+
+        public Task<ModuleToggleResult> ToggleAsync(string moduleName, bool enabled, string actorKind, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class DisabledModuleStateService(string disabledName) : IModuleStateService
+    {
+        public Task<IReadOnlyList<ModuleStateSnapshot>> ListAsync(CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<ModuleStateSnapshot>>([]);
+
+        public Task<bool> IsEnabledAsync(string moduleName, CancellationToken cancellationToken = default)
+            => Task.FromResult(!string.Equals(moduleName, disabledName, StringComparison.OrdinalIgnoreCase));
+
+        public Task<ModuleToggleResult> ToggleAsync(string moduleName, bool enabled, string actorKind, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    private sealed class FakeTransactionProvider : ITransactionProvider
+    {
+        public Task<ITransactionScope> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ITransactionScope>(new FakeTransactionScope());
+        }
+
+        private sealed class FakeTransactionScope : ITransactionScope
+        {
+            public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public Task RollbackAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 }
