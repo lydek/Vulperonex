@@ -145,7 +145,8 @@ describe("SimulateControlsPanel", () => {
         body: JSON.stringify({
           platformUserId: "sim-user",
           displayName: "Sim User",
-          stampCount: 3
+          stampCount: 3,
+          isTest: true
         })
       })
     );

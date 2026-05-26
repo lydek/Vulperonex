@@ -723,7 +723,7 @@ export async function postSimulate(
 }
 
 export async function postSimulateCheckIn(
-  body: { platformUserId?: string; displayName?: string; stampCount?: number; skipCooldown?: boolean },
+  body: { platformUserId?: string; displayName?: string; stampCount?: number; skipCooldown?: boolean; isTest?: boolean },
   signal?: AbortSignal
 ): Promise<SimulateAck> {
   const response = await fetchWithCsrf(`${apiBaseUrl}/api/simulate/checkin`, {

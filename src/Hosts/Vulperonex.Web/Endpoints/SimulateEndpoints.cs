@@ -37,6 +37,7 @@ public static class SimulateEndpoints
             }
 
             var skipCooldown = request.SkipCooldown ?? false;
+            var isTest = request.IsTest ?? false;
 
             var platform = "simulation";
             var userId = request.PlatformUserId ?? "sim-user";
@@ -44,16 +45,33 @@ public static class SimulateEndpoints
             var stampCount = request.StampCount ?? 1;
 
             var identity = PlatformIdentity.Create(platform, userId);
-            await memberResolver.ResolveMemberIdAsync(identity, cancellationToken);
 
-            var count = 0;
-            for (var i = 0; i < stampCount; i++)
+            int count;
+            int totalLoyalty;
+            if (isTest)
             {
-                count = await streamStateRepository.IncrementCheckInAsync(identity, cancellationToken);
+                // TEST MODE: skip ALL persistence (member resolve / increment / member fetch).
+                // Synthesise a count from any existing record (read-only) + requested stamps so
+                // overlay preview reacts visually, without writing to DB.
+                var existing = await memberQueryService.FindByIdentityAsync(identity, cancellationToken);
+                var baseCount = existing?.Loyalty.CheckInCount ?? 0;
+                count = baseCount + stampCount;
+                totalLoyalty = (int)(existing?.Loyalty.TotalLoyalty ?? 0L);
             }
+            else
+            {
+                await memberResolver.ResolveMemberIdAsync(identity, cancellationToken);
 
-            var member = await memberQueryService.FindByIdentityAsync(identity, cancellationToken)
-                ?? throw new InvalidOperationException($"Member '{platform}:{userId}' was not found after simulated check-in.");
+                count = 0;
+                for (var i = 0; i < stampCount; i++)
+                {
+                    count = await streamStateRepository.IncrementCheckInAsync(identity, cancellationToken);
+                }
+
+                var member = await memberQueryService.FindByIdentityAsync(identity, cancellationToken)
+                    ?? throw new InvalidOperationException($"Member '{platform}:{userId}' was not found after simulated check-in.");
+                totalLoyalty = (int)member.Loyalty.TotalLoyalty;
+            }
 
             var stampsPerRound = await systemSettingsService.GetAsync<int>("overlay.member.stamps_per_round", 10, cancellationToken);
             if (stampsPerRound <= 0) stampsPerRound = 10;
@@ -79,7 +97,7 @@ public static class SimulateEndpoints
                 User = streamUser,
                 AvatarUrl = avatarUrl,
                 CheckInCount = count,
-                TotalLoyalty = member.Loyalty.TotalLoyalty,
+                TotalLoyalty = totalLoyalty,
                 RoundIndex = roundIndex,
                 StampSlotInRound = stampSlotInRound,
                 SkipCooldown = skipCooldown
@@ -270,7 +288,8 @@ public static class SimulateEndpoints
         string? PlatformUserId,
         string? DisplayName,
         bool? SkipCooldown,
-        int? StampCount);
+        int? StampCount,
+        bool? IsTest);
 
     private sealed record SimulateRequest(
         string? PlatformUserId,

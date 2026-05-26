@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
+import { storeToRefs } from "pinia";
 import { useI18n } from "vue-i18n";
 import ProgressBar from "primevue/progressbar";
 import {
@@ -12,6 +13,9 @@ import {
   type SimulateRequestBody,
   type PlatformBadgeDescriptor
 } from "@/api/client";
+import { useEventStore } from "@/stores/eventStore";
+
+const PLATFORM_CONNECTION_CHANGED = "platform.connection_changed";
 
 interface Props {
   isEmbedded?: boolean;
@@ -27,9 +31,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Test mode — UI-only label for now. TODO: backend `isTest` flag pending.
-// When backend lands the flag, wire into postSimulate / postSimulateCheckIn
-// request body. Until then, this toggle is operator visual context only.
+// Test mode — wired into /api/simulate/checkin via `isTest` flag. Backend
+// skips DB writes (no IncrementCheckInAsync, no member resolve persist) but
+// still publishes MemberCheckedInEvent so overlay preview reacts. Chat alias
+// path is NOT yet test-mode aware (workflow rule writes data); test mode
+// applies cleanly only to the alias=checkin direct path.
 const isTestMode = ref(true);
 
 const alias = ref<SimulateAlias>("chat");
@@ -89,8 +95,9 @@ function isBadgeSelected(key: string): boolean {
   return selectedBadgeKeys.value.includes(key);
 }
 
-onMounted(async () => {
+async function loadBadges(): Promise<void> {
   try {
+    badgesError.value = null;
     const response = await getTwitchBadges();
     badgesReady.value = response?.ready ?? false;
     globalBadges.value = response?.global ?? [];
@@ -98,7 +105,26 @@ onMounted(async () => {
   } catch (caught) {
     badgesError.value = caught instanceof Error ? caught.message : String(caught);
   }
+}
+
+onMounted(() => {
+  void loadBadges();
 });
+
+const eventStore = useEventStore();
+const { events } = storeToRefs(eventStore);
+watch(
+  () => events.value[0]?.eventId,
+  () => {
+    const newest = events.value[0];
+    if (
+      newest?.type === PLATFORM_CONNECTION_CHANGED
+      && newest.platform === "twitch"
+    ) {
+      void loadBadges();
+    }
+  }
+);
 const showTierInput = computed(() => alias.value === "sub" || alias.value === "giftsub");
 const showRecipientInput = computed(() => alias.value === "giftsub");
 const showBitsInput = computed(() => alias.value === "bits");
@@ -127,7 +153,8 @@ async function onSubmit(event: Event): Promise<void> {
       result = await postSimulateCheckIn({
         platformUserId: platformUserId.value.trim() || undefined,
         displayName: displayName.value.trim() || undefined,
-        stampCount: stampCount.value
+        stampCount: stampCount.value,
+        isTest: isTestMode.value
       });
     } else {
       const body: SimulateRequestBody = {};
@@ -188,7 +215,8 @@ async function startBatchCheckin(): Promise<void> {
       const result = await postSimulateCheckIn({
         platformUserId: userId,
         displayName: name,
-        stampCount: 1
+        stampCount: 1,
+        isTest: isTestMode.value
       });
 
       batchProgress.value = Math.round(((index + 1) / total) * 100);
