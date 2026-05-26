@@ -15,6 +15,7 @@ public static class OAuthCallbackEndpoints
             ITwitchTokenEndpoint tokenEndpoint,
             IOAuthTokenStore tokenStore,
             PlatformConnectionNotifier notifier,
+            TwitchBadgeSyncCoordinator badgeSync,
             CancellationToken cancellationToken) =>
         {
             var error = context.Request.Query["error"].ToString();
@@ -59,6 +60,7 @@ public static class OAuthCallbackEndpoints
                 return Results.Redirect("/?oauth=exchange_failed");
             }
 
+            badgeSync.QueueSync();
             await notifier.NotifyAsync("twitch", connected: true, cancellationToken);
             return Results.Redirect("/?oauth=success");
         };

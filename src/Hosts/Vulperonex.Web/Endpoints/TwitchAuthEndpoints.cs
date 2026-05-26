@@ -75,6 +75,8 @@ public static class TwitchAuthEndpoints
             TwitchOAuthSessionStore sessions,
             ITwitchTokenEndpoint tokenEndpoint,
             IOAuthTokenStore tokenStore,
+            PlatformConnectionNotifier notifier,
+            TwitchBadgeSyncCoordinator badgeSync,
             CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(request.State)
@@ -110,6 +112,8 @@ public static class TwitchAuthEndpoints
             }
 
             await tokenStore.StoreRefreshTokenAsync("twitch", token.RefreshToken, cancellationToken);
+            badgeSync.QueueSync();
+            await notifier.NotifyAsync("twitch", connected: true, cancellationToken);
             return Results.NoContent();
         });
 
@@ -141,12 +145,16 @@ public static class TwitchAuthEndpoints
             TwitchDeviceCompleteRequest request,
             TwitchTokenEndpoint tokenEndpoint,
             IOAuthTokenStore tokenStore,
+            PlatformConnectionNotifier notifier,
+            TwitchBadgeSyncCoordinator badgeSync,
             CancellationToken cancellationToken) =>
         {
             try
             {
                 var token = await tokenEndpoint.CompleteDeviceAuthorizationAsync(request.DeviceCode, cancellationToken);
                 await tokenStore.StoreRefreshTokenAsync("twitch", token.RefreshToken, cancellationToken);
+                badgeSync.QueueSync();
+                await notifier.NotifyAsync("twitch", connected: true, cancellationToken);
                 return Results.NoContent();
             }
             catch (TwitchDeviceAuthorizationPendingException)

@@ -1,12 +1,7 @@
-using Microsoft.Extensions.Logging;
-using Vulperonex.Application.Twitch;
-
 namespace Vulperonex.Web.TwitchAuth;
 
 public sealed class TwitchBadgeSyncHostedService(
-    IPlatformBadgeCache cache,
-    IConfiguration configuration,
-    ILogger<TwitchBadgeSyncHostedService> logger) : IHostedService
+    TwitchBadgeSyncCoordinator coordinator) : IHostedService
 {
     private CancellationTokenSource? _cts;
     private Task? _syncTask;
@@ -14,7 +9,7 @@ public sealed class TwitchBadgeSyncHostedService(
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        _syncTask = Task.Run(() => SyncAsync(_cts.Token), CancellationToken.None);
+        _syncTask = Task.Run(() => coordinator.SyncAsync(_cts.Token), CancellationToken.None);
         return Task.CompletedTask;
     }
 
@@ -37,29 +32,5 @@ public sealed class TwitchBadgeSyncHostedService(
         }
 
         _cts?.Dispose();
-    }
-
-    private async Task SyncAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await cache.SyncGlobalAsync(cancellationToken);
-
-            var broadcasterId = configuration["Twitch:BroadcasterId"];
-            if (string.IsNullOrWhiteSpace(broadcasterId))
-            {
-                logger.LogInformation("Skipping Twitch channel badge sync: Twitch:BroadcasterId not configured.");
-                return;
-            }
-
-            await cache.SyncChannelAsync(broadcasterId, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            logger.LogWarning(ex, "Twitch badge initial sync failed.");
-        }
     }
 }
