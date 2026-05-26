@@ -10,7 +10,7 @@ import {
   type SimulateAck,
   type SimulateAlias,
   type SimulateRequestBody,
-  type TwitchBadgeDescriptor
+  type PlatformBadgeDescriptor
 } from "@/api/client";
 
 interface Props {
@@ -45,8 +45,8 @@ const rolesOptions = ["Subscriber", "Moderator", "VIP", "Follower"];
 const selectedRoles = ref<string[]>([]);
 const colorHex = ref("#FFCA28");
 const selectedBadgeKeys = ref<string[]>([]);
-const globalBadges = ref<TwitchBadgeDescriptor[]>([]);
-const channelBadges = ref<TwitchBadgeDescriptor[]>([]);
+const globalBadges = ref<PlatformBadgeDescriptor[]>([]);
+const channelBadges = ref<PlatformBadgeDescriptor[]>([]);
 const badgesReady = ref(false);
 const badgesError = ref<string | null>(null);
 const batchSize = ref(5);
@@ -70,7 +70,7 @@ const aliasOptions: SimulateAlias[] = [
 
 const showMessageInput = computed(() => alias.value === "chat" || alias.value === "redeem");
 const showIdentityInputs = computed(() => alias.value !== "checkin");
-const featuredBadges = computed<TwitchBadgeDescriptor[]>(() => {
+const featuredBadges = computed<PlatformBadgeDescriptor[]>(() => {
   const featuredSets = new Set(["broadcaster", "moderator", "vip", "subscriber", "founder", "premium"]);
   const featured = globalBadges.value.filter((b) => featuredSets.has(b.setId));
   return [...featured, ...channelBadges.value];
@@ -180,7 +180,11 @@ async function startBatchCheckin(): Promise<void> {
   const name = displayName.value.trim() || "Batch Sim User";
 
   try {
+    // Sequential await is intentional: rate-limit batch checkin to avoid overwhelming
+    // backend + give operator visible per-step progress feedback.
+    // eslint-disable-next-line no-await-in-loop
     for (let index = 0; index < total; index += 1) {
+      // eslint-disable-next-line no-await-in-loop
       const result = await postSimulateCheckIn({
         platformUserId: userId,
         displayName: name,
@@ -190,6 +194,7 @@ async function startBatchCheckin(): Promise<void> {
       batchProgress.value = Math.round(((index + 1) / total) * 100);
       ack.value = result;
       emit("simulated", result);
+      // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   } catch (caught) {

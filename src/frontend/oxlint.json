@@ -9,5 +9,11 @@
   "rules": {
     "vue/no-v-html": "error"
   },
-  "ignorePatterns": ["coverage/**", "dist/**"]
+  "ignorePatterns": [
+    "coverage/**",
+    "dist/**",
+    "public/overlay/libs/**",
+    "public/overlay/js/**",
+    "../Hosts/Vulperonex.Web/wwwroot/**"
+  ]
 }

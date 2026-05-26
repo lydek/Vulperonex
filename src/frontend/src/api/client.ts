@@ -25,7 +25,7 @@ export interface SimulateRequestBody {
   colorHex?: string;
 }
 
-export interface TwitchBadgeDescriptor {
+export interface PlatformBadgeDescriptor {
   key: string;
   setId: string;
   version: string;
@@ -37,8 +37,8 @@ export interface TwitchBadgeDescriptor {
 
 export interface TwitchBadgesListResponse {
   ready: boolean;
-  global: TwitchBadgeDescriptor[];
-  channel: TwitchBadgeDescriptor[];
+  global: PlatformBadgeDescriptor[];
+  channel: PlatformBadgeDescriptor[];
 }
 
 export interface SimulateAck {
