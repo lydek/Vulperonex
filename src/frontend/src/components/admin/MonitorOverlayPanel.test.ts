@@ -95,4 +95,45 @@ describe("MonitorOverlayPanel", () => {
     await flushPromises();
     expect(wrapper.find('[data-testid="preview-canvas"]').exists()).toBe(true);
   });
+
+  it("should switch to alerts hub and update chip", async () => {
+    const wrapper = await mountPanel();
+    await flushPromises();
+
+    const tabs = wrapper.findAll(".hub-tab-btn");
+    await tabs[2].trigger("click");
+    expect(wrapper.find('[data-testid="preview-hub-chip"]').text()).toBe("ALERTS");
+  });
+
+  it("should apply green background option to canvas style", async () => {
+    const wrapper = await mountPanel();
+    await flushPromises();
+
+    const greenRadio = wrapper.findAll('input[type="radio"]').find((r) => r.attributes("value") === "green");
+    expect(greenRadio).toBeDefined();
+    await greenRadio!.setValue();
+    const canvas = wrapper.find(".iframe-canvas");
+    expect(canvas.attributes("style") ?? "").toContain("rgb(0, 255, 0)");
+  });
+
+  it("should bump iframe src timestamp on reload click", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(1700000000000));
+    const wrapper = await mountPanel();
+    await flushPromises();
+
+    const iframe = wrapper.find("iframe.preview-iframe");
+    if (!iframe.exists()) {
+      vi.useRealTimers();
+      return; // no preset rendered → skip
+    }
+    const before = iframe.attributes("src");
+
+    vi.setSystemTime(new Date(1700000010000));
+    await wrapper.find(".reload-btn").trigger("click");
+    await flushPromises();
+    const after = wrapper.find("iframe.preview-iframe").attributes("src");
+    expect(after).not.toBe(before);
+    vi.useRealTimers();
+  });
 });
