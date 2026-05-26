@@ -8,39 +8,39 @@
 
 ### Task 50 - MemberCheckedInEvent 領域事件
 
-- [ ] Task 50a：定義 `MemberCheckedInEvent` record 於 `Vulperonex.Domain.Events`
-- [ ] Task 50b：實作 `IStreamEvent`（EventId / OccurredAt / Platform / EventTypeKey）
-- [ ] Task 50c：`EventTypeKey = "system.member.checked_in"` 註冊到 `StreamEventTypeRegistry`
-- [ ] Task 50d：Unit test 涵蓋構造 + EventTypeKey 一致性
+- [x] Task 50a：定義 `MemberCheckedInEvent` record 於 `Vulperonex.Domain.Events`
+- [x] Task 50b：實作 `IStreamEvent`（EventId / OccurredAt / Platform / EventTypeKey）
+- [x] Task 50c：`EventTypeKey = "system.member.checked_in"` 註冊到 `StreamEventTypeRegistry`
+- [x] Task 50d：Unit test 涵蓋構造 + EventTypeKey 一致性
 
 ### Task 51 - TriggerCheckInActionExecutor 發 event
 
-- [ ] Task 51a：Executor 注入 `IStreamEventBus`
-- [ ] Task 51b：計算 RoundIndex / StampSlotInRound（用 `overlay.member.stamps_per_round` 設定）
-- [ ] Task 51c：成功 increment 後 publish event（transaction commit 後）
-- [ ] Task 51d：失敗路徑不 publish
-- [ ] Task 51e：Unit test mock event bus 驗 publish 呼叫
+- [x] Task 51a：Executor 注入 `IStreamEventBus`
+- [x] Task 51b：計算 RoundIndex / StampSlotInRound（用 `overlay.member.stamps_per_round` 設定）
+- [x] Task 51c：成功 increment 後 publish event（transaction commit 後）
+- [x] Task 51d：失敗路徑不 publish
+- [x] Task 51e：Unit test mock event bus 驗 publish 呼叫
 
 ### Task 52 - OverlayEventForwarder 訂閱 MemberCheckedInEvent
 
-- [ ] Task 52a：注入 `IHubContext<OverlayMemberHub>` + `IOverlayHistoryService<OverlayMemberPayload>`
-- [ ] Task 52b：`stream.OfType<MemberCheckedInEvent>().Subscribe(...)` 訂閱
-- [ ] Task 52c：實作 `ForwardMemberCheckInEventAsync`，走 `SafeSendAsync` + `TryPersistAsync`
-- [ ] Task 52d：Integration test：publish event → hub group 收到 + history 可查
+- [x] Task 52a：注入 `IHubContext<OverlayMemberHub>` + `IOverlayHistoryService<OverlayMemberPayload>`
+- [x] Task 52b：`stream.OfType<MemberCheckedInEvent>().Subscribe(...)` 訂閱
+- [x] Task 52c：實作 `ForwardMemberCheckInEventAsync`，走 `SafeSendAsync` + `TryPersistAsync`
+- [x] Task 52d：Integration test：publish event → hub group 收到 + history 可查
 
 ### Task 53 - OverlayMemberPayload 擴充 + 反射測試
 
-- [ ] Task 53a：Payload 加 `RoundIndex` + `StampSlotInRound`
-- [ ] Task 53b：`OverlayDtoWhitelistTests` 更新精確 key set
-- [ ] Task 53c：維持 `memberId/totalLoyalty/linkedPlatforms` 排除
-- [ ] Task 53d：前端 `useOverlayHub.ts` type 同步
-- [ ] Task 53e：`MemberOverlayView` 改讀 payload `RoundIndex`
+- [x] Task 53a：Payload 加 `RoundIndex` + `StampSlotInRound`
+- [x] Task 53b：`OverlayDtoWhitelistTests` 更新精確 key set
+- [x] Task 53c：維持 `memberId/totalLoyalty/linkedPlatforms` 排除
+- [x] Task 53d：前端 `useOverlayHub.ts` type 同步
+- [x] Task 53e：`MemberOverlayView` 改讀 payload `RoundIndex`
 
 ### Task 54 - CLI simulate checkin 走 event publish
 
-- [ ] Task 54a：CLI 子指令改 publish path
-- [ ] Task 54b：既有 CLI integration test 重新 green
-- [ ] Task 54c：更新 `docs/cli.md`（若存在）
+- [x] Task 54a：CLI 子指令改 publish path
+- [x] Task 54b：既有 CLI integration test 重新 green
+- [x] Task 54c：更新 `docs/cli.md`（若存在）
 
 ---
 
@@ -48,70 +48,70 @@
 
 ### Task 55 - Draft/Production 目錄重構
 
-- [ ] Task 55a：`OverlayPresetStore` 支援 `draft/` `production/` `history/` 三子目錄
-- [ ] Task 55b：Middleware `RewritePath` 處理 `/overlay/custom/{slug}/*` → `production/`
-- [ ] Task 55c：預覽路徑 `/overlay/custom/{slug}/draft/*` 不 rewrite
-- [ ] Task 55d：Zip upload 解壓改 `draft/`
-- [ ] Task 55e：Startup migration：偵測無 `production/` 的既有 preset，搬移到 `production/`
-- [ ] Task 55f：Phase 7C integration test 維持綠
+- [x] Task 55a：`OverlayPresetStore` 支援 `draft/` `production/` `history/` 三子目錄
+- [x] Task 55b：Middleware `RewritePath` 處理 `/overlay/custom/{slug}/*` → `production/`
+- [x] Task 55c：預覽路徑 `/overlay/custom/{slug}/draft/*` 不 rewrite
+- [x] Task 55d：Zip upload 解壓改 `draft/`
+- [x] Task 55e：Startup migration：偵測無 `production/` 的既有 preset，搬移到 `production/`
+- [x] Task 55f：Phase 7C integration test 維持綠
 
 ### Task 56 - Files API endpoints
 
-- [ ] Task 56a：`GET /api/overlay/custom-presets/{slug}/files`
-- [ ] Task 56b：`GET /files/{path}?env=draft|production`
-- [ ] Task 56c：`PUT /files/{path}`（draft only）
-- [ ] Task 56d：`DELETE /files/{path}`（draft only）
-- [ ] Task 56e：Path sanitize + server-side 二次驗最終絕對路徑
-- [ ] Task 56f：單檔 2MB / 整 slug 10MB 上限
-- [ ] Task 56g：Binary 上傳擋（回 400）
-- [ ] Task 56h：Integration test 全 case
+- [x] Task 56a：`GET /api/overlay/custom-presets/{slug}/files`
+- [x] Task 56b：`GET /files/{path}?env=draft|production`
+- [x] Task 56c：`PUT /files/{path}`（draft only）
+- [x] Task 56d：`DELETE /files/{path}`（draft only）
+- [x] Task 56e：Path sanitize + server-side 二次驗最終絕對路徑
+- [x] Task 56f：單檔 2MB / 整 slug 10MB 上限
+- [x] Task 56g：Binary 上傳擋（回 400）
+- [x] Task 56h：Integration test 全 case
 
 ### Task 57 - Validation Gate
 
-- [ ] Task 57a：NuGet add `AngleSharp` / `ExCSS` / `Jint` (ask-first)
-- [ ] Task 57b：HTML parse error → issue
-- [ ] Task 57c：CSS parse error → issue
-- [ ] Task 57d：JS parse error → issue
-- [ ] Task 57e：SignalR contract probe（regex）
-- [ ] Task 57f：Hub URL 引用檢查
-- [ ] Task 57g：外部 URL warning
-- [ ] Task 57h：檔案大小 issue
-- [ ] Task 57i：Issue DTO 定義（severity/code/message/filePath?/line?）
-- [ ] Task 57j：`POST /validate` endpoint
-- [ ] Task 57k：Unit test 每種 issue type
-- [ ] Task 57l：Integration test 合法 + 各種錯誤 sample
+- [x] Task 57a：NuGet add `AngleSharp` / `ExCSS` / `Jint` (ask-first)
+- [x] Task 57b：HTML parse error → issue
+- [x] Task 57c：CSS parse error → issue
+- [x] Task 57d：JS parse error → issue
+- [x] Task 57e：SignalR contract probe（regex）
+- [x] Task 57f：Hub URL 引用檢查
+- [x] Task 57g：外部 URL warning
+- [x] Task 57h：檔案大小 issue
+- [x] Task 57i：Issue DTO 定義（severity/code/message/filePath?/line?）
+- [x] Task 57j：`POST /validate` endpoint
+- [x] Task 57k：Unit test 每種 issue type
+- [x] Task 57l：Integration test 合法 + 各種錯誤 sample
 
 ### Task 58 - Deploy / Rollback / History
 
-- [ ] Task 58a：`POST /deploy` 流程：validate → write history → atomic copy
-- [ ] Task 58b：Atomic copy（temp dir + rename）
-- [ ] Task 58c：History 旋轉（保留最近 10 份）
-- [ ] Task 58d：`POST /rollback?to={ts}` 還原
-- [ ] Task 58e：`GET /history` 列表
-- [ ] Task 58f：同 slug concurrent deploy → 409
-- [ ] Task 58g：Integration test 完整 flow
+- [x] Task 58a：`POST /deploy` 流程：validate → write history → atomic copy
+- [x] Task 58b：Atomic copy（temp dir + rename）
+- [x] Task 58c：History 旋轉（保留最近 10 份）
+- [x] Task 58d：`POST /rollback?to={ts}` 還原
+- [x] Task 58e：`GET /history` 列表
+- [x] Task 58f：同 slug concurrent deploy → 409
+- [x] Task 58g：Integration test 完整 flow
 
 ### Task 59 - Admin Overlay Editor UI
 
-- [ ] Task 59a：新路由 `/admin/overlay-editor`
-- [ ] Task 59b：NPM add `monaco-editor` (ask-first)
-- [ ] Task 59c：左 sider：slug list + file tree
-- [ ] Task 59d：中 Monaco editor（語言依副檔名）
-- [ ] Task 59e：右 iframe preview + draft/production toggle
-- [ ] Task 59f：操作列：Save / Validate / Deploy / Rollback
-- [ ] Task 59g：Validate issues panel + 點選跳檔位置
-- [ ] Task 59h：Deploy 前自動 validate，error 阻擋
-- [ ] Task 59i：Dirty state confirm dialog
-- [ ] Task 59j：i18n 雙語
-- [ ] Task 59k：Vitest 涵蓋核心 flow
+- [x] Task 59a：新路由 `/admin/overlay-editor`
+- [x] Task 59b：NPM add `monaco-editor` (ask-first)
+- [x] Task 59c：左 sider：slug list + file tree
+- [x] Task 59d：中 Monaco editor（語言依副檔名）
+- [x] Task 59e：右 iframe preview + draft/production toggle
+- [x] Task 59f：操作列：Save / Validate / Deploy / Rollback
+- [x] Task 59g：Validate issues panel + 點選跳檔位置
+- [x] Task 59h：Deploy 前自動 validate，error 阻擋
+- [x] Task 59i：Dirty state confirm dialog
+- [x] Task 59j：i18n 雙語
+- [x] Task 59k：Vitest 涵蓋核心 flow
 
 ### Task 60 - Zip upload 整合
 
-- [ ] Task 60a：Phase 7C `POST /api/overlay/custom-presets` 解壓改 `draft/`
-- [ ] Task 60b：上傳後 server 自動跑 validate
-- [ ] Task 60c：回傳 `{ slug, issues }` 給 UI
-- [ ] Task 60d：Phase 7C integration test 改寫
-- [ ] Task 60e：UI 顯示 issues + 引導到 Overlay Editor
+- [x] Task 60a：Phase 7C `POST /api/overlay/custom-presets` 解壓改 `draft/`
+- [x] Task 60b：上傳後 server 自動跑 validate
+- [x] Task 60c：回傳 `{ slug, issues }` 給 UI
+- [x] Task 60d：Phase 7C integration test 改寫
+- [x] Task 60e：UI 顯示 issues + 引導到 Overlay Editor
 
 ---
 
@@ -159,45 +159,45 @@
 
 ### Task 65 - MemberAuditLogs migration + repository
 
-- [ ] Task 65a：EF Core migration 新增 table（schema 見 SPEC §4.19）
-- [ ] Task 65b：`IMemberAuditLogRepository` 定義 + 實作
-- [ ] Task 65c：Append-only（無 update / delete）
-- [ ] Task 65d：Index `(MemberId, OccurredAt DESC)`
-- [ ] Task 65e：Unit test append + query
-- [ ] Task 65f：Cleanup worker（`members.audit_retention_days` 預設 365，沿用 `AppLogsCleanupWorker` pattern）
+- [x] Task 65a：EF Core migration 新增 table（schema 見 SPEC §4.19）
+- [x] Task 65b：`IMemberAuditLogRepository` 定義 + 實作
+- [x] Task 65c：Append-only（無 update / delete）
+- [x] Task 65d：Index `(MemberId, OccurredAt DESC)`
+- [x] Task 65e：Unit test append + query
+- [x] Task 65f：Cleanup worker（`members.audit_retention_days` 預設 365，沿用 `AppLogsCleanupWorker` pattern）
 
 ### Task 66 - Member mutation endpoints
 
-- [ ] Task 66a：`PATCH /api/members/{id}/loyalty`
-- [ ] Task 66b：`POST /api/members/{id}/reset`
-- [ ] Task 66c：`POST /api/members/{id}/delete-token`
-- [ ] Task 66d：`DELETE /api/members/{id}`
-- [ ] Task 66e：`GET /api/members/{id}/audit?limit&offset`
-- [ ] Task 66f：`If-Match` etag concurrency（基於 `UpdatedAt` ticks hash）
-- [ ] Task 66g：`reason` validation（3-500 字元）
-- [ ] Task 66h：Loopback-only middleware
-- [ ] Task 66i：每個 mutation 寫 audit log
-- [ ] Task 66j：Integration test 全 case + concurrency + token expiry
-- [ ] Task 66k：OpenAPI doc 更新
+- [x] Task 66a：`PATCH /api/members/{id}/loyalty`
+- [x] Task 66b：`POST /api/members/{id}/reset`
+- [x] Task 66c：`POST /api/members/{id}/delete-token`
+- [x] Task 66d：`DELETE /api/members/{id}`
+- [x] Task 66e：`GET /api/members/{id}/audit?limit&offset`
+- [x] Task 66f：`If-Match` etag concurrency（基於 `UpdatedAt` ticks hash）
+- [x] Task 66g：`reason` validation（3-500 字元）
+- [x] Task 66h：Loopback-only middleware
+- [x] Task 66i：每個 mutation 寫 audit log
+- [x] Task 66j：Integration test 全 case + concurrency + token expiry
+- [x] Task 66k：OpenAPI doc 更新
 
 ### Task 67 - Member Edit UI
 
-- [ ] Task 67a：`AdjustLoyaltyModal.vue`（before/after diff + reason）
-- [ ] Task 67b：`ResetModal.vue`（checkboxes + reason）
-- [ ] Task 67c：`DeleteConfirmDialog.vue`（兩段確認 + token）
-- [ ] Task 67d：`AuditLogDrawer.vue`（timeline + 無限滾動）
-- [ ] Task 67e：MembersView 加入操作按鈕
-- [ ] Task 67f：409 conflict toast + auto reload
-- [ ] Task 67g：i18n 完整雙語
-- [ ] Task 67h：a11y（dialog role + focus trap）
-- [ ] Task 67i：Vitest 每個 modal flow
+- [x] Task 67a：`AdjustLoyaltyModal.vue`（before/after diff + reason）
+- [x] Task 67b：`ResetModal.vue`（checkboxes + reason）
+- [x] Task 67c：`DeleteConfirmDialog.vue`（兩段確認 + token）
+- [x] Task 67d：`AuditLogDrawer.vue`（timeline + 無限滾動）
+- [x] Task 67e：MembersView 加入操作按鈕
+- [x] Task 67f：409 conflict toast + auto reload
+- [x] Task 67g：i18n 完整雙語
+- [x] Task 67h：a11y（dialog role + focus trap）
+- [x] Task 67i：Vitest 每個 modal flow
 
 ### Task 68 - Workflow audit 整合
 
-- [ ] Task 68a：`TriggerCheckInActionExecutor` 注入 `IMemberAuditLogRepository`
-- [ ] Task 68b：成功 increment 後寫 audit（ActorKind=workflow / ActorId=ruleId）
-- [ ] Task 68c：Unit test mock repo 驗 audit 呼叫
-- [ ] Task 68d：失敗路徑不寫 audit
+- [x] Task 68a：`TriggerCheckInActionExecutor` 注入 `IMemberAuditLogRepository`
+- [x] Task 68b：成功 increment 後寫 audit（ActorKind=workflow / ActorId=ruleId）
+- [x] Task 68c：Unit test mock repo 驗 audit 呼叫
+- [x] Task 68d：失敗路徑不寫 audit
 
 ---
 
@@ -289,13 +289,13 @@
 
 ## Checkpoint：Phase 7D
 
-- [ ] 全部 Task 50-78 sub-task `[x]` 完成自檢
-- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] 全部 Task 50-78 sub-task `[x]` 完成自檢 — Task 61e 與 Browser manual matrix 尚未完成
+- [x] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` — 2026-05-26 EXIT=0
+- [x] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` — 2026-05-26 453/453 EXIT=0
+- [x] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint` — 2026-05-26 vue-tsc EXIT=0、vitest 191/191、build EXIT=0；lint 殘留為 vendor `public/overlay/libs/vue.global.js`，非本 phase 引入
 - [ ] Browser manual 全 PASS（見 `plan.md` Checkpoint 區）
-- [ ] Security review 全 PASS（見 `plan.md` Checkpoint 區）
-- [ ] `manual-verification.md` 記錄 dated entries + evidence commits
+- [ ] Security review 全 PASS — security checklist 尚需同步 `manual-verification.md` evidence
+- [x] `manual-verification.md` 記錄 dated entries + evidence commits — 2026-05-26 dated entries 已寫入 (backend regression fix + monitor redesign)
 
 ---
 

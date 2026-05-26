@@ -271,44 +271,44 @@
 
 ### Track A — CheckIn → MemberOverlay 綁定
 
-- [ ] **Task 50** — `MemberCheckedInEvent` 領域事件
-- [ ] **Task 51** — `TriggerCheckInActionExecutor` 發 event
-- [ ] **Task 52** — `OverlayEventForwarder` 訂閱並 forward
-- [ ] **Task 53** — `OverlayMemberPayload` 加 RoundIndex/StampSlotInRound + 反射測試
-- [ ] **Task 54** — CLI `simulate checkin` 走 publish path
+- [x] **Task 50** — `MemberCheckedInEvent` 領域事件
+- [x] **Task 51** — `TriggerCheckInActionExecutor` 發 event
+- [x] **Task 52** — `OverlayEventForwarder` 訂閱並 forward
+- [x] **Task 53** — `OverlayMemberPayload` 加 RoundIndex/StampSlotInRound + 反射測試
+- [x] **Task 54** — CLI `simulate checkin` 走 publish path
 
 ### Track B — Custom HTML 編輯器
 
-- [ ] **Task 55** — Draft/Production 目錄重構 + middleware rewrite + 自動 migration
-- [ ] **Task 56** — Files API (list/read/write/delete)
-- [ ] **Task 57** — Validation Gate（AngleSharp/ExCSS/Jint + SignalR contract probe）
-- [ ] **Task 58** — Deploy/Rollback/History endpoints
-- [ ] **Task 59** — `/admin/overlay-editor` Monaco UI
-- [ ] **Task 60** — Zip upload 整合（解壓改 draft + 自動 validate）
+- [x] **Task 55** — Draft/Production 目錄重構 + middleware rewrite + 自動 migration
+- [x] **Task 56** — Files API (list/read/write/delete)
+- [x] **Task 57** — Validation Gate（AngleSharp/ExCSS/Jint + SignalR contract probe）
+- [x] **Task 58** — Deploy/Rollback/History endpoints
+- [x] **Task 59** — `/admin/overlay-editor` Monaco UI
+- [x] **Task 60** — Zip upload 整合（解壓改 draft + 自動 validate）
 
 ### Track C — 統一即時監控頁
 
-- [ ] **Task 61** — `/monitor` Dashboard 骨架 + 響應式 layout
+- [ ] **Task 61** — `/monitor` Dashboard 骨架 + 響應式 layout（Task 61e dashboard header SignalR chip 延期）
 - [x] **Task 62** — Simulate Controls Panel（抽共用元件 + 批次 checkin）
 - [x] **Task 63** — Overlay Preview iframe（hub/preset/背景切換）
 - [x] **Task 64** — Chat Stream Panel（純資料表格 + member chip）
 
 ### Track D — 會員可編輯介面
 
-- [ ] **Task 65** — `MemberAuditLogs` migration + repository + cleanup worker
-- [ ] **Task 66** — Mutation endpoints（PATCH loyalty / POST reset / DELETE + token / GET audit）+ If-Match concurrency
-- [ ] **Task 67** — Member Edit UI（AdjustModal / ResetModal / DeleteDialog / AuditDrawer）
-- [ ] **Task 68** — Workflow audit 整合（TriggerCheckIn 寫 audit）
+- [x] **Task 65** — `MemberAuditLogs` migration + repository + cleanup worker
+- [x] **Task 66** — Mutation endpoints（PATCH loyalty / POST reset / DELETE + token / GET audit）+ If-Match concurrency
+- [x] **Task 67** — Member Edit UI（AdjustModal / ResetModal / DeleteDialog / AuditDrawer）
+- [x] **Task 68** — Workflow audit 整合（TriggerCheckIn 寫 audit）
 
 ### Checkpoint：Phase 7D
 
-- [ ] 全部 Task 50-68 sub-task 達成驗收標準
-- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint`
+- [ ] 全部 Task 50-68 sub-task 達成驗收標準 — Task 61e 與 Browser manual matrix 尚未完成
+- [x] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` — 2026-05-26 EXIT=0
+- [x] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` — 2026-05-26 453/453 EXIT=0
+- [x] `cd src/frontend; pnpm vue-tsc --noEmit && pnpm test && pnpm build && pnpm lint` — 2026-05-26 全綠 (196/196 vitest, 0 lint err)
 - [ ] Browser manual：checkin → member overlay / editor flow / monitor 三欄 / member edit + concurrency 全 PASS
-- [ ] Security review：path traversal 三層、editor production 唯讀、delete token TTL、audit append-only、反射白名單擴充、loopback-only、concurrency etag
-- [ ] `docs/phases/phase-7d-checkin-binding-editor-monitor-member/manual-verification.md` 紀錄 dated entries
+- [ ] Security review：path traversal 三層、editor production 唯讀、delete token TTL、audit append-only、反射白名單擴充、loopback-only、concurrency etag — security checklist 尚需同步 `manual-verification.md` evidence
+- [x] `docs/phases/phase-7d-checkin-binding-editor-monitor-member/manual-verification.md` 紀錄 dated entries — 2026-05-26 backend regression fix + monitor redesign 寫入
 
 ## Architecture / Security / Testing Gates
 

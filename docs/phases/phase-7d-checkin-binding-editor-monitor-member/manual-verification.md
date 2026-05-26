@@ -10,25 +10,25 @@
 
 | Area | Component | Status | Evidence |
 | --- | --- | --- | --- |
-| MemberCheckedInEvent | `Vulperonex.Domain.Events.MemberCheckedInEvent` | NOT STARTED | Task 50 |
-| TriggerCheckIn publish | `TriggerCheckInActionExecutor` | NOT STARTED | Task 51 |
-| Forwarder → MemberHub | `OverlayEventForwarder` | NOT STARTED | Task 52 |
-| Payload extension | `OverlayMemberPayload` | NOT STARTED | Task 53 |
-| CLI checkin publish | `simulate checkin` | NOT STARTED | Task 54 |
-| Draft/Production layout | `wwwroot/overlay/custom/{slug}/{draft,production,history}` | NOT STARTED | Task 55 |
-| Files API | `/api/overlay/custom-presets/{slug}/files` | NOT STARTED | Task 56 |
-| Validation gate | `POST /validate` | NOT STARTED | Task 57 |
-| Deploy / Rollback | `POST /deploy`、`POST /rollback` | NOT STARTED | Task 58 |
-| Overlay Editor UI | `/admin/overlay-editor` | NOT STARTED | Task 59 |
-| Zip upload integration | existing `POST /api/overlay/custom-presets` | NOT STARTED | Task 60 |
+| MemberCheckedInEvent | `Vulperonex.Domain.Events.MemberCheckedInEvent` | PASS (automated) | Task 50 |
+| TriggerCheckIn publish | `TriggerCheckInActionExecutor` | PASS (automated) | Task 51 |
+| Forwarder → MemberHub | `OverlayEventForwarder` | PASS (automated) | Task 52 |
+| Payload extension | `OverlayMemberPayload` | PASS (automated) | Task 53 |
+| CLI checkin publish | `simulate checkin` | PASS (automated) | Task 54 |
+| Draft/Production layout | `wwwroot/overlay/custom/{slug}/{draft,production,history}` | PASS (automated; browser manual pending) | Task 55 |
+| Files API | `/api/overlay/custom-presets/{slug}/files` | PASS (automated) | Task 56 |
+| Validation gate | `POST /validate` | PASS (automated; browser manual pending) | Task 57 |
+| Deploy / Rollback | `POST /deploy`、`POST /rollback` | PASS (automated; browser manual pending) | Task 58 |
+| Overlay Editor UI | `/admin/overlay-editor` | PASS (automated; browser manual pending) | Task 59 |
+| Zip upload integration | existing `POST /api/overlay/custom-presets` | PASS (automated; browser manual pending) | Task 60 |
 | Monitor Dashboard | `/monitor` | PARTIAL (automated PASS; header SignalR chip + manual viewport matrix pending) | Task 61 |
 | Simulate panel | `SimulateControlsPanel.vue` | PASS (automated; manual viewport matrix pending) | Task 62 |
 | Overlay preview iframe | `MonitorOverlayPanel.vue` | PASS (automated; manual viewport matrix pending) | Task 63 |
 | Chat stream panel | `ChatStreamPanel.vue` | PASS (automated; manual viewport matrix pending) | Task 64 |
-| Audit log infra | `MemberAuditLogs` table | NOT STARTED | Task 65 |
-| Member mutation API | `PATCH /loyalty`、`POST /reset`、`DELETE` | NOT STARTED | Task 66 |
-| Member edit UI | `AdjustLoyaltyModal` 等 | NOT STARTED | Task 67 |
-| Workflow audit | TriggerCheckIn → audit log | NOT STARTED | Task 68 |
+| Audit log infra | `MemberAuditLogs` table | PASS (automated) | Task 65 |
+| Member mutation API | `PATCH /loyalty`、`POST /reset`、`DELETE` | PASS (automated; browser manual pending) | Task 66 |
+| Member edit UI | `AdjustLoyaltyModal` 等 | PASS (automated; browser manual pending) | Task 67 |
+| Workflow audit | TriggerCheckIn → audit log | PASS (automated; browser manual pending) | Task 68 |
 
 ## Browser Manual Checklist
 
@@ -56,15 +56,15 @@
 
 | Item | Status | Evidence |
 | --- | --- | --- |
-| Custom preset path traversal（draft/production/history 三層） | NOT STARTED | Task 55-56 |
-| Editor PUT/DELETE 僅可寫 draft，production 唯讀 | NOT STARTED | Task 56 |
-| Delete token 一次性 + 30s TTL | NOT STARTED | Task 66 |
-| Audit log append-only（無 update/delete API） | NOT STARTED | Task 65 |
-| `OverlayMemberPayload` 反射白名單擴充正確（含 RoundIndex / StampSlotInRound） | NOT STARTED | Task 53 |
-| Member mutation endpoint loopback-only | NOT STARTED | Task 66 |
-| `MemberCheckedInEvent` 不含 `MemberId` / `TotalLoyalty` 等敏感欄位於 overlay payload | NOT STARTED | Task 50 + 53 |
-| Validation gate 對外部 URL 警示 | NOT STARTED | Task 57 |
-| Concurrency etag check `If-Match` 嚴守 | NOT STARTED | Task 66 |
+| Custom preset path traversal（draft/production/history 三層） | PENDING evidence sync | Task 55-56 |
+| Editor PUT/DELETE 僅可寫 draft，production 唯讀 | PENDING evidence sync | Task 56 |
+| Delete token 一次性 + 30s TTL | PENDING evidence sync | Task 66 |
+| Audit log append-only（無 update/delete API） | PENDING evidence sync | Task 65 |
+| `OverlayMemberPayload` 反射白名單擴充正確（含 RoundIndex / StampSlotInRound） | PENDING evidence sync | Task 53 |
+| Member mutation endpoint loopback-only | PENDING evidence sync | Task 66 |
+| `MemberCheckedInEvent` 不含 `MemberId` / `TotalLoyalty` 等敏感欄位於 overlay payload | PENDING evidence sync | Task 50 + 53 |
+| Validation gate 對外部 URL 警示 | PENDING evidence sync | Task 57 |
+| Concurrency etag check `If-Match` 嚴守 | PENDING evidence sync | Task 66 |
 
 ## Verification Commands
 
