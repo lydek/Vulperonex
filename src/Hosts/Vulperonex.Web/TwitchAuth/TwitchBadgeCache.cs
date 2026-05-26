@@ -6,10 +6,10 @@ namespace Vulperonex.Web.TwitchAuth;
 
 public sealed class TwitchBadgeCache(
     IServiceScopeFactory scopeFactory,
-    ILogger<TwitchBadgeCache> logger) : ITwitchBadgeCache
+    ILogger<TwitchBadgeCache> logger) : IPlatformBadgeCache
 {
-    private readonly ConcurrentDictionary<string, TwitchBadgeDescriptor> _global = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, TwitchBadgeDescriptor> _channel = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, PlatformBadgeDescriptor> _global = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, PlatformBadgeDescriptor> _channel = new(StringComparer.Ordinal);
     private int _globalSynced;
     private int _channelSynced;
 
@@ -23,7 +23,7 @@ public sealed class TwitchBadgeCache(
             : descriptor.ImageUrl1x;
     }
 
-    public TwitchBadgeDescriptor? Get(string key)
+    public PlatformBadgeDescriptor? Get(string key)
     {
         if (string.IsNullOrWhiteSpace(key)) return null;
         var normalized = NormalizeKey(key);
@@ -32,16 +32,16 @@ public sealed class TwitchBadgeCache(
         return null;
     }
 
-    public IReadOnlyList<TwitchBadgeDescriptor> ListGlobal() => _global.Values.ToArray();
+    public IReadOnlyList<PlatformBadgeDescriptor> ListGlobal() => _global.Values.ToArray();
 
-    public IReadOnlyList<TwitchBadgeDescriptor> ListChannel() => _channel.Values.ToArray();
+    public IReadOnlyList<PlatformBadgeDescriptor> ListChannel() => _channel.Values.ToArray();
 
     public async Task SyncGlobalAsync(CancellationToken cancellationToken = default)
     {
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var client = scope.ServiceProvider.GetRequiredService<ITwitchHelixClient>();
+            var client = scope.ServiceProvider.GetRequiredService<IHelixClient>();
             var badges = await client.GetGlobalBadgesAsync(cancellationToken);
             Replace(_global, badges);
             Interlocked.Exchange(ref _globalSynced, 1);
@@ -67,7 +67,7 @@ public sealed class TwitchBadgeCache(
         try
         {
             await using var scope = scopeFactory.CreateAsyncScope();
-            var client = scope.ServiceProvider.GetRequiredService<ITwitchHelixClient>();
+            var client = scope.ServiceProvider.GetRequiredService<IHelixClient>();
             var badges = await client.GetChannelBadgesAsync(broadcasterId, cancellationToken);
             Replace(_channel, badges);
             Interlocked.Exchange(ref _channelSynced, 1);
@@ -83,7 +83,7 @@ public sealed class TwitchBadgeCache(
         }
     }
 
-    private static void Replace(ConcurrentDictionary<string, TwitchBadgeDescriptor> target, IReadOnlyList<TwitchBadgeDescriptor> source)
+    private static void Replace(ConcurrentDictionary<string, PlatformBadgeDescriptor> target, IReadOnlyList<PlatformBadgeDescriptor> source)
     {
         target.Clear();
         foreach (var descriptor in source)

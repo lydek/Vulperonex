@@ -35,7 +35,7 @@ public sealed class OverlayEventForwarderTests
     private readonly IOverlayHistoryService<OverlayMemberPayload> _mockMemberHistory = Substitute.For<IOverlayHistoryService<OverlayMemberPayload>>();
 
     private readonly IServiceScopeFactory _mockScopeFactory = Substitute.For<IServiceScopeFactory>();
-    private readonly ITwitchBadgeCache _mockBadgeCache = Substitute.For<ITwitchBadgeCache>();
+    private readonly IPlatformBadgeCache _mockBadgeCache = Substitute.For<IPlatformBadgeCache>();
     private readonly IClock _mockClock = Substitute.For<IClock>();
 
     public OverlayEventForwarderTests()

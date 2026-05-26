@@ -11,7 +11,7 @@ public sealed class TwitchHelixClient(
     IConfiguration configuration,
     TwitchAccessTokenProvider accessTokenProvider,
     ISystemSettingsService settings,
-    HttpClient? httpClient = null) : ITwitchHelixClient
+    HttpClient? httpClient = null) : IHelixClient
 {
     private readonly HttpClient _httpClient = httpClient ?? new HttpClient
     {
@@ -70,7 +70,7 @@ public sealed class TwitchHelixClient(
         return new PlatformShoutoutResult(true, target.Login, target.UserId, target.DisplayName);
     }
 
-    public async Task<IReadOnlyList<TwitchBadgeDescriptor>> GetGlobalBadgesAsync(
+    public async Task<IReadOnlyList<PlatformBadgeDescriptor>> GetGlobalBadgesAsync(
         CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "chat/badges/global");
@@ -82,7 +82,7 @@ public sealed class TwitchHelixClient(
         return MapBadges(payload, isChannel: false);
     }
 
-    public async Task<IReadOnlyList<TwitchBadgeDescriptor>> GetChannelBadgesAsync(
+    public async Task<IReadOnlyList<PlatformBadgeDescriptor>> GetChannelBadgesAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default)
     {
@@ -102,20 +102,20 @@ public sealed class TwitchHelixClient(
         return MapBadges(payload, isChannel: true);
     }
 
-    private static IReadOnlyList<TwitchBadgeDescriptor> MapBadges(TwitchBadgesResponse? payload, bool isChannel)
+    private static IReadOnlyList<PlatformBadgeDescriptor> MapBadges(TwitchBadgesResponse? payload, bool isChannel)
     {
         if (payload?.Data is null || payload.Data.Count == 0)
         {
             return [];
         }
 
-        var result = new List<TwitchBadgeDescriptor>();
+        var result = new List<PlatformBadgeDescriptor>();
         foreach (var set in payload.Data)
         {
             if (set.Versions is null) continue;
             foreach (var version in set.Versions)
             {
-                result.Add(new TwitchBadgeDescriptor(
+                result.Add(new PlatformBadgeDescriptor(
                     Key: $"{set.SetId}_{version.Id}",
                     SetId: set.SetId,
                     Version: version.Id,

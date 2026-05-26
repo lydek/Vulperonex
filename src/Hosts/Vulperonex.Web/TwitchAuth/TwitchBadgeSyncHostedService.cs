@@ -4,7 +4,7 @@ using Vulperonex.Application.Twitch;
 namespace Vulperonex.Web.TwitchAuth;
 
 public sealed class TwitchBadgeSyncHostedService(
-    ITwitchBadgeCache cache,
+    IPlatformBadgeCache cache,
     IConfiguration configuration,
     ILogger<TwitchBadgeSyncHostedService> logger) : IHostedService
 {

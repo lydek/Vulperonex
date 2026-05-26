@@ -1,6 +1,6 @@
 namespace Vulperonex.Application.Twitch;
 
-public sealed record TwitchBadgeDescriptor(
+public sealed record PlatformBadgeDescriptor(
     string Key,
     string SetId,
     string Version,

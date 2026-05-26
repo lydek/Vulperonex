@@ -23,7 +23,7 @@ public sealed class OverlayEventForwarder(
     IOverlayHistoryService<OverlayAlertPayload> alertsHistory,
     IOverlayHistoryService<OverlayMemberPayload> memberHistory,
     IServiceScopeFactory scopeFactory,
-    ITwitchBadgeCache badgeCache,
+    IPlatformBadgeCache badgeCache,
     IClock clock,
     ILogger<OverlayEventForwarder> logger) : IHostedService
 {
@@ -225,6 +225,12 @@ public sealed class OverlayEventForwarder(
             if (!string.IsNullOrWhiteSpace(url))
             {
                 urls.Add(url);
+            }
+            else
+            {
+                // Cache miss (e.g. Twitch OAuth not yet completed or badge sync pending) —
+                // emit the raw badge key (set/version) so overlay can still tag the row.
+                urls.Add(key);
             }
         }
 

@@ -1,6 +1,6 @@
 namespace Vulperonex.Application.Twitch;
 
-public interface ITwitchHelixClient
+public interface IHelixClient
 {
     Task<PlatformUserProfile?> LookupUserAsync(
         string? login,
@@ -16,10 +16,10 @@ public interface ITwitchHelixClient
         string redemptionId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<TwitchBadgeDescriptor>> GetGlobalBadgesAsync(
+    Task<IReadOnlyList<PlatformBadgeDescriptor>> GetGlobalBadgesAsync(
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<TwitchBadgeDescriptor>> GetChannelBadgesAsync(
+    Task<IReadOnlyList<PlatformBadgeDescriptor>> GetChannelBadgesAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default);
 }

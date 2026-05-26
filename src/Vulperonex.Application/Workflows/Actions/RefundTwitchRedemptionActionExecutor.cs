@@ -4,7 +4,7 @@ using Vulperonex.Application.Twitch;
 namespace Vulperonex.Application.Workflows.Actions;
 
 public sealed class RefundTwitchRedemptionActionExecutor(
-    ITwitchHelixClient helixClient,
+    IHelixClient helixClient,
     ITemplateResolver templateResolver) : IWorkflowActionExecutor
 {
     public string ActionType => RefundTwitchRedemptionAction.ActionType;

@@ -1,16 +1,16 @@
 namespace Vulperonex.Application.Twitch;
 
-public interface ITwitchBadgeCache
+public interface IPlatformBadgeCache
 {
     bool IsReady { get; }
 
     string? GetUrl(string key);
 
-    TwitchBadgeDescriptor? Get(string key);
+    PlatformBadgeDescriptor? Get(string key);
 
-    IReadOnlyList<TwitchBadgeDescriptor> ListGlobal();
+    IReadOnlyList<PlatformBadgeDescriptor> ListGlobal();
 
-    IReadOnlyList<TwitchBadgeDescriptor> ListChannel();
+    IReadOnlyList<PlatformBadgeDescriptor> ListChannel();
 
     Task SyncGlobalAsync(CancellationToken cancellationToken = default);
 

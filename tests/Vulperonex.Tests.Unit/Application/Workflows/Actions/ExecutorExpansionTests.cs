@@ -473,7 +473,7 @@ public sealed class ExecutorExpansionTests
         }
     }
 
-    private sealed class RecordingTwitchHelixClient : ITwitchHelixClient
+    private sealed class RecordingTwitchHelixClient : IHelixClient
     {
         public PlatformUserProfile? User { get; init; }
         public PlatformShoutoutResult? ShoutoutResult { get; init; }
@@ -508,17 +508,17 @@ public sealed class ExecutorExpansionTests
             return Task.FromResult(RefundResult);
         }
 
-        public Task<IReadOnlyList<TwitchBadgeDescriptor>> GetGlobalBadgesAsync(
+        public Task<IReadOnlyList<PlatformBadgeDescriptor>> GetGlobalBadgesAsync(
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<TwitchBadgeDescriptor>>([]);
+            return Task.FromResult<IReadOnlyList<PlatformBadgeDescriptor>>([]);
         }
 
-        public Task<IReadOnlyList<TwitchBadgeDescriptor>> GetChannelBadgesAsync(
+        public Task<IReadOnlyList<PlatformBadgeDescriptor>> GetChannelBadgesAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<TwitchBadgeDescriptor>>([]);
+            return Task.FromResult<IReadOnlyList<PlatformBadgeDescriptor>>([]);
         }
     }
 

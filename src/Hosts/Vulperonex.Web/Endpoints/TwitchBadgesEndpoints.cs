@@ -6,7 +6,7 @@ public static class TwitchBadgesEndpoints
 {
     public static IEndpointRouteBuilder MapTwitchBadgesEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapGet("/api/twitch/badges", (ITwitchBadgeCache cache) =>
+        endpoints.MapGet("/api/twitch/badges", (IPlatformBadgeCache cache) =>
         {
             var response = new TwitchBadgesListResponse(
                 Ready: cache.IsReady,
@@ -21,6 +21,6 @@ public static class TwitchBadgesEndpoints
 
     private sealed record TwitchBadgesListResponse(
         bool Ready,
-        IReadOnlyList<TwitchBadgeDescriptor> Global,
-        IReadOnlyList<TwitchBadgeDescriptor> Channel);
+        IReadOnlyList<PlatformBadgeDescriptor> Global,
+        IReadOnlyList<PlatformBadgeDescriptor> Channel);
 }

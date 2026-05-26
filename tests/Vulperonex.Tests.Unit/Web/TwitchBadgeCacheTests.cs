@@ -48,7 +48,7 @@ public sealed class TwitchBadgeCacheTests
     [Fact]
     public void GetUrl_ReturnsNullForUnknownKey()
     {
-        var (cache, _) = CreateCacheWith(global: System.Array.Empty<TwitchBadgeDescriptor>());
+        var (cache, _) = CreateCacheWith(global: System.Array.Empty<PlatformBadgeDescriptor>());
 
         cache.GetUrl("missing_99").Should().BeNull();
         cache.IsReady.Should().BeFalse();
@@ -57,9 +57,9 @@ public sealed class TwitchBadgeCacheTests
     [Fact]
     public async Task SyncGlobalAsync_SwallowsHelixFailureWithoutMarkingReady()
     {
-        var client = Substitute.For<ITwitchHelixClient>();
+        var client = Substitute.For<IHelixClient>();
         client.GetGlobalBadgesAsync(Arg.Any<CancellationToken>())
-            .Returns<IReadOnlyList<TwitchBadgeDescriptor>>(_ => throw new System.Net.Http.HttpRequestException("boom"));
+            .Returns<IReadOnlyList<PlatformBadgeDescriptor>>(_ => throw new System.Net.Http.HttpRequestException("boom"));
 
         var cache = BuildCacheWithClient(client);
 
@@ -69,25 +69,25 @@ public sealed class TwitchBadgeCacheTests
         cache.ListGlobal().Should().BeEmpty();
     }
 
-    private static TwitchBadgeDescriptor Badge(
+    private static PlatformBadgeDescriptor Badge(
         string key, string setId, string version, string url, string title, bool isChannel = false)
     {
-        return new TwitchBadgeDescriptor(key, setId, version, url, title, Description: null, IsChannel: isChannel);
+        return new PlatformBadgeDescriptor(key, setId, version, url, title, Description: null, IsChannel: isChannel);
     }
 
-    private static (TwitchBadgeCache Cache, ITwitchHelixClient Client) CreateCacheWith(
-        IReadOnlyList<TwitchBadgeDescriptor> global,
-        IReadOnlyList<TwitchBadgeDescriptor>? channel = null)
+    private static (TwitchBadgeCache Cache, IHelixClient Client) CreateCacheWith(
+        IReadOnlyList<PlatformBadgeDescriptor> global,
+        IReadOnlyList<PlatformBadgeDescriptor>? channel = null)
     {
-        var client = Substitute.For<ITwitchHelixClient>();
+        var client = Substitute.For<IHelixClient>();
         client.GetGlobalBadgesAsync(Arg.Any<CancellationToken>()).Returns(global);
         client.GetChannelBadgesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(channel ?? new List<TwitchBadgeDescriptor>());
+            .Returns(channel ?? new List<PlatformBadgeDescriptor>());
 
         return (BuildCacheWithClient(client), client);
     }
 
-    private static TwitchBadgeCache BuildCacheWithClient(ITwitchHelixClient client)
+    private static TwitchBadgeCache BuildCacheWithClient(IHelixClient client)
     {
         var services = new ServiceCollection();
         services.AddSingleton(client);

@@ -99,8 +99,8 @@ public static class DependencyInjection
         services.AddScoped<DatabaseBootstrapper>();
         services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
         services.AddScoped<TwitchAccessTokenProvider>();
-        services.AddScoped<ITwitchHelixClient, TwitchHelixClient>();
-        services.AddSingleton<ITwitchBadgeCache, TwitchBadgeCache>();
+        services.AddScoped<IHelixClient, TwitchHelixClient>();
+        services.AddSingleton<IPlatformBadgeCache, TwitchBadgeCache>();
         services.AddSingleton<TwitchTokenEndpoint>();
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
