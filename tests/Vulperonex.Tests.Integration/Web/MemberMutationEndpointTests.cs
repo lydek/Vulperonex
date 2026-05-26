@@ -201,8 +201,8 @@ public sealed class MemberMutationEndpointTests
             var exists = await db.Members.AnyAsync(x => x.MemberId == "member-delete-token");
             exists.Should().BeFalse();
 
-            // 註記：審計日誌採 Append-only 規範，無 Cascade 級聯刪除。
-            // 當 Member 被刪除後，其關聯的 MemberAuditLogs 必須在資料庫中完整存活。
+            // Audit logs follow an append-only contract, so deletes must not cascade.
+            // After the member is removed, the related MemberAuditLogs rows must still remain in the database.
             var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-delete-token" && x.Operation == "delete");
             auditLog.Should().NotBeNull();
             auditLog!.Reason.Should().Be("Dangerous user");

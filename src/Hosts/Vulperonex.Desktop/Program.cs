@@ -26,11 +26,11 @@ internal static class Program
     [STAThread]
     private static void Main(string[] args)
     {
-        // 1. NamedMutex 偵測重複啟動
+        // 1. NamedMutex detects duplicate startup
         _mutex = new Mutex(true, "Global\\Vulperonex.Desktop.Mutex", out var createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("Vulperonex 已在運行中。", "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show("Vulperonex is already running.", "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             _mutex.Dispose();
             return;
         }
@@ -49,12 +49,12 @@ internal static class Program
     private static void RunDesktop(string[] args)
     {
 
-        // 2. WebView2 執行階段偵測
+        // 2. WebView2 runtime detection
         if (!CheckWebView2Installed())
         {
             var result = MessageBox.Show(
-                "系統未偵測到 Microsoft Edge WebView2 Runtime。\n按「確定」將開啟網頁進行下載與安裝，安裝後請重試。\n下載網址：https://go.microsoft.com/fwlink/p/?LinkId=2124703",
-                "缺少 WebView2 執行階段",
+                "Microsoft Edge WebView2 Runtime was not detected on this system.\nClicking \"OK\" will open the download and installation page. Please try again after installation.\nDownload URL: https://go.microsoft.com/fwlink/p/?LinkId=2124703",
+                "Missing WebView2 Runtime",
                 MessageBoxButtons.OKCancel,
                 MessageBoxIcon.Error);
             if (result == DialogResult.OK)
@@ -70,13 +70,13 @@ internal static class Program
         var ports = allocator.TryAllocate();
         if (ports == null)
         {
-            MessageBox.Show("無法配置連接埠，所有可用連接埠可能已被其他程序占用。", "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show("Failed to allocate ports. All available ports may be occupied by other processes.", "Vulperonex", MessageBoxButtons.OK, MessageBoxIcon.Error);
             return;
         }
 
         // 4. Initialize Photino Window
         var window = new PhotinoWindow()
-            .SetTitle("Vulperonex 桌面主機")
+            .SetTitle("Vulperonex Desktop Host")
             .SetSize(1200, 800)
             .Center();
 
@@ -143,8 +143,8 @@ internal static class Program
                     if (!_cts.Token.IsCancellationRequested && _crashCount == 1)
                     {
                         var result = MessageBox.Show(
-                            $"服務啟動失敗，請重試。\n詳細錯誤：\n{ex.Message}\n按「確定」開啟日誌資料夾，或按「取消」關閉。",
-                            "服務啟動失敗",
+                            $"Service startup failed. Please try again.\nDetailed error:\n{ex.Message}\nClick \"OK\" to open the log folder, or click \"Cancel\" to close.",
+                            "Service Startup Failed",
                             MessageBoxButtons.OKCancel,
                             MessageBoxIcon.Error);
                         if (result == DialogResult.OK)
@@ -209,13 +209,13 @@ internal static class Program
     {
         return """
         <!DOCTYPE html>
-        <html lang="zh-TW">
+        <html lang="en">
         <head>
             <meta charset="utf-8" />
-            <title>Vulperonex 啟動失敗</title>
+            <title>Vulperonex Startup Failed</title>
             <style>
                 body {
-                    font-family: 'Segoe UI', Microsoft JhengHei, sans-serif;
+                    font-family: 'Segoe UI', sans-serif;
                     margin: 48px;
                     color: #1f2937;
                     background-color: #f9fafb;
@@ -244,8 +244,8 @@ internal static class Program
         </head>
         <body>
             <div class="error-container">
-                <h1>抱歉，多次嘗試啟動失敗</h1>
-                <p>程式多次啟動失敗，請重新安裝並重試。</p>
+                <h1>Sorry, multiple attempts to start have failed</h1>
+                <p>The program has repeatedly failed to start. Please reinstall and try again.</p>
             </div>
         </body>
         </html>

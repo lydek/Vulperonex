@@ -1,117 +1,117 @@
-# Phase 7B 實作計畫：Chat Output Observability and Overlay Template Presets
+# Phase 7B Implementation Plan: Chat Output Observability and Overlay Template Presets
 
-> 父層計畫：`tasks/plan.md`
-> 父層待辦：`tasks/todo.md`
-> 對照來源：`docs/SPEC.md`、`ref/Omni-Commander/OmniCommander.WebApi/wwwroot/chat.html`
-> 前置條件：Phase 7 runtime/schema parity 已完成；Phase 7A editor UX 補強不阻塞本 slice 的 backend observability 與 overlay preset contract。
-> 目標：補齊 workflow `SendChatMessage` 在 simulation/local 模式下的可觀測性缺口，並把 `/overlay/chat` 從單一實作提升為可切換樣板系統。
-> 邊界：OneComme 相容屬於 extension/plugin slice，不直接併入 core runtime。
-> 進度來源：本文件中的 checkbox 僅作設計/驗收草案；實際完成狀態以 `docs/phases/phase-7b-chat-overlay-presets/todo.md` 與 `tasks/todo.md` 為準。
-
----
-
-## 目標
-
-目前 Phase 7 已完成 workflow parity，但仍有兩個明顯缺口：
-
-1. `Simulation` 平台下的 `SendChatMessage` 缺少明確可觀測面，使用者無法直接確認訊息是否成功送出。
-2. `/overlay/chat` 仍偏單一實作，缺少 preset/template system，不利於遷移與樣板擴充。
-
-Phase 7B 只處理這兩條線：
-
-- **可觀測性線**：讓 workflow chat output 在 simulation/local 模式下可查、可看、可驗證。
-- **樣板線**：建立 chat overlay preset contract，支援多樣板切換，並為 OneComme 相容 extension 預留接點。
+> Parent Plan: `tasks/plan.md`
+> Parent Todo: `tasks/todo.md`
+> Reference Sources: `docs/SPEC.md`, `ref/Omni-Commander/OmniCommander.WebApi/wwwroot/chat.html`
+> Prerequisites: Phase 7 runtime/schema parity is complete; Phase 7A editor UX improvements do not block backend observability and overlay preset contract for this slice.
+> Goal: Complete the workflow `SendChatMessage` observability gap under simulation/local mode, and promote `/overlay/chat` from a single implementation to a switchable template system.
+> Boundaries: OneComme compatibility belongs to the extension/plugin slice and will not be directly integrated into the core runtime.
+> Progress Source: Checkboxes in this document are for design/verification draft only; actual completion status is tracked in `docs/phases/phase-7b-chat-overlay-presets/todo.md` and `tasks/todo.md`.
 
 ---
 
-## 範圍
+## Goals
 
-### 內含
+Currently, Phase 7 has completed workflow parity, but two obvious gaps remain:
+
+1. `SendChatMessage` under the `Simulation` platform lacks a clear observable surface, making it impossible for users to verify directly if messages are successfully sent.
+2. `/overlay/chat` is still a single implementation, lacking a preset/template system, which hinders migration and template expansion.
+
+Phase 7B only addresses these two lines of work:
+
+- **Observability Line**: Make workflow chat output queryable, viewable, and verifiable in simulation/local mode.
+- **Template Line**: Establish chat overlay preset contracts, support multi-template switching, and reserve hooks for OneComme compatibility extensions.
+
+---
+
+## Scope
+
+### In-Scope
 
 - Simulation/local chat output observable surface
-- Chat Outbox / history / memory receiver 至少一種明確可視或可查詢驗證面
+- At least one clear visual or queryable verification surface for Chat Outbox / history / memory receiver
 - `/overlay/chat` preset/template contract
-- 內建至少兩個可切換樣板
-- 設定層級樣板切換
+- At least two built-in switchable templates
+- Configuration-level template switching
 - OneComme-compatible extension/import contract
 
-### 不含
+### Out-of-Scope
 
-- 直接把 OneComme runtime 或完整 UI 內建進 core
-- 任意 raw HTML / `v-html` payload 直出
-- 新增 workflow schema / 新 executor 類型
-- graph/canvas workflow editor
+- Directly embedding the OneComme runtime or full UI into the core
+- Emitting any raw HTML / `v-html` payload directly
+- Adding new workflow schemas / new executor types
+- Graph/canvas workflow editor
 
 ---
 
-## 任務分解
+## Task Breakdown
 
 ## Task 41 - Simulation Chat Output Observable Surface
 
-**描述：** 補 `Simulation` 平台的 chat sender observable surface。`SendChatMessage` 不得只有 silent no-op；至少要能在 admin / overlay history / memory receiver 中看到 rendered message、platform、channel、dedupKey、status。
+**Description:** Provide an observable surface for the chat sender on the `Simulation` platform. `SendChatMessage` must not be a silent no-op; it should at least display the rendered message, platform, channel, dedupKey, and status in the admin UI, overlay history, or memory receiver.
 
-**驗收標準：**
-- [ ] `Simulation` 平台執行 `SendChatMessage` 後，使用者可在可視介面或明確 API 中查到訊息結果。
-- [ ] 結果至少包含 `message`、`platform`、`channel`、`dedupKey`、`status`、timestamp。
-- [ ] workflow chat output 驗證不再依賴 `/overlay/chat` 是否剛好有 bridge。
-- [ ] `sent` / `skipped` / `failed` 狀態可區分。
+**Acceptance Criteria:**
+- [ ] After executing `SendChatMessage` on the `Simulation` platform, users can query the message results through a visual interface or a clear API.
+- [ ] Results include at least `message`, `platform`, `channel`, `dedupKey`, `status`, and timestamp.
+- [ ] Workflow chat output verification no longer depends on whether `/overlay/chat` has a bridge.
+- [ ] `sent` / `skipped` / `failed` states are distinguishable.
 
-**實作提示：**
-- 可選實作面：admin `Chat Outbox` view、overlay history、simulation memory receiver。
-- 優先選擇最能回答「訊息去哪了」的查詢面，而不是只寫 log。
+**Implementation Hints:**
+- Optional implementation surfaces: admin `Chat Outbox` view, overlay history, or simulation memory receiver.
+- Prioritize a query surface that answers "where did the message go" rather than just writing logs.
 
 ## Task 42 - Chat Overlay Preset System
 
-**描述：** 將 `/overlay/chat` 提升為 preset/template-driven overlay。提供多個內建樣板，並保留後續匯入 / 匯出能力；core 只定義 preset/package contract，不直接耦合 OneComme runtime。
+**Description:** Upgrade `/overlay/chat` to a preset/template-driven overlay. Provide multiple built-in templates and reserve future import/export capabilities; the core only defines the preset/package contract and does not directly couple with the OneComme runtime.
 
-**驗收標準：**
-- [ ] 至少提供兩個可切換聊天樣板：Vulperonex 預設樣板 + 另一個內建或可安裝樣板。
-- [ ] 樣板切換透過設定或 admin UI 完成，不需直接修改前端原始程式碼。
-- [ ] 樣板渲染仍遵守 DTO 白名單與 text binding，不引入 `v-html` raw payload 直出。
-- [ ] 同一份 overlay payload contract 可供不同 preset 重複使用。
+**Acceptance Criteria:**
+- [ ] At least two switchable chat templates are provided: Vulperonex default template + another built-in or installable template.
+- [ ] Template switching is accomplished via configuration or admin UI, without modifying frontend source code.
+- [ ] Template rendering still complies with DTO whitelists and text binding, without introducing raw `v-html` payload output.
+- [ ] The same overlay payload contract can be reused by different presets.
 
-**實作提示：**
-- 先切 `preset metadata + renderer contract`，不要先把樣板系統和訊號來源綁死。
-- 樣板可參考 Omni chat overlay 的視覺結構，但資料繫結需維持現有安全邊界。
+**Implementation Hints:**
+- Decouple the `preset metadata + renderer contract` first, before binding the template system to the signal source.
+- Templates can refer to the visual structure of Omni chat overlay, but data binding must maintain existing safety boundaries.
 
 ## Task 43 - OneComme Compatibility Path
 
-**描述：** 以 OneComme 為優先相容目標之一，但以 extension / plugin 方式接入。定義樣板匯入器、目錄掃描器、或 adapter package 的最小契約，降低既有使用者遷移成本，同時維持 core 邊界。
+**Description:** Prioritize OneComme as one of the compatibility targets, but integrate it as an extension/plugin. Define the minimum contract for template importers, directory scanners, or adapter packages to reduce migration costs for existing users while maintaining core boundaries.
 
-**驗收標準：**
-- [ ] 文件明列 OneComme 相容策略：哪些能力透過外掛直接相容、哪些透過映射、哪些暫不支援。
-- [ ] 至少有一條 extension/import path 明確標示為 OneComme-compatible / migration-oriented；不要求 core 內建整包整合。
-- [ ] 手動驗證記錄 OneComme 樣板目錄結構或 package metadata 的辨識與匯入流程。
+**Acceptance Criteria:**
+- [ ] The document lists the OneComme compatibility strategy: which capabilities are directly compatible via plugins, which are mapped, and which are temporarily unsupported.
+- [ ] At least one extension/import path is clearly marked as OneComme-compatible / migration-oriented; core integration is not required.
+- [ ] Manually verify and record the identification and import flow of the OneComme template directory structure or package metadata.
 
-**實作提示：**
-- 相容單位是「樣板目錄結構 / preset package」，不是綁 OneComme app 本體。
-- 若要做 importer，需把 filesystem 掃描與 preset contract 分開。
-
----
-
-## Checkpoint：Phase 7B
-
-- [ ] 全部 Task 41-43 sub-task `[x]` 完成自檢
-- [ ] workflow `SendChatMessage` 在 `Simulation` 模式下可直接觀察結果，不再需要猜測是否送出
-- [ ] `/overlay/chat` 至少可切換兩個樣板，且 core preset contract 可承接外掛 / 可安裝樣板
-- [ ] `docs/phases/phase-7b-chat-overlay-presets/manual-verification.md` 記錄 observability + preset + extension compatibility PASS/FAIL
+**Implementation Hints:**
+- The compatibility unit is the "template directory structure / preset package", not the OneComme app itself.
+- If implementing an importer, separate the filesystem scanning from the preset contract.
 
 ---
 
-## 風險與緩解
+## Checkpoint: Phase 7B
 
-| 風險 | 影響 | 緩解 |
+- [ ] All sub-tasks for Tasks 41-43 are completed with `[x]` self-check.
+- [ ] Workflow `SendChatMessage` results can be directly observed in `Simulation` mode, without guessing if they were sent.
+- [ ] `/overlay/chat` can switch between at least two templates, and the core preset contract can accept external/installable templates.
+- [ ] `docs/phases/phase-7b-chat-overlay-presets/manual-verification.md` records the observability + preset + extension compatibility PASS/FAIL.
+
+---
+
+## Risks & Mitigations
+
+| Risk | Impact | Mitigation |
 | --- | --- | --- |
-| 可觀測面做成只看得到 log，看不到使用者語意 | 高 | 優先提供 message/platform/channel/status 查詢面 |
-| preset system 太早綁死 OneComme 格式 | 中 | 先做 core preset contract，再做 importer/extension |
-| overlay 樣板為了自由度突破安全邊界 | 高 | 嚴守 DTO whitelist + text binding，不引入 raw HTML payload |
-| simulation sender 與真實 sender 行為差異過大 | 中 | 保持同一 outbox/envelope 模型，只替換最後傳送面 |
+| Observability surface only displays logs without user semantics | High | Prioritize message/platform/channel/status query surface |
+| Preset system couples too early with OneComme format | Medium | Implement core preset contract first, then importer/extension |
+| Overlay templates bypass security boundaries for design freedom | High | Maintain strict DTO whitelist + text binding, do not introduce raw HTML payloads |
+| Simulation sender behavior differs too much from real sender | Medium | Keep the same outbox/envelope model, only swap the final transmission surface |
 
 ---
 
 ## Out-of-Scope
 
-- OneComme app 直接內嵌或完整 runtime 相依
-- 非 chat overlay 的 alerts/member 樣板市場
-- 任意第三方範本腳本執行
-- workflow editor UX 續修（留在 Phase 7A）
+- Direct embedding or hard runtime dependency on OneComme app
+- Alerts/member template marketplace outside chat overlay
+- Any third-party template script execution
+- Workflow editor UX refinements (remains in Phase 7A)

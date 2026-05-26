@@ -913,12 +913,16 @@ public sealed class CliCommandTests
         try
         {
             var exitCode = await VulperonexCli.RunAsync(["help"], client, output, error);
+            var workflowLabel = GetCliTranslation("zh-TW", "category.workflow");
+            var helpTitle = GetCliTranslation("zh-TW", "help.title");
+            var ruleDescription = GetCliTranslation("zh-TW", "command.rule.description");
+            var helpTip = GetCliTranslation("zh-TW", "help.tip");
 
             exitCode.Should().Be(0);
-            output.ToString().Should().Contain("Vulperonex CLI 說明");
-            output.ToString().Should().Contain("[工作流程]");
-            output.ToString().Should().Contain("管理工作流程規則");
-            output.ToString().Should().Contain("輸入指令群組名稱");
+            output.ToString().Should().Contain(helpTitle);
+            output.ToString().Should().Contain($"[{workflowLabel}]");
+            output.ToString().Should().Contain(ruleDescription);
+            output.ToString().Should().Contain(helpTip);
             error.ToString().Should().BeEmpty();
         }
         finally
@@ -1297,6 +1301,15 @@ public sealed class CliCommandTests
         }
 
         return directory?.FullName ?? throw new InvalidOperationException("Repository root was not found.");
+    }
+
+    private static string GetCliTranslation(string culture, string key)
+    {
+        var root = FindRepositoryRoot();
+        var filePath = Path.Combine(root, "src", "Hosts", "Vulperonex.Cli", "Resources", "I18n", $"{culture}.json");
+        using var document = JsonDocument.Parse(File.ReadAllText(filePath));
+        return document.RootElement.GetProperty(key).GetString()
+            ?? throw new InvalidOperationException($"CLI translation '{key}' is missing for culture '{culture}'.");
     }
 
     private sealed class StubHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> handler) : HttpMessageHandler

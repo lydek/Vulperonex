@@ -21,7 +21,7 @@ public sealed class MemberAuditLogConfiguration : IEntityTypeConfiguration<Membe
         builder.Property(log => log.AfterJson).HasColumnType("TEXT");
         builder.Property(log => log.Reason).HasColumnType("TEXT");
 
-        // 設置 Index (MemberId, SubjectKind, OccurredAt)
+        // Configure index (MemberId, SubjectKind, OccurredAt)
         builder.HasIndex(log => new { log.MemberId, log.SubjectKind, log.OccurredAt });
 
     }

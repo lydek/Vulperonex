@@ -1,37 +1,37 @@
-# 第一階段待辦清單：方案骨架 + 領域基礎
+# Phase 1 Todo List: Solution Skeleton + Domain Foundation
 
-> 詳細計畫：`docs/phases/phase-1-foundation/plan.md`
-> 父待辦清單：`tasks/todo.md`
+> Detailed Plan: `docs/phases/phase-1-foundation/plan.md`
+> Parent Todo List: `tasks/todo.md`
 
 ---
 
-## 任務 1：方案結構
+## Task 1: Solution Structure
 
-- [x] 任務 1a：建立方案級別的編譯配置
-- [x] 任務 1b：新增生產專案骨架
-- [x] 任務 1c：新增測試專案骨架
-- [x] 任務 1d：串接專案引用與架構基準
-- [x] 任務 1e：驗證基準編譯與提交
+- [x] Task 1a: Establish solution-level build configuration
+- [x] Task 1b: Add production project skeletons
+- [x] Task 1c: Add test project skeletons
+- [x] Task 1d: Connect project references and architectural baseline
+- [x] Task 1e: Verify baseline compilation and commit
 
-## 任務 2：領域事件
+## Task 2: Domain Events
 
-- [x] 任務 2a：定義 `IStreamEvent` 與 `StreamUser`
-- [x] 任務 2b：實作七個 MVP 領域事件以及 `PlatformConnectionChangedEvent`
-- [x] 任務 2c：新增事件描述與領域層覆蓋率守門
-- [x] 任務 2d：強制執行領域層/應用層無平台洩漏
+- [x] Task 2a: Define `IStreamEvent` and `StreamUser`
+- [x] Task 2b: Implement seven MVP domain events and `PlatformConnectionChangedEvent`
+- [x] Task 2c: Add event descriptions and domain coverage gatekeeping
+- [x] Task 2d: Enforce no platform leakage in Domain/Application layers
 
-## 任務 3：成員領域與埠 (Ports)
+## Task 3: Member Domain and Ports
 
-- [x] 任務 3a：實作成員領域模型
-- [x] 任務 3b：定義應用層成員埠
-- [x] 任務 3c：完成成員測試與覆蓋率
-- [x] 任務 3d：新增 DCI 角色隔離守門
+- [x] Task 3a: Implement member domain model
+- [x] Task 3b: Define Application layer member ports
+- [x] Task 3c: Complete member tests and coverage
+- [x] Task 3d: Add DCI role isolation guardrails
 
-## 第一階段檢查點
+## Phase 1 Checkpoint
 
-- [x] 全方案編譯通過
-- [x] 全方案測試通過
-- [x] 領域層覆蓋率 > 90%
-- [x] 架構測試通過
-- [x] Git 狀態乾淨（忽略的本地檔案除外）
-- [x] 第二階段開始前完成第一階段審查
+- [x] Full solution compilation passes
+- [x] Full solution tests pass
+- [x] Domain coverage > 90%
+- [x] Architectural tests pass
+- [x] Git status clean (excluding ignored local files)
+- [x] Complete Phase 1 review before beginning Phase 2

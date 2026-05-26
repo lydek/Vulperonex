@@ -69,15 +69,15 @@ onMounted(async () => {
   const oauthParam = params.get("oauth");
   if (oauthParam) {
     if (oauthParam === "client_secret_missing") {
-      lastError.value = "TWITCH_CLIENT_SECRET_MISSING: 標準 OAuth 需要設定 Client Secret。若無，請將其保留為空並使用裝置授權流程。";
+      lastError.value = t("twitchAuth.error.clientSecretMissing");
     } else if (oauthParam === "state_invalid") {
-      lastError.value = "TWITCH_OAUTH_STATE_INVALID: 授權狀態過期或不合法。";
+      lastError.value = t("twitchAuth.error.stateInvalid");
     } else if (oauthParam === "exchange_failed") {
-      lastError.value = "TWITCH_OAUTH_EXCHANGE_FAILED: 金鑰交換失敗。";
+      lastError.value = t("twitchAuth.error.exchangeFailed");
     } else if (oauthParam === "error") {
       const errorType = params.get("error") || "";
       const desc = params.get("desc") || "";
-      lastError.value = `Twitch 授權錯誤: ${errorType} - ${desc}`;
+      lastError.value = `${t("twitchAuth.title")} Error: ${errorType} - ${desc}`;
     } else if (oauthParam === "success") {
       // Show success if needed (the UI will also reload states)
     }
@@ -198,7 +198,7 @@ function startDevicePolling(deviceCode: string, intervalSeconds: number, expires
     stopDevicePolling();
     if (deviceAuthStatus.value === "pending") {
       deviceAuthStatus.value = "expired";
-      lastError.value = "裝置授權超時，請點擊啟動授權重新試一次。";
+      lastError.value = t("twitchAuth.deviceAuthTimeout");
     }
   }, expiresSeconds * 1000);
 }
@@ -261,7 +261,7 @@ function describeError(caught: unknown): string {
       class="status-error twitch-error-banner"
       role="alert"
     >
-      ⚠️ <strong>授權問題</strong>：<span data-testid="twitch-error">{{ lastError }}</span>
+      ⚠️ <strong>{{ t("twitchAuth.authIssue") }}</strong>：<span data-testid="twitch-error">{{ lastError }}</span>
     </p>
 
     <div class="status-grid">
@@ -271,7 +271,7 @@ function describeError(caught: unknown): string {
       </article>
       <article class="status-card">
         <p class="status-label">{{ t("twitchAuth.clientSecret") }}</p>
-        <p class="status-value">{{ status?.clientSecretConfigured ? t("twitchAuth.configured") : t("twitchAuth.missing") }} (選填)</p>
+        <p class="status-value">{{ status?.clientSecretConfigured ? t("twitchAuth.configured") : t("twitchAuth.missing") }} {{ t("common.optional") }}</p>
       </article>
       <article class="status-card">
         <p class="status-label">{{ t("twitchAuth.refreshToken") }}</p>
@@ -314,9 +314,9 @@ function describeError(caught: unknown): string {
 
     <div v-if="deviceAuth && deviceAuthStatus === 'pending'" class="status-card twitch-device-panel">
       <h3 class="twitch-section-title twitch-device-title">
-        <span aria-hidden="true">🔑</span> Twitch 裝置授權流程中
+        <span aria-hidden="true">🔑</span> {{ t("twitchAuth.deviceAuthFlow") }}
       </h3>
-      <p>系統已在新分頁開啟 Twitch 驗證網頁。若新分頁被瀏覽器阻擋，請手動點選下方按鈕前往：</p>
+      <p>{{ t("twitchAuth.deviceAuthHint") }}</p>
       <div class="twitch-device-cta">
         <a
           :href="deviceAuth.verificationUri"
@@ -324,15 +324,15 @@ function describeError(caught: unknown): string {
           rel="noopener noreferrer"
           class="primary-button twitch-device-link"
         >
-          前往 Twitch 驗證網頁
+          {{ t("twitchAuth.gotoTwitchVerification") }}
         </a>
       </div>
-      <p class="twitch-device-instruction">請於驗證網頁中輸入以下代碼完成登入：</p>
+      <p class="twitch-device-instruction">{{ t("twitchAuth.enterCodeInstruction") }}</p>
       <div class="twitch-device-code-box">
         <strong class="twitch-device-code">{{ deviceAuth.userCode }}</strong>
       </div>
       <p class="rule-editor-hint twitch-device-hint">
-        ⏳ 正在偵測授權結果... 請在代碼失效前完成輸入。
+        {{ t("twitchAuth.detectingAuthResult") }}
       </p>
     </div>
 
@@ -344,7 +344,7 @@ function describeError(caught: unknown): string {
         data-testid="twitch-start"
         @click="onStart"
       >
-        {{ starting ? t("twitchAuth.starting") : (status?.clientSecretConfigured ? t("twitchAuth.start") : "啟動裝置授權") }}
+        {{ starting ? t("twitchAuth.starting") : (status?.clientSecretConfigured ? t("twitchAuth.start") : t("twitchAuth.startDeviceAuth")) }}
       </button>
       <button
         type="button"

@@ -1,45 +1,45 @@
-﻿# 第三階段待辦清單：Simulation Adapter + WorkflowEngine
+# Phase 3 Todo List: Simulation Adapter + WorkflowEngine
 
-> 詳細計畫：`docs/phases/phase-3-workflow/plan.md`
-> 父待辦清單：`tasks/todo.md`
+> Detailed Plan: `docs/phases/phase-3-workflow/plan.md`
+> Parent Todo List: `tasks/todo.md`
 
 ---
 
-## 任務 9：Simulation Adapter + EventTypeRegistry
+## Task 9: Simulation Adapter + EventTypeRegistry
 
-- [x] 任務 9a：建立 `IStreamEventTypeRegistry` contract 與 first-wins registry 行為
-- [x] 任務 9b：實作 `IStreamEventSource`、`SimulationAdapter` / `ISimulationAdapter`，可 publish 七個 MVP events
-- [x] 任務 9c：新增 SimulationAdapter isolation 與 SC-3 架構守門
+- [x] Task 9a: Establish `IStreamEventTypeRegistry` contract and first-wins registry behavior
+- [x] Task 9b: Implement `IStreamEventSource`, `SimulationAdapter` / `ISimulationAdapter`, publishing seven MVP events
+- [x] Task 9c: Add SimulationAdapter isolation and SC-3 architectural guardrails
 
-## 任務 10：WorkflowEngine
+## Task 10: WorkflowEngine
 
-- [x] 任務 10a：建立 WorkflowRule Application contracts、write/read ports 與 action/condition DTO
-- [x] 任務 10b：實作 condition evaluator（UserRole flags、MessageContent PrefixMatch/ContainsMatch/FullRegex、Cooldown）
-- [x] 任務 10c：實作 `SendChatMessageAction` executor、platform routing 與 SC-9
-- [x] 任務 10d：實作 WorkflowEngine 訂閱、rule matching、priority ordering 與 serial execution
-- [x] 任務 10e：補齊 timeout、retry/backoff、parallel mode 與 `ContinueOnError` / `StopOnError` / `RetryOnError`
-- [x] 任務 10f：實作 `InvokeSubWorkflowAction` executor 與 `InvocationId` dedup
+- [x] Task 10a: Establish WorkflowRule Application contracts, write/read ports, and action/condition DTOs
+- [x] Task 10b: Implement condition evaluator (UserRole flags, MessageContent PrefixMatch/ContainsMatch/FullRegex, Cooldown)
+- [x] Task 10c: Implement `SendChatMessageAction` executor, platform routing, and SC-9
+- [x] Task 10d: Implement WorkflowEngine subscription, rule matching, priority ordering, and serial execution
+- [x] Task 10e: Complete timeout, retry/backoff, parallel mode, and `ContinueOnError` / `StopOnError` / `RetryOnError` behaviors
+- [x] Task 10f: Implement `InvokeSubWorkflowAction` executor and `InvocationId` deduplication
 
-## 任務 11：Plugin System
+## Task 11: Plugin System
 
-- [x] 任務 11a：建立 `IVulperonexPlugin`、`IPluginContext`、`IPluginActionContext` contracts 與最小 `IPluginEventTypeRegistrar`
-- [x] 任務 11b：實作 static plugin registry 與 `InvokePluginAction` executor
-- [x] 任務 11c：完成 plugin publish custom event -> WorkflowRule -> SendChatMessage scenario（SC-10）
+- [x] Task 11a: Establish `IVulperonexPlugin`, `IPluginContext`, `IPluginActionContext` contracts, and minimal `IPluginEventTypeRegistrar`
+- [x] Task 11b: Implement static plugin registry and `InvokePluginAction` executor
+- [x] Task 11c: Complete plugin publish custom event -> WorkflowRule -> SendChatMessage scenario (SC-10)
 
-## 第三階段檢查點
+## Phase 3 Checkpoint
 
-- [x] 全方案編譯通過，0 warnings
-- [x] 全方案測試通過
-- [x] SC-2：WorkflowEngine 執行 matching rule 通過
-- [x] SC-3：SimulationAdapter 無 Twitch references 通過
-- [x] SC-4：Domain/Application 無 Twitch symbols 持續通過
-- [x] SC-9：SendChatMessage platform routing 通過
-- [x] SC-10：Plugin 發布事件觸發 WorkflowRule 通過
-- [x] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` 端到端通過
-- [x] `InvokeSubWorkflowAction` 使用穩定 `InvocationId` dedup，TDQ replay 不重複執行子工作流
-- [x] `IStreamEventTypeRegistry.IsKnownForWorkflow` 排除 system events 且允許 plugin custom events
-- [x] Plugin context reflection test 確認不暴露 `IServiceProvider`
-- [x] Domain coverage gate >90% 通過
-- [x] Application coverage gate >80% 通過
-- [x] Git 狀態乾淨（忽略的本地檔案除外）
-- [x] 第四階段開始前完成第三階段審查
+- [x] Full solution compilation passes with 0 warnings
+- [x] Full solution tests pass
+- [x] SC-2: WorkflowEngine executing matching rule passes
+- [x] SC-3: SimulationAdapter has no Twitch references passes
+- [x] SC-4: Domain/Application has no Twitch symbols continues to pass
+- [x] SC-9: SendChatMessage platform routing passes
+- [x] SC-10: Plugin publishing event triggering WorkflowRule passes
+- [x] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` end-to-end passes
+- [x] `InvokeSubWorkflowAction` uses stable `InvocationId` for deduplication; TDQ replay does not re-execute sub-workflows
+- [x] `IStreamEventTypeRegistry.IsKnownForWorkflow` excludes system events and permits plugin custom events
+- [x] Plugin context reflection test confirms it does not expose `IServiceProvider`
+- [x] Domain coverage gate >90% passes
+- [x] Application coverage gate >80% passes
+- [x] Git status clean (excluding ignored local files)
+- [x] Complete Phase 3 review before beginning Phase 4

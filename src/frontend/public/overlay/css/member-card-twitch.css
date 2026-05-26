@@ -1,10 +1,11 @@
 /* =========================================================
-   Twitch Purple-Gold Theme — token override 層
-   依賴：member-card.css (結構與動畫)。HTML 載入順序：
+   Twitch Purple-Gold Theme — Token Override Layer
+   Dependencies: member-card.css (Structure & Animation)
+   HTML Load Order:
      1. overlay-base.css
      2. member-card.css
      3. member-card-twitch.css
-========================================================= */
+ ========================================================= */
 
 :root {
     --mc-accent: #9146FF;

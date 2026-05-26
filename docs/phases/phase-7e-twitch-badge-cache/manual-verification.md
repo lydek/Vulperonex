@@ -1,58 +1,58 @@
-# Phase 7E 手動驗證
+# Phase 7E Manual Verification
 
-## 前置
+## Prerequisites
 
-1. Twitch OAuth 已完成（`/api/twitch/auth/status` `hasRefreshToken: true`）。
-2. `appsettings.json` 或環境變數 `Twitch__BroadcasterId` 設為真實 broadcaster id（取得：`curl -H "Authorization: Bearer <token>" -H "Client-Id: <id>" https://api.twitch.tv/helix/users?login=<your_login>`）。
-3. 啟動 `dotnet run --project src/Hosts/Vulperonex.Web`，並等待 log 出現：
+1. Twitch OAuth is complete (`/api/twitch/auth/status` returns `hasRefreshToken: true`).
+2. `appsettings.json` or environment variable `Twitch__BroadcasterId` is set to the actual broadcaster ID (obtain via `curl -H "Authorization: Bearer <token>" -H "Client-Id: <id>" https://api.twitch.tv/helix/users?login=<your_login>`).
+3. Start the application: `dotnet run --project src/Hosts/Vulperonex.Web`, and wait for the following logs to appear:
    - `Synced N global Twitch badges.`
-   - `Synced M channel Twitch badges for {BroadcasterId}.`（若有設 BroadcasterId）
+   - `Synced M channel Twitch badges for {BroadcasterId}.` (if BroadcasterId is set)
 
-## 1. `/api/twitch/badges` 端點
+## 1. `/api/twitch/badges` Endpoint
 
 ```bash
 curl http://localhost:5000/api/twitch/badges | jq '.ready, (.global | length), (.channel | length)'
 ```
 
-期望：
+Expected:
 - `ready: true`
-- `global` 約 25–35 個（含 broadcaster / moderator / vip / subscriber / founder / premium 等）
-- `channel` 為頻道自訂徽章數量（如「繪師」「贊助者」），未設 BroadcasterId 則為 0
+- `global` contains around 25–35 entries (including broadcaster / moderator / vip / subscriber / founder / premium, etc.)
+- `channel` contains the count of custom channel badges (e.g. Artist / Sponsor), or 0 if BroadcasterId is not configured.
 
-## 2. 模擬器徽章 picker
+## 2. Simulator Badge Picker
 
-1. 開 `/admin/simulate`（或 `/monitor`）。
-2. 「身份徽章」section 顯示徽章 chip grid，每個 chip 為徽章圖示 + 名稱。
-3. 點擊勾選 `VIP` + `Moderator` + 一個自訂徽章（如「繪師」）。
-4. 「名稱顏色」改為 `#FFCA28`，色塊即時更新。
-5. alias 維持 `chat`，輸入訊息「測試徽章顯示」，送出。
+1. Open `/admin/simulate` (or `/monitor`).
+2. The "Identity Badges" section displays a badge chip grid, each chip containing the badge icon and name.
+3. Check `VIP` + `Moderator` + a custom badge (e.g., Artist).
+4. Change "Username Color" to `#FFCA28`, verifying the color swatch updates immediately.
+5. Keep alias as `chat`, type "testing badge display", and send the message.
 
-## 3. Chat overlay 顯示
+## 3. Chat Overlay Display
 
-1. 另開分頁 `/overlay/chat`。
-2. 訊息出現時驗證：
-   - 暱稱前出現所選徽章的真實圖示（PNG），而非文字 chip。
-   - 暱稱文字為金黃色 `#FFCA28`。
-   - 無 `SUBSCRIBER` / `MODERATOR` 文字膠囊。
-3. 開 DevTools Network 確認 `<img>` 載入了 `static-cdn.jtvnw.net/badges/v1/...png`。
+1. Open `/overlay/chat` in a separate browser tab.
+2. When the message arrives, verify:
+   - Real badge icons (PNG) appear before the display name, instead of text chips.
+   - Display name text is colored `#FFCA28`.
+   - No `SUBSCRIBER` / `MODERATOR` text capsules are rendered.
+3. Open DevTools Network tab to confirm `<img>` successfully loaded `static-cdn.jtvnw.net/badges/v1/...png`.
 
-## 4. 真實 Twitch IRC 訊息
+## 4. Real Twitch IRC Messages
 
-1. 用 VIP / Moderator / 訂閱者帳號於實際 Twitch 聊天室發送訊息。
-2. `/overlay/chat` 顯示對應徽章圖示，無破圖（cache miss 應靜默隱藏 `<img>`）。
+1. Send messages in the actual Twitch chat room using a VIP / Moderator / Subscriber account.
+2. Verify `/overlay/chat` displays the corresponding badge icons without broken images (cache misses must silently hide `<img>`).
 
-## 5. Cache miss 防護
+## 5. Cache Miss Mitigation
 
-1. 在 Sim picker 不開放的情況下，用 `curl` POST 一筆 `badges: ["bogus_99"]`：
+1. Force-simulate a message with an invalid badge key using `curl`:
    ```bash
    curl -X POST http://localhost:5000/api/simulate/chat \
      -H "Content-Type: application/json" \
      -d '{"displayName":"Sim","message":"hi","badges":["bogus_99"]}'
    ```
-2. Overlay 訊息出現但無徽章圖示，且 console 無 404 圖片錯誤。
+2. Verify the message appears on the overlay without any badge icons, and no 404 image load errors appear in the console.
 
-## 6. 重啟同步
+## 6. Restart Sync
 
-1. 停止 Web、重啟。
-2. log 重新出現 `Synced N global Twitch badges`。
-3. `GET /api/twitch/badges` 立刻有資料（非首次請求才查）。
+1. Stop and restart the web application.
+2. Confirm logs reprint `Synced N global Twitch badges`.
+3. Verify `GET /api/twitch/badges` immediately returns data (loaded at startup, not on-demand).

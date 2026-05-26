@@ -9,7 +9,7 @@ namespace Vulperonex.Tests.Unit.Desktop;
 
 public sealed class DesktopShellTests
 {
-    // BDD 命名格式: Given_MockWebHostAlwaysCrashes_When_RunLoopExecuted_Then_RetriesThreeTimesAndStops
+    // BDD naming pattern: Given_MockWebHostAlwaysCrashes_When_RunLoopExecuted_Then_RetriesThreeTimesAndStops
     [Fact]
     public async Task Given_MockWebHostAlwaysCrashes_When_RunLoopExecuted_Then_RetriesThreeTimesAndStops()
     {
@@ -35,6 +35,7 @@ public sealed class DesktopShellTests
                     fallbackTriggered = true;
                     break;
                 }
+
                 await Task.Delay(1); // Small delay to avoid busy looping in tests
             }
         }

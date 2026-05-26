@@ -117,8 +117,8 @@ Required checks:
   2. Open `http://127.0.0.1:5000/` in Chrome.
   3. Simulate panel → send `chat` message → observe ack response with `accepted`, `eventTypeKey`, `eventId`.
   4. Open `/overlay/chat` in second tab → confirm chat event appears within 5s.
-  5. Member panel → `list` works, no `seed` / `delete` buttons present (唯讀確認).
-  6. Rule panel → create rule via JSON Textarea → enable → disable → delete (含確認 dialog 二次確認).
+  5. Member panel → `list` works, no `seed` / `delete` buttons present (read-only confirmation).
+  6. Rule panel → create rule via JSON Textarea → enable → disable → delete (with confirmation dialog double check).
   7. Event monitor → real-time SignalR envelopes appear after simulate.
 - Expected result: All flows complete without errors; overlay receives event; member panel is read-only; rule lifecycle succeeds.
 - Actual result: All checks passed. Simulate ack includes traceable `eventId`; overlay push confirmed; member list shows no mutation controls; rule lifecycle transitions correct with confirmation dialogs; event monitor updates in real time.

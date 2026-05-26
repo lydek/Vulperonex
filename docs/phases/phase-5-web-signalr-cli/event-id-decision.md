@@ -1,21 +1,21 @@
-# 第 5 階段事件 ID 決定
+# Phase 5 Event ID Decision
 
-> 父任務：`docs/phases/phase-5-web-signalr-cli/plan.md` 任務 15b
+> Parent Task: `docs/phases/phase-5-web-signalr-cli/plan.md` Task 15b
 
-## 狀態
+## Status
 
-已決定 — 任務 15b overlay 轉寄已依此決策實作。
+Decided — Task 15b overlay forwarding has been implemented based on this decision.
 
-## 待記錄的決定
+## Decisions to Record
 
-- Overlay payload 的 `eventId` 使用 domain event 的 public event id。
-- 平台提供的事件 ID 可跨 overlay 用戶端識別同一來源事件；adapter 後備 ULID 僅作為本機單一實例交付 ID。
-- Overlay 公開 `eventId` 不得包含 `MemberId`、`PlatformUserId` 或其他內部身分識別碼。
-- Phase 5 的 SignalR contract 測試驗證 `schemaVersion`、`eventId` 與 chat segment payload 會在線路負載中出現。
+- The `eventId` in the overlay payload utilizes the domain event's public event ID.
+- Platform-provided event IDs allow cross-overlay-client identification of the same source event; fallback ULIDs from adapters serve strictly as local single-instance delivery IDs.
+- Overlay public `eventId`s must not contain `MemberId`, `PlatformUserId`, or other internal identity identifiers.
+- Phase 5 SignalR contract tests verify that `schemaVersion`, `eventId`, and chat segment payloads appear in the wire payload.
 
-## 審查筆記
+## Review Notes
 
-- 審查者：Codex
-- 日期：2026-05-16
-- 決定：採用 domain event public id 作為 overlay `eventId`，缺平台來源 id 時允許本機合成 id。
-- 後續：若 Phase 6 引入多 overlay client replay/dedup，需重新評估 synthetic id 是否足以跨 client 去重。
+- Reviewer: Codex
+- Date: 2026-05-16
+- Decision: Adopt domain event public ID as overlay `eventId`, permitting local synthetic IDs when platform source IDs are missing.
+- Follow-up: If Phase 6 introduces multi-overlay client replay/dedup, re-evaluate whether synthetic IDs are sufficient for cross-client deduplication.

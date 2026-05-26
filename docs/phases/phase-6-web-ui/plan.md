@@ -1,49 +1,49 @@
-# 第 6 階段實作計畫：Web UI + 日誌 + Desktop Shell
+# Phase 6 Implementation Plan: Web UI + Logging + Desktop Shell
 
-> 父計畫：`tasks/plan.md`
-> 父待辦清單：`tasks/todo.md`
-> 任務範圍：Task 18-22
-> 前置條件：Phase 5 CLI / Web API / SignalR / Twitch OAuth manual verification 已完成並記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
+> Parent Plan: `tasks/plan.md`
+> Parent Checklist: `tasks/todo.md`
+> Scope: Tasks 18-22
+> Precondition: Phase 5 CLI / Web API / SignalR / Twitch OAuth manual verification completed and recorded in `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 > [!IMPORTANT]
-> **前置條件 Gate**：父計畫中 Phase 5 Checkpoint 的三項手動驗收（包含 CLI E2E 收尾、Twitch OAuth 真實瀏覽器授權、以及 REPL 手動驗收）必須確認已勾選完成，此 Phase 6 方可開工實作。
-> **目前狀態**：Phase 6 已完成的 Web UI/rule JSON editor/overlay history 作為 Phase 7 基線；尚未完成的 Photino/manual verification 等非 workflow parity 項目延後，待 Phase 7 後再收斂。
-> **⚠ OAuth Gate 注意**：「真實瀏覽器授權」需包含完整 code exchange + refresh_token 加密保存，不僅是 `auth start` 開啟瀏覽器。若 Phase 5 manual-verification.md 僅記錄開啟授權 URL，須在有效 `Twitch:ClientId` 環境補充完整 OAuth round-trip 驗收後方可通過此 Gate。
+> **Precondition Gate**: The three manual verification checkpoints in the Parent Plan's Phase 5 (including CLI E2E wrap-up, Twitch OAuth real browser authorization, and REPL manual checks) must be marked as completed before Phase 6 implementation can begin.
+> **Current Status**: Completed Web UI/rule JSON editor/overlay history inside Phase 6 serves as a baseline for Phase 7; incomplete non-workflow parity items like Photino/manual verification are deferred until after Phase 7 convergence.
+> **⚠ OAuth Gate Note**: "Real browser authorization" must include full code exchange and encrypted refresh_token storage, not just launching the browser via `auth start`. If `manual-verification.md` in Phase 5 only records launching the authorization URL, this Gate cannot pass until full OAuth round-trip verification is completed in a valid `Twitch:ClientId` environment.
 
 ---
 
-## 時程預估與 Onboarding 說明 (II18, II21)
+## Estimation and Onboarding Instructions (II18, II21)
 
-- **Phase 5.5 收斂與 CLI 整合整理**：**0.5 天** (II21)（專注於 CLI id resolution 隔離與 dirty diff 的 git cleanup，以及補齊 Phase 5 的真實 OAuth round-trip 授權測試紀錄，確保 master branch 乾淨與 audit trail 完整）。
-- **Phase 6 實作時程**：**7 天** (II18)
-  - Task 19 前端骨架建置與 SignalR/Polling 整合：**2 天**
-  - Task 20 五大管理面板 (含 1MB JSON 貼入防護、LWW 去重、指數退避)：**3 天**
-  - Task 18 Serilog 三 Sink 與 AppLogs 清理機制：**1 天**
-  - Task 22 Overlay 事件歷史持久化 + 清理 surface (複用 SystemSettings + Omni-Commander pattern)：**0.5 天**
-  - Task 21 Photino 桌面外殼 (含單實例偵測、IPC Bridge、崩潰重新啟動上限)：**1 天**
-- **Onboarding 指引**：開發人員啟動專案前，優先執行 `corepack enable` 釘定 pnpm@9.15.4 版本；若 Windows 權限阻止建立全域 pnpm shim，改用 `corepack pnpm@9.15.4 <command>` 執行所有前端命令。執行 `pnpm dev` 或 `corepack pnpm@9.15.4 dev` 啟動 Vite dev server 進行 smoke 測試時，stdout 出現 `VITE ... ready in` 字樣即可視為成功，手動 Ctrl+C 後繼續執行後續步驟。
-
----
-
-## 目標
-
-Phase 6 把 Phase 5 已由 CLI 驗證過的 loopback Web API 能力搬到 Vue Web UI，形成可長時間操作的本機控制台。第一個畫面必須是可用的操作介面，而不是 landing page：使用者可以確認 API/Twitch 狀態、模擬事件、檢視成員、管理 WorkflowRule、監看 SignalR 事件，最後由 Photino Desktop Shell 包裝成桌面入口。
+- **Phase 5.5 Convergence and CLI Integration Cleanup**: **0.5 Days** (II21) (Focus on CLI id resolution isolation, dirty diff git cleanup, and completing Phase 5 real OAuth round-trip authorization test logs, ensuring a clean master branch and complete audit trail).
+- **Phase 6 Implementation Schedule**: **7 Days** (II18)
+  - Task 19: Frontend Foundation and SignalR/Polling Integration: **2 Days**
+  - Task 20: Five Admin Panels (including 1MB JSON paste protection, LWW deduplication, and exponential backoff): **3 Days**
+  - Task 18: Serilog Three Sinks and AppLogs Cleanup Mechanism: **1 Day**
+  - Task 22: Overlay Event History Persistence + Cleanup Surface (reusing SystemSettings + Omni-Commander patterns): **0.5 Days**
+  - Task 21: Photino Desktop Shell (including Single Instance detection, IPC Bridge, and crash restart limits): **1 Day**
+- **Onboarding Instructions**: Developers must execute `corepack enable` to pin pnpm@9.15.4 in `src/frontend` before starting; if Windows permissions block creating global pnpm shims, use `corepack pnpm@9.15.4 <command>` for all frontend commands instead. When launching Vite dev server via `pnpm dev` or `corepack pnpm@9.15.4 dev` for smoke tests, the appearance of `VITE ... ready in` in stdout indicates success, allowing manual Ctrl+C to proceed to subsequent steps.
 
 ---
 
-## 設計原則
+## Goals
 
-- Web UI 是 CLI manual smoke 的視覺化延伸；不得重新發明後端流程或直接讀寫 SQLite。
-- 前端所有後端錯誤只依 error code 呈現，由 vue-i18n 轉譯；後端仍保持 machine-readable error。
-- API base URL 不硬編本機 port：瀏覽器由相對路徑呼叫同源 API，Vite dev 可用 `VITE_API_URL` 覆寫。
-- UI 走操作型工具風格：資訊密度高、清楚、穩定，不做行銷 hero 或裝飾性視覺。
-- 規則編輯先提供可靠的 CLI-equivalent JSON path 與基本表單；完整視覺化 builder 可在後續切片擴充。
-- Overlay route 與管理 admin route 分離；overlay route 只處理顯示，不包含管理控制。
-- 前端 i18n 檔案與 CLI i18n 一樣採外部可擴充思路：語系清單與語系檔名稱對應，缺字串顯示 key，不讓 UI crash。
-- 新增 npm/NuGet dependency 前遵守 ask-first；已存在的工具可直接用於驗證。
+Phase 6 ports the loopback Web API capabilities verified by the Phase 5 CLI into Vue Web UI, forming a long-running local control panel. The first view must be a functional admin interface, not a landing page: users can verify API/Twitch status, simulate events, view members, manage WorkflowRules, monitor SignalR events, and finally package it via Photino Desktop Shell as a desktop entry point.
 
 ---
 
-## 依賴圖
+## Design Principles
+
+- The Web UI is a visual extension of CLI manual smoke tests; do not reinvent backend workflows or read/write SQLite directly.
+- Frontend error handling displays backend errors strictly via error codes, translated by vue-i18n; the backend continues to emit machine-readable errors.
+- The API base URL does not hardcode local ports: browsers call same-origin APIs via relative paths, with Vite dev override support via `VITE_API_URL`.
+- The UI follows a functional tool aesthetic: high information density, clean, stable, avoiding marketing hero elements or decorative visuals.
+- Rule editing first provides a reliable CLI-equivalent JSON path and basic forms; full visual builders can be expanded in subsequent slices.
+- Overlay routes are separated from administrative routes; overlay routes only handle displays, not administrative controls.
+- Frontend i18n files adopt the same externally extensible approach as CLI i18n: locale lists correspond to locale filenames, displaying keys on missing strings to avoid UI crashes.
+- Follow the ask-first protocol before adding new npm/NuGet dependencies; existing tools can be used directly for verification.
+
+---
+
+## Dependency Graph
 
 ```text
 Task 18 Serilog/AppLogs
@@ -60,80 +60,80 @@ Task 21 Desktop Shell
     -> Ships Web UI through local desktop entry
 ```
 
-Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 Task 19，否則 Task 20/21 會缺少共用前端基礎。
+Task 18 can be implemented separately from Task 19, but Phase 6 Web UI tasks should complete Task 19 first, otherwise Task 20/21 will lack shared frontend foundations.
 
 ---
 
-## Task 18 - Serilog 三 Sink + AppLogs 清理 worker
+## Task 18 - Serilog Three Sinks + AppLogs Cleanup Worker
 
-**描述：** 設定 Console、Rolling File + SQLite AppLogs 三個 sink，加入結構化欄位 enricher，並實作 `log.db_retention_days` / `log.db_max_size_mb` 清理 worker。`log.min_level` 必須透過 SystemSettings 熱重載。`log.db_max_size_mb` 預設值為 `50` (50MB) (II23, HH30)，`log.db_retention_days` 預設值為 `30` (30天)。
+**Description:** Configure Console, Rolling File, and SQLite AppLogs sinks, adding structured field enrichers, and implementing a cleanup worker for `log.db_retention_days` / `log.db_max_size_mb`. `log.min_level` must be hot-reloaded via SystemSettings. The default for `log.db_max_size_mb` is `50` (50MB) (II23, HH30), and the default for `log.db_retention_days` is `30` (30 days).
 
-**驗收標準：**
-- [ ] Console、rolling file、SQLite AppLogs 均可寫入，且不重複設定 `PRAGMA auto_vacuum`（HH11）。
-- [ ] AppLogs rows 含 EventTypeKey、Platform、MemberId、WorkflowRuleId、ActionType 等結構化欄位。
-- [ ] **去識別化與隱私合規 (II24, HH29)**：`MemberId` 欄位僅記錄已去識別化（Pseudonymized）的 ULID，屬於 pseudonymous，程式碼與日誌中必須有明確的非 PII (Non-PII) 註記，嚴格禁止記錄 any PII (如真實姓名、E-mail 或 platform 帳號原始 ID)。
-- [ ] `config set log.min_level Warning` 後 Debug/Information 不再寫入，無需重新啟動。
-- [ ] size-based cleanup 與 retention cleanup 整合於單一背景 worker 中，**以先觸發者為準** (HH18)。size-based cleanup 使用 `PRAGMA page_count * page_size` 判斷，清理後明確執行 `VACUUM`。
-- [ ] retention cleanup 與 size cleanup 可單次透過呼叫 `AppLogsCleanupWorker.ExecuteOnce()` 觸發測試，不依賴 background timing。
+**Acceptance Criteria:**
+- [ ] Console, rolling file, and SQLite AppLogs are all writable, avoiding duplicate configurations of `PRAGMA auto_vacuum` (HH11).
+- [ ] AppLogs rows contain structured fields: EventTypeKey, Platform, MemberId, WorkflowRuleId, ActionType.
+- [ ] **De-identification and Privacy Compliance (II24, HH29)**: The `MemberId` field strictly logs pseudonymized ULIDs (pseudonymous), with explicit non-PII (Non-PII) comments in code and logs. It is strictly forbidden to log any PII (such as real names, e-mails, or raw platform account IDs).
+- [ ] After calling `config set log.min_level Warning`, Debug/Information logs are no longer written, without requiring a restart.
+- [ ] Size-based cleanup and retention cleanup are integrated into a single background worker, **whichever is triggered first** (HH18). Size-based cleanup utilizes `PRAGMA page_count * page_size` check, followed by an explicit `VACUUM` upon execution.
+- [ ] Both retention cleanup and size cleanup can be triggered for testing individually via `AppLogsCleanupWorker.ExecuteOnce()`, independent of background timing.
 
-**驗證：**
-- [ ] **dotnet Integration test (後端) (II3)**：
-  - `Given_AppLogs_When_PublishedEvent_Then_ContainsPseudonymizedMemberId` 驗證日誌欄位，包含 `MemberId` 屬 pseudonymous 的 Non-PII 註記斷言。
-  - `Given_LogSettings_When_MinLevelWarning_Then_SuppressDebugAndInfo` 驗證熱重載 log level。
-  - `Given_AppLogs_When_SizeThresholdExceeded_Then_TriggerCleanupAndVacuum` 驗證以先觸發者為準的 cleanup 策略與 vacuum 後 DB page size 降低。
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
+**Verification:**
+- [ ] **dotnet Integration Test (Backend) (II3)**:
+    - `Given_AppLogs_When_PublishedEvent_Then_ContainsPseudonymizedMemberId` verifies log fields, asserting the non-PII nature of the pseudonymous `MemberId` with comments.
+    - `Given_LogSettings_When_MinLevelWarning_Then_SuppressDebugAndInfo` verifies hot-reloaded log levels.
+    - `Given_AppLogs_When_SizeThresholdExceeded_Then_TriggerCleanupAndVacuum` verifies whichever-triggered-first cleanup policies and database page size reduction after vacuuming.
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` passes.
 
-**依賴：** Task 5, Task 8
+**Dependencies:** Task 5, Task 8
 
-**預計觸及檔案：**
+**Files Likely Involved:**
 - `src/Hosts/Vulperonex.Web/Logging/`
 - `src/Vulperonex.Infrastructure/Logging/`
 - `tests/Vulperonex.Tests.Integration/Logging/`
 
-**規模：** M
+**Size:** M
 
 ---
 
-## Task 19 - Vue 前端骨架 + SignalR composable
+## Task 19 - Vue Frontend Skeleton + SignalR Composable
 
-**描述：** 建立可執行的 `src/frontend` Vite/Vue 應用，包含 routing、Pinia、vue-i18n、API client、SignalR composable、overlay route skeleton、管理 admin layout。
-- **Task 19a 啟動與 Lockfile-only 預檢 (II14)**：本任務啟動前，開發人員必須在 `src/frontend` 中執行 `corepack enable` 以確保釘定版本 pnpm@9.15.4 生效；若 Windows 權限阻止建立全域 pnpm shim，改用 `corepack pnpm@9.15.4 <command>`。pnpm 9.15.4 的 `install` 不支援 `--dry-run`，因此預檢命令固定為 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts`，用來驗證 Vite 7.3、PrimeVue 4、UnoCSS 等前端技術棧的版本相容性且不執行 lifecycle scripts。
-- 全部 stack 套件（Vue 3.5、Vite 7.3、PrimeVue 4 Unstyled、UnoCSS Preset Wind 4、Pinia、vue-i18n、oxlint、vue-tsc 以及所有傳遞依賴）首次安裝前須取得使用者同意（ask-first 協定）。
-- **Git Scope Auto Gate (II20)**：在 `src/frontend` 中設定 `simple-git-hooks` 或 `husky` 配合 `commitlint`。設置自動化 Hook 在 `commit-msg` 階段執行 scope check，強制阻斷不符合 Conventional Commits 格式的 git commit 提交，從工具鏈層級提供自動化防護。
+**Description:** Establish an operational Vite/Vue application in `src/frontend`, containing routing, Pinia, vue-i18n, API clients, SignalR composables, overlay route skeletons, and administrative admin layouts.
+- **Task 19a Startup and Lockfile-only Pre-check (II14)**: Before starting this task, developers must execute `corepack enable` in `src/frontend` to ensure pinned pnpm@9.15.4 takes effect; if Windows permissions prevent global pnpm shims, use `corepack pnpm@9.15.4 <command>` instead. Since pnpm 9.15.4's `install` does not support `--dry-run`, the pre-check command is fixed to `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts`, validating version compatibility of Vite 7.3, PrimeVue 4, UnoCSS, and other frontend stacks without executing lifecycle scripts.
+- All stack packages (Vue 3.5, Vite 7.3, PrimeVue 4 Unstyled, UnoCSS Preset Wind 4, Pinia, vue-i18n, oxlint, vue-tsc, and all transitive dependencies) require user consent (ask-first protocol) before first installation.
+- **Git Scope Auto Gate (II20)**: Configure `simple-git-hooks` or `husky` paired with `commitlint` in `src/frontend`. Establish automated hooks to execute scope checks during the `commit-msg` phase, strictly blocking git commits that do not conform to Conventional Commits formats, providing automated protection from the toolchain level.
 
-**驗收標準：**
-- [ ] 本任務啟動前已執行 `corepack enable`，或在 Windows shim 權限受阻時改用 `corepack pnpm@9.15.4 <command>`；且 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts` 通過，確保無版本相容性衝突 (II14)。
-- [ ] `src/frontend/package.json` 釘定 `"packageManager": "pnpm@9.15.4"`（`pnpm --version` 回傳 `9.15.4`；不使用 `9.x.x` 萬用版本），並提供 `dev`、`test`、`build`、`lint` scripts。
-- [ ] `package.json` 含 `"lint": "oxlint --config oxlint.json"` script；`oxlint.json` 含 Vue 3 + TypeScript rule set；`pnpm lint` 無錯誤（oxlint 為指定 linter，不使用 ESLint）。
-- [ ] Vite build 輸出至 `src/Hosts/Vulperonex.Web/wwwroot`，生成檔維持不提交。
-- [ ] API client 支援 relative base URL 與 `VITE_API_URL` override。
-- [ ] `useStreamEvents` 連線 `/hubs/events`（管理 Hub），收到 envelope 後更新 reactive state。
-- [ ] `/overlay/chat`（連線 `/hubs/overlay/chat` 獨立 Hub）、`/overlay/alerts`（連線 `/hubs/overlay/alerts` 獨立 Hub）可掛載與連線；前端消費後端定義之 DTO contract，重申其為「消費端白名單」，即消費端不解構或傳遞額外欄位，詳細 DTO 欄位精確白名單規範以 cross-ref 指向父計畫 [tasks/plan.md § Task 15 DTO 規格](file:///d:/code/Vulperonex/tasks/plan.md)，避免行號變動失效風險。
-- [ ] `/overlay/member`（連線 `/hubs/overlay/member` 獨立 Hub）可掛載；顯示 MVP skeleton 空狀態 UI（Server 端 MVP 階段不發送事件至 `/hubs/overlay/member`，不 crash，確認 post-MVP 頁面不 crash）。
-- [ ] **useEventStore Setup Store 設計 (II7, II10)**：
-  - 前端與後端管理 Hub `/hubs/events` 的通訊由 `useStreamEvents` composable 處理，但接收到的所有事件信封（Envelope）必須轉推並匯流至 Pinia Setup Store `useEventStore` (位於 `src/frontend/src/stores/eventStore.ts`)。
-  - **命名與單向數據流規範 (II10)**：Pinia store 統一採用 Setup Store 語法，命名規則必須為 `use[Feature]Store` (例如 `useAuthStore`、`useWorkflowStore`、`useMonitorStore`)。狀態必須以唯讀屬性 (`readonly(state)`) 露出，且僅能透過 Store Actions 進行修改，維持 unidirectional data flow (單向數據流)。
-  - **資料去重與一致性 (Last-write-wins) (II7)**：Store 內以 `eventId` 為 key 進行儲存與維護。由 `useEventStore` 作為 **Last-write-wins reducer** 的實作位置。當 SignalR 與 HTTP Polling fallback 同時傳來相同 `eventId` 的事件時，必須比對 envelope 的 `occurredAt`，採用 `last-write-wins` (LWW) 覆蓋策略，將最新 occurredAt 的內容寫入 store。
-  - **Overlay 獨立與解耦設計**：Overlay（`/overlay/chat`, `/overlay/alerts`）不共享 `useEventStore` 的狀態。它們應直接並單獨呼叫各自的 `useOverlayHub(hubName)` composable 連線對應 of `/hubs/overlay/chat` 與 `/hubs/overlay/alerts` 獨立 Hub。這能確保 Overlay 的安全性邊界（僅消費白名單欄位，不將敏感的管理主控台資料帶入 Overlay 頁面，防範 DTO 溢出）。
-- [ ] 管理 admin 首頁僅顯示狀態卡片（API health、Twitch auth status、no-Twitch mode），Dashboard Log Widget 標記為 **Defer (非 MVP 範疇)**。
-- [ ] UI text 走 vue-i18n；至少提供 `zh-TW` 與 `en-US` 語系檔，並由 manifest 檔 `src/frontend/src/i18n/manifest.json` 控制可用語系，其格式為 `{ "locales": ["zh-TW", "en-US"], "default": "zh-TW" }`。缺字串則顯示 key 名稱而不 crash。
-- [ ] XSS 邊界：overlay 顯示使用 text binding，不使用 `v-html` 渲染外部事件內容。
+**Acceptance Criteria:**
+- [ ] `corepack enable` is executed before this task starts, or fallback to `corepack pnpm@9.15.4 <command>` if Windows shim permissions are blocked; and `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts` passes, ensuring no version compatibility conflicts (II14).
+- [ ] `src/frontend/package.json` pins `"packageManager": "pnpm@9.15.4"` (`pnpm --version` returns `9.15.4`; do not use wildcards like `9.x.x`), and provides `dev`, `test`, `build`, and `lint` scripts.
+- [ ] `package.json` contains `"lint": "oxlint --config oxlint.json"`; `oxlint.json` contains Vue 3 + TypeScript rule sets; `pnpm lint` yields 0 errors (oxlint serves as the designated linter, Eslint is not used).
+- [ ] Vite build outputs to `src/Hosts/Vulperonex.Web/wwwroot`, with generated files excluded from commits.
+- [ ] API clients support relative base URLs and `VITE_API_URL` overrides.
+- [ ] `useStreamEvents` connects to `/hubs/events` (Admin Hub), updating reactive states upon envelope arrival.
+- [ ] `/overlay/chat` (connecting to `/hubs/overlay/chat` independent Hub) and `/overlay/alerts` (connecting to `/hubs/overlay/alerts` independent Hub) mount and connect; the frontend consumes DTO contracts defined by the backend, restated as "consumer whitelists" (the consumer does not deconstruct or forward extra fields). The detailed DTO whitelist specifications are cross-referenced to the parent plan's [tasks/plan.md § Task 15 DTO Specifications](file:///d:/code/Vulperonex/tasks/plan.md) to avoid line number change invalidations.
+- [ ] `/overlay/member` (connecting to `/hubs/overlay/member` independent Hub) mounts, displaying an MVP skeleton empty state UI (the server does not push events to `/hubs/overlay/member` in MVP; does not crash, proving post-MVP pages do not crash).
+- [ ] **useEventStore Setup Store Design (II7, II10)**:
+    - Communication between the frontend and the Admin Hub `/hubs/events` is handled by the `useStreamEvents` composable, but all received event envelopes must be forwarded and consolidated into the Pinia Setup Store `useEventStore` (located in `src/frontend/src/stores/eventStore.ts`).
+    - **Naming and Unidirectional Data Flow Specifications (II10)**: Pinia stores strictly adopt Setup Store syntax, with naming rules requiring `use[Feature]Store` format (e.g., `useAuthStore`, `useWorkflowStore`, `useMonitorStore`). States must be exposed as read-only (`readonly(state)`) and modified strictly via Store Actions, maintaining unidirectional data flows.
+    - **Data Deduplication and Consistency (Last-write-wins) (II7)**: Stores store and maintain events using `eventId` as keys. `useEventStore` serves as the implementation location for the **Last-write-wins reducer**. When both SignalR and HTTP Polling fallbacks deliver identical `eventId`s, compare envelope `occurredAt` timestamps, adopting a `last-write-wins` (LWW) override policy to write the latest occurredAt payload to the store.
+    - **Overlay Independence and Decoupling Design**: Overlays (`/overlay/chat`, `/overlay/alerts`) do not share `useEventStore` states. They must directly and individually call their respective `useOverlayHub(hubName)` composables to connect to independent Hubs (`/hubs/overlay/chat` and `/hubs/overlay/alerts`). This ensures overlay security boundaries (consuming only whitelist fields, preventing sensitive admin console data from leaking into overlay pages, guarding against DTO overflows).
+- [ ] The admin status dashboard page displays strictly status cards (API health, Twitch auth status, no-Twitch mode), with the Dashboard Log Widget marked as **Defer (Non-MVP)**.
+- [ ] UI text is driven by vue-i18n, providing at least `zh-TW` and `en-US` locale files controlled by the manifest file `src/frontend/src/i18n/manifest.json` configured as `{ "locales": ["zh-TW", "en-US"], "default": "zh-TW" }`. Missing strings display keys directly without crashing.
+- [ ] XSS Boundary: overlay displays utilize text bindings, avoiding `v-html` rendering for external event contents.
 
-**驗證：**
-- [ ] **TypeScript 型別防護 Gate**：執行 `pnpm run build` 前，必須成功通過 `pnpm vue-tsc --noEmit` 型別檢查無 error（Vue SFC 需 vue-tsc，非 tsc）。
-- [ ] **Vitest (前端) (II3, II8, II9)**：
-  - 所有單元測試符合符合 BDD 規範的 `should [behavior] when [scenario]` 格式 (II8) (例如 `should safe-render chat when XSS payloads injected`)。
-  - 測試覆蓋率門檻要求 (II9)：`Branch Coverage ≥ 70%`，`Statement Coverage ≥ 80%`。
-  - 核心 Composable 與 Store 的單元測試均成功通過。
-- [ ] `cd src/frontend; pnpm test` -> 專屬與 composable 單元測試通過。
-- [ ] `cd src/frontend; pnpm build` -> wwwroot 有 index.html + assets。
-- [ ] `cd src/frontend; pnpm lint` -> 執行 `oxlint` 語法檢驗，前端 lint 全綠無錯誤。
-- [ ] **Browser Manual 驗證**：開啟 Web host 首頁，admin layout 可載入且 API status 正確。
-- [ ] **Browser Manual 驗證**：開啟 `/overlay/chat` 後執行 CLI `simulate chat hello from ui smoke`，畫面收到事件。
+**Verification:**
+- [ ] **TypeScript Type Safety Gate**: Before executing `pnpm run build`, `pnpm vue-tsc --noEmit` must pass successfully with 0 errors (Vue SFC requires vue-tsc instead of tsc).
+- [ ] **Vitest (Frontend) (II3, II8, II9)**:
+    - All unit tests conform to the BDD format `should [behavior] when [scenario]` (II8) (e.g. `should safe-render chat when XSS payloads injected`).
+    - Test coverage gates demand (II9): `Branch Coverage ≥ 70%`, `Statement Coverage ≥ 80%`.
+    - Unit tests for core composables and stores pass successfully.
+- [ ] `cd src/frontend; pnpm test` -> composable and store unit tests pass.
+- [ ] `cd src/frontend; pnpm build` -> wwwroot contains index.html + assets.
+- [ ] `cd src/frontend; pnpm lint` -> runs `oxlint` syntax checks, frontend lint passes 100% green without errors.
+- [ ] **Browser Manual Verification**: Open the Web host home page; the admin layout loads successfully and API status displays correctly.
+- [ ] **Browser Manual Verification**: Open `/overlay/chat`, then execute CLI `simulate chat hello from ui smoke`, verifying the event is received on screen.
 
-**依賴：** Task 15
+**Dependencies:** Task 15
 
-**預計觸及檔案：**
+**Files Likely Involved:**
 - `src/frontend/package.json`
 - `src/frontend/vite.config.ts`
 - `src/frontend/src/main.ts`
@@ -146,199 +146,198 @@ Task 18 可與 Task 19 分開實作，但 Phase 6 的 Web UI 工作應先完成 
 - `src/frontend/src/components/admin/`
 - `src/frontend/tests/`
 
-**規模：** M
+**Size:** M
 
 ---
 
-## Task 20 - Web 管理主控台 (Web Admin UI)：simulate / member / rule / Twitch auth
+## Task 20 - Web Admin UI: simulate / member / rule / Twitch auth
 
-**描述：** 實作瀏覽器內可操作的核心工作流。此任務之所有前端主控台 View 與 Component 的路徑均扁平化為 `src/frontend/src/views/admin/` 與 `src/frontend/src/components/admin/`，取代多層 nested 目錄（BB3, CC1, CC2, CC3）。本任務讓使用者無需 CLI 即可完成 Phase 5 manual verification 的主要步驟：模擬事件、確認 member side effect、建立/啟用/停用/刪除 rule、重置/啟動 Twitch OAuth，並實作完整的健全性防護機制。
+**Description:** Implement core workflows operational within browsers. All paths for frontend console Views and Components in this task are flattened into `src/frontend/src/views/admin/` and `src/frontend/src/components/admin/`, replacing deeply nested directories (BB3, CC1, CC2, CC3). This task allows users to complete key Phase 5 manual verification steps without the CLI: simulating events, verifying member side-effects, creating/enabling/disabling/deleting rules, resetting/starting Twitch OAuth, while implementing comprehensive integrity protections.
 
-**驗收標準：**
-- [ ] Simulate panel 支援 chat/follow/sub，送出後顯示 ack：accepted、eventTypeKey、eventId、platformUserId、displayName。
-- [ ] Event monitor 顯示 `/hubs/events` envelope，精確鎖定其 schema 欄位為 `{ type, eventId, platform, occurredAt }`（Phase 5 後端實際 emit 格式，定義於 `src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs` 之 `StreamEventEnvelope` record）。`schemaVersion` 與 `data` 欄位之擴充延後至 Phase 7 (非 MVP 範疇)。
-- [ ] Member panel 僅支援 list/show 唯讀操作；**不提供 seed/delete 按鈕，不新增 member CRUD 端點**。測試資料建立與清理由 CLI/manual test surface 處理。
-- [ ] **成員唯讀負向測試斷言 (Z10)**：所有成員欄位（如姓名、平台識別碼等）在 Web UI 內均為唯讀，不允許在前端直接編輯，且不可出現 seed/delete 操作入口。
-- [ ] Rule panel 支援 list/show/create/update/enable/disable/delete。
-- [ ] **樂觀鎖支援 (II17)**：前端在更新 Rule 時，必須在 DTO 中攜帶 `version` 欄位以支援後端樂觀鎖驗證。當後端回傳 409 Conflict 時，前端必須捕捉此錯誤並彈出專屬的樂觀鎖衝突提示，引導使用者重新載入或覆蓋。
-- [ ] Rule create/update 支援 JSON file/manual JSON textarea；API validation error 顯示在欄位附近或 summary 區。
-- [ ] **JSON Textarea 1MB limit 三重 check (II15)**：
-  - 實作 textarea `maxlength` 限制。
-  - 長度在貼入（paste）時進行 `300ms` 防抖（debounce）檢查，當資料大小超過 1MB 時，拒絕解析並顯示 toast 警告。
-  - 將貼入的原始大文字存入非響應式變數（如 plain object 或自訂普通 ref/變數），而非直接指派給 Vue 的響應式 ref，防範 Vue 反覆偵測屬性變化而造成的主執行緒卡死與 OOM 崩潰。
-- [ ] Rule enable/disable/delete 成功後畫面立即反映狀態，不靜默。
-- [ ] **a11y ARIA 與 WCAG AA 對比標準 (II16)**：UI 元件與操作均配置 basic a11y ARIA 標籤（如 `aria-label`, `aria-describedby` 等），並符合 WCAG AA 對比標準（前景與背景對比度至少 4.5:1）。
-- [ ] Twitch panel 顯示 `clientIdConfigured` / `hasRefreshToken`；缺 ClientId 顯示 no-Twitch mode，不產生 authorize URL。
-- [ ] Twitch panel 支援 auth start/reset。**Twitch OAuth 302 重導向回根路徑 (II4, II29)**：Twitch OAuth 授權成功或失敗後，OAuth callback endpoint 必須先在後端消費 `code`、完成 token exchange 與 refresh token 加密保存，再以 `302` 重導向回本機 Web UI 根路徑（`/`）。Web UI 不接收 OAuth `code` 或 raw error；授權結果由 `platform.connection_changed`、`GET /api/twitch/status` 與 toast/status card 呈現。
-- [ ] **Twitch Reset 與 emit 變更 (II25)**：執行 Twitch Reset 時，除了清除後端 refresh token，還必須主動斷開與 Twitch 的連線，並向所有訂閱的 Overlay Hubs/Web Clients 傳送狀態變更 event 以重置狀態。
-- [ ] **Polling fallback 防瞬斷指數退避序列 (II22, II25)**：
-  - SignalR 連線瞬斷時觸發 `HubConnection.onclose`，無法重連時啟動 HTTP Polling 作為 fallback。
-  - Polling fallback 序列以 `30s` 為 base delay，每次失敗乘上 `2` 倍乘數，最大退避上限為 `300s`。不可在 0s 立即重複呼叫。
-  - 當 `onreconnected` 重新連線成功時，必須立即釋放退避定時器（timer），停止 Polling 呼叫。
-- [ ] 409 `WORKFLOW_RULE_CONFLICT`、400/403/404 error codes 均以 i18n 顯示並保留原始 code。
-- [ ] 所有 destructive 操作使用確認 dialog；dialog 不包在卡片內。
+**Acceptance Criteria:**
+- [ ] The simulation panel supports chat/follow/sub, displaying acknowledgements upon submission: accepted, eventTypeKey, eventId, platformUserId, displayName.
+- [ ] The event monitor displays `/hubs/events` envelopes, strictly targeting the schema `{ type, eventId, platform, occurredAt }` (the actual format emitted by the Phase 5 backend, defined in `src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs` under `StreamEventEnvelope`). Schema expansions for `schemaVersion` and `data` are deferred to Phase 7 (Non-MVP).
+- [ ] The member panel supports strictly read-only list/show operations; **does not provide seed/delete buttons, and does not add member CRUD endpoints**. Test data seeding and cleanup are managed via CLI/manual test surfaces.
+- [ ] **Member Read-Only Negative Test Assertion (Z10)**: All member fields (such as names, platform identifiers, etc.) are strictly read-only in the Web UI, preventing editing in the frontend, and seed/delete action entries must not appear.
+- [ ] The rule panel supports list/show/create/update/enable/disable/delete.
+- [ ] **Optimistic Locking Support (II17)**: The frontend must carry a `version` field in the DTO when updating Rules to support backend optimistic locking checks. When the backend returns 409 Conflict, the frontend must capture this error and pop up a dedicated optimistic locking conflict warning, guiding the user to reload or overwrite.
+- [ ] Rule create/update supports JSON file uploads or manual JSON textareas; API validation errors display near fields or in summary areas.
+- [ ] **JSON Textarea 1MB Limit Triple Check (II15)**:
+    - Implement textarea `maxlength` limits.
+    - Debounce paste checks by `300ms`; when the data size exceeds 1MB, reject parsing and display a toast warning.
+    - Save pasted raw text in non-reactive variables (such as plain objects or custom plain refs/variables) instead of assigning directly to Vue reactive refs, protecting against main thread lockups and OOM crashes from repeated Vue attribute change detections.
+- [ ] Successful rule enable/disable/delete immediately reflects status changes on screen, not remaining silent.
+- [ ] **a11y ARIA and WCAG AA Contrast Standards (II16)**: UI components and operations configure basic a11y ARIA labels (such as `aria-label`, `aria-describedby`), and align with WCAG AA contrast standards (minimum contrast ratio of 4.5:1 between foreground and background).
+- [ ] The Twitch panel displays `clientIdConfigured` / `hasRefreshToken`; missing ClientId displays no-Twitch mode, avoiding generating authorize URLs.
+- [ ] The Twitch panel supports auth start/reset. **Twitch OAuth 302 Redirect to Root Path (II4, II29)**: Following successful or failed Twitch OAuth authorization, the backend callback endpoint must consume the `code`, complete token exchange, and securely encrypt and store refresh tokens, before issuing a `302` redirect back to the local Web UI root path (`/`). The Web UI does not receive OAuth `code`s or raw errors; authorization outcomes are rendered via `platform.connection_changed` state events, `GET /api/twitch/status` queries, and toast/status cards.
+- [ ] **Twitch Reset and Emit Changes (II25)**: Executing a Twitch Reset, besides clearing backend refresh tokens, must actively disconnect the connection with Twitch and push status change events to all subscribed Overlay Hubs/Web Clients to reset states.
+- [ ] **Polling Fallback Exponential Backoff Sequence (II22, II25)**:
+    - SignalR connection drops trigger `HubConnection.onclose`; failure to reconnect starts HTTP Polling as a fallback.
+    - The Polling fallback sequence starts with a `30s` base delay, multiplying by a `2x` factor on each failure, up to a maximum backoff cap of `300s`. Immediate duplicate calls at 0s are forbidden.
+    - When `onreconnected` successfully restores the connection, immediately release backoff timers, stopping Polling calls.
+- [ ] Error codes like 409 `WORKFLOW_RULE_CONFLICT`, 400/403/404 are rendered using i18n, preserving the raw code.
+- [ ] All destructive operations utilize confirmation dialogs; dialogs are not nested inside cards.
 
-**驗證：**
-- [ ] Vitest：simulate form success/error rendering，且符合 basic a11y ARIA 與對比標準。
-- [ ] Vitest：member list empty/success/error states，並實作負向測試斷言，確保 Web UI 無 seed/delete 入口且所有成員欄位唯讀 (Z10)。
-- [ ] Vitest：rule enable/disable/delete 成功後更新 local state；測試 409 樂觀鎖衝突的捕捉與 UI 提示。
-- [ ] Vitest：測試 JSON textarea 1MB 貼入防抖防崩潰機制，確保大於 1MB 的資料會被拒絕且不寫入響應式狀態。
-- [ ] Vitest：測試 SignalR 連線中斷後，Polling fallback 序列之指數退避延遲時間計算（30s base, 2x factor, max 300s），並驗證無 0s 立即呼叫，以及連線恢復時 timer 的釋放。
-- [ ] Vitest：error code i18n coverage，確保 MVP error codes 有翻譯字串。
-- [ ] 【dotnet Integration test】（reset 後端路徑）：`POST /api/twitch/reset` → TwitchAdapter disconnect + `IEventBus.Publish(PlatformConnectionChangedEvent { platform: "twitch", connected: false })`（C# integration test，非 Vitest；確認後端 reset → emit 完整行為鏈）。
-- [ ] Browser manual：以 Web UI 完成 `simulate chat` -> member appears -> rule create -> disable -> enable -> delete（依 `manual-verification.md` § Task 20 Browser Manual Checklist）。
-- [ ] Browser manual：缺 Twitch ClientId 時 UI 顯示 no-Twitch mode；有 ClientId 時 auth start 開啟 Twitch URL，授權完成後後端完成 code exchange、refresh token 加密保存，並 302 重導向回 `/`，Web UI 透過 status/event 顯示成功狀態（依 `manual-verification.md` § Task 20k）。
+**Verification:**
+- [ ] Vitest: simulate form success/error rendering, matching basic a11y ARIA and contrast standards.
+- [ ] Vitest: member list empty/success/error states, implementing negative test assertions to ensure no seed/delete entries appear and all member fields are read-only (Z10).
+- [ ] Vitest: rule enable/disable/delete successfully updates local state; tests capture 409 optimistic locking conflicts and UI warnings.
+- [ ] Vitest: tests JSON textarea 1MB paste debounce and crash prevention, ensuring data >1MB is rejected and not written to reactive states.
+- [ ] Vitest: tests SignalR connection drop, verifying exponential backoff delay calculations (30s base, 2x factor, max 300s) and timer release upon connection recovery, avoiding immediate 0s calls.
+- [ ] Vitest: error code i18n coverage, ensuring MVP error codes feature translated strings.
+- [ ] 【dotnet Integration Test】(backend reset path): `POST /api/twitch/reset` -> TwitchAdapter disconnect + `IEventBus.Publish(PlatformConnectionChangedEvent { platform: "twitch", connected: false })` (C# integration test, not Vitest; verifies backend reset -> emit complete behavioral chain).
+- [ ] Browser manual: complete `simulate chat` -> member appears -> rule create -> disable -> enable -> delete via the Web UI (per `manual-verification.md` § Task 20 Browser Manual Checklist).
+- [ ] Browser manual: UI displays no-Twitch mode when Twitch ClientId is missing; launches Twitch URL on auth start when ClientId is present. Backend completes code exchange and refresh token storage on successful authorization, issuing a 302 redirect back to `/`, and Web UI displays success status via status/event streams (per `manual-verification.md` § Task 20k).
 
-**依賴：** Task 19, Task 14a, Task 14b, Phase 5 Task 16f/16g manual gates
+**Dependencies:** Task 19, Task 14a, Task 14b, Phase 5 Task 16f/16g manual gates
 
-**預計觸及檔案：**
+**Files Likely Involved:**
 - `src/frontend/src/views/admin/`
 - `src/frontend/src/components/admin/`
 - `src/frontend/src/api/`
 - `src/frontend/src/i18n/`
 - `src/frontend/tests/`
 
-**規模：** L，實作時應拆成多個小 commit。
+**Size:** L, split into multiple small commits during implementation.
 
 ---
 
-## Task 21 - Photino Desktop Shell + 靜態 fallback
+## Task 21 - Photino Desktop Shell + Static Fallback
 
-**描述：** 讓 `Vulperonex.Desktop` 啟動 Web host 並載入 Vue UI。埠衝突、WebView2 缺失、migration 失敗、Web host crash 都要有清楚且可操作的 fallback。因應本專案使用 .NET 10.0 且 Photino 使用 3.x 版本，必須於實作中包含「.NET 10.0 + Photino 3.x 相容性預驗」，並於發生 native runtime 崩潰時提供「切回 WebView2 fallback 或改以獨立 Kestrel 服務執行」之緩解手段 (II30)。
+**Description:** Let `Vulperonex.Desktop` launch the Web host and load the Vue UI. Port conflicts, WebView2 absence, migration failures, and Web host crashes must yield clear and actionable fallbacks. Given that this project utilizes .NET 10.0 and Photino uses version 3.x, the implementation must include a ".NET 10.0 + Photino 3.x compatibility pre-check," and provide "WebView2 fallback or standalone Kestrel service fallback" mitigations in case native runtimes crash (II30).
 
-**驗收標準：**
-- [ ] `dotnet run --project src/Hosts/Vulperonex.Desktop` 開啟桌面視窗並載入 Web UI。
-- [ ] **單實例偵測 (II17)**：本機 Desktop Shell 啟動時必須使用 .NET `NamedMutex`（命名互斥鎖）進行單一實例（Single Instance）偵測。若已存在執行中的實例，則直接退出或彈出錯誤提示，防止 Port 占用與 SQLite locking 衝突。
-- [ ] **Photino IPC DTO Schema (II19)**：定義並實作 C# 與 Photino-Vue 前端之間的 IPC 通訊 Bridge，其資料結構精確鎖定為 `{ type: string, payload: any }`。
-- [ ] API/overlay port pair 必須同時可用才使用；任一 port 被占用時切到下一組 pair。
-- [ ] 5000/5001 到 5008/5009 全耗盡時顯示 dialog，不留下半啟動 process。
-- [ ] WebView2 缺失時顯示下載連結與退出選項。
-- [ ] migration 失敗時顯示 Open log folder / Exit。
-- [ ] Web host crash 時顯示內嵌 fallback HTML 與 Restart 按鈕。
-- [ ] **Web Host Crash 重新啟動上限與 Vitest 斷言 (II13)**：模擬 Web host crash 的重新啟動行為，前 3 次 crash 會自動 retry 重新啟動，到第 4 次 crash 時，停止 retry，並在 UI fallback 畫面提示「多次重新啟動失敗，請手動重新啟動 Vulperonex 服務」。
-- [ ] Desktop host 不改變 Web API loopback-only 安全邊界。
+**Acceptance Criteria:**
+- [ ] `dotnet run --project src/Hosts/Vulperonex.Desktop` launches the desktop window and loads the Web UI.
+- [ ] **Single Instance Detection (II17)**: Desktop Shell launches must utilize a .NET `NamedMutex` (named mutex) to execute Single Instance checks. If an active instance already exists, exit directly or pop up an error warning, preventing port occupancy and SQLite locking conflicts.
+- [ ] **Photino IPC DTO Schema (II19)**: Define and implement IPC communication bridges between C# and Photino-Vue frontend, locking the data structure exactly to `{ type: string, payload: any }`.
+- [ ] API/overlay port pairs must be simultaneously available to be used; switch to the next pair if either port is occupied.
+- [ ] Display dialogs and do not leave half-started processes when all port pairs from 5000/5001 to 5008/5009 are exhausted.
+- [ ] Show download links and exit options when WebView2 is missing.
+- [ ] Show Open log folder / Exit when migrations fail.
+- [ ] Show embedded fallback HTML and a Restart button when the Web host crashes.
+- [ ] **Web Host Crash Restart Limits and Vitest Assertions (II13)**: Mock Web host crash restart behaviors; the first 3 crashes automatically retry restarts, and upon the 4th crash, stop retrying, showing a UI fallback warning: "Multiple restart attempts failed, please restart the Vulperonex service manually."
+- [ ] The Desktop host does not modify the loopback-only safety boundaries of the Web API.
 
-**驗證：**
-- [ ] Unit test/Vitest：模擬 Web host crash 重新啟動，斷言前 3 次自動重新啟動，第 4 次停止並在 UI fallback 提示「多次重新啟動失敗，請手動重新啟動 Vulperonex 服務」之行為符合預期 (II13)。
-- [ ] Unit test/Vitest：驗證 Photino IPC Bridge 符合 `{ type: string, payload: any }` 結構。
-- [ ] Unit test：mock WebView2 detector 回報缺失，dialog callback 被觸發。
-- [ ] Unit test：mock migration failure，dialog 包含 Open log folder / Exit。
-- [ ] Unit test：mock Web host crash，fallback HTML 顯示 Restart。
-- [ ] Manual：重複開啟 Desktop 實例時，NamedMutex 單實例偵測成功拒絕並提示 (II17)。
-- [ ] Manual：占用 5000 或 5001 時 app 切到 5002/5003。
-- [ ] Manual：占用全部 port pair 時看到清楚錯誤。
-- [ ] Manual：Desktop shell 中完成 simulate chat -> overlay event 顯示。
+**Verification:**
+- [ ] Unit test/Vitest: mock Web host crash restarts, asserting that the first 3 automatic restarts occur, and the 4th terminates with a UI fallback warning: "Multiple restart attempts failed, please restart the Vulperonex service manually" (II13).
+- [ ] Unit test/Vitest: verify the Photino IPC Bridge matches the `{ type: string, payload: any }` structure exactly.
+- [ ] Unit test: mock WebView2 detector reports missing, triggering dialog callbacks.
+- [ ] Unit test: mock migration failure, ensuring the dialog contains Open log folder / Exit.
+- [ ] Unit test: mock Web host crash, ensuring the fallback HTML displays Restart.
+- [ ] Manual: NamedMutex single instance check successfully rejects duplicate launches and prompts warnings (II17).
+- [ ] Manual: application switches to 5002/5003 when 5000 or 5001 is occupied.
+- [ ] Manual: clear warnings are visible when all port pairs are occupied.
+- [ ] Manual: simulated chat -> overlay event is visible inside the Desktop shell.
 
-**依賴：** Task 19, Task 20
+**Dependencies:** Task 19, Task 20
 
-**預計觸及檔案：**
+**Files Likely Involved:**
 - `src/Hosts/Vulperonex.Desktop/`
 - `src/Hosts/Vulperonex.Desktop/Resources/fallback.html`
 - `tests/Vulperonex.Tests.Unit/Desktop/`
 
-**規模：** M
+**Size:** M
 
 ---
 
-## Task 22 - Overlay 事件歷史持久化 + 清理 surface
+## Task 22 - Overlay Event History Persistence + Cleanup Surface
 
-**描述：** Overlay (chat / alerts / member) 事件目前完全 in-memory，SPA 換 route、F5、應用重開、OBS browser source 重新載入皆會清空。Task 22 引入跨重啟可 rehydrate 的小型 ring buffer，並提供管理端與 overlay 端的清理入口，讓「測試驗證歷史」與「OBS 重連補畫面」可用。設計直接複用 Omni-Commander `ChatHistoryService` pattern (`ref/Omni-Commander/OmniCommander.Infrastructure/Overlay/ChatHistoryService.cs`)：以 `SystemSettings` 表單行 JSON 全量寫入，無需新表/migration/index。
+**Description:** Overlay (chat / alerts / member) events are currently entirely in-memory. SPA route changes, F5 page refreshes, application restarts, or OBS browser source reloads clear them out. Task 22 introduces a small, restart-resilient ring buffer, and provides clearing entries on both the admin side and the overlay side, enabling "history verification during tests" and "OBS reconnect screen backfilling." The design directly reuses the Omni-Commander `ChatHistoryService` pattern (`ref/Omni-Commander/OmniCommander.Infrastructure/Overlay/ChatHistoryService.cs`): writing JSON in a single row to the `SystemSettings` table, avoiding new tables, migrations, or indexes.
 
-**驗收標準：**
-- [ ] **儲存載體**：複用既有 `SystemSettings` 表，三個 key：`Overlay.History.Chat` / `Overlay.History.Alerts` / `Overlay.History.Member`。`ValueJson` 為對應 payload list 全量序列化（cap 內，序列化大小應 < 10KB）。**不新增 EF entity / migration**。
-- [ ] **Service 介面**：`IOverlayHistoryService<TPayload>` 泛型 service，提供 `GetRecent()` / `AddAsync(payload)` / `ClearAllAsync()`。Vulperonex.Application 層宣告 interface，Vulperonex.Infrastructure 提供實作。
-- [ ] **三個 typed 註冊**：
-  - `IOverlayHistoryService<OverlayChatPayload>` cap **30**
-  - `IOverlayHistoryService<OverlayAlertPayload>` cap **20**
-  - `IOverlayHistoryService<OverlayMemberPayload>` cap **20**（MVP 階段不會被寫入，僅預留 schema 一致性）。
-- [ ] **In-memory cache**：`ConcurrentQueue<TPayload>` + `SemaphoreSlim(1,1)` 寫入鎖，沿用 Omni-Commander pattern。
-- [ ] **啟動 rehydrate**：service 建構時 `LoadFromDb()` 從 SystemSettings 讀回 cache；DB 尚未 ready 或 deserialize 失敗 → log + 空 cache fallback，不 fail-fast。
-- [ ] **`OverlayEventForwarder` 改寫**：對 chat/alerts payload 先 `AddAsync` 再 `Clients.All.SendAsync("event", ...)`。member hub MVP 不寫入。Forwarder 對 history service 寫入失敗以 log warn 帶過，不阻斷 broadcast。
-- [ ] **Hub `OnConnectedAsync` replay**：三個 hub (`OverlayChatHub` / `OverlayAlertsHub` / `OverlayMemberHub`) override `OnConnectedAsync`，對 `Clients.Caller` 逐筆 `SendAsync("event", payload)` 已有歷史。
-- [ ] **Alert replayed flag (避免動畫風暴)**：`OverlayAlertPayload` 加 `Replayed: bool` 欄位（default false）。Replay 路徑送出時 `Replayed=true`。前端 AlertOverlay 收到 `replayed=true` 訊息只 push 進 list、不觸發動畫/音效 hook。Chat overlay 無需此 flag（純文字 list 重播無副作用）。
-- [ ] **Clear API**：
-  - `DELETE /api/overlay/chat/messages`
-  - `DELETE /api/overlay/alerts/messages`
-  - `DELETE /api/overlay/member/messages`
-  - 回傳 `204 No Content`。執行：clear cache → clear SystemSettings row → 對應 hub broadcast `cleared` 事件（前端收到即清畫面/list）。
-- [ ] **Web UI Clear surface (兩處都放)**：
-  - Admin status (`/`)：三個 overlay hub card 各加「清空」按鈕（含二次確認 dialog，沿用 Task 20d 確認 dialog 範式）。
-  - Overlay route header (`/overlay/chat` / `/alerts` / `/member`)：header 加「清空」按鈕（同二次確認）。
-- [ ] **前端 dedupe**：`useOverlayHub` events list 改 by `eventId` upsert，避免 replay + live 雙收同一 event 重複顯示（Forwarder 寫入時 unique eventId 保證）。
-- [ ] **清空事件 contract**：hub `cleared` 訊息為 `{ hubName: "chat"|"alerts"|"member" }`，前端 `useOverlayHub` 訂閱 `cleared` event 即 reset list。
-- [ ] **Capacity 設定可動態**：cap 透過 SystemSettings key `Overlay.History.Cap.{HubName}` 覆寫（缺 key 用 default 30/20/20）。MVP 不提供 UI 編輯入口。
+**Acceptance Criteria:**
+- [ ] **Storage Carrier**: Reuse the existing `SystemSettings` table with three keys: `Overlay.History.Chat`, `Overlay.History.Alerts`, and `Overlay.History.Member`. The `ValueJson` holds the full serialized payload list (capped, size should be < 10KB). **Do not add EF entities or migrations**.
+- [ ] **Service Interface**: `IOverlayHistoryService<TPayload>` generic service providing `GetRecent()`, `AddAsync(payload)`, and `ClearAllAsync()`. Declared in Vulperonex.Application and implemented in Vulperonex.Infrastructure.
+- [ ] **Three Typed Registrations**:
+    - `IOverlayHistoryService<OverlayChatPayload>` cap **30**
+    - `IOverlayHistoryService<OverlayAlertPayload>` cap **20**
+    - `IOverlayHistoryService<OverlayMemberPayload>` cap **20** (strictly reserved for schema consistency, not written in MVP).
+- [ ] **In-Memory Cache**: `ConcurrentQueue<TPayload>` + `SemaphoreSlim(1,1)` write lock, reusing the Omni-Commander pattern.
+- [ ] **Startup Rehydrate**: The service constructor calls `LoadFromDb()` to restore cache from SystemSettings; DB missing or deserialization failure logs warnings and falls back to empty caches instead of failing fast.
+- [ ] **`OverlayEventForwarder` Adaptation**: Call `AddAsync` before `Clients.All.SendAsync("event", ...)` for chat/alerts payloads. The member hub does not write in MVP. Forwarder history write failures are logged as warnings and do not block broadcasts.
+- [ ] **Hub `OnConnectedAsync` Replay**: Override `OnConnectedAsync` in the three hubs (`OverlayChatHub`, `OverlayAlertsHub`, `OverlayMemberHub`), pushing existing history payloads line-by-line to `Clients.Caller`.
+- [ ] **Alert Replayed Flag (Avoiding Animation Storms)**: Add a `Replayed: bool` field (default false) to `OverlayAlertPayload`. Replay paths set `Replayed = true`. The frontend AlertOverlay pushes `replayed = true` events to lists without triggering animation/audio hooks (chat overlays do not need this, as replaying text lists has no side-effects).
+- [ ] **Clear API**:
+    - `DELETE /api/overlay/chat/messages`
+    - `DELETE /api/overlay/alerts/messages`
+    - `DELETE /api/overlay/member/messages`
+    - Returns `204 No Content`. Execution: clear cache -> clear SystemSettings row -> broadcast `cleared` event to corresponding hubs (frontend clears screens/lists upon receipt).
+- [ ] **Web UI Clear Surface (Placed in Both Locations)**:
+    - Admin status (`/`): Add "Clear" buttons to the three overlay hub cards (with confirmation dialogs, reusing Task 20d confirmation dialog paradigms).
+    - Overlay route header (`/overlay/chat`, `/alerts`, `/member`): Add "Clear" buttons to headers (similar confirmation dialogs).
+- [ ] **Frontend Deduplication**: `useOverlayHub` events list handles upserts by `eventId`, preventing duplicate listings of the same event from concurrent replay and live deliveries (guaranteed by unique backend eventIds).
+- [ ] **Clear Event Contract**: Hub `cleared` message is `{ hubName: "chat"|"alerts"|"member" }`; frontend `useOverlayHub` resets lists upon receiving the `cleared` event.
+- [ ] **Dynamic Capacity Settings**: Capacities can be overridden via SystemSettings keys `Overlay.History.Cap.{HubName}` (default to 30/20/20 on missing keys). MVP does not provide UI configuration entries.
 
-**驗證：**
-- [ ] Unit test：`OverlayHistoryService<T>` `AddAsync` 超過 cap 後 oldest dequeue、SystemSettings JSON 為 cap 內 list。
-- [ ] Unit test：service 建構時 `LoadFromDb` 從現有 SystemSettings row 還原；DB 缺表 / JSON 壞掉時不丟例外、cache 為空。
-- [ ] Unit test：`OverlayEventForwarder` 對 chat/alerts/member event 之 history 寫入與 broadcast 序列正確（history.AddAsync 在 hub.SendAsync 之前）。
-- [ ] Unit test：Hub `OnConnectedAsync` 對 caller send 全部 history payload，alerts hub 的 replay payload `Replayed=true`、chat hub 無此 flag。
-- [ ] Unit test：Clear endpoint 清掉 cache + SystemSettings + broadcast `cleared` 事件，repeat call 不丟例外。
-- [ ] Vitest：`useOverlayHub` 對重複 `eventId` 之 event upsert 不雙列；收到 `cleared` 事件 list 清空。
-- [ ] Vitest：AlertOverlay 收到 `replayed=true` event push 進 list 但不呼叫動畫 hook（透過 spy 斷言）。
-- [ ] Browser manual：開 `/simulate` 送 chat → F5 後 `/overlay/chat` 看到 history → 按 admin 「清空」→ overlay 即時清空 → 再送一筆即時顯示。
-- [ ] Browser manual：alerts overlay tab 開著時送 follow → 動畫播放；F5 後 history 補上但**不**重播動畫。
+**Verification:**
+- [ ] Unit test: `OverlayHistoryService<T>` `AddAsync` dequeues the oldest once cap is exceeded; SystemSettings JSON contains the list within the cap limit.
+- [ ] Unit test: Service constructor's `LoadFromDb` restores from existing SystemSettings rows; missing tables or corrupted JSON logs warnings instead of throwing exceptions, falling back to empty caches.
+- [ ] Unit test: `OverlayEventForwarder` history writes and broadcasts for chat/alerts/member events occur in the correct sequence (history.AddAsync executes before hub.SendAsync).
+- [ ] Unit test: Hub `OnConnectedAsync` pushes all history payloads to callers, with alerts hub replay payloads setting `Replayed = true` while chat hubs lack this flag.
+- [ ] Unit test: Clear endpoints clear caches + SystemSettings, broadcasting `cleared` events; repeating calls does not throw exceptions.
+- [ ] Vitest: `useOverlayHub` does not double-list duplicate `eventId`s; lists reset on receiving `cleared` events.
+- [ ] Vitest: AlertOverlay pushes `replayed = true` events to lists without triggering animation hooks (asserted via spies).
+- [ ] Browser manual: Open `/simulate`, send chat -> F5 refresh `/overlay/chat` shows history -> click admin "Clear" -> overlay clears instantly -> send another, displaying live.
+- [ ] Browser manual: Send follow while the alerts overlay tab is open -> animation plays; F5 refresh restores history **without** replaying the animation.
 
-**依賴：** Task 19 (frontend skeleton)、Task 20a (simulate 已存在便於驗證)。建議在 Task 20b (event monitor) 之前完成，因 history endpoint 與 dedupe 思路 monitor 可沿用。
+**Dependencies:** Task 19 (frontend skeleton), Task 20a (simulate exists for verification). Recommended to complete before Task 20b (event monitor), as monitors can adopt the same history endpoints and deduplication logic.
 
-**預計觸及檔案：**
-- `src/Vulperonex.Application/Overlay/IOverlayHistoryService.cs`（新）
-- `src/Vulperonex.Infrastructure/Overlay/OverlayHistoryService.cs`（新）
-- `src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs`（改）
-- `src/Hosts/Vulperonex.Web/SignalR/OverlayHubs.cs`（改：加 `OnConnectedAsync`）
-- `src/Hosts/Vulperonex.Web/Endpoints/OverlayHistoryEndpoints.cs`（新）
-- `src/Application/Vulperonex.Application/Overlay/Dtos/OverlayAlertPayload.cs`（改：加 `Replayed`）
-- `src/frontend/src/composables/useOverlayHub.ts`（改：dedupe + `cleared`）
-- `src/frontend/src/views/overlay/*.vue`（改：header 加 clear 按鈕；AlertOverlay gating 動畫）
-- `src/frontend/src/views/admin/AdminStatusView.vue`（改：overlay hub card 加 clear 按鈕）
-- `src/frontend/src/api/client.ts`（改：加 `clearOverlayHistory(hubName)`）
-- 對應 unit test / vitest 檔案
+**Files Likely Involved:**
+- `src/Vulperonex.Application/Overlay/IOverlayHistoryService.cs` (new)
+- `src/Vulperonex.Infrastructure/Overlay/OverlayHistoryService.cs` (new)
+- `src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs` (modified)
+- `src/Hosts/Vulperonex.Web/SignalR/OverlayHubs.cs` (modified: added `OnConnectedAsync`)
+- `src/Hosts/Vulperonex.Web/Endpoints/OverlayHistoryEndpoints.cs` (new)
+- `src/Application/Vulperonex.Application/Overlay/Dtos/OverlayAlertPayload.cs` (modified: added `Replayed`)
+- `src/frontend/src/composables/useOverlayHub.ts` (modified: deduplication + `cleared`)
+- `src/frontend/src/views/overlay/*.vue` (modified: headers add clear buttons; AlertOverlay gating animations)
+- `src/frontend/src/views/admin/AdminStatusView.vue` (modified: overlay hub cards add clear buttons)
+- `src/frontend/src/api/client.ts` (modified: added `clearOverlayHistory(hubName)`)
 
-**規模：** M（複用既有 SystemSettings + Omni-Commander pattern，無 migration）
-
----
-
-## Checkpoint：Phase 6 (II2, II6, II26)
-
-- [ ] **自檢卡關 (II6)**：確認 Task 18, 19, 20, 21 之所有 sub-tasks 均已標記為 `[x]`。
-- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
-- [ ] `cd src/frontend; pnpm test`
-- [ ] `cd src/frontend; pnpm build`
-- [ ] `cd src/frontend; pnpm lint`
-- [ ] **手動驗證與 Audit Trail 閉環 (II2, II26)**：
-  - 確實執行 `docs/phases/phase-6-web-ui/manual-verification.md` 中 Task 20、Task 20k、Task 21 的所有手動驗收步驟。
-  - 確認 `docs/phases/phase-6-web-ui/manual-verification.md` 中所有 Dated Entries 均明確記錄為 `Result: PASS` (II2)。
-  - 本 Checkpoint 之手動項目一律簡化為：「**依 manual-verification.md § Task 20/21 Browser Manual Checklist 全項目通過**」 (II26)。
+**Size:** M (reuses existing SystemSettings + Omni-Commander patterns, no migrations)
 
 ---
 
-## 風險與緩解
+## Checkpoint: Phase 6 (II2, II6, II26)
 
-| 風險 | 影響 | 緩解 |
-|------|------|------|
-| npm dependencies 尚未安裝或版本不符 | 高 | Task 19 開始前檢查 `package.json`/lockfile；需要新增套件時先取得同意，並嚴格釘定 pnpm 版本且用 `install --lockfile-only --ignore-scripts` 預檢。 |
-| Rule visual builder 範圍過大 | 中 | 先交付 JSON editor + 基本表單，確保與 CLI/API contract 一致 |
-| Twitch OAuth 從 Web UI 啟動與 CLI loopback callback 語意混淆 | 中 | Web UI 只透過 Web API Twitch auth endpoints，不直接保存 token；缺 ClientId 時 fail closed |
-| SignalR 測試在 CI flake | 中 | 自動化測試驗 contract/state；時序只在 manual verification 補充 |
-| Desktop/Photino 問題遮蔽 Web UI 問題 | 中 | 先用瀏覽器驗證 Web host，再進 Task 21 Desktop shell |
-| 目前 Phase 5.5 CLI id resolution worktree 尚未收斂 | 低 | Phase 6 docs 不依賴該 dirty diff；實作 Task 20 前再確認 API/CLI 最終命令語意 |
-| **.NET 10.0 + Photino 3.x 相容性未驗證 (II30)** | 中 | Task 19 先以瀏覽器驗證 Web UI；Task 21 負責 .NET 10.0 + Photino 3.x compatibility 預驗。若遭遇 native runtime 崩潰，提供「切回 WebView2 fallback 或改以獨立 Kestrel 服務執行」之緩解手段。 |
+- [ ] **Self-Check Gate (II6)**: Confirm all sub-tasks in Tasks 18, 19, 20, and 21 are marked as `[x]`.
+- [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` passes.
+- [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` passes.
+- [ ] `cd src/frontend; pnpm test` passes.
+- [ ] `cd src/frontend; pnpm build` passes.
+- [ ] `cd src/frontend; pnpm lint` passes.
+- [ ] **Manual Verification and Audit Trail Closure (II2, II26)**:
+    - Execute all manual verification steps for Task 20, Task 20k, and Task 21 in `docs/phases/phase-6-web-ui/manual-verification.md` exactly.
+    - Confirm all Dated Entries in `docs/phases/phase-6-web-ui/manual-verification.md` are explicitly recorded as `Result: PASS` (II2).
+    - Checkpoints for manual items are consolidated as: "**All items in manual-verification.md § Task 20/21 Browser Manual Checklist passed**" (II26).
 
 ---
 
-## 建議實作順序
+## Risks & Mitigations
 
-1. Task 19a：執行 `corepack enable`（若 Windows shim 權限受阻，改用 `corepack pnpm@9.15.4 <command>`）；執行 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts`（驗 stack 版本兼容性，有錯先解再裝）；確認後安裝全部 stack 套件；建立前端 package/build/test skeleton。
-2. Task 19b：API client + i18n manifest + dashboard shell。
-3. Task 19c：SignalR composable + overlay route skeleton。
-4. Task 20a：simulate panel + event monitor。
-5. Task 20b：member panel。
-6. Task 20c：rule list/show + enable/disable/delete。
-7. Task 20d：rule create/update JSON editor + validation display。
-8. Task 20e：Twitch auth panel。
-9. Task 22：Overlay 歷史持久化 + 清理 surface（建議與 Task 20a 同步或緊接，因影響驗證體感）。
-10. Task 18：Serilog/AppLogs。
-11. Task 21：Photino Desktop shell。
+| Risk | Impact | Mitigation |
+|------|------|----------|
+| npm dependencies not installed or mismatched | High | Verify `package.json`/lockfile before starting Task 19; seek prior approval for new packages, strictly pinning pnpm versions and verifying via `install --lockfile-only --ignore-scripts`. |
+| Rule visual builder scope becomes too large | Medium | Deliver JSON editors + basic forms first, ensuring alignment with CLI/API contracts. |
+| Confusion between Twitch OAuth from Web UI and CLI loopback callback semantics | Medium | The Web UI utilizes strictly Web API Twitch auth endpoints, not saving tokens directly; fails closed when ClientId is missing. |
+| SignalR tests flake in CI | Medium | Automated tests verify contracts/states; timings are handled strictly in manual verifications. |
+| Desktop/Photino issues obscure Web UI issues | Medium | Verify Web host inside browsers first, before proceeding to Task 21 Desktop shell. |
+| Phase 5.5 CLI id resolution worktree not yet converged | Low | Phase 6 docs do not depend on that dirty diff; re-verify API/CLI final command semantics before implementing Task 20. |
+| **.NET 10.0 + Photino 3.x Compatibility Unverified (II30)** | Medium | Task 19 verifies the Web UI inside browsers first; Task 21 handles .NET 10.0 + Photino 3.x compatibility checks. In case of native runtime crashes, provide "WebView2 fallback or standalone Kestrel service fallback" mitigations. |
 
-Task 20 建議拆成多個 commit；每個 panel 完成後都可用瀏覽器手動驗證。
+---
+
+## Recommended Implementation Order
+
+1. Task 19a: Run `corepack enable` (fallback to `corepack pnpm@9.15.4 <command>` if Windows shim permissions are blocked); run `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts` (resolving stack version compatibility errors first); install stack packages upon confirmation, and establish frontend package/build/test skeletons.
+2. Task 19b: API clients + i18n manifests + dashboard shell.
+3. Task 19c: SignalR composables + overlay route skeletons.
+4. Task 20a: simulate panels + event monitors.
+5. Task 20b: member panels.
+6. Task 20c: rule list/show + enable/disable/delete.
+7. Task 20d: rule create/update JSON editors + validation displays.
+8. Task 20e: Twitch auth panels.
+9. Task 22: Overlay history persistence + cleanup surfaces (recommended to run concurrently or immediately following Task 20a, improving manual verification experiences).
+10. Task 18: Serilog/AppLogs.
+11. Task 21: Photino Desktop shell.
+
+Task 20 is recommended to be split into multiple commits; each panel can be verified manually in a browser once completed.

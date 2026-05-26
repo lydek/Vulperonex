@@ -1,33 +1,42 @@
 # Vulperonex
 
-直播輔助平台 — 整合 Twitch 事件流、會員忠誠度、Overlay 廣播、Workflow 規則引擎與外掛模組管理。
+> **Language / 語言**: [English](README.md) | [繁體中文](docs/zh-TW/README.md)
 
-本專案由四個可執行 Host 組成：
+Streaming Assistant Platform — Integrating Twitch event streams, member loyalty, overlay broadcasting, workflow rule engine, and plugin module management.
 
-| Host | 用途 | OutputType | TargetFramework |
+## Documentation Locale Policy
+
+- English is the default documentation language and keeps the original filename.
+- Localized Markdown files live under `docs/<locale>/` with the same relative path and clean filename as the English source.
+- Traditional Chinese documentation uses the `docs/zh-TW/` tree.
+- Do not use locale suffix naming such as `*.zh-TW.md`; use the locale directory strategy instead.
+
+This project consists of four executable Hosts:
+
+| Host | Purpose | OutputType | TargetFramework |
 |---|---|---|---|
-| `Vulperonex.Web` | ASP.NET Core API + SignalR Hub + 靜態 Overlay 站台 | `Exe` | `net10.0` |
-| `Vulperonex.Cli` | 主控台 CLI (member / rule / simulate / twitch / timer / config) | `Exe` | `net10.0` |
-| `Vulperonex.Desktop` | Windows 桌面殼 (WebView2 + 內嵌 Web Host) | `WinExe` | `net10.0-windows` |
+| `Vulperonex.Web` | ASP.NET Core API + SignalR Hub + Static Overlay Site | `Exe` | `net10.0` |
+| `Vulperonex.Cli` | Console CLI (member / rule / simulate / twitch / timer / config) | `Exe` | `net10.0` |
+| `Vulperonex.Desktop` | Windows Desktop Shell (WebView2 + Embedded Web Host) | `WinExe` | `net10.0-windows` |
 | `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue + Monaco) | n/a | n/a |
 
 ---
 
-## 系統需求
+## System Requirements
 
-| 工具 | 版本 | 用途 |
+| Tool | Version | Purpose |
 |---|---|---|
-| .NET SDK | 10.0+ | 編譯所有 C# 專案 |
-| Node.js | 20.x LTS+ | 前端 toolchain |
-| pnpm | 9.15.4 | 前端套件管理（`package.json` 內已指定） |
-| PowerShell | 5.1+ / 7+ | Windows 開發環境 |
-| Git | 2.40+ | 版本控制 |
+| .NET SDK | 10.0+ | Compile all C# projects |
+| Node.js | 20.x LTS+ | Frontend toolchain |
+| pnpm | 9.15.4 | Frontend package manager (specified in `package.json`) |
+| PowerShell | 5.1+ / 7+ | Windows development environment |
+| Git | 2.40+ | Version control |
 
-> Windows 桌面 Host (`Vulperonex.Desktop`) 需要 Windows 10 1809+ 與 WebView2 Runtime。
+> The Windows Desktop Host (`Vulperonex.Desktop`) requires Windows 10 1809+ and the WebView2 Runtime.
 
 ---
 
-## 取得原始碼
+## Getting the Source Code
 
 ```powershell
 git clone <repo-url> Vulperonex
@@ -40,46 +49,46 @@ cd ../..
 
 ---
 
-## 後端 — Vulperonex.Web（API + Overlay）
+## Backend — Vulperonex.Web (API + Overlay)
 
-### 建置
+### Build
 
 ```powershell
 dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false
 ```
 
-> `/m:1 /nr:false /p:UseSharedCompilation=false` 為專案約定旗標，避免 MSBuild node reuse 導致 Windows 上 file lock。
+> `/m:1 /nr:false /p:UseSharedCompilation=false` are the project convention flags to avoid MSBuild node reuse which can lead to file locks on Windows.
 
-### 執行
+### Run
 
 ```powershell
 dotnet run --project src/Hosts/Vulperonex.Web/Vulperonex.Web.csproj
 ```
 
-預設行為：
+Default behavior:
 
-- 監聽 loopback (`127.0.0.1`) port pair（API + Overlay）由 `PortPairAllocator` 動態配置；啟動時 console 印出實際 URL。
-- 環境變數 `ASPNETCORE_ENVIRONMENT=Development` 啟動 dev 例外頁。
-- 第一次啟動會在使用者 AppData 下產生：
-  - `machine-key`（HMAC ETag 簽章）
-  - `.admin-csrf-token`（per-process 隨機 CSRF token）
+- Listens on a loopback (`127.0.0.1`) port pair (API + Overlay) dynamically allocated by `PortPairAllocator`; the actual URL is printed to the console on startup.
+- The environment variable `ASPNETCORE_ENVIRONMENT=Development` launches the developer exception page.
+- On the first startup, the following will be generated under the user's AppData directory:
+  - `machine-key` (HMAC ETag signature key)
+  - `.admin-csrf-token` (per-process random CSRF token)
 
-### 開發者旗標
+### Developer Flags
 
-| 環境變數 | 預設 | 說明 |
+| Environment Variable | Default | Description |
 |---|---|---|
-| `ASPNETCORE_ENVIRONMENT` | `Production` | `Development` 開啟例外頁與詳細 log |
-| `Security:CsrfTokenPath` | 使用者 AppData | 覆寫 CSRF token 檔案路徑（測試常用） |
+| `ASPNETCORE_ENVIRONMENT` | `Production` | `Development` enables the exception page and detailed logging |
+| `Security:CsrfTokenPath` | User AppData | Overrides the CSRF token file path (commonly used in testing) |
 
-### 資料庫遷移
+### Database Migrations
 
-SQLite 自動隨應用啟動 `Migrate()`。手動套用：
+SQLite automatic `Migrate()` is triggered upon application startup. To apply manually:
 
 ```powershell
 dotnet ef database update --project src/Vulperonex.Infrastructure --startup-project src/Hosts/Vulperonex.Web
 ```
 
-新增 migration：
+To add a new migration:
 
 ```powershell
 dotnet ef migrations add <Name> --project src/Vulperonex.Infrastructure --startup-project src/Hosts/Vulperonex.Web
@@ -89,175 +98,175 @@ dotnet ef migrations add <Name> --project src/Vulperonex.Infrastructure --startu
 
 ## CLI — Vulperonex.Cli
 
-### 建置 + 執行
+### Build + Run
 
 ```powershell
 dotnet run --project src/Hosts/Vulperonex.Cli -- <command> [args]
 ```
 
-或自包式發行：
+Or self-contained publication:
 
 ```powershell
 dotnet publish src/Hosts/Vulperonex.Cli -c Release -r win-x64 --self-contained false -o artifacts/cli
 artifacts/cli/Vulperonex.Cli.exe --help
 ```
 
-### 內建指令樹
+### Built-in Command Tree
 
-| 群組 | 子指令 | 用途 |
+| Group | Subcommand | Purpose |
 |---|---|---|
-| `member` | `list` / `show` / `adjust-loyalty` / `reset` / `delete` / `audit` | 會員管理 + 審計查詢 |
-| `rule` | `list` / `enable` / `disable` / `show` | Workflow 規則切換 |
-| `simulate` | `event` / `checkin` | 模擬事件 / 打卡 |
-| `twitch` | `login` / `status` / `logout` | OAuth 流程 |
-| `timer` | `list` / `trigger` | 計時器 workflow |
-| `config` | `get` / `set` / `list` | SystemSetting 鍵值 |
+| `member` | `list` / `show` / `adjust-loyalty` / `reset` / `delete` / `audit` | Member management + Audit queries |
+| `rule` | `list` / `enable` / `disable` / `show` | Workflow rule switching |
+| `simulate` | `event` / `checkin` | Event simulation / Check-in |
+| `twitch` | `login` / `status` / `logout` | OAuth workflow |
+| `timer` | `list` / `trigger` | Timer workflows |
+| `config` | `get` / `set` / `list` | SystemSetting key-value |
 
-範例：
+Examples:
 
 ```powershell
 dotnet run --project src/Hosts/Vulperonex.Cli -- member list --limit 20
 dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user testuser --platform twitch
 ```
 
-### 多語
+### Multi-language
 
-CLI 透過 `Resources/I18n/{en-US,zh-TW}.json` 載入字串；用 `CULTURE` 環境變數覆寫：
+The CLI loads strings through `Resources/I18n/{en-US,zh-TW}.json`; override with the `CULTURE` environment variable:
 
 ```powershell
-$env:CULTURE = "zh-TW"; dotnet run --project src/Hosts/Vulperonex.Cli -- --help
+$env:CULTURE = "en-US"; dotnet run --project src/Hosts/Vulperonex.Cli -- --help
 ```
 
 ---
 
-## Desktop — Vulperonex.Desktop（Windows 殼）
+## Desktop — Vulperonex.Desktop (Windows Shell)
 
-### 建置 + 執行
+### Build + Run
 
 ```powershell
 dotnet run --project src/Hosts/Vulperonex.Desktop
 ```
 
-行為：
+Behavior:
 
-- 啟動內嵌 `Vulperonex.Web` host (loopback only)。
-- WebView2 載入 admin SPA。
-- 關閉 window 即關閉所有背景 service。
+- Launches the embedded `Vulperonex.Web` host (loopback only).
+- WebView2 loads the admin SPA.
+- Closing the window terminates all background services.
 
-### 發行
+### Publication
 
 ```powershell
 dotnet publish src/Hosts/Vulperonex.Desktop -c Release -r win-x64 --self-contained true -o artifacts/desktop
 ```
 
-產出 `artifacts/desktop/Vulperonex.Desktop.exe`。
+Produces `artifacts/desktop/Vulperonex.Desktop.exe`.
 
-> 僅 Windows 可建（`net10.0-windows` TargetFramework）。在 Linux/Mac 上 `dotnet build` 會跳過此 host。
+> Buildable only on Windows (`net10.0-windows` TargetFramework). `dotnet build` will skip this host on Linux/macOS.
 
 ---
 
-## 前端 UI — `src/frontend/`
+## Frontend UI — `src/frontend/`
 
-### 安裝
+### Installation
 
 ```powershell
 cd src/frontend
 pnpm install --frozen-lockfile
 ```
 
-### 開發模式
+### Development Mode
 
 ```powershell
 pnpm dev
 ```
 
-- Vite dev server 監聽 `127.0.0.1:5173`（host 鎖 loopback）。
-- 透過 vite proxy 轉發 `/api/*` + `/hubs/*` 到後端 Web host。
-- HMR 啟用。需要後端先跑起來才能呼叫 admin API。
+- Vite dev server listens on `127.0.0.1:5173` (host locked to loopback).
+- Vite proxy forwards `/api/*` + `/hubs/*` to the backend Web host.
+- HMR is enabled. The backend must be running to invoke admin APIs.
 
-### 生產建置
+### Production Build
 
 ```powershell
 pnpm build
 ```
 
-執行兩步：
+Executes two steps:
 
-1. `vue-tsc --noEmit` — 型別檢查（編譯不出 .d.ts，純驗證）
-2. `vite build` — 打包至 `src/frontend/dist/`
+1. `vue-tsc --noEmit` — Type checking (does not output .d.ts, validation only)
+2. `vite build` — Packages to `src/frontend/dist/`
 
-後端 Web host 啟動時透過 `UseStaticFiles` 直接服務該目錄。
+The backend Web host serves this directory directly via `UseStaticFiles` upon startup.
 
 ### Lint
 
 ```powershell
 pnpm lint     # oxlint
-pnpm vue-tsc  # 純型別檢查
+pnpm vue-tsc  # Pure type check
 ```
 
 ---
 
-## 測試
+## Testing
 
-### 後端 C#
+### Backend C#
 
-整個方案三個測試專案：
+Three test projects exist in the solution:
 
-| 專案 | 數量 | 用途 |
+| Project | Count | Purpose |
 |---|---|---|
-| `Vulperonex.Tests.Architecture` | 19 | NDepend-style 依賴方向、命名規約、層級邊界 |
-| `Vulperonex.Tests.Unit` | 210 | 純邏輯單元測試（無 DB / 無 HTTP） |
-| `Vulperonex.Tests.Integration` | 219 | `WebApplicationFactory` + SQLite + 全 HTTP/Hub 端對端 |
+| `Vulperonex.Tests.Architecture` | 19 | NDepend-style dependency directions, naming conventions, layer boundaries |
+| `Vulperonex.Tests.Unit` | 210 | Pure logical unit tests (no DB / no HTTP) |
+| `Vulperonex.Tests.Integration` | 219 | `WebApplicationFactory` + SQLite + full HTTP/Hub end-to-end |
 
-執行全套：
+Execute the full suite:
 
 ```powershell
 dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
 ```
 
-僅單元：
+Unit tests only:
 
 ```powershell
 dotnet test tests/Vulperonex.Tests.Unit/Vulperonex.Tests.Unit.csproj
 ```
 
-僅整合：
+Integration tests only:
 
 ```powershell
 dotnet test tests/Vulperonex.Tests.Integration/Vulperonex.Tests.Integration.csproj
 ```
 
-過濾單一測試：
+Filter a single test:
 
 ```powershell
 dotnet test --filter "FullyQualifiedName~MemberMutationEndpointTests"
 ```
 
-> 整合測試的 `CreateClient` 會：
-> - 配置 per-test 臨時 `Security:CsrfTokenPath`，避免並發 IO 鎖死
-> - 從 DI 取 `AdminCsrfTokenProvider.Token` 設為 `X-Admin-Csrf` 標頭
-> - 注入對齊本機 host 的 `Origin` + `Referer` 雙標頭
+> The integration test `CreateClient` will:
+> - Allocate a per-test temporary `Security:CsrfTokenPath` to avoid concurrent IO locking
+> - Retrieve `AdminCsrfTokenProvider.Token` from DI and set it as the `X-Admin-Csrf` header
+> - Inject both `Origin` and `Referer` headers matching the local host
 
-### 前端 Vitest
+### Frontend Vitest
 
 ```powershell
 cd src/frontend
 pnpm test
 ```
 
-執行 `vitest run --coverage`：
+Executes `vitest run --coverage`:
 
-- 34 個測試檔，167 個案例
-- 覆蓋率報告輸出至 `src/frontend/coverage/`
-- 環境 `jsdom`，自動偵測 `MODE === "test"` 略過實際 CSRF token fetch
+- 34 test files, 167 cases
+- Coverage report output to `src/frontend/coverage/`
+- Environment is `jsdom`, automatically detects `MODE === "test"` to skip actual CSRF token fetches
 
-watch 模式：
+Watch mode:
 
 ```powershell
 pnpm vitest
 ```
 
-### 全測試一鍵
+### One-click All Tests
 
 ```powershell
 dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
@@ -266,18 +275,18 @@ cd src/frontend; pnpm vue-tsc --noEmit; pnpm test; pnpm build; pnpm lint
 
 ---
 
-## 完整 Checkpoint 流程
+## Complete Checkpoint Process
 
-phase 收尾必跑：
+Must be run before finalizing any phase:
 
 ```powershell
-# 1. 後端 build
+# 1. Backend build
 dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false
 
-# 2. 後端 test
+# 2. Backend test
 dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
 
-# 3. 前端 type-check + test + build + lint
+# 3. Frontend type-check + test + build + lint
 cd src/frontend
 pnpm vue-tsc --noEmit
 pnpm test
@@ -286,21 +295,21 @@ pnpm lint
 cd ../..
 ```
 
-四步全綠才可 merge。
+All four steps must pass green to allow a merge.
 
 ---
 
-## 專案結構
+## Project Structure
 
 ```
 Vulperonex/
 ├── Vulperonex.sln
 ├── Directory.Build.props        # net10.0 + C# 14 + Nullable enable
-├── Directory.Packages.props     # 中央套件版本鎖定
+├── Directory.Packages.props     # Centralized package version locking
 ├── src/
-│   ├── Vulperonex.Domain/                 # 純領域模型 + Event
-│   ├── Vulperonex.Application/            # Use case + interface
-│   ├── Vulperonex.Infrastructure/         # EF Core + 外部整合
+│   ├── Vulperonex.Domain/                 # Pure domain models + Events
+│   ├── Vulperonex.Application/            # Use cases + interfaces
+│   ├── Vulperonex.Infrastructure/         # EF Core + external integrations
 │   ├── Adapters/
 │   │   ├── Vulperonex.Adapters.Twitch/
 │   │   ├── Vulperonex.Adapters.OneComme/
@@ -310,40 +319,40 @@ Vulperonex/
 │   ├── Hosts/
 │   │   ├── Vulperonex.Web/                # API + SignalR + Static
 │   │   ├── Vulperonex.Cli/                # Console CLI
-│   │   └── Vulperonex.Desktop/            # WebView2 殼
+│   │   └── Vulperonex.Desktop/            # WebView2 shell
 │   └── frontend/                          # Vue 3 SPA
 ├── tests/
 │   ├── Vulperonex.Tests.Architecture/
 │   ├── Vulperonex.Tests.Unit/
 │   └── Vulperonex.Tests.Integration/
 └── docs/
-    └── phases/                            # 階段 plan + todo + verification
+    └── phases/                            # Phase plan + todo + verification
 ```
 
 ---
 
-## 文件
+## Documentation
 
-- `CONTRIBUTING.md` — 外掛開發約定
-- `docs/SPEC.md` — 系統規格
-- `docs/phases/` — 各 phase plan / todo / manual-verification
-- `docs/cli.md` — CLI 完整指令參考（若存在）
+- `CONTRIBUTING.md` — Plugin development conventions
+- `docs/SPEC.md` — System specifications
+- `docs/phases/` — Phase plan / todo / manual-verification
+- `docs/cli.md` — CLI complete command reference (if exists)
 
 ---
 
-## 疑難排解
+## Troubleshooting
 
-| 症狀 | 解法 |
+| Symptom | Solution |
 |---|---|
-| `dotnet build` 失敗：file is locked | 確認加上 `/m:1 /nr:false /p:UseSharedCompilation=false` |
-| 整合測試 CSRF 403 | 確認測試從 DI 取 `AdminCsrfTokenProvider.Token`，未 hardcode `"true"` |
-| 前端 dev 連不到 API | 後端先啟動，確認 vite proxy 目標 port 對齊 console 印出 URL |
-| `pnpm install` 卡住 | 刪 `src/frontend/node_modules` + `pnpm-lock.yaml` 後重裝 |
-| SQLite 遷移錯誤 | 刪 `%LOCALAPPDATA%/Vulperonex/*.db` 重新啟動觸發自動 migrate |
-| Desktop 啟動白屏 | 安裝 [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/) |
+| `dotnet build` fails: file is locked | Ensure `/m:1 /nr:false /p:UseSharedCompilation=false` is included |
+| Integration tests CSRF 403 | Confirm tests retrieve `AdminCsrfTokenProvider.Token` from DI instead of hardcoding `"true"` |
+| Frontend dev cannot connect to API | Start backend first, confirm the vite proxy target port aligns with the URL printed in the console |
+| `pnpm install` hangs | Delete `src/frontend/node_modules` + `pnpm-lock.yaml` and reinstall |
+| SQLite migration errors | Delete `%LOCALAPPDATA%/Vulperonex/*.db` and restart to trigger automatic migration |
+| Desktop starts with white screen | Install [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/) |
 
 ---
 
-## 授權
+## License
 
-見 repo 根目錄 LICENSE 檔（若有）。
+See the LICENSE file in the repo root (if exists).

@@ -1,27 +1,28 @@
 /* =========================================================
    OmniCommander Overlay Base Styles (Vulperonex Ported)
-   ?閮剛?蝟餌絞???怨???========================================================= */
+   Shared Design Tokens and Global Structural CSS
+   ========================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
 
 :root {
-    /* ?詨??脣蔗霈 */
+    /* Main Layout Design Tokens */
     --frame-color: #BDE8E8;
     --fox-blue: #1A3D6E;
     --ice-glint: #FFFFFF;
 
-    /* ?惇隤輯??*/
+    /* Gold Tone Design Tokens */
     --gold-primary: #ffd700;
     --gold-secondary: #ffb700;
     --gold-light: #fff7a0;
     --gold-glow: rgba(255, 215, 0, 0.8);
 
-    /* 瞍詨惜??身摰?*/
+    /* Glassmorphism Styles & Colors */
     --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(235, 250, 255, 0.9) 100%);
     --accent-glow: rgba(189, 232, 232, 0.5);
 }
 
-/* ?箇???閮剖? */
+/* Global Reset for Transparent Overlays */
 body {
     margin: 0;
     padding: 0;
@@ -31,9 +32,10 @@ body {
 }
 
 /* =========================================================
-   ??摨?========================================================= */
+   Shared Animation Definitions
+   ========================================================= */
 
-/* ?喃?閫?????*/
+/* Deterministic Star Blinking Keyframes */
 @keyframes starBlink {
     0%, 100% {
         opacity: 0.3;
@@ -45,7 +47,7 @@ body {
     }
 }
 
-/* Vue/DOM 鞈?????敶飢?脣? */
+/* Vue/DOM Element Slide In Animation */
 @keyframes iceSpring {
     0% {
         opacity: 0;
@@ -57,14 +59,14 @@ body {
     }
 }
 
-/* ?瘚??? (300% ?蝘餃?) */
+/* Glowing Border Shift Animation (300% Scaling Background) */
 @keyframes gradientBorder {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
 }
 
-/* 蝛拙??脩????豢蕪??*/
+/* Metallic Gold Pulse Border Animation */
 @keyframes goldPulseBorder {
     0% {
         filter: brightness(1) contrast(1);

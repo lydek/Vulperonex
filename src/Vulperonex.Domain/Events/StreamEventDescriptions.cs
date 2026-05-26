@@ -4,15 +4,15 @@ public static class StreamEventDescriptions
 {
     private static readonly Dictionary<string, EventDescription> Descriptions = new()
     {
-        [StreamEventKeys.UserSentMessage] = new("使用者發送了聊天訊息", IsSystemEvent: false),
-        [StreamEventKeys.UserFollowed] = new("使用者追隨了頻道", IsSystemEvent: false),
-        [StreamEventKeys.UserDonated] = new("使用者進行了斗內", IsSystemEvent: false),
-        [StreamEventKeys.UserSubscribed] = new("使用者訂閱了頻道", IsSystemEvent: false),
-        [StreamEventKeys.UserGiftedSubscription] = new("使用者贈送了訂閱", IsSystemEvent: false),
-        [StreamEventKeys.ChannelRaided] = new("頻道被突襲", IsSystemEvent: false),
-        [StreamEventKeys.RewardRedeemed] = new("使用者兌換了獎勵", IsSystemEvent: false),
-        [StreamEventKeys.PlatformConnectionChanged] = new("平台連線狀態變更", IsSystemEvent: true),
-        [StreamEventKeys.MemberCheckedIn] = new("會員完成打卡簽到", IsSystemEvent: true),
+        [StreamEventKeys.UserSentMessage] = new("User sent a chat message", IsSystemEvent: false),
+        [StreamEventKeys.UserFollowed] = new("User followed the channel", IsSystemEvent: false),
+        [StreamEventKeys.UserDonated] = new("User donated", IsSystemEvent: false),
+        [StreamEventKeys.UserSubscribed] = new("User subscribed to the channel", IsSystemEvent: false),
+        [StreamEventKeys.UserGiftedSubscription] = new("User gifted a subscription", IsSystemEvent: false),
+        [StreamEventKeys.ChannelRaided] = new("Channel was raided", IsSystemEvent: false),
+        [StreamEventKeys.RewardRedeemed] = new("User redeemed a reward", IsSystemEvent: false),
+        [StreamEventKeys.PlatformConnectionChanged] = new("Platform connection status changed", IsSystemEvent: true),
+        [StreamEventKeys.MemberCheckedIn] = new("Member checked in", IsSystemEvent: true),
     };
 
     public static string? GetDescription(string eventTypeKey)

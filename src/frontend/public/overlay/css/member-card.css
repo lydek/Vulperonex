@@ -1,11 +1,11 @@
 /* =========================================================
    Vulperonex Member Card — Base + Default (Rotan Red/Gold)
-   結構與動畫為通用層。主題切換僅需覆蓋 :root tokens。
-   依賴：overlay-base.css (提供 gradientBorder keyframe + font)
-========================================================= */
+   Structure and animation shared layer. Themes override :root tokens only.
+   Dependency: overlay-base.css (Provides gradientBorder keyframe + fonts)
+ ========================================================= */
 
 :root {
-    /* === 預設主題 token (rotan-checkin 紅/金) === */
+    /* === Default Theme Tokens (rotan-checkin Red/Gold) === */
     --mc-accent: #ffd700;
     --mc-accent-rgb: 255, 215, 0;
     --mc-accent-light: #fff7a0;
@@ -23,14 +23,14 @@
     --mc-watermark-size: 160px;
     --mc-watermark-color: rgba(var(--mc-accent-rgb), 0.1);
 
-    /* 內聯爪印 SVG。主題覆蓋時整段重定義 stroke/fill 顏色。 */
+    /* Inline Pawprint SVG. Themes redefine stroke/fill values for overrides. */
     --stamp-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="45" fill="none" stroke="%23ff3366" stroke-width="6" stroke-dasharray="8 4"/><circle cx="50" cy="50" r="38" fill="none" stroke="%23ff3366" stroke-width="2"/><g transform="rotate(-15 50 50) translate(8, 12) scale(0.85)" fill="%23ff3366"><path d="M 50,45 C 75,45 85,60 85,75 C 85,90 65,95 50,90 C 35,95 15,90 15,75 C 15,60 25,45 50,45 Z"/><ellipse cx="25" cy="35" rx="10" ry="15" transform="rotate(-30 25 35)"/><ellipse cx="40" cy="20" rx="10" ry="15"/><ellipse cx="60" cy="20" rx="10" ry="15"/><ellipse cx="75" cy="35" rx="10" ry="15" transform="rotate(30 75 35)"/></g></svg>');
     --card-bg-image: linear-gradient(135deg, rgba(20, 20, 25, 0.85) 0%, rgba(45, 45, 50, 0.95) 100%);
 }
 
 /* =========================================================
-   結構：卡片容器與外殼
-========================================================= */
+   Structure: Card Container and Shell
+   ========================================================= */
 
 .card-container {
     position: absolute;
@@ -63,7 +63,7 @@ body.inline-mode .loyalty-card {
     overflow: visible;
 }
 
-/* 獨立發光層 */
+/* Standalone Glow Layer */
 .loyalty-card::after {
     content: '';
     position: absolute;
@@ -109,7 +109,7 @@ body.inline-mode .loyalty-card.full-stamps .card-inner-bg {
     animation: mcPulseInner 2s infinite alternate !important;
 }
 
-/* 流光燙金/紫金框 */
+/* Shifting Gradient Gold Frame */
 .loyalty-card::before {
     content: '';
     position: absolute;
@@ -128,8 +128,8 @@ body.inline-mode .loyalty-card.full-stamps .card-inner-bg {
 }
 
 /* =========================================================
-   內側真實背景容器
-========================================================= */
+   Inner Real Background Container
+   ========================================================= */
 
 .card-inner-bg {
     position: relative;
@@ -186,8 +186,8 @@ body.inline-mode .loyalty-card.full-stamps .card-inner-bg {
 }
 
 /* =========================================================
-   左側：頭像 + 名稱 + VIP 徽章
-========================================================= */
+   Left Section: Avatar + Name + VIP Badge
+   ========================================================= */
 
 .card-left {
     width: 220px;
@@ -272,8 +272,8 @@ body.inline-mode .loyalty-card.full-stamps .card-inner-bg {
 }
 
 /* =========================================================
-   右側：標題 + 進度 + 集章 grid
-========================================================= */
+   Right Section: Title + Progress + Stamp Grid
+   ========================================================= */
 
 .card-right {
     flex: 1;
@@ -384,8 +384,8 @@ body.inline-mode .loyalty-card.full-stamps .card-inner-bg {
 }
 
 /* =========================================================
-   Animations (使用 var() 解析主題顏色)
-========================================================= */
+   Animations (Uses var() for Dynamic Theme Resolution)
+   ========================================================= */
 
 @keyframes mcPulse {
     0% {

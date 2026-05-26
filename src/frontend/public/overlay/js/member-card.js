@@ -165,7 +165,8 @@
         });
     }
 
-    // ?皜祈岫?梢: ?? T 閫貊????    let testCounter = 0;
+    // Test Trigger: Press 'T' to simulate check-in
+    let testCounter = 0;
     document.addEventListener('keydown', (e) => {
         if (e.key === 't' || e.key === 'T') {
             testCounter++;
@@ -173,9 +174,9 @@
             const visualStamp = isSecondCard ? (testCounter - 10) : testCounter;
             const round = isSecondCard ? 2 : 1;
 
-            logDebug(`??皜祈岫?: ?格?蝡 ${visualStamp} (?桀?蝚?${round} 撘?`);
+            logDebug(`Simulate check-in: stamps ${visualStamp} (Vol.${round})`);
             checkInQueue.push({
-                name: "皜祈岫閫?適",
+                name: "Simulated User",
                 profileImage: "https://api.dicebear.com/7.x/bottts/svg?seed=fox",
                 targetStamp: visualStamp,
                 round: round,
@@ -187,7 +188,7 @@
         }
     });
 
-    // ?????????
+    // DOMContentLoaded initialization
     window.addEventListener('DOMContentLoaded', () => {
         fetchSettings();
         setInterval(fetchSettings, 10000);
@@ -212,7 +213,7 @@
             adjustScale();
 
             const task = {
-                name: urlParams.get('name') || '雿輻??,
+                name: urlParams.get('name') || 'Guest User',
                 profileImage: urlParams.get('avatar') || '',
                 targetStamp: parseInt(urlParams.get('stamps')) || 1,
                 totalStamps: parseInt(urlParams.get('totalStamps')) || 1,
@@ -223,18 +224,18 @@
             document.body.style.backgroundColor = 'transparent';
             document.body.classList.add('inline-mode');
         } else {
-            // ?????Vulperonex /hubs/overlay/member
+            // Connect to Vulperonex /hubs/overlay/member
             OverlayCommon.initSignalRConnection('/hubs/overlay/member', {
                 event: function (userData) {
-                    logDebug("?嗅??冽: " + JSON.stringify(userData));
+                    logDebug("Check-in event received: " + JSON.stringify(userData));
 
                     const total = userData.checkInCount || 1;
                     const displayStamps = (total % 10 === 0) ? 10 : (total % 10);
-                    const displayName = userData.displayName || "?芰雿輻??;
+                    const displayName = userData.displayName || "Unknown User";
                     const avatarUrl = userData.avatarUrl || "";
 
                     if (checkInQueue.length >= MAX_QUEUE_SIZE) {
-                        logDebug("?? 雿??嚗迤?冽璉?隞餃?隞乩?霅瑟???);
+                        logDebug("Queue full. Dropping the oldest event.");
                         checkInQueue.shift();
                     }
 

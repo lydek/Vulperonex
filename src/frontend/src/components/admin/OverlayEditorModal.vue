@@ -146,7 +146,7 @@ async function init(): Promise<void> {
     await loadFiles();
     await loadHistory();
     
-    // 預設開啟 index.html
+    // Open index.html by default
     const indexFile = files.value.find(f => f.relativePath.toLowerCase() === "index.html");
     if (indexFile) {
       await doSelectFile(indexFile.relativePath);
@@ -246,7 +246,7 @@ async function saveFile(): Promise<void> {
     statusMessage.value = "Draft file saved successfully!";
     await loadFiles();
   } catch (err: any) {
-    // 擷取 API 拋出的語法驗證錯誤訊息
+    // Extract syntax validation errors thrown by the API
     if (err.body) {
       try {
         const parsed = JSON.parse(err.body);
@@ -409,7 +409,7 @@ function formatStamp(stamp: string): string {
 <template>
   <div v-if="visible" class="editor-backdrop">
     <div class="editor-window">
-      <!-- 頂部 Header 區 -->
+      <!-- Top Header Section -->
       <header class="editor-header">
         <div class="header-left">
           <span class="editor-icon">⚡</span>
@@ -417,7 +417,7 @@ function formatStamp(stamp: string): string {
         </div>
         
         <div class="header-right">
-          <!-- 分頁切換 -->
+          <!-- Tab Switching -->
           <div class="tab-buttons">
             <button 
               type="button" 
@@ -467,19 +467,19 @@ function formatStamp(stamp: string): string {
         </div>
       </header>
 
-      <!-- 主要內容區 -->
+      <!-- Main Content Area -->
       <div class="editor-content-body">
         
         <!-- EDITOR TAB -->
         <div v-show="activeTab === 'editor'" class="tab-panel editor-panel">
-          <!-- 左側檔案管理樹 -->
+            <!-- Left File Management Tree -->
           <aside class="sidebar">
             <div class="sidebar-header">
               <h3>Files</h3>
               <button type="button" class="new-file-icon" title="New file" @click="showNewFile = !showNewFile">+</button>
             </div>
 
-            <!-- 新增檔案對話框 -->
+            <!-- Create New File Dialog -->
             <div v-if="showNewFile" class="new-file-form">
               <input 
                 v-model="newFileName" 
@@ -493,7 +493,7 @@ function formatStamp(stamp: string): string {
               </div>
             </div>
 
-            <!-- 檔案列表 -->
+            <!-- File List -->
             <ul class="file-list">
               <li 
                 v-for="file in files" 
@@ -516,7 +516,7 @@ function formatStamp(stamp: string): string {
             </ul>
           </aside>
 
-          <!-- 右側 Monaco 編輯器 -->
+          <!-- Right Monaco Editor -->
           <main class="editor-area">
             <div v-if="currentFile" class="editor-area-header">
               <span class="current-file-name">Editing: <code>{{ currentFile }}</code> <span v-if="isModified" class="mod-dot" title="Modified">*</span></span>
@@ -530,7 +530,7 @@ function formatStamp(stamp: string): string {
               </button>
             </div>
 
-            <!-- 錯誤與狀態提示 -->
+            <!-- Error and Status Banner -->
             <div v-if="editorError" role="alert" class="msg-banner error-banner">
               ⚠️ <strong>Error:</strong> {{ editorError }}
             </div>

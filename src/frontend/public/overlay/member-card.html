@@ -1,15 +1,15 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vulperonex ?????/title>
+    <title>Vulperonex Member Card</title>
 
-    <!-- 撘 SignalR (Local) -->
+    <!-- Load SignalR (Local) -->
     <script src="libs/signalr.min.js"></script>
 
-    <!-- 頛蝬??銝駁? -->
+    <!-- Import styles -->
     <link rel="stylesheet" href="css/overlay-base.css?v=1.0.1">
     <link rel="stylesheet" href="css/member-card.css?v=1.0.1">
 </head>
@@ -29,17 +29,17 @@
                             src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23666'/></svg>" />
                     </div>
                     <div class="user-name-container">
-                        <div id="user-name" class="user-name">?梁迂??銝?/div>
+                        <div id="user-name" class="user-name">Loading...</div>
                     </div>
-                    <div class="vip-badge" id="vip-badge-text">?駁?撠惇????/div>
+                    <div class="vip-badge" id="vip-badge-text">Channel Member</div>
                 </div>
 
                 <div class="card-right">
                     <div class="card-header">
-                        <div class="card-title">????蝣?/div>
+                        <div class="card-title">Member Stamp Card</div>
                     </div>
                     <div class="stamps-grid" id="stamps-grid">
-                        <!-- JS ???? -->
+                        <!-- Rendered by JS -->
                     </div>
                 </div>
             </div>
@@ -47,7 +47,7 @@
         </div>
     </div>
 
-    <!-- 撘?梁?摩???∪撠惇?批??-->
+    <!-- Load common logic and card specific JS -->
     <script src="js/overlay-common.js?v=1.0.1"></script>
     <script src="js/member-card.js?v=1.0.1"></script>
 </body>

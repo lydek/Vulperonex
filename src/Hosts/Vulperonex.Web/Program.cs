@@ -86,12 +86,13 @@ public static partial class VulperonexWebApplication
         app.UseDefaultFiles();
         app.UseStaticFiles();
 
-        // 取得管理端點 CSRF Token (受 Loopback 與 Host 允許清單限制)
-        // 【安全架構決策設計與權衡】：
-        // 1. 每當 Kestrel 重啟，AdminCsrfTokenProvider 將會生成全新的隨機 session token，
-        //    這意味著所有打開的管理頁面 (Browser Tabs) 需重新整理刷新以取得新 Token。
-        // 2. 本端點不使用進一步的進程間認證，本機內的其他信任程序可直接拉取此 Token，
-        //    此為本機 Desktop loopback 應用程式已知的安全信任邊界妥協。
+        // Retrieve admin CSRF token (restricted by loopback and host allow-list)
+        // 【Security Architecture Decision & Trade-offs】:
+        // 1. Every time Kestrel restarts, AdminCsrfTokenProvider generates a fresh random session token.
+        //    This means any open browser tabs for admin pages must be reloaded to fetch the new token.
+        // 2. This endpoint does not require further inter-process authentication; other trusted processes running
+        //    on the same local machine can fetch this token. This is a known and accepted compromise
+        //    of the security boundary for local desktop loopback applications.
         app.MapGet("/api/overlay/csrf-token", (Vulperonex.Web.Security.AdminCsrfTokenProvider tokenProvider) => 
         {
             return Results.Ok(new { token = tokenProvider.Token });

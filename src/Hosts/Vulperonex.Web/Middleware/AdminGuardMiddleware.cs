@@ -24,7 +24,7 @@ public sealed class AdminGuardMiddleware
 
         if (path != null)
         {
-            // URL 正規化防繞過：解碼 %2F / %2f 並壓縮多重斜線 //
+            // URL normalization to prevent bypass: decode %2F / %2f and compress multiple slashes //
             var normalizedPath = path.Replace("%2F", "/", StringComparison.OrdinalIgnoreCase)
                                      .Replace("%2f", "/", StringComparison.OrdinalIgnoreCase);
 
@@ -33,7 +33,7 @@ public sealed class AdminGuardMiddleware
                 normalizedPath = normalizedPath.Replace("//", "/", StringComparison.Ordinal);
             }
 
-            // 對 /api/overlay/csrf-token 放行（僅作 loopback 和 Host 檢查，免除 CSRF 檢驗）
+            // Allow bypass for /api/overlay/csrf-token (performs loopback and Host checks only, waives CSRF validation)
             if (string.Equals(normalizedPath, "/api/overlay/csrf-token", StringComparison.OrdinalIgnoreCase))
             {
                 var loopbackCheck = ValidateLoopbackAndHostOnly(context);
@@ -45,8 +45,8 @@ public sealed class AdminGuardMiddleware
             }
             else
             {
-                // 只要是 /api/* 且非 GET (即 mutating verbs)
-                // 或者是 /api/overlay/* 的所有端點
+                // Any endpoint that starts with /api/* and is not GET (i.e. mutating verbs)
+                // Or any endpoint that starts with /api/overlay/*
                 bool shouldProtect = (normalizedPath.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) && !HttpMethods.IsGet(method))
                                      || normalizedPath.StartsWith("/api/overlay/", StringComparison.OrdinalIgnoreCase);
 
@@ -67,7 +67,7 @@ public sealed class AdminGuardMiddleware
 
     private static bool IsLoopbackRequest(IPAddress? remoteIpAddress)
     {
-        // 嚴格拒絕 remoteIpAddress 為 null，全防 Unix socket/Proxy 滲透
+        // Strictly reject remoteIpAddress being null to prevent Unix socket/Proxy infiltration
         return remoteIpAddress is not null && IPAddress.IsLoopback(remoteIpAddress);
     }
 
@@ -75,7 +75,7 @@ public sealed class AdminGuardMiddleware
     {
         if (string.IsNullOrWhiteSpace(host)) return false;
 
-        // 移除埠部分
+        // Remove port section
         var hostName = host;
         var portIndex = host.IndexOf(':');
         if (portIndex >= 0)
@@ -111,14 +111,14 @@ public sealed class AdminGuardMiddleware
             return Results.StatusCode(StatusCodes.Status403Forbidden);
         }
 
-        // Host 允許清單檢測：防範 DNS Rebinding
+        // Host allowlist check: prevent DNS Rebinding
         var hostHeader = context.Request.Host.Value;
         if (!IsAllowedHost(hostHeader))
         {
             return ApiErrors.ToResult(ErrorCodes.OriginMismatch, StatusCodes.Status400BadRequest);
         }
 
-        // Token 恆定時間比對
+        // Constant-time comparison for token verification
         var csrfHeader = context.Request.Headers["X-Admin-Csrf"].ToString();
         if (string.IsNullOrEmpty(csrfHeader) || !CryptographicOperations.FixedTimeEquals(
             System.Text.Encoding.UTF8.GetBytes(csrfHeader),

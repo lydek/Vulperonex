@@ -32,7 +32,7 @@ const savingSettings = ref(false);
 const saveMessage = ref<string | null>(null);
 const saveError = ref<string | null>(null);
 
-// --- 調整 Loyalty Modal 狀態 ---
+// --- Adjust Loyalty Modal State ---
 const showAdjustModal = ref(false);
 const adjustTotal = ref<number | null>(null);
 const adjustCheckIn = ref<number | null>(null);
@@ -40,7 +40,7 @@ const adjustReason = ref("");
 const adjustError = ref<string | null>(null);
 const adjusting = ref(false);
 
-// --- 重置 Modal 狀態 ---
+// --- Reset Modal State ---
 const showResetModal = ref(false);
 const resetLoyalty = ref(false);
 const resetCheckIn = ref(false);
@@ -48,7 +48,7 @@ const resetReason = ref("");
 const resetError = ref<string | null>(null);
 const resetting = ref(false);
 
-// --- 安全刪除 Modal 狀態 ---
+// --- Safe Delete Modal State ---
 const showDeleteModal = ref(false);
 const deleteToken = ref("");
 const deleteReason = ref("");
@@ -57,7 +57,7 @@ const deleting = ref(false);
 const deleteSecondsLeft = ref(30);
 let deleteTimerInterval: number | null = null;
 
-// --- 審計日誌 Drawer 狀態 ---
+// --- Audit Log Drawer State ---
 const showAuditDrawer = ref(false);
 const auditLogs = ref<MemberAuditLog[]>([]);
 const loadingAudit = ref(false);
@@ -132,7 +132,7 @@ async function selectMember(memberId: string): Promise<void> {
   }
 }
 
-// --- 調整忠誠度動作 ---
+// --- Adjust Loyalty Actions ---
 function openAdjustModal() {
   if (!selected.value) return;
   adjustTotal.value = selected.value.loyalty.totalLoyalty;
@@ -146,7 +146,7 @@ async function submitAdjust() {
   if (!selected.value) return;
   const reasonStr = adjustReason.value.trim();
   if (!reasonStr || reasonStr.length < 3 || reasonStr.length > 500) {
-    adjustError.value = "異動原因為必填，且字數必須介於 3 到 500 之間";
+    adjustError.value = t("members.error.adjustReasonRequired");
     return;
   }
   
@@ -168,7 +168,7 @@ async function submitAdjust() {
   } catch (caught) {
     if (caught instanceof ApiError && caught.errorCode === "MEMBER_CONCURRENCY_CONFLICT") {
       adjustError.value = t("errorCode.MEMBER_CONCURRENCY_CONFLICT");
-      // 樂觀鎖衝突，立即更新當前 model 以利使用者獲取最新 version 重新編輯
+    // Optimistic lock conflict, update current model immediately to help user get latest version to edit again
       await selectMember(selected.value.memberId);
     } else {
       adjustError.value = describeError(caught);
@@ -178,7 +178,7 @@ async function submitAdjust() {
   }
 }
 
-// --- 重置數據動作 ---
+// --- Reset Data Actions ---
 function openResetModal() {
   if (!selected.value) return;
   resetLoyalty.value = false;
@@ -191,12 +191,12 @@ function openResetModal() {
 async function submitReset() {
   if (!selected.value) return;
   if (!resetLoyalty.value && !resetCheckIn.value) {
-    resetError.value = "請至少選擇一項重置項目";
+    resetError.value = t("members.error.selectResetItem");
     return;
   }
   const reasonStr = resetReason.value.trim();
   if (!reasonStr || reasonStr.length < 3 || reasonStr.length > 500) {
-    resetError.value = "異動原因為必填，且字數必須介於 3 到 500 之間";
+    resetError.value = t("members.error.changeReasonRequired");
     return;
   }
 
@@ -227,7 +227,7 @@ async function submitReset() {
   }
 }
 
-// --- 安全刪除動作 (30秒 Token) ---
+// --- Safe Delete Actions (30s Token) ---
 async function startDelete() {
   if (!selected.value) return;
   deleting.value = true;
@@ -267,7 +267,7 @@ async function submitDelete() {
   }
   const reasonStr = deleteReason.value.trim();
   if (!reasonStr || reasonStr.length < 3 || reasonStr.length > 500) {
-    deleteError.value = "原因為必填且長度需在 3 至 500 個字元之間";
+    deleteError.value = t("members.error.deleteReasonRequired");
     return;
   }
 
@@ -293,7 +293,7 @@ async function submitDelete() {
   }
 }
 
-// --- 審計日誌查詢 ---
+// --- Audit Log Query ---
 async function openAuditDrawer() {
   if (!selected.value) return;
   showAuditDrawer.value = true;
@@ -391,7 +391,7 @@ function describeError(caught: unknown): string {
     </p>
 
     <div class="members-layout">
-      <!-- 會員列表面板 -->
+      <!-- Members List Pane -->
       <div class="members-list-pane">
         <p
           v-if="!loadingList && members.length === 0 && !listError"
@@ -431,7 +431,7 @@ function describeError(caught: unknown): string {
         </table>
       </div>
 
-      <!-- 會員詳情與操作面板 -->
+      <!-- Member Details & Action Pane -->
       <aside class="members-detail-pane" aria-label="member-detail">
         <p
           v-if="!selected && !loadingDetail && !detailError"
@@ -483,7 +483,7 @@ function describeError(caught: unknown): string {
             </ul>
           </div>
 
-          <!-- 操作按鈕專區 -->
+          <!-- Action Buttons Section -->
           <div class="detail-actions-sec">
             <button class="action-btn adjust-btn" @click="openAdjustModal">
               {{ t("members.actions.adjust") }}
@@ -502,7 +502,7 @@ function describeError(caught: unknown): string {
       </aside>
     </div>
 
-    <!-- 1. 調整忠誠度對話框 (Modal) -->
+    <!-- 1. Adjust Loyalty Dialog (Modal) -->
     <div v-if="showAdjustModal" class="modal-overlay" @click.self="showAdjustModal = false">
       <div class="modal-content glow-panel" role="dialog" aria-modal="true">
         <h3 class="modal-title">{{ t("members.adjust.title") }}</h3>
@@ -539,7 +539,7 @@ function describeError(caught: unknown): string {
       </div>
     </div>
 
-    <!-- 2. 重置數據對話框 (Modal) -->
+    <!-- 2. Reset Data Dialog (Modal) -->
     <div v-if="showResetModal" class="modal-overlay" @click.self="showResetModal = false">
       <div class="modal-content glow-panel" role="dialog" aria-modal="true">
         <h3 class="modal-title">{{ t("members.reset.title") }}</h3>
@@ -576,14 +576,14 @@ function describeError(caught: unknown): string {
       </div>
     </div>
 
-    <!-- 3. 安全刪除對話框 (Modal with 30s Countdown) -->
+    <!-- 3. Safe Delete Dialog (Modal with 30s Countdown) -->
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
       <div class="modal-content glow-panel border-danger" role="dialog" aria-modal="true">
         <h3 class="modal-title text-danger">{{ t("members.delete.title") }}</h3>
         
         <div class="danger-banner">
           <p>{{ t("members.delete.warning") }}</p>
-          <!-- 倒數計時器視覺條與秒數 -->
+          <!-- Countdown Timer Visual Bar and Seconds -->
           <div class="timer-section">
             <div class="timer-progress-bg">
               <div
@@ -607,7 +607,7 @@ function describeError(caught: unknown): string {
             <span class="form-label">{{ t("members.dialog.reason") }}</span>
             <textarea
               v-model="deleteReason"
-              placeholder="請輸入刪除會員的原因（審計合規需求）..."
+              :placeholder="t('members.dialog.reasonPlaceholder')"
               rows="3"
               :disabled="deleteSecondsLeft <= 0"
             ></textarea>
@@ -631,7 +631,7 @@ function describeError(caught: unknown): string {
       </div>
     </div>
 
-    <!-- 4. 審計日誌抽屜 (Audit Log Drawer) -->
+    <!-- 4. Audit Log Drawer -->
     <div v-if="showAuditDrawer" class="drawer-overlay" @click.self="showAuditDrawer = false">
       <div class="drawer-content glow-panel" role="complementary" aria-label="Audit Logs">
         <div class="drawer-header">
@@ -647,7 +647,7 @@ function describeError(caught: unknown): string {
             {{ t("members.audit.empty") }}
           </p>
 
-          <!-- 專業 Timeline 時間軸日誌展示 -->
+          <!-- Professional Timeline Log Presentation -->
           <div v-if="auditLogs.length > 0" class="timeline-container">
             <div v-for="log in auditLogs" :key="log.id" class="timeline-item">
               <div class="timeline-dot-connector">
@@ -665,7 +665,7 @@ function describeError(caught: unknown): string {
                   <span v-if="log.actorId">({{ log.actorId }})</span>
                 </div>
 
-                <!-- 快照對比面板 -->
+                <!-- Snapshot Comparison Panel -->
                 <div class="log-snap-sec" v-if="log.beforeJson || log.afterJson">
                   <div class="snap-box" v-if="log.beforeJson">
                     <p class="snap-title text-muted">{{ t("members.audit.before") }}</p>
@@ -693,13 +693,13 @@ function describeError(caught: unknown): string {
 </template>
 
 <style scoped>
-/* 核心容器 */
+/* Core Container */
 .members-view-container {
   position: relative;
   min-height: 80vh;
 }
 
-/* 頂部視覺面板 */
+/* Top Visual Panel */
 .card-settings-panel {
   background: rgba(30, 41, 59, 0.45);
   border: 1px solid rgba(189, 232, 232, 0.12);
@@ -734,7 +734,7 @@ function describeError(caught: unknown): string {
   box-shadow: 0 4px 15px rgba(6, 182, 212, 0.25);
 }
 
-/* 表格與布局 */
+/* Table & Layout */
 .members-layout {
   display: flex;
   gap: 24px;
@@ -760,7 +760,7 @@ function describeError(caught: unknown): string {
   border-left: 4px solid #06b6d4;
 }
 
-/* 詳情與操作卡片 */
+/* Detail & Action Card */
 .members-detail-pane {
   flex: 2;
   position: sticky;
@@ -834,7 +834,7 @@ function describeError(caught: unknown): string {
   font-weight: 700;
 }
 
-/* 操作按鈕專區 */
+/* Action Buttons Section */
 .detail-actions-sec {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -891,7 +891,7 @@ function describeError(caught: unknown): string {
   box-shadow: 0 4px 15px rgba(220, 38, 38, 0.35);
 }
 
-/* Modals 對話框 */
+/* Modals Dialogs */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -998,7 +998,7 @@ function describeError(caught: unknown): string {
   box-shadow: none !important;
 }
 
-/* 安全刪除與倒數計時 */
+/* Safe Delete & Countdown */
 .danger-banner {
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.2);
@@ -1050,7 +1050,7 @@ function describeError(caught: unknown): string {
   letter-spacing: 0.5px;
 }
 
-/* 抽屜 (Drawers) */
+/* Drawers */
 .drawer-overlay {
   position: fixed;
   top: 0;
@@ -1121,7 +1121,7 @@ function describeError(caught: unknown): string {
   color: #cbd5e1;
 }
 
-/* Timeline 時間軸 */
+/* Timeline */
 .timeline-container {
   display: flex;
   flex-direction: column;
@@ -1216,7 +1216,7 @@ function describeError(caught: unknown): string {
   color: rgba(189, 232, 232, 0.4);
 }
 
-/* 快照對比 */
+/* Snapshot Comparison */
 .log-snap-sec {
   margin-top: 14px;
   display: flex;
@@ -1257,7 +1257,7 @@ function describeError(caught: unknown): string {
   font-size: 18px;
 }
 
-/* 動畫 */
+/* Animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }

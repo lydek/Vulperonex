@@ -2,8 +2,8 @@
 
 /* =========================================================
    KapChat Style - Twitch Transparent Theme
-   經典透明、文字單行緊湊排版風格 (全域第一預設)
-========================================================= */
+   Classic transparent, compact single-line message style (Primary Default)
+ ========================================================= */
 
 :root {
     --twitch-purple: #9146FF;
@@ -17,7 +17,7 @@
     justify-content: flex-end;
     align-items: flex-start;
     height: 95vh;
-    gap: 8px; /* 行與行之間緊湊排列 */
+    gap: 8px; /* Compact message spacing */
     width: 100%;
     max-width: 100%;
     min-width: 360px;
@@ -27,14 +27,14 @@
     padding: 10px;
 }
 
-/* 經典 KapChat 單行文字樣式 */
+/* Classic KapChat Single-Line Layout */
 .chat-line {
     position: relative;
-    background: transparent; /* 完全透明無背景氣泡 */
+    background: transparent; /* Fully transparent with no background bubble */
     border: none;
     border-radius: 0;
     padding: 2px 4px;
-    display: block; /* 讓每一條留言自成一行，寬度 100% 自動折行 */
+    display: block; /* Each message takes a full line and wraps automatically */
     width: 100%;
     word-wrap: break-word;
     box-sizing: border-box;
@@ -42,7 +42,7 @@
     line-height: 1.4;
 }
 
-/* 經典 KapChat 貼齊名稱左側的徽章 */
+/* Classic KapChat Badges on Name Left */
 .chat-badge {
     height: 18px;
     vertical-align: middle;
@@ -75,9 +75,9 @@
 
 .chat-content {
     font-size: 1.05rem;
-    color: #FFFFFF; /* 純白色字體以防刺眼，在深色/亮色畫面上由 text-shadow 保障可讀性 */
+    color: #FFFFFF; /* White font with heavy text-shadow to ensure legibility across all backgrounds */
     line-height: 1.4;
-    font-weight: 700; /* 粗體字，完美還原 KapChat 電競視覺 */
+    font-weight: 700; /* Bold font for KapChat gaming aesthetics */
     display: inline;
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -88,11 +88,11 @@
 .chat-emote {
     vertical-align: middle;
     margin: -4px 2px;
-    height: 1.8em; /* 表情圖示隨字體自動縮放 */
+    height: 1.8em; /* Auto scales with text size */
     display: inline-block;
 }
 
-/* ✦ ice-spring 登場動畫 */
+/* ✦ ice-spring Entry Animation */
 .ice-spring-enter-active {
     animation: iceSpring 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }

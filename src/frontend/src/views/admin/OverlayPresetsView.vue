@@ -177,7 +177,7 @@ async function removePreset(slug: string): Promise<void> {
           </div>
           <div class="preset-actions" style="display: flex; gap: 8px;">
             <button type="button" class="icon-button edit-draft-btn" @click="openEditor(preset.slug)">
-              🛠️ 編輯草稿
+              {{ t("overlayPresets.editDraft") }}
             </button>
             <button type="button" class="icon-button" @click="removePreset(preset.slug)">
               {{ t("overlayPresets.delete") }}

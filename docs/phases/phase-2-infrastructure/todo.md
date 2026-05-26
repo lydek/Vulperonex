@@ -1,54 +1,54 @@
-﻿# 第二階段待辦清單：事件匯流排 + Infrastructure
+# Phase 2 Todo List: Event Bus + Infrastructure
 
-> 詳細計畫：`docs/phases/phase-2-infrastructure/plan.md`
-> 父待辦清單：`tasks/todo.md`
+> Detailed Plan: `docs/phases/phase-2-infrastructure/plan.md`
+> Parent Todo List: `tasks/todo.md`
 
 ---
 
-## 任務 4：事件匯流排
+## Task 4: Event Bus
 
-- [x] 任務 4a：定義 `IStreamEventBus` 契約
-- [x] 任務 4b：實作 `InMemoryStreamEventBus` dispatch、assignable match 與 handler 隔離
-- [x] 任務 4c：穩定 `WaitForIdleAsync` 與 dispatch lifecycle
+- [x] Task 4a: Define `IStreamEventBus` contract
+- [x] Task 4b: Implement `InMemoryStreamEventBus` dispatch, assignable matches, and handler isolation
+- [x] Task 4c: Stabilize `WaitForIdleAsync` and dispatch lifecycle
 
-## 任務 5：EF Core + SQLite 基礎設施
+## Task 5: EF Core + SQLite Infrastructure
 
-- [x] 任務 5a：建立 EF Core / SQLite 基礎與 `VulperonexDbContext`
-- [x] 任務 5b：新增 `InitialSchema` migration 與資料表配置
-- [x] 任務 5c：實作 DB bootstrap、`PRAGMA auto_vacuum = FULL` 與 `MigrationClassifier`
+- [x] Task 5a: Establish EF Core / SQLite foundation and `VulperonexDbContext`
+- [x] Task 5b: Add `InitialSchema` migration and table configurations
+- [x] Task 5c: Implement DB bootstrap, `PRAGMA auto_vacuum = FULL`, and `MigrationClassifier`
 
-## 任務 6：TDQ + at-least-once 保證
+## Task 6: TDQ + at-least-once Guarantees
 
-- [x] 任務 6a：建立 TDQ 與 `ActionExecutionLog` schema/repository
-- [x] 任務 6b：實作 Channel overflow 與啟動 replay
-- [x] 任務 6c：實作 `ActionExecutionLog` dedup 狀態機與 `IClock`
+- [x] Task 6a: Create TDQ and `ActionExecutionLog` schema/repository
+- [x] Task 6b: Implement Channel overflow and startup replay
+- [x] Task 6c: Implement `ActionExecutionLog` deduplication state machine and `IClock`
 
-## 任務 7：MemberResolver + PlatformUserDisplayCache
+## Task 7: MemberResolver + PlatformUserDisplayCache
 
-- [x] 任務 7a：實作 `IMemberResolver` port 與 atomic resolver
-- [x] 任務 7b：實作 `PlatformUserDisplayCache` L1/L2
-- [x] 任務 7c：完成 display cache `UpdateAsync` default row 與 TTL cleanup
+- [x] Task 7a: Implement `IMemberResolver` port and atomic resolver
+- [x] Task 7b: Implement `PlatformUserDisplayCache` L1/L2
+- [x] Task 7c: Complete display cache `UpdateAsync` default row and TTL cleanup
 
-## 任務 8：SystemSettings + token 安全儲存
+## Task 8: SystemSettings + Token Secure Storage
 
-- [x] 任務 8a：實作 `ISystemSettingsService` SQLite-backed Get/Set
-- [x] 任務 8b：實作設定熱重載 `Changes` observable，並接上 bus capacity / display cache capacity+TTL 覆寫
-- [x] 任務 8c：實作 OAuth token 加密、`machine.key` 與 `IOAuthTokenStore`
+- [x] Task 8a: Implement `ISystemSettingsService` SQLite-backed Get/Set
+- [x] Task 8b: Implement settings hot reload `Changes` observable, wiring bus capacity / display cache capacity+TTL overrides
+- [x] Task 8c: Implement OAuth token encryption, `machine.key`, and `IOAuthTokenStore`
 
-## 第二階段檢查點
+## Phase 2 Checkpoint
 
-- [x] 全方案編譯通過
-- [x] 全方案測試通過
-- [x] 事件 publish → bus → handler 端到端通過
-- [x] `MigrationClassifier` raw SQL destructive/review-required tests 通過
-- [x] DB bootstrap `PRAGMA auto_vacuum = 2` 通過
-- [x] TDQ overflow → replay → delete 通過
-- [x] `ActionExecutionLog` Completed/Failed/Pending retry semantics 通過
-- [x] `MemberResolver` 並行測試通過
-- [x] `IPlatformUserInfoCache.UpdateAsync` cache miss → default row 通過
-- [x] `bus.channel_capacity` 可覆寫 EventBus 預設 10,000 通過
-- [x] `overlay.display_cache_l1_capacity` / `overlay.display_cache_ttl_hours` 可覆寫 display cache 預設 500 / 24h 通過
-- [x] AES-256-GCM tamper 與 AAD cross-key copy 測試通過
-- [x] 架構測試確認 Domain/Application 無 Infrastructure/EF 洩漏
-- [x] Git 狀態乾淨（忽略的本地檔案除外）
-- [x] 第三階段開始前完成第二階段審查
+- [x] Full solution compilation passes
+- [x] Full solution tests pass
+- [x] End-to-end publish → bus → handler workflow passes
+- [x] `MigrationClassifier` raw SQL destructive/review-required tests pass
+- [x] DB bootstrap `PRAGMA auto_vacuum = 2` verification passes
+- [x] TDQ overflow → replay → delete cycle passes
+- [x] `ActionExecutionLog` Completed/Failed/Pending retry semantics pass
+- [x] `MemberResolver` concurrent testing passes
+- [x] `IPlatformUserInfoCache.UpdateAsync` cache miss → default row creation passes
+- [x] `bus.channel_capacity` overrides EventBus default 10,000 passes
+- [x] `overlay.display_cache_l1_capacity` / `overlay.display_cache_ttl_hours` overrides display cache default 500 / 24h passes
+- [x] AES-256-GCM tamper and AAD cross-key copy tests pass
+- [x] Architectural tests confirm no Infrastructure/EF leaks in Domain/Application
+- [x] Git status clean (excluding ignored local files)
+- [x] Complete Phase 2 review before beginning Phase 3

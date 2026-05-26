@@ -1,69 +1,69 @@
-# 第 5 階段 REPL 取消行為決定
+# Phase 5 REPL Cancellation Behavior Decision
 
-> 父任務：`docs/phases/phase-5-web-signalr-cli/plan.md` 任務 16f / 16g
-> 對應 todo 項目：
-> - 16f L57：REPL `twitch auth start` 支援 Ctrl+C 取消並輸出 `TWITCH_OAUTH_CANCELLED`
-> - 16g L59：Line editor TTY 模式 history、Ctrl+C 清 buffer
+> Parent Task: `docs/phases/phase-5-web-signalr-cli/plan.md` Tasks 16f / 16g
+> Corresponding todo items:
+> - 16f L57: REPL `twitch auth start` supports Ctrl+C cancellation, outputting `TWITCH_OAUTH_CANCELLED`
+> - 16g L59: Line editor TTY mode history, Ctrl+C clears buffer
 
-## 狀態
+## Status
 
-提案 — 待實作。本文件凍結 Ctrl+C 在 REPL 內的語意，避免實作期重複討論。
+Proposed — Pending implementation. This document freezes the semantics of Ctrl+C inside the REPL to avoid repetitive discussions during implementation.
 
-## 問題範圍
+## Problem Scope
 
-REPL (`InteractiveSession`) 內 Ctrl+C 在兩個情境意義不同：
+Ctrl+C inside the REPL (`InteractiveSession`) has two distinct meanings depending on the context:
 
-1. **LineEditor 讀取輸入中**：使用者尚未提交命令；Ctrl+C 應「清掉當前 buffer」，REPL 仍存活。
-2. **Dispatch 命令執行中**（特別是長時 `twitch auth start` 等待 HttpListener callback）：使用者要中止當前命令；REPL 不應終止，當前命令應觀察到取消並輸出對應 error code。
+1. **Inside the LineEditor (Reading Input)**: The user has not submitted a command yet; Ctrl+C should "clear the current buffer" and keep the REPL alive.
+2. **Inside Dispatch (Command Executing)**: Especially during the long-running `twitch auth start` waiting for the HttpListener callback; the user wants to abort the current command. The REPL should not terminate; the active command should observe the cancellation and output the corresponding error code.
 
-預設 .NET 行為：Ctrl+C 觸發 `Console.CancelKeyPress`，未抑制則終止 process。`Console.ReadKey(intercept: true)` 不會把 Ctrl+C 當作鍵事件回傳，除非 `Console.TreatControlCAsInput = true`。
+Default .NET behavior: Ctrl+C triggers `Console.CancelKeyPress`, which terminates the process unless suppressed. `Console.ReadKey(intercept: true)` does not return Ctrl+C as a key event unless `Console.TreatControlCAsInput = true`.
 
-## 決定
+## Decisions
 
-### 1. REPL 永遠抑制 process 終止
+### 1. The REPL Always Suppresses Process Termination
 
-`InteractiveSession.RunAsync` 啟動時 hook `Console.CancelKeyPress`，handler 中設 `e.Cancel = true` 並通知當前 dispatch CTS。Session 退出（`exit` / `quit` / EOF / 例外）時 unhook。
+On startup, `InteractiveSession.RunAsync` hooks into `Console.CancelKeyPress`, setting `e.Cancel = true` in the handler and notifying the active dispatch CTS. The hook is unhooked upon session exit (`exit` / `quit` / EOF / exception).
 
-### 2. Dispatch 期間：CancellationToken 取消當前命令
+### 2. During Dispatch: CancellationToken Cancels Current Command
 
-`InteractiveSession` 每次 dispatch 迴圈建立新的 `CancellationTokenSource`，傳入 `dispatcher.DispatchAsync(..., cts.Token)`。`CancelKeyPress` handler 呼叫 `cts.Cancel()`。
+The `InteractiveSession` creates a new `CancellationTokenSource` for each dispatch loop, passing it to `dispatcher.DispatchAsync(..., cts.Token)`. The `CancelKeyPress` handler calls `cts.Cancel()`.
 
-命令實作（`twitch auth start` 是首例）必須：
+Command implementations (`twitch auth start` being the first example) must:
 
-- 把該 token 傳給所有 awaitable 呼叫（HttpClient、`HttpListener.GetContextAsync().WaitAsync(timeout, ct)`、`Task.Delay`）。
-- 對「使用者取消」這個情境的 `OperationCanceledException`（`ct.IsCancellationRequested == true`）轉成 stderr 寫出對應的明確 error code，並回傳 exit code `1`。
-- 不得吞掉非 REPL token 取消（例如 HttpListener timeout 例外）。
+- Forward this token to all awaitable calls (HttpClient, `HttpListener.GetContextAsync().WaitAsync(timeout, ct)`, `Task.Delay`).
+- For the "user cancelled" scenario where `OperationCanceledException` is thrown (`ct.IsCancellationRequested == true`), map it to write the corresponding explicit error code to stderr and return exit code `1`.
+- Must not swallow non-REPL token cancellations (such as HttpListener timeout exceptions).
 
-`twitch auth start` 的明確 code 為 `TWITCH_OAUTH_CANCELLED`。
+The explicit code for `twitch auth start` is `TWITCH_OAUTH_CANCELLED`.
 
-### 3. LineEditor 期間：Ctrl+C 清 buffer
+### 3. During LineEditor: Ctrl+C Clears Buffer
 
-LineEditor 進入時暫時設 `Console.TreatControlCAsInput = true`，離開時還原。讀到 `KeyChar == '\x03'`（或 `ConsoleKey.C` + `ConsoleModifiers.Control`）時：
+Upon entering the LineEditor, temporarily set `Console.TreatControlCAsInput = true`, restoring it upon exit. When reading `KeyChar == '\x03'` (or `ConsoleKey.C` + `ConsoleModifiers.Control`):
 
-- 丟棄當前 buffer 內容、視覺上換行、回到 prompt 等下一輪輸入。
-- **不**取消 outer dispatch token（因為 LineEditor 在 prompt 階段、外層尚未進入 dispatch）。
+- Discard the current buffer content, visual line break, and return to the prompt to wait for the next input.
+- **DO NOT** cancel the outer dispatch token (since the LineEditor is in the prompt stage, and the outer layer has not entered dispatch yet).
 
-LineEditor 期間 `Console.CancelKeyPress` handler 仍要設 `e.Cancel = true`（防止 process 終止），但不觸發 dispatch CTS（dispatch 尚未開始）。實作上以「是否在 LineEditor 內」flag 旗標決定 handler 動作。
+During the LineEditor, the `Console.CancelKeyPress` handler must still set `e.Cancel = true` (to prevent process termination) but must not trigger the dispatch CTS (as dispatch has not started). Implement this by using a "whether inside LineEditor" flag to determine the handler action.
 
-### 4. Redirected stdin 不適用
+### 4. Redirected stdin Does Not Apply
 
-`ShouldUseLineEditor() == false`（stdin redirected）時不裝 `TreatControlCAsInput`，也不裝 CancelKeyPress handler — 該模式下 Ctrl+C 行為由呼叫方/CI 決定，REPL 不自行抑制 process 終止。
+When `ShouldUseLineEditor() == false` (stdin redirected), `TreatControlCAsInput` is not loaded, and the `CancelKeyPress` handler is not attached. In this mode, Ctrl+C behavior is determined by the caller/CI, and the REPL does not suppress process termination itself.
 
-## 為何不採用其他選項
+## Why Not Adopt Other Options
 
-- **完全不處理 Ctrl+C**：使用者跑 `twitch auth start` 卡 5 分鐘 HttpListener，唯一逃生是殺 process，refresh token 設定流程體驗劣化。
-- **Ctrl+C 直接退出整個 REPL**：違反 16g 對 REPL 持續執行的設計（`exit` / `quit` / EOF 才退）。
-- **用 SIGINT pipe 取代 `CancelKeyPress`**：Windows 上不存在 SIGINT 等價概念；現有架構 cross-platform 但 REPL 已假設互動 TTY，不需引入額外抽象。
+- **Do Not Handle Ctrl+C at All**: The user gets stuck in `twitch auth start` for 5 minutes waiting on the HttpListener; the only escape is killing the process, which degrades the refresh token setup experience.
+- **Ctrl+C Exits the Entire REPL Directly**: Violates the continuous execution design of 16g for REPL (`exit` / `quit` / EOF to exit).
+- **Replace `CancelKeyPress` with a SIGINT Pipe**: No SIGINT equivalent concept exists on Windows. The existing architecture is cross-platform but the REPL already assumes interactive TTY, avoiding additional abstractions.
 
-## 測試門檻
+## Testing Thresholds
 
-- 整合測試：模擬 dispatch 觸發取消（直接呼叫 CTS.Cancel）時，`StartCommand` stderr 輸出 `TWITCH_OAUTH_CANCELLED`、return `1`。不依賴實體 console。
-- 整合測試：`OperationCanceledException` 非由 REPL token 觸發（例如 HttpListener 5 分鐘 timeout）時，不輸出 `TWITCH_OAUTH_CANCELLED`，輸出既有 timeout 對應錯誤。
-- LineEditor Ctrl+C 清 buffer 行為以 unit-level test 覆蓋（注入 IConsole 抽象或在 TTY 模式下手動驗證 — 詳見 16g 規劃）。
+- Integration test: Simulate dispatch triggering cancellation (calling CTS.Cancel directly), asserting that `StartCommand` outputs `TWITCH_OAUTH_CANCELLED` to stderr and returns `1`. Does not rely on physical consoles.
+- Integration test: When `OperationCanceledException` is not triggered by the REPL token (such as a 5-minute HttpListener timeout), do not output `TWITCH_OAUTH_CANCELLED`, outputting the existing timeout-corresponding error instead.
+- LineEditor Ctrl+C clearing buffer behavior covered by unit-level tests (injecting IConsole abstractions or manually verifying in TTY mode — see 16g plans for details).
 
-## 待回填的審查筆記
+## Pending Review Notes
 
-- 審查者：
-- 日期：
-- 決定：
-- 後續：
+- Reviewer:
+- Date:
+- Decision:
+- Follow-up:

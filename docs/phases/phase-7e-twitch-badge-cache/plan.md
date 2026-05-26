@@ -1,49 +1,53 @@
-# Phase 7E 實作計畫：Twitch 徽章快取與模擬器徽章 UI
+# Phase 7E Implementation Plan: Twitch Badge Cache and Simulator Badge UI
 
-> 父層計畫：`tasks/plan.md`
-> SPEC 對應：`docs/SPEC.md` §4.23
-> 對照來源：`ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChannelApiService.cs`、`ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/IdentityService.cs`（`SyncBadgesAsync` / `GetBadgeUrl`）、`ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchMessageEnricher.cs`
-> 前置條件：Phase 7D 完成。Twitch OAuth 已可取得 BroadcasterId（`Twitch:BroadcasterId` config）。
-> 目標：模擬器傳送的聊天訊息與真實 Twitch IRC 訊息，在 chat overlay 上均能正確顯示 Twitch 原生徽章圖示（含 VIP / Moderator / Subscriber / Founder 等 global 徽章，以及頻道自訂徽章如「繪師」「贊助者」）。
+> Parent Plan: `tasks/plan.md`
+> SPEC Mapping: `docs/SPEC.md` §4.23
+> Reference Sources: `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChannelApiService.cs`, `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/IdentityService.cs` (`SyncBadgesAsync` / `GetBadgeUrl`), `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchMessageEnricher.cs`
+> Prerequisites: Phase 7D is complete. Twitch OAuth is able to fetch BroadcasterId (`Twitch:BroadcasterId` config).
+> Goal: Ensure that simulated chat messages and real Twitch IRC messages correctly display native Twitch badge icons on the chat overlay (including global badges like VIP / Moderator / Subscriber / Founder, and channel custom badges like "Artist" or "Sponsor").
 
 ---
 
-## 問題
+## Problems
 
-1. **真實 Twitch 路徑徽章顯示壞掉**：[OverlayEventForwarder.cs:88](../../../src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs:88) 將 `PlatformUserDisplayInfo.Badges`（IRC parser 解析出的 `subscriber/0`、`vip/1` 等 *key*）直接當 URL 丟給 overlay。`ChatPresetDefault.vue:37` 用 `<img :src="badgeUrl">` 渲染，導致 src 永遠是 `"subscriber/0"` 而非圖片。
-2. **模擬器無法顯示徽章**：`SimulateControlsPanel.vue` 只能選 `Subscriber/Moderator/VIP/Follower` 文字角色，overlay 渲染為 `chat-role-pill` 文字膠囊（畫面範例：黑色 `SUBSCRIBER` `MODERATOR` `VIP` `FOLLOWER` chips），與真實 Twitch 徽章圖示不一致。
-3. **缺乏自訂頻道徽章支援**：實況主自製徽章（繪師 / 贊助者 / Founder 升級版）無管道進入模擬器選擇。
+1. **Broken badge display on real Twitch path**: [OverlayEventForwarder.cs:88](../../../src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs:88) directly sends `PlatformUserDisplayInfo.Badges` (parsed IRC badge *keys* like `subscriber/0`, `vip/1`) to the overlay. `ChatPresetDefault.vue:37` renders with `<img :src="badgeUrl">`, causing the src to remain `"subscriber/0"` instead of the actual image URL.
+2. **Simulator cannot display badges**: `SimulateControlsPanel.vue` only offers selection of text roles like `Subscriber/Moderator/VIP/Follower`, rendered on the overlay as `chat-role-pill` text capsules (e.g., black chips for `SUBSCRIBER` `MODERATOR` `VIP` `FOLLOWER`), which is inconsistent with actual Twitch badge icons.
+3. **No support for custom channel badges**: Streamers' custom badges (e.g., Artist / Sponsor / Founder upgrades) have no way to be selected in the simulator.
 
-## 範圍
+---
 
-### 內含
+## Scope
 
-- `ITwitchHelixClient` 新增 `GetGlobalBadgesAsync()` 與 `GetChannelBadgesAsync(broadcasterId)`，回傳 `IReadOnlyDictionary<string, string>` key = `{set}_{ver}`、value = `image_url_1x`
-- `ITwitchBadgeCache`（Application）+ `TwitchBadgeCache`（Infrastructure，in-memory `ConcurrentDictionary`）
+### In-Scope
+
+- Add `GetGlobalBadgesAsync()` and `GetChannelBadgesAsync(broadcasterId)` to `ITwitchHelixClient`, returning `IReadOnlyDictionary<string, string>` where key = `{set}_{ver}` and value = `image_url_1x`.
+- `ITwitchBadgeCache` (Application) + `TwitchBadgeCache` (Infrastructure, in-memory `ConcurrentDictionary`):
   - `Get(string key) → string? url`
-  - `SyncGlobalAsync(ct)`、`SyncChannelAsync(broadcasterId, ct)`
-  - `ListAll() → IReadOnlyList<TwitchBadgeDescriptor>`（供 picker UI 列出）
-- `TwitchBadgeSyncHostedService`：應用啟動 + Twitch token ready 後同步 global；channel sync 在 broadcaster id 可用時觸發
-- `OverlayEventForwarder.ForwardChatEventAsync` 解析 badge key → URL；無對應 URL 時略過該 key（不再把 key 當 URL）
-- `SimulationRequest` / `SimulationKind.Message` 增加 `Badges`（IReadOnlyCollection<string> keys）與 `ColorHex`（可為 null）
-- `SimulateEndpoints` 接受 `badges`（string[]）與 `colorHex`；在 publish 前更新 `IPlatformUserInfoCache` 將 sim 使用者的 `Badges` 與 `ColorHex` 寫入快取，使 `OverlayEventForwarder` 解析路徑統一
-- 新 endpoint `GET /api/twitch/badges`：回傳 global + channel descriptor 給前端 picker
-- 前端
-  - `api/client.ts`：`getTwitchBadges()`、`SimulateRequestBody` 加 `badges`、`colorHex`
-  - `SimulateControlsPanel.vue` 改造：
-    - 新增「身份徽章」分組，按 set group 顯示 chip 圖片，多選
-    - 新增「名稱顏色」hex input + color swatch
-    - 隱藏舊 `Streamer Roles` 多選框（以 badge key 派生 `StreamRole` 維持向後相容）
-- 前端 overlay `ChatPresetDefault.vue` 移除 `chat-role-pill` 段（徽章與文字角色二擇一；本期改為徽章呈現）；保留 `event.roles` 欄位供 future presets。
+  - `SyncGlobalAsync(ct)`, `SyncChannelAsync(broadcasterId, ct)`
+  - `ListAll() → IReadOnlyList<TwitchBadgeDescriptor>` (for the picker UI list).
+- `TwitchBadgeSyncHostedService`: synchronizes global badges on startup after the Twitch token is ready; channel synchronization is triggered when the broadcaster ID becomes available.
+- `OverlayEventForwarder.ForwardChatEventAsync` resolves badge keys → URLs; bypasses keys without corresponding URLs (no longer sending raw keys as URLs).
+- `SimulationRequest` / `SimulationKind.Message` extended with `Badges` (IReadOnlyCollection<string> keys) and `ColorHex` (nullable).
+- `SimulateEndpoints` accepts `badges` (string[]) and `colorHex`; updates `IPlatformUserInfoCache` with the simulated user's `Badges` and `ColorHex` before publishing, unifying the parsing path for `OverlayEventForwarder`.
+- New endpoint `GET /api/twitch/badges`: returns global + channel descriptors for the frontend picker.
+- Frontend:
+  - `api/client.ts`: `getTwitchBadges()`, adds `badges` and `colorHex` to `SimulateRequestBody`.
+  - `SimulateControlsPanel.vue` overhaul:
+    - Add "Identity Badges" group displaying selectable chip images by set group.
+    - Add "Username Color" hex input + color swatch.
+    - Hide old `Streamer Roles` multi-select (mapping badge keys to `StreamRole` for backward compatibility).
+  - Frontend overlay `ChatPresetDefault.vue` removes `chat-role-pill` section (choosing badges over text roles; this phase adopts badges for rendering); retains the `event.roles` field for future presets.
 
-### 不含
+### Out-of-Scope
 
-- 徽章圖示之檔案下載 / base64 化（仍走 CDN URL，與 Omni-Commander `GetBadgeUrl` 同策略）
-- 自訂徽章上傳（僅顯示 Twitch 已註冊者）
-- BTTV / 7TV emote / badge 整合
-- 徽章歷史變更 audit log
+- Downloading / base64-encoding badge icons (relying on CDN URLs, matching Omni-Commander's `GetBadgeUrl` strategy).
+- Custom badge uploads (displaying only badges already registered on Twitch).
+- BTTV / 7TV emote / badge integrations.
+- Audit logs for historical badge changes.
 
-## 架構
+---
+
+## Architecture
 
 ```
 ┌─────────────────────────┐
@@ -68,26 +72,30 @@
                                         (badge picker UI)
 ```
 
-模擬流程：
-1. 使用者於 Sim panel 勾 `vip/1` + `painter/1`，輸入 `#FFCA28`
-2. POST `/api/simulate/chat` body 含 `badges: ["vip/1", "painter/1"]`, `colorHex: "#FFCA28"`
-3. Endpoint 先 `IPlatformUserInfoCache.UpsertAsync(sim user, badges, colorHex)`
-4. SimulationAdapter publish `UserSentMessageEvent`
-5. `OverlayEventForwarder` 從 DisplayCache 讀 badges keys → `ITwitchBadgeCache.Get(...)` → URLs → 廣播
-6. Overlay 顯示 `<img src="https://static-cdn.jtvnw.net/badges/...">`
+Simulation Flow:
+1. User selects `vip/1` + `painter/1` in Sim panel and inputs `#FFCA28`.
+2. POST `/api/simulate/chat` with body containing `badges: ["vip/1", "painter/1"]` and `colorHex: "#FFCA28"`.
+3. Endpoint upserts into cache: `IPlatformUserInfoCache.UpsertAsync(sim user, badges, colorHex)`.
+4. SimulationAdapter publishes `UserSentMessageEvent`.
+5. `OverlayEventForwarder` reads badge keys from DisplayCache → resolves via `ITwitchBadgeCache.Get(...)` → maps to URLs → broadcasts.
+6. Overlay renders `<img src="https://static-cdn.jtvnw.net/badges/...">`.
 
-## 驗收
+---
 
-- [ ] Sim chat 訊息含 badges 時，`/overlay/chat` 顯示 Twitch 原生徽章圖示而非文字 chips
-- [ ] 真實 Twitch IRC chat 訊息（VIP / 訂閱者）overlay 圖示正常
-- [ ] `GET /api/twitch/badges` 回傳 global 28 個 + channel 自訂徽章
-- [ ] Picker UI 顯示徽章圖示與名稱（hover 顯示 set/version）
-- [ ] 名稱顏色 hex 套用至 overlay `chat-username`
-- [ ] Cache miss（key 無對應 URL）時 overlay 不出現破圖（過濾掉）
-- [ ] 單元測試覆蓋：BadgeCache.Get、ForwarderResolveBadges、SimulateEndpoint upsert displayCache
+## Verification
 
-## 風險
+- [ ] When simulated chat messages contain badges, `/overlay/chat` displays native Twitch badge images instead of text chips.
+- [ ] Real Twitch IRC chat messages (VIP / Subscribers) render badge icons correctly on the overlay.
+- [ ] `GET /api/twitch/badges` returns 28 global + channel custom badges.
+- [ ] Picker UI displays badge icons and names (hover shows set/version).
+- [ ] Username color hex is applied to the overlay `chat-username`.
+- [ ] Cache misses (keys without mapped URLs) are filtered out to prevent broken image icons on the overlay.
+- [ ] Unit tests cover: `BadgeCache.Get`, `ForwarderResolveBadges`, and `SimulateEndpoint` upserts to `displayCache`.
 
-- **Helix 401**：尚未授權時 sync 失敗 → log warning，不阻擋 app 啟動；picker UI 顯示 fallback empty
-- **Channel badges 無 broadcaster id**：Twitch:BroadcasterId 未設 → 僅 global 可用，picker 顯示 hint
-- **Cache 過時**：自訂徽章新增後需重啟才可見（Phase 7E 不做後台 refresh job；Phase 7F 可加 24h refresh hosted service）
+---
+
+## Risks & Mitigations
+
+- **Helix 401 Unauthorized**: If synchronization fails before authorization → log a warning, do not block application startup; display fallback empty states in the picker UI.
+- **Channel badges missing broadcaster ID**: If `Twitch:BroadcasterId` is unset → only global badges are available, display a hint in the picker.
+- **Outdated Cache**: Newly added custom badges require a restart to become visible (no background refresh job is implemented in Phase 7E; Phase 7F can add a 24h refresh hosted service).

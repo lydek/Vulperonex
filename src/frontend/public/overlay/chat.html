@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vulperonex - OBS 聊天室 Web Overlay</title>
-    <!-- 引入 Google Fonts: Inter -->
+    <title>Vulperonex - OBS Chat Room Web Overlay</title>
+    <!-- Import Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-    <!-- 載入經典炫紫主題 -->
+    <!-- Load classic purple-gold theme -->
     <link rel="stylesheet" href="css/overlay-base.css?v=2">
     <link rel="stylesheet" href="css/style-twitch.css?v=2">
 </head>
@@ -16,26 +16,26 @@
     <div id="app">
         <transition-group name="ice-spring" tag="div" class="chat-container">
             <div v-for="msg in messages" :key="msg.id" class="chat-line">
-                <!-- 徽章在名稱之前 -->
+                <!-- Badges in front of the display name -->
                 <img v-for="(badgeUrl, index) in msg.badges" :key="index" :src="badgeUrl" class="chat-badge" />
-                <!-- 暱稱 -->
+                <!-- Display Name -->
                 <span class="chat-username" :style="{ color: msg.nameColorHex }">{{ msg.username }}</span>
-                <!-- 冒號 -->
+                <!-- Colon separator -->
                 <span class="chat-colon">:</span>
-                <!-- 內容 -->
+                <!-- Message Content -->
                 <span class="chat-content" v-html="msg.message"></span>
             </div>
         </transition-group>
     </div>
-    <!-- 引入 Vue 3 (Local) -->
+    <!-- Load Vue 3 (Local) -->
     <script src="libs/vue.global.js"></script>
-    <!-- 引入 SignalR 客戶端 (Local) -->
+    <!-- Load SignalR Client (Local) -->
     <script src="libs/signalr.min.js"></script>
 
-    <!-- 引入自製的 Overlay 共用工具 -->
+    <!-- Load Overlay Common Utilities -->
     <script src="js/overlay-common.js"></script>
 
-    <!-- 啟動 Vue 應用與 SignalR 連線 -->
+    <!-- Initialize Vue app and SignalR connection -->
     <script>
         const { createApp, ref, onMounted } = Vue;
 
@@ -44,15 +44,15 @@
                 const messages = ref([]);
                 let messageCounter = 0;
 
-                // 畫面最多同時容納 15 則訊息，超過時最頂端的會自動被擠出畫面並觸發消失動畫
+                // Restrict visible message count to 15. Excess messages trigger fade-out animations and leave the DOM.
                 const MAX_MESSAGES = 15;
 
                 onMounted(() => {
                     OverlayCommon.initSignalRConnection('/hubs/overlay/chat', {
                         event: (data) => {
-                            console.log("[DEBUG] SignalR 接收到聊天室封包: ", data);
+                            console.log("[DEBUG] SignalR chat event payload received: ", data);
 
-                            // 解析 segments 以安全地渲染 HTML (特別是表情圖示)
+                            // Parse segments to safely render HTML and emotes
                             let messageHtml = "";
                             if (data.segments && Array.isArray(data.segments)) {
                                 messageHtml = data.segments.map(seg => {
@@ -74,7 +74,7 @@
 
                             const newMsg = {
                                 id: ++messageCounter,
-                                username: data.displayName || data.DisplayName || "未知使用者",
+                                username: data.displayName || data.DisplayName || "Unknown User",
                                 nameColorHex: data.colorHex || data.ColorHex || '',
                                 message: messageHtml,
                                 badges: data.badges || data.Badges || []
@@ -87,7 +87,7 @@
                             }
                         },
                         cleared: () => {
-                            console.log("🧹 收到清空聊天室指令");
+                            console.log("🧹 Clear chat command received");
                             messages.value = [];
                         }
                     });

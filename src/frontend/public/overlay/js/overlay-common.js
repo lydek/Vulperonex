@@ -2,17 +2,20 @@
  * =========================================================
  * OmniCommander Overlay Common JS
  * =========================================================
- * ?? SignalR ???撠???臬極?瑁??芸??脣翰???氬? * ?⊥??嗡?鞈湛??詨捆??Vanilla JS ??Vue 蝑憓? */
+ * SignalR infrastructure for connecting static HTML overlays.
+ * Supports Vanilla JS or Vue-based overlays.
+ */
 
 const OverlayCommon = {
     /**
-     * ????SignalR Hub ?????     * @param {string} hubUrl - Hub ?撠楝敺?(靘?: '/chathub', '/memberhub')
-     * @param {object} eventHandlers - 閬酉??鈭辣皜 (Key=鈭辣?迂, Value=??賣)
-     * @returns {signalR.HubConnection} - 餈?撱箇?憟賜????撖阡? (?亙仃??? null)
+     * Initializes the SignalR Hub connection
+     * @param {string} hubUrl - Relative URL of the Hub (e.g., '/chathub', '/memberhub')
+     * @param {object} eventHandlers - Event handlers to register (Key=event name, Value=callback function)
+     * @returns {signalR.HubConnection|null} - The connection object, or null if failed
      */
     initSignalRConnection: function (hubUrl, eventHandlers) {
         if (typeof signalR === 'undefined') {
-            console.error("[OverlayCommon] ?芾???SignalR 摰Ｘ蝡舐?撘澈嚗?蝣箄? HTML 銝剜?撘 js");
+            console.error("[OverlayCommon] SignalR library is missing. Make sure to include the SignalR client JS in HTML.");
             return null;
         }
 
@@ -21,52 +24,54 @@ const OverlayCommon = {
             .withAutomaticReconnect()
             .build();
 
-        // 蝬?憭?喳???虜撘?        if (eventHandlers && typeof eventHandlers === 'object') {
+        // Register event handlers
+        if (eventHandlers && typeof eventHandlers === 'object') {
             for (const [eventName, handler] of Object.entries(eventHandlers)) {
                 connection.on(eventName, handler);
             }
         }
 
-        // --- ?典?皜??蝳行???---
-
-        // ??貉??蜓?葉?琿??嚗甇?WebSocket 瘣拇?
+        // --- Graceful Disconnect ---
+        // Close connection gracefully on page unload to prevent orphaned WebSocket connections
         window.addEventListener('beforeunload', () => {
             if (connection) {
-                console.log(`?? [OverlayCommon] 甇?銝剜 ${hubUrl} ???...`);
+                console.log(`[OverlayCommon] Closing connection to ${hubUrl}...`);
                 connection.stop();
             }
         });
 
-        // --- ?典??脫蝺???望?圈蝳?(Cache Buster) ---
+        // --- Development & Hot-Reload Helpers ---
 
-        // ?交敺垢銝餃???渡??誘 (靘?敺?銵冽暺??瑟)
+        // Force a page reload when triggered by the server
         connection.on("Reload", () => {
-            console.log("?? ?嗅隡箸??刻?瘙蜓???唳????..");
+            console.log("[OverlayCommon] Reload signal received from server. Reloading page...");
             this.forceReload();
         });
 
-        // ??dotnet run ??????????撘瑕????唾??瑟 (蝎? OBS 敹怠?)
+        // When reconnecting (e.g., after dotnet run restarts), reload the page to clear the cache (important for OBS cache)
         connection.onreconnected(() => {
-            console.log(`?? ?菜葫?唬撩? (${hubUrl}) ??嚗迤?典撥?園??唳???Ｗ翰??..`);
+            console.log(`[OverlayCommon] Reconnected to ${hubUrl}. Reloading page to clear cache...`);
             setTimeout(() => this.forceReload(), 500);
         });
 
-        // 蝯扔?脩戌嚗?蜓璈????敺孵??琿?嚗?蝘??芸??隞仿?恍?⊥香
+        // Connection closed fallback: if connection is completely disconnected, retry loading the page
         connection.onclose(async () => {
-            console.log(`???蜓璈?(${hubUrl}) ???撌脫??撠 5 蝘??芸??蝬脤?...`);
+            console.log(`[OverlayCommon] Connection closed for ${hubUrl}. Retrying in 5 seconds...`);
             setTimeout(() => window.location.reload(), 5000);
         });
 
-        // ?瑁????
+        // Start connection
         connection.start()
-            .then(() => console.log(`??撌脫?????蝡?SignalR 隡箸???(${hubUrl})`))
-            .catch(err => console.error(`??SignalR ??憭望? (${hubUrl}): `, err));
+            .then(() => console.log(`[OverlayCommon] SignalR connection established to ${hubUrl}`))
+            .catch(err => console.error(`[OverlayCommon] SignalR connection failed for ${hubUrl}: `, err));
 
         return connection;
     },
 
     /**
-     * ????唾??撘瑕?頛?嚗?瘝?OBS ?汗?典翰??憿?     */
+     * Appends a time-based query parameter (cache buster) and reloads the page.
+     * This ensures OBS browser sources reload the latest layout instead of using cached assets.
+     */
     forceReload: function() {
         const url = new URL(window.location.href);
         url.searchParams.set('t', new Date().getTime());
@@ -74,9 +79,12 @@ const OverlayCommon = {
     },
 
     /**
-     * ????鈭?Ｙ???(Deterministic LCG)
-     * ?冽??∪蝡???蝔梯??潭?Ｙ??箏??雿???     * @param {string} seedStr
-     * @returns {number} 0 ~ 1 銋?????     */
+     * Generates a deterministic pseudo-random number based on a seed string.
+     * Useful for rendering consistent element positions (e.g., stamp cards or bubbles)
+     * across page reloads without storing state.
+     * @param {string} seedStr
+     * @returns {number} 0 ~ 1
+     */
     getDeterministicRandom: function(seedStr) {
         let hash = 5381;
         for (let i = 0; i < seedStr.length; i++) {

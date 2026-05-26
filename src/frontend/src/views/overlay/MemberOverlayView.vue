@@ -35,7 +35,7 @@ const showCard = ref(false);
 const isAnimating = ref(false);
 const checkInQueue = ref<QueueItem[]>([]);
 const cardData = ref<QueueItem>({
-  name: "暱稱載入中",
+  name: t("memberOverlay.loadingNickname"),
   avatarUrl: "",
   targetStamp: 0,
   totalStamps: 0,
@@ -101,7 +101,7 @@ watch(
     }
 
     checkInQueue.value.push({
-      name: newest.displayName || "未知使用者",
+      name: newest.displayName || t("memberOverlay.unknownUser"),
       avatarUrl: newest.avatarUrl || "",
       targetStamp: displayStamps,
       totalStamps: total,
@@ -248,12 +248,12 @@ async function onConfirm(): Promise<void> {
             <div class="user-name-container">
               <div class="user-name">{{ cardData.name }}</div>
             </div>
-            <div class="vip-badge">頻道專屬集章卡</div>
+            <div class="vip-badge">{{ t("memberOverlay.exclusiveStampCard") }}</div>
           </div>
 
           <div class="card-right">
             <div class="card-header">
-              <div class="card-title">會員打卡里程碑</div>
+              <div class="card-title">{{ t("memberOverlay.checkInMilestone") }}</div>
             </div>
 
             <div class="stamps-grid">
