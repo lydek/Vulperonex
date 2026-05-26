@@ -188,7 +188,7 @@ function reloadIframe(): void {
         <iframe
           v-if="iframeSrc"
           :src="iframeSrc"
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           class="preview-iframe"
           :title="t('monitor.preview.iframeTitle')"
         ></iframe>

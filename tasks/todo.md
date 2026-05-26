@@ -289,9 +289,9 @@
 ### Track C — 統一即時監控頁
 
 - [ ] **Task 61** — `/monitor` Dashboard 骨架 + 響應式 layout
-- [ ] **Task 62** — Simulate Controls Panel（抽共用元件 + 批次 checkin）
-- [ ] **Task 63** — Overlay Preview iframe（hub/preset/背景切換）
-- [ ] **Task 64** — Chat Stream Panel（純資料表格 + member chip）
+- [x] **Task 62** — Simulate Controls Panel（抽共用元件 + 批次 checkin）
+- [x] **Task 63** — Overlay Preview iframe（hub/preset/背景切換）
+- [x] **Task 64** — Chat Stream Panel（純資料表格 + member chip）
 
 ### Track D — 會員可編輯介面
 

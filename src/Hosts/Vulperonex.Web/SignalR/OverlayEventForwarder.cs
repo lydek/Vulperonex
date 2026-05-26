@@ -226,12 +226,6 @@ public sealed class OverlayEventForwarder(
             {
                 urls.Add(url);
             }
-            else
-            {
-                // Cache miss (e.g. Twitch OAuth not yet completed or badge sync pending) —
-                // emit the raw badge key (set/version) so overlay can still tag the row.
-                urls.Add(key);
-            }
         }
 
         return urls;

@@ -130,7 +130,7 @@ public sealed class SignalRHubTests
         response.EnsureSuccessStatusCode();
         var payload = await message.Task.WaitAsync(TestContext.Current.CancellationToken);
         payload.GetProperty("colorHex").GetString().Should().Be("#12abef");
-        payload.GetProperty("badges")[0].GetString().Should().Be("subscriber/1");
+        payload.GetProperty("badges").GetArrayLength().Should().Be(0);
         payload.GetProperty("memberSnapshot").GetProperty("displayName").GetString().Should().Be("Member User");
         payload.GetProperty("memberSnapshot").GetProperty("avatarUrl").GetString().Should().Be("https://cdn.example/avatar.png");
         payload.GetProperty("memberSnapshot").GetProperty("checkInCount").GetInt32().Should().Be(7);

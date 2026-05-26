@@ -79,15 +79,14 @@ describe("MonitorOverlayPanel", () => {
     expect(wrapper.find('[data-testid="preview-hub-chip"]').text()).toBe("MEMBER");
   });
 
-  it("should render iframe with sandbox=allow-scripts only (no allow-same-origin)", async () => {
+  it("should render iframe with runtime-safe preview sandbox", async () => {
     const wrapper = await mountPanel();
     await flushPromises();
 
     const iframe = wrapper.find("iframe.preview-iframe");
     if (iframe.exists()) {
       const sandbox = iframe.attributes("sandbox");
-      expect(sandbox).toBe("allow-scripts");
-      expect(sandbox).not.toContain("allow-same-origin");
+      expect(sandbox).toBe("allow-scripts allow-same-origin");
     }
   });
 

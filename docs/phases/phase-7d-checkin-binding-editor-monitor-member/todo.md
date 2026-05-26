@@ -123,7 +123,7 @@
 - [x] Task 61b：`/` 預設導 `/monitor`
 - [x] Task 61c：寬螢幕三欄 layout（collapsible Sider 380px + 主區 grid 7fr/3fr 或 6fr/4fr）
 - [x] Task 61d：窄螢幕 drawer（Escape close + focus trap 簡版 toggle↔close）
-- [x] Task 61e：Header 平台/SignalR 狀態 chip — 目前由 `/api/health` 輪詢驅動，ChatStreamPanel 內額外有 SignalR live 狀態 dot；dashboard chip → SignalR migration 已延期（plan task 3.5）
+- [ ] Task 61e：Header 平台/SignalR 狀態 chip — 目前由 `/api/health` 輪詢驅動，ChatStreamPanel 內額外有 SignalR live 狀態 dot；dashboard chip → SignalR migration 延期（plan task 3.5）
 - [x] Task 61f：既有路由保留
 
 ### Task 62 - Simulate Controls Panel
@@ -142,7 +142,7 @@
 - [x] Task 63d：Preset dropdown（讀 `GET /api/overlay/presets`）
 - [x] Task 63e：Custom preset draft/production 切換
 - [x] Task 63f：Reload button（bump timestamp）
-- [x] Task 63g：iframe sandbox attribute 維持安全 — 已修為 `sandbox="allow-scripts"`（移除 `allow-same-origin`）
+- [x] Task 63g：iframe sandbox attribute 維持安全 — 預覽 iframe 維持 `sandbox="allow-scripts allow-same-origin"` 以保留同源 overlay runtime
 
 ### Task 64 - Chat Stream Panel
 

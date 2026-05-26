@@ -21,10 +21,10 @@
 | Deploy / Rollback | `POST /deploy`、`POST /rollback` | NOT STARTED | Task 58 |
 | Overlay Editor UI | `/admin/overlay-editor` | NOT STARTED | Task 59 |
 | Zip upload integration | existing `POST /api/overlay/custom-presets` | NOT STARTED | Task 60 |
-| Monitor Dashboard | `/monitor` | NOT STARTED | Task 61 |
-| Simulate panel | `SimulateControlsPanel.vue` | NOT STARTED | Task 62 |
-| Overlay preview iframe | `MonitorOverlayPanel.vue` | NOT STARTED | Task 63 |
-| Chat stream panel | `ChatStreamPanel.vue` | NOT STARTED | Task 64 |
+| Monitor Dashboard | `/monitor` | PARTIAL (automated PASS; header SignalR chip + manual viewport matrix pending) | Task 61 |
+| Simulate panel | `SimulateControlsPanel.vue` | PASS (automated; manual viewport matrix pending) | Task 62 |
+| Overlay preview iframe | `MonitorOverlayPanel.vue` | PASS (automated; manual viewport matrix pending) | Task 63 |
+| Chat stream panel | `ChatStreamPanel.vue` | PASS (automated; manual viewport matrix pending) | Task 64 |
 | Audit log infra | `MemberAuditLogs` table | NOT STARTED | Task 65 |
 | Member mutation API | `PATCH /loyalty`、`POST /reset`、`DELETE` | NOT STARTED | Task 66 |
 | Member edit UI | `AdjustLoyaltyModal` 等 | NOT STARTED | Task 67 |
@@ -108,7 +108,7 @@ dotnet test Vulperonex.sln --no-build -m:1 -nr:false -p:UseSharedCompilation=fal
   - Files renamed: `Application/Twitch/{PlatformBadgeDescriptor,IPlatformBadgeCache,IHelixClient}.cs`
   - Concrete impl in `Vulperonex.Web.TwitchAuth.*` and `Adapters/Twitch.*` keep `Twitch` prefix (rule only checks Application + Domain assemblies)
 - Issue 2: `SignalRHubTests.Given_MemberAndDisplayCacheExist_When_ChatIsSimulated_Then_OverlayChatPayloadIncludesMemberSnapshot` — `IndexOutOfRangeException` on `badges[0]` (array empty)
-- Fix 2: `OverlayEventForwarder.ResolveBadgeUrls` now falls back to raw badge key when `badgeCache.GetUrl(key)` returns null/empty. Preserves badge identity for overlay when Twitch badge cache is unsynced (OAuth pending).
+- Fix 2: `OverlayEventForwarder.ResolveBadgeUrls` now keeps `badges` URL-only: pre-resolved URLs pass through, cache hits emit image URLs, and cache misses are omitted so overlay `<img>` renderers never receive raw badge keys.
 - Result: **PASS** (`dotnet test Vulperonex.sln` 214 + 220 + 19 = 453 全綠, EXIT=0)
 - Evidence: src/Vulperonex.Application/Twitch/* + src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs:201-235
 
@@ -122,7 +122,7 @@ dotnet test Vulperonex.sln --no-build -m:1 -nr:false -p:UseSharedCompilation=fal
 - Expected:
   - All checkpoints green; +24 new test cases pass
   - SimulateControlsPanel renders 4 sections + Test Mode toggle + ProgressBar
-  - MonitorOverlayPanel renders SCENE PREVIEW eyebrow + 2-row toolbar + iframe `sandbox=allow-scripts` only
+  - MonitorOverlayPanel renders SCENE PREVIEW eyebrow + 2-row toolbar + iframe `sandbox=allow-scripts allow-same-origin`
   - useHubConnectionState exposes L1+L2+L3 pattern; ChatStreamPanel uses it for live chip + reconnect
   - Dashboard drawer closes on Escape; focus returns to toggle
 - Actual:
