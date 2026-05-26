@@ -203,6 +203,36 @@ describe("MonitorDashboardView", () => {
     wrapper.unmount();
   });
 
+  it("should stop health polling when tab hidden and resume on visibility regain", async () => {
+    setWindowWidth(1440);
+    const { getHealth } = await import("@/api/client");
+    const getHealthMock = getHealth as unknown as ReturnType<typeof vi.fn>;
+    getHealthMock.mockClear();
+
+    const MonitorDashboardView = await importView();
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+    // Initial check
+    expect(getHealthMock).toHaveBeenCalled();
+    const initialCalls = getHealthMock.mock.calls.length;
+
+    // Simulate tab hidden — advance 90s, polling should pause
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(getHealthMock.mock.calls.length).toBe(initialCalls);
+
+    // Simulate tab visible — should fire immediate check
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushPromises();
+    expect(getHealthMock.mock.calls.length).toBeGreaterThan(initialCalls);
+
+    wrapper.unmount();
+  });
+
   it("should preserve sider state when wide and not flap on resize tick", async () => {
     setWindowWidth(1440);
     const MonitorDashboardView = await importView();

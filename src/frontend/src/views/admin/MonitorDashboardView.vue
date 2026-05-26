@@ -40,6 +40,12 @@ function applyLayoutForCurrentWidth(): void {
   }
 }
 
+// Deep server-health polling — visibility-aware to skip wasted requests when
+// dashboard tab is backgrounded. SignalR connection state lives in the chat
+// panel (see useHubConnectionState); dashboard chip intentionally reflects
+// DEEP service health (DB / module wiring) via /api/health, not hub liveness.
+const HEALTH_POLL_INTERVAL_MS = 30_000;
+
 async function checkHealth(): Promise<void> {
   try {
     const res = await getHealth();
@@ -51,23 +57,48 @@ async function checkHealth(): Promise<void> {
 
 let healthInterval: ReturnType<typeof setInterval> | null = null;
 
+function startHealthPolling(): void {
+  if (healthInterval !== null) return;
+  healthInterval = setInterval(checkHealth, HEALTH_POLL_INTERVAL_MS);
+}
+
+function stopHealthPolling(): void {
+  if (healthInterval !== null) {
+    clearInterval(healthInterval);
+    healthInterval = null;
+  }
+}
+
+function onVisibilityChange(): void {
+  if (document.hidden) {
+    stopHealthPolling();
+  } else {
+    void checkHealth(); // immediate refresh on tab focus
+    startHealthPolling();
+  }
+}
+
 onMounted(() => {
   applyLayoutForCurrentWidth();
   isSiderOpen.value = isWide.value;
   window.addEventListener("resize", scheduleLayoutUpdate);
   document.addEventListener("keydown", onKeydown);
+  document.addEventListener("visibilitychange", onVisibilityChange);
   void checkHealth();
-  healthInterval = setInterval(checkHealth, 10000);
+  if (typeof document === "undefined" || !document.hidden) {
+    startHealthPolling();
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener("resize", scheduleLayoutUpdate);
   document.removeEventListener("keydown", onKeydown);
+  document.removeEventListener("visibilitychange", onVisibilityChange);
   if (resizeFrame !== null) {
     window.cancelAnimationFrame(resizeFrame);
     resizeFrame = null;
   }
-  if (healthInterval) clearInterval(healthInterval);
+  stopHealthPolling();
 });
 
 function toggleSider(): void {
