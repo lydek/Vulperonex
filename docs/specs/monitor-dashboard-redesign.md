@@ -1,318 +1,447 @@
-# Spec: MonitorDashboardView 排版重設計（仿 Omni-Commander）
+# Spec: Monitor Dashboard Redesign
 
 ## Objective
 
-重構 `src/frontend/src/views/admin/MonitorDashboardView.vue` 的版面與互動結構，仿 `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorDashboard.vue` 的資訊密度與工作流，但保留淺色主題、PrimeVue UI 庫與現有後端契約。
+Redesign `src/frontend/src/views/admin/MonitorDashboardView.vue` so its layout, visual hierarchy, and operator workflow closely follow `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/` while preserving the current Vulperonex theme colors and frontend stack.
 
-**使用者**：直播主在開播前/開播中的單一 admin 操作台 — 需同時看 overlay 預覽、聊天室事件流、隨手送模擬事件。
+This is a planning spec for implementation. It defines the target UI, boundaries, task slices, verification checkpoints, and open questions before code changes continue.
 
-**成功定義**：
-- 寬螢幕（≥ 1280px）三欄佈局：可摺疊 Sider + Preview + Chat
-- 中螢幕（1024–1279px）：Sider 自動摺疊為 Drawer，Preview + Chat 維持並列
-- 窄螢幕（< 1024px）：垂直堆疊
-- Header 採 glass 風格，含齒輪 icon、大寫粗體標題、SignalR/Server 狀態 pulse dot
-- 引入 CSS variables design token 為未來暗色主題鋪路（本階段僅淺色實作）
-- 既有功能、i18n key、a11y 測試零回歸
+## Product Goal
 
-## Tech Stack
+The redesigned Monitor Dashboard should feel like a real-time operations console instead of a generic admin page.
 
-- Vue 3.5 + TypeScript + `<script setup>`
-- PrimeVue 4 (Drawer / Button / Tabs / Select)
-- vue-i18n 11（雙語 en-US / zh-TW）
-- Vite 7 + Vitest 3 + jsdom
-- 純 CSS scoped + `:root` CSS variables（不引入 SCSS toolchain）
+The page should optimize for three operator loops:
 
-不引入：
-- `naive-ui`（ref 用，跟 PrimeVue 重複）
-- `@vueuse/core useBreakpoints`（用 `window.matchMedia` 手刻足夠）
-- SCSS / Sass loader
+1. Trigger or simulate an event quickly from the control panel.
+2. Watch the overlay preview react immediately in the center workspace.
+3. Confirm result and context from the live chat stream on the right.
 
-## Commands
+## Reference Baseline
+
+Primary visual and interaction baseline:
+
+- `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorDashboard.vue`
+- `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorControls.vue`
+- `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorOverlay.vue`
+- `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorChat.vue`
+
+What to copy from the reference:
+
+- Dark control-room composition and density
+- Three-zone layout: left controls, center preview, right event/chat feed
+- Strong header bar with immediate system status
+- Embedded preview toolbar instead of a plain card header
+- High-contrast control groups with compact labels and clear call-to-action buttons
+
+What not to copy literally:
+
+- `naive-ui`
+- SCSS mixin system
+- Legacy store/navigation structure
+- Features outside the current Vulperonex scope such as settings submodules, native-only bridge behavior, or unused monitor widgets
+
+## Current State
+
+The current `MonitorDashboardView.vue` already has the basic three-panel shell:
+
+- Header with title and server health
+- Collapsible left simulation panel
+- Center overlay preview panel
+- Right chat stream panel
+- Narrow-screen drawer behavior
+
+However, it still differs from the intended reference in several important ways:
+
+- The overall page still reads as a light admin layout instead of an operations surface.
+- The center preview area lacks the stronger toolbar framing and workspace emphasis seen in the reference.
+- The left control panel hierarchy is functional but not yet visually aligned with the denser control-card rhythm from the reference.
+- The right feed area needs stronger event-stream framing and more deliberate width behavior.
+- The responsive behavior exists, but the spec should lock down exact breakpoint expectations and interaction states.
+
+## Design Direction
+
+### Visual direction
+
+Preserve Vulperonex brand colors and follow the active Vulperonex theme. The monitor page should feel specialized without becoming a literal clone of Omni Commander.
+
+Required traits:
+
+- The monitor workspace should derive its surface treatment from the main theme instead of hard-coding an always-dark or always-light shell
+- Bright accent usage reserved for action buttons, status, and focus
+- Strong panel separation using borders, glow, subtle gradients, and layered surfaces
+- Compact typography for controls, larger focal treatment for header and preview workspace
+
+### Layout model
+
+Desktop target:
+
+- Left fixed/collapsible controls rail
+- Center dominant preview workspace
+- Right fixed chat/event feed
+
+Responsive target:
+
+- `>= 1280px`: three-column layout with collapsible left rail
+- `1024px - 1279px`: controls move to drawer, preview and chat remain side-by-side with a fixed two-column main area
+- `< 1024px`: preview stacked above chat, controls remain drawer-only
+
+### Theme rule
+
+Do not import Omni Commander colors directly. Re-express the design through Vulperonex-owned tokens under `--monitor-*`.
+
+## Scope
+
+### In scope
+
+- Redesign of `MonitorDashboardView.vue`
+- Supporting style-token updates for monitor dashboard surfaces
+- Refined layout contracts between dashboard shell and existing child panels
+- Minor presentational updates in existing monitor child components when needed to match the new composition
+- Test updates for layout, accessibility, and responsive behavior
+- i18n additions required by the redesigned shell
+
+### Out of scope
+
+- New backend endpoints
+- Replacing existing preview/chat/control business logic
+- Rewriting the simulation workflows themselves
+- Porting all reference-only monitor features
+- Introducing new UI libraries or utility dependencies
+
+## Architecture Decisions
+
+- Keep Vue 3 + TypeScript + PrimeVue stack. No `naive-ui`, no SCSS migration.
+- Preserve current child-component boundaries unless a boundary directly blocks the redesign.
+- Drive styling through monitor-specific CSS variables instead of one-off hex values.
+- Treat the dashboard shell as the owner of responsive layout state.
+- Keep the redesign vertical: shell first, then preview chrome, then control density, then verification.
+- Keep the right-side panel chat-first for this slice. Visual reframing is allowed; changing it into a broader mixed-event product surface is not.
+- Keep preview toolbar changes presentational for this slice. Re-layout existing controls, but do not introduce a new live/draft product mode beyond what `MonitorOverlayPanel.vue` already supports.
+
+## Target UI Breakdown
+
+### Header
+
+The header should become an operations bar:
+
+- Left: icon, eyebrow, title
+- Right: control-panel toggle action and system health chip
+- Optional subtle live/status pulse treatment
+
+Acceptance notes:
+
+- Must immediately communicate page identity and service state
+- Must remain usable at narrow widths without wrapping into a broken layout
+
+### Left controls rail
+
+The controls rail should visually resemble the reference rhythm:
+
+- Sticky-feeling utility section at the top
+- Dense grouped control cards
+- Strong primary action buttons
+- Drawer version on narrower widths
+- `SimulateControlsPanel.vue` should be brought as close as practical to the reference in both layout and exposed functionality for this slice
+
+Acceptance notes:
+
+- The rail must feel intentional when open and unobtrusive when collapsed
+- Collapse/expand behavior must not break preview width calculations
+- The first redesign slice should prefer reference parity over conservative content pruning inside `SimulateControlsPanel.vue`
+
+### Center preview workspace
+
+The preview area should become the visual focal point:
+
+- Toolbar row for hub tabs, preset selection, existing environment controls, and reload
+- Secondary row for preview background controls
+- Large preview canvas area with stronger workspace framing
+
+Acceptance notes:
+
+- The center panel should read as the primary workspace from first glance
+- Toolbar elements should stay usable without horizontal overflow at supported widths
+- This slice re-frames existing preview controls; it does not add a new live/draft product contract
+
+### Right chat/event feed
+
+The right panel should read as a live operational feed, but this slice keeps the existing `ChatStreamPanel` contract instead of widening it into a new mixed-event component:
+
+- Clear section header
+- Tighter item framing
+- Stable width on desktop
+- Natural stacking behavior on narrow screens
+
+Acceptance notes:
+
+- The panel must remain readable even when the preview dominates the layout
+- Feed framing should visually support the "watch result and confirm" workflow
+- Existing chat-focused behavior must remain intact
+
+## File Strategy
+
+Primary files likely touched during implementation:
+
+- `src/frontend/src/views/admin/MonitorDashboardView.vue`
+- `src/frontend/src/views/admin/MonitorDashboardView.test.ts`
+- `src/frontend/src/components/admin/MonitorOverlayPanel.vue`
+- `src/frontend/src/components/admin/ChatStreamPanel.vue`
+- `src/frontend/src/components/admin/SimulateControlsPanel.vue`
+- `src/frontend/src/styles/monitor-tokens.css`
+- `src/frontend/src/i18n/en-US.json`
+- `src/frontend/src/i18n/zh-TW.json`
+
+## Implementation Plan
+
+### Phase 1: Lock Shell Structure
+
+#### Task 1: Define final layout contract for desktop, tablet, and mobile
+
+Description:
+Specify the exact behavior of header, controls rail, drawer, preview area, and chat feed across the supported breakpoints so implementation stops drifting.
+
+Acceptance criteria:
+
+- [ ] Desktop, medium, and narrow layout rules are explicitly documented and reflected in component state design.
+- [ ] Left-rail collapse, drawer open/close, and stacked mobile layout each have a single clear owner in the shell.
+- [ ] The resulting layout contract does not require backend or child-logic changes.
+
+Verification:
+
+- [ ] Manual reasoning check against current `MonitorDashboardView.vue`
+- [ ] Spec review confirms no conflicting breakpoint behavior remains
+
+Dependencies: None
+
+Estimated scope: S
+
+#### Task 2: Redesign shell surfaces and monitor-specific tokens
+
+Description:
+Refine the dashboard page background, panel surfaces, border language, shadows, and spacing tokens so the page shifts from generic admin styling to monitor-console styling while keeping Vulperonex colors.
+
+Acceptance criteria:
+
+- [ ] `--monitor-*` tokens cover page background, panel backgrounds, border colors, shadows, and key accents used by the dashboard shell.
+- [ ] No new hard-coded colors are introduced into the shell where tokens should apply.
+- [ ] The overall page reads closer to the reference mood without copying reference colors literally.
+
+Verification:
+
+- [ ] Visual check in browser at desktop width
+- [ ] Grep or review confirms shell styling uses tokens instead of scattered literals
+
+Dependencies: Task 1
+
+Estimated scope: M
+
+### Phase 2: Bring the Three Main Zones in Line
+
+#### Task 3: Rebuild the operations header
+
+Description:
+Turn the current header into a stronger monitor bar with clearer hierarchy, tighter action placement, and a more deliberate system health chip.
+
+Acceptance criteria:
+
+- [ ] Header identity, toggle action, and health state are visually scannable within one glance.
+- [ ] Health chip supports `healthy`, `unhealthy`, and `checking` without layout shift.
+- [ ] Narrow-width layout keeps header actions usable.
+
+Verification:
+
+- [ ] `MonitorDashboardView.test.ts` covers header render and health-state class behavior
+- [ ] Manual browser check at 1440px and 768px
+
+Dependencies: Task 2
+
+Estimated scope: S
+
+#### Task 4: Redesign the controls rail and drawer presentation
+
+Description:
+Adjust the left control zone so its card rhythm, density, call-to-action hierarchy, and visible feature set more closely resemble the reference monitor controls while preserving existing simulation capabilities.
+
+Acceptance criteria:
+
+- [ ] The rail visually reads as a dedicated operations sidebar.
+- [ ] Drawer presentation on narrower screens feels like the same feature, not a different page.
+- [ ] Existing simulation interactions remain available without functional regression.
+- [ ] `SimulateControlsPanel.vue` moves toward reference parity in both control grouping and exposed feature coverage where the current Vulperonex data/contracts already support it.
+
+Verification:
+
+- [ ] Manual comparison against reference layout intent
+- [ ] Responsive manual check for rail vs drawer behavior
+- [ ] Manual comparison confirms the left-side controls are closer to the reference in both structure and available actions, not just styling
+
+Dependencies: Task 2
+
+Estimated scope: M
+
+#### Task 5: Reframe the preview workspace as the visual focal point
+
+Description:
+Update `MonitorOverlayPanel.vue` presentation so the preview toolbar and canvas feel like the main work surface, closer to the reference monitor preview composition. This task is presentational and compositional; it does not introduce a new live/draft product mode beyond the controls that already exist today.
+
+Acceptance criteria:
+
+- [ ] Toolbar hierarchy is stronger than the current card header treatment.
+- [ ] Preview background controls remain available and readable.
+- [ ] Canvas area becomes the dominant visual region in the dashboard.
+- [ ] Existing preview environment controls continue to work after the visual redesign.
+
+Verification:
+
+- [ ] Manual preview inspection at desktop and medium widths
+- [ ] Existing overlay panel interactions still function
+
+Dependencies: Task 2
+
+Estimated scope: M
+
+#### Task 6: Reframe the chat/event feed as a live verification lane
+
+Description:
+Update the right-side panel framing so the existing `ChatStreamPanel` behaves like an operator confirmation feed instead of a plain content pane. This task does not expand the panel into a new cross-event stream product surface.
+
+Acceptance criteria:
+
+- [ ] Desktop width remains stable enough that feed items are readable.
+- [ ] Narrow layout stacks below preview without clipped controls or broken scroll behavior.
+- [ ] Feed header and list area visually match the new dashboard shell.
+- [ ] Existing chat-focused behavior remains intact without requiring a broader event-stream contract change.
+
+Verification:
+
+- [ ] Manual check at 1440px, 1200px, and 800px widths
+- [ ] Existing feed rendering remains functional
+
+Dependencies: Task 2
+
+Estimated scope: S
+
+### Checkpoint: After Phase 2
+
+- [ ] The page clearly resembles the reference composition at a high level
+- [ ] Theme still feels like Vulperonex, not a direct Omni Commander skin copy
+- [ ] Desktop, medium, and mobile layouts all remain usable
+- [ ] No child panel lost core functionality
+
+### Phase 3: Interaction, Accessibility, and Polish
+
+#### Task 7: Tighten responsive state handling and transitions
+
+Description:
+Stabilize resize behavior, collapse/drawer transitions, and stacked-mode layout so users do not hit inconsistent states while switching viewport widths.
+
+Acceptance criteria:
+
+- [ ] Desktop-to-tablet and tablet-to-mobile transitions do not leave stale open-state behavior behind.
+- [ ] Rail collapse and drawer open states are predictable and testable.
+- [ ] Layout transitions do not hide primary controls unexpectedly.
+
+Verification:
+
+- [ ] Unit tests cover wide and narrow toggle behavior
+- [ ] Manual resize testing across breakpoint edges
+
+Dependencies: Tasks 3-6
+
+Estimated scope: S
+
+#### Task 8: Complete i18n and accessibility pass for the shell
+
+Description:
+Finalize labels, status semantics, drawer semantics, and keyboard-targeted behaviors needed by the redesigned shell.
+
+Acceptance criteria:
+
+- [ ] All new shell copy uses i18n keys.
+- [ ] Status chip, drawer, and toggle semantics remain valid.
+- [ ] Keyboard interaction remains workable for header controls and drawer close flow.
+
+Verification:
+
+- [ ] `MonitorDashboardView.test.ts` covers key accessibility attributes
+- [ ] Manual keyboard pass through header, drawer trigger, and drawer close action
+
+Dependencies: Task 7
+
+Estimated scope: S
+
+#### Task 9: Finish regression tests and manual verification script
+
+Description:
+Update tests and the final verification checklist so the redesign can be reviewed and implemented confidently in later slices.
+
+Acceptance criteria:
+
+- [ ] Tests cover header shell, wide layout, narrow drawer, and key responsive branches.
+- [ ] Manual verification steps are explicit for the final reviewer.
+- [ ] The redesign is represented as a finished slice rather than an informal visual tweak.
+
+Verification:
+
+- [ ] `pnpm test`
+- [ ] `pnpm vue-tsc --noEmit`
+- [ ] `pnpm build`
+- [ ] `pnpm lint`
+
+Dependencies: Task 8
+
+Estimated scope: S
+
+## Verification Checklist
+
+Implementation should not be considered complete until all of the following are true:
+
+- [ ] Desktop layout clearly shows left controls, dominant center preview, and right feed
+- [ ] Medium layout uses drawer controls without breaking preview/feed usability
+- [ ] Mobile layout stacks preview over feed cleanly
+- [ ] Header shows a strong monitor identity and readable health state
+- [ ] Preview area is the main visual focal point
+- [ ] Left controls and right feed feel visually related to the reference design
+- [ ] All new shell text is localized
+- [ ] Tests, type-check, build, and lint all pass
+
+## Suggested Verification Commands
 
 ```powershell
-# 前端 dev
 cd src/frontend
-pnpm dev
-
-# 型別檢查
-pnpm vue-tsc --noEmit
-
-# 測試
-pnpm test
-
-# 建置
-pnpm build
-
-# Lint
-pnpm lint
+corepack pnpm@9.15.4 test
+corepack pnpm@9.15.4 vue-tsc --noEmit
+corepack pnpm@9.15.4 build
+corepack pnpm@9.15.4 lint
 ```
 
-## Project Structure
+Manual verification target widths:
 
-```
-src/frontend/src/
-├── views/admin/
-│   ├── MonitorDashboardView.vue          ← 本 spec 主檔
-│   └── MonitorDashboardView.test.ts      ← 既有測試，需更新
-├── components/admin/
-│   ├── MonitorOverlayPanel.vue           ← 保留 tabs/preset，外殼樣式調整
-│   ├── ChatStreamPanel.vue               ← 列表式維持，header 調整為 LIVE chip
-│   └── SimulateControlsPanel.vue         ← 分區強化（測試模式 / 訊息模擬 / 打卡模擬）
-├── styles/
-│   └── monitor-tokens.css                ← 新增：CSS variables design token
-└── i18n/
-    ├── en-US.json                        ← 新 key 補強
-    └── zh-TW.json
-```
+- `1440x900`
+- `1280x800`
+- `1024x768`
+- `800x600`
 
-## Code Style
+## Risks and Mitigations
 
-### CSS variables design token（新增 `styles/monitor-tokens.css`）
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| The redesign drifts into a pixel-copy of the reference and loses Vulperonex identity | Medium | Keep layout and UX patterns, but express them through Vulperonex tokens and existing component structure |
+| Styling changes leak into child panels and create scattered overrides | Medium | Keep shell-owned tokens centralized and limit child changes to presentation seams |
+| Responsive logic becomes brittle around breakpoint edges | High | Treat `MonitorDashboardView.vue` as the single source of layout state and test both wide and narrow transitions |
+| Preview toolbar grows too wide for medium layouts | Medium | Prioritize action order and collapse lower-priority controls before forcing overflow |
+| Scope expands into unrelated monitor settings from the reference | High | Keep this spec limited to the live monitor dashboard experience only |
 
-```css
-:root {
-  /* Surface */
-  --monitor-bg-base: linear-gradient(180deg, #f8fafb 0%, #eef3f1 100%);
-  --monitor-bg-surface: rgba(255, 255, 255, 0.92);
-  --monitor-bg-elevated: #ffffff;
+## Decisions Captured
 
-  /* Border + radius */
-  --monitor-border: #d6dde5;
-  --monitor-radius-card: 12px;
-  --monitor-radius-pill: 999px;
+1. The monitor page should follow the current Vulperonex main theme rather than forcing a permanently dark or permanently light shell.
+2. The first redesign slice should push `SimulateControlsPanel.vue` toward reference parity in both functionality and layout instead of limiting the work to visual reorganization.
 
-  /* Text */
-  --monitor-text-primary: #18202a;
-  --monitor-text-muted: #5f6f80;
-  --monitor-text-accent: #164f48;
+## Recommended Execution Order
 
-  /* Status */
-  --monitor-success: #10b981;
-  --monitor-success-subtle: #eaf7f1;
-  --monitor-danger: #ef4444;
-  --monitor-danger-subtle: #fdf0ef;
-  --monitor-warning: #f59e0b;
-  --monitor-warning-subtle: #fff7e6;
+1. Lock shell layout contract and tokens.
+2. Redesign header, left rail, preview workspace, and right feed.
+3. Stabilize responsive state behavior.
+4. Finish i18n, accessibility, tests, and verification.
 
-  /* Glass header */
-  --monitor-header-height: 4.5rem;
-  --monitor-header-blur: 12px;
-
-  /* Sider */
-  --monitor-sider-width: 380px;
-  --monitor-sider-transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-
-  /* Shadow */
-  --monitor-shadow-elevated: 0 10px 30px rgba(15, 23, 32, 0.14);
-}
-
-/* 暗色主題鋪路（本階段不啟用）*/
-[data-theme="dark"] {
-  --monitor-bg-base: linear-gradient(180deg, #0f1419 0%, #1a2026 100%);
-  --monitor-bg-surface: rgba(28, 34, 42, 0.92);
-  /* ... 後續 phase 補完 */
-}
-```
-
-### Component shell（MonitorDashboardView.vue 範例片段）
-
-```vue
-<template>
-  <div class="monitor-dashboard" data-testid="monitor-dashboard">
-    <header class="dashboard-header glass">
-      <div class="header-left">
-        <span class="header-icon" aria-hidden="true">⚙️</span>
-        <div>
-          <p class="dashboard-eyebrow">{{ t("monitor.dashboard.eyebrow") }}</p>
-          <h1 class="dashboard-title">{{ t("monitor.dashboard.title") }}</h1>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <button
-          v-if="!isWide"
-          type="button"
-          class="sider-toggle"
-          :aria-expanded="isSiderOpen"
-          @click="toggleSider"
-        >
-          {{ t("monitor.dashboard.simulateEvent") }}
-        </button>
-
-        <div class="status-chip" :class="serverHealth" role="status">
-          <span class="chip-dot" aria-hidden="true"></span>
-          <span class="chip-text">
-            {{ t("monitor.dashboard.signalrLabel") }}
-            {{ t(`monitor.dashboard.health.${serverHealth}`) }}
-          </span>
-        </div>
-      </div>
-    </header>
-
-    <div class="monitor-body">
-      <!-- 寬屏 Sider，collapsible -->
-      <aside
-        v-if="isWide"
-        class="controls-sider"
-        :class="{ open: isSiderOpen }"
-        :aria-hidden="!isSiderOpen"
-      >
-        <div class="sider-content">
-          <SimulateControlsPanel :isEmbedded="true" />
-        </div>
-      </aside>
-
-      <!-- 窄屏 Drawer（PrimeVue Drawer） -->
-      <Drawer
-        v-else
-        v-model:visible="isSiderOpen"
-        position="right"
-        :pt="{ root: { style: 'width: 380px' } }"
-      >
-        <template #header>
-          <h3>{{ t("monitor.dashboard.simulateControls") }}</h3>
-        </template>
-        <SimulateControlsPanel :isEmbedded="true" @simulated="isSiderOpen = false" />
-      </Drawer>
-
-      <main class="main-area">
-        <section class="preview-panel">
-          <MonitorOverlayPanel />
-        </section>
-        <aside class="chat-panel">
-          <ChatStreamPanel />
-        </aside>
-      </main>
-    </div>
-  </div>
-</template>
-```
-
-### 命名約定
-
-- BEM-lite：`.monitor-dashboard__header` 簡寫為 `.dashboard-header`（單檔 scoped 即可）
-- 狀態 modifier：`.status-chip.healthy`、`.controls-sider.open`
-- data-testid：`monitor-dashboard`、`sider-toggle`、`status-chip`、`preview-panel`、`chat-panel`
-- ARIA：`aria-expanded` / `aria-hidden` / `role="status"` 必備
-
-## Testing Strategy
-
-### Vitest 既有測試 (`MonitorDashboardView.test.ts`) 需擴充
-
-| 測試案例 | 目的 |
-|---|---|
-| 渲染 header glass + icon + 標題 | 視覺結構回歸 |
-| 寬螢幕 sider 預設展開 + toggle 摺疊至 0 | Collapsible 行為 |
-| 窄螢幕（mock `window.innerWidth < 1280`）改 Drawer | 響應式 |
-| Drawer `@simulated` event 自動關閉 | 互動回歸 |
-| `serverHealth` 三態 `healthy/unhealthy/checking` chip class 對應 | 狀態渲染 |
-| 鍵盤 Tab focus order：header → sider toggle → sider → preview → chat | a11y |
-| i18n 切換 en-US / zh-TW key 都解析 | i18n 完整性 |
-
-### a11y test (`src/frontend/src/a11y.test.ts`)
-
-- header chip `role="status"` 存在
-- sider 摺疊時 `aria-hidden="true"`
-- toggle button `aria-expanded` 正確
-
-### Coverage 要求
-
-- `MonitorDashboardView.vue` lines ≥ 90%（既有 ≈ 75%，提升至 90%）
-- 整體 frontend `pnpm test` 維持 167+ 案例 100% 綠燈
-
-## Boundaries
-
-### Always
-- 保留所有現有 `monitor.dashboard.*` i18n key（僅新增，不刪除）
-- 維持淺色配色 token（hex 值見 Code Style）
-- 維持 `MonitorOverlayPanel` / `ChatStreamPanel` / `SimulateControlsPanel` 公開 prop 與 event 契約
-- 新增 CSS variables 全寫入 `:root`，未來暗色 token 接 `[data-theme="dark"]`
-- 維持 PrimeVue + 純 CSS 技術選型
-- 保留 `data-testid="monitor-dashboard"` 給整合測試錨點
-
-### Ask first
-- 引入新 dependency（如 `@vueuse/core` motion utilities）
-- 修改 SimulateControlsPanel 內部分區結構（目前是平鋪表單，ref 是四個明顯分區）
-- 新增 SignalR connection state hook（目前只有 `getHealth` 輪詢）
-- breakpoint 數值偏離 1280 / 1024（ref 用 tailwind xl=1280）
-
-### Never
-- 引入 SCSS / `@use mixins`
-- 引入 `naive-ui`
-- 複製 ref 的 BitsWidget / ChannelPointWidget / FollowWidget / RaidWidget / SubWidget（後端無對應事件）
-- 複製 ref 的 NativeChat 桌面置頂功能（無 Electron / native bridge）
-- 改 backend endpoint 行為（純前端重構）
-- 刪除既有測試案例
-
-## Success Criteria
-
-1. **視覺驗證**：
-   - 寬螢幕（1920×1080）三欄並列：Sider 380px / Preview flex / Chat 320px
-   - Header 高 4.5rem，glass blur 12px，左齒輪 icon + 大寫標題，右健康 chip
-   - Sider 展開/摺疊有 0.35s cubic-bezier transition
-2. **響應式驗證**：
-   - `< 1280px` 時 Sider 改 Drawer
-   - `< 1024px` 時 Preview + Chat 垂直堆疊
-3. **互動驗證**：
-   - Sider toggle 按鈕 `aria-expanded` 同步狀態
-   - Drawer 內 SimulateControlsPanel 送出後自動關閉
-   - Server health 10 秒輪詢，chip 即時更新
-4. **無回歸**：
-   - `pnpm test` 167+/167+ 綠燈
-   - `pnpm vue-tsc --noEmit` 零錯誤
-   - `pnpm build` 成功
-   - `pnpm lint` 零警告
-5. **暗色鋪路**：
-   - `styles/monitor-tokens.css` 含 `:root` + `[data-theme="dark"]` 兩組（dark 可暫留 TODO）
-   - 元件全部用 `var(--monitor-*)` 引用，無硬編 hex 漏網
-
-## Open Questions
-
-1. **SignalR 真實狀態 vs 輪詢**：目前用 `getHealth()` 10s 輪詢，ref 用真實 SignalR connection state。本 spec 範圍是否含改為 `@microsoft/signalr` connection state hook？
-   - 建議：本 phase 保留輪詢，後續另開 spec 改 hook。
-2. **SimulateControlsPanel 分區重構**：ref 分四區（測試模式 switch / Native chat / 訊息模擬 / 打卡模擬），當前是平鋪。要重構嗎？
-   - 建議：保留平鋪，僅微調區塊分隔線符合視覺密度。需確認後處理。
-3. **MonitorOverlayPanel header 補充**：ref 中欄 header 含 SCENE PREVIEW + DRAFT/LIVE switch + Refresh 按鈕。當前 panel 內無 header bar。是否補？
-   - 建議：補一條 mini header（不改 tabs 主體），含當前 hub 名 + Reload icon。
-4. **CSS variables 命名前綴**：`--monitor-*` vs `--vp-*` 全域？
-   - 建議：先 `--monitor-*` 局部，未來 design system 統一前綴另議。
-
----
-
-## Implementation Plan（高層級，待 spec 批准後展開 task list）
-
-1. **Phase A — Design tokens 鋪設**
-   - 新增 `src/styles/monitor-tokens.css`，註冊於 `main.ts`
-   - 替換 `MonitorDashboardView.vue` 硬編 hex 為 `var(--monitor-*)`
-2. **Phase B — Header glass + collapsible Sider**
-   - 重寫 header（齒輪 icon + 大寫標題 + status chip）
-   - 加 `isSiderOpen` ref + PrimeVue Drawer for narrow
-   - 寫 transition + aria-expanded/hidden
-3. **Phase C — MonitorOverlayPanel mini header**（待 Q3 確認）
-4. **Phase D — 響應式 breakpoint**
-   - `window.matchMedia('(min-width: 1280px)')` 設 `isWide`
-   - `(min-width: 1024px)` 設 `isMedium` 控 chat 並列
-5. **Phase E — i18n key 補強**
-   - 補 `monitor.dashboard.eyebrow`、`monitor.dashboard.signalrLabel`、`monitor.dashboard.health.{healthy,unhealthy,checking}`
-6. **Phase F — 測試擴充**
-   - 新增 7 個 Vitest case（見 Testing Strategy）
-   - 更新 a11y test
-7. **Phase G — Lint + build + manual verify**
-   - 四步 checkpoint 全綠
-
----
-
-## Verification Checkpoint（spec 落地後）
-
-```powershell
-cd src/frontend
-pnpm vue-tsc --noEmit
-pnpm test
-pnpm build
-pnpm lint
-```
-
-Manual：
-- 開 dev server，1920×1080 / 1280×800 / 800×600 三尺寸各驗一次
-- DevTools `prefers-reduced-motion` 開啟驗 transition 是否略過（後續 phase）
-- 鍵盤 Tab 走訪 + screen reader 唸出 status chip
+This order keeps the work vertical and reviewable, with the highest visual-risk items addressed early.

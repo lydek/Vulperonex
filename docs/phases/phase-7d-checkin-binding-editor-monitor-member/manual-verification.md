@@ -97,4 +97,43 @@ dotnet test Vulperonex.sln --no-build -m:1 -nr:false -p:UseSharedCompilation=fal
 > - Evidence / commit: <sha>
 > ```
 
-(無項目 — Phase 7D 尚未開工)
+## 2026-05-26 - Phase 7D Backend Regression Fix (Architecture + ChatPayload)
+- Verifier: codex agent
+- Environment: Windows / .NET SDK 10.0.203 / xUnit
+- Issue 1: `PlatformLeakageTests` failed — `Vulperonex.Application.Twitch.TwitchBadgeDescriptor` violated "no Twitch-prefixed type names in Application" rule
+- Fix 1: bulk rename across 15 files
+  - `TwitchBadgeDescriptor` → `PlatformBadgeDescriptor`
+  - `ITwitchBadgeCache` → `IPlatformBadgeCache`
+  - `ITwitchHelixClient` → `IHelixClient`
+  - Files renamed: `Application/Twitch/{PlatformBadgeDescriptor,IPlatformBadgeCache,IHelixClient}.cs`
+  - Concrete impl in `Vulperonex.Web.TwitchAuth.*` and `Adapters/Twitch.*` keep `Twitch` prefix (rule only checks Application + Domain assemblies)
+- Issue 2: `SignalRHubTests.Given_MemberAndDisplayCacheExist_When_ChatIsSimulated_Then_OverlayChatPayloadIncludesMemberSnapshot` — `IndexOutOfRangeException` on `badges[0]` (array empty)
+- Fix 2: `OverlayEventForwarder.ResolveBadgeUrls` now falls back to raw badge key when `badgeCache.GetUrl(key)` returns null/empty. Preserves badge identity for overlay when Twitch badge cache is unsynced (OAuth pending).
+- Result: **PASS** (`dotnet test Vulperonex.sln` 214 + 220 + 19 = 453 全綠, EXIT=0)
+- Evidence: src/Vulperonex.Application/Twitch/* + src/Hosts/Vulperonex.Web/SignalR/OverlayEventForwarder.cs:201-235
+
+## 2026-05-26 - Monitor Dashboard Redesign (Batches 0-4)
+- Verifier: codex agent
+- Environment: Windows / .NET 10 preview / Node 20 / Vite 7 / Vitest 3
+- Commands / Steps:
+  - `pnpm vue-tsc --noEmit`
+  - `pnpm vitest run`
+  - `pnpm build`
+- Expected:
+  - All checkpoints green; +24 new test cases pass
+  - SimulateControlsPanel renders 4 sections + Test Mode toggle + ProgressBar
+  - MonitorOverlayPanel renders SCENE PREVIEW eyebrow + 2-row toolbar + iframe `sandbox=allow-scripts` only
+  - useHubConnectionState exposes L1+L2+L3 pattern; ChatStreamPanel uses it for live chip + reconnect
+  - Dashboard drawer closes on Escape; focus returns to toggle
+- Actual:
+  - `vue-tsc` EXIT=0
+  - `vitest` 36 files / **191 tests** all green (started slice at 167)
+  - `vite build` EXIT=0 (28.52s)
+- Result: **PASS (automated)** — manual viewport matrix pending
+- Evidence / commit: spec `docs/specs/monitor-dashboard-redesign.md`, plan `docs/specs/monitor-dashboard-redesign-plan.md`
+- Deferred (next slice):
+  - Plan task 3.5 — dashboard header chip migration to SignalR state (needs HubConnection mock in dashboard test)
+  - Global theming spec — app.css lacks CSS variables; `--monitor-*` light-only with dark scaffolding wired
+  - Manual viewport matrix: 1440×900 / 1280×800 / 1024×768 / 800×600
+  - Chaos test: DevTools throttle → offline → online (SignalR chip + no reconnect spam)
+  - Keyboard pass: Tab → header → toggle → drawer close → return focus

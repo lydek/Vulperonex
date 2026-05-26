@@ -119,39 +119,39 @@
 
 ### Task 61 - /monitor Dashboard 骨架
 
-- [ ] Task 61a：新增 `MonitorDashboardView.vue` + router 註冊
-- [ ] Task 61b：`/` 預設導 `/monitor`
-- [ ] Task 61c：寬螢幕三欄 layout
-- [ ] Task 61d：窄螢幕 drawer（focus trap 沿用 ConfirmDialog）
-- [ ] Task 61e：Header 平台/SignalR 狀態 chip + Live/Settings 切換
-- [ ] Task 61f：既有路由保留
+- [x] Task 61a：新增 `MonitorDashboardView.vue` + router 註冊
+- [x] Task 61b：`/` 預設導 `/monitor`
+- [x] Task 61c：寬螢幕三欄 layout（collapsible Sider 380px + 主區 grid 7fr/3fr 或 6fr/4fr）
+- [x] Task 61d：窄螢幕 drawer（Escape close + focus trap 簡版 toggle↔close）
+- [x] Task 61e：Header 平台/SignalR 狀態 chip — 目前由 `/api/health` 輪詢驅動，ChatStreamPanel 內額外有 SignalR live 狀態 dot；dashboard chip → SignalR migration 已延期（plan task 3.5）
+- [x] Task 61f：既有路由保留
 
 ### Task 62 - Simulate Controls Panel
 
-- [ ] Task 62a：抽出 `SimulateControlsPanel.vue` 共用元件
-- [ ] Task 62b：既有 `SimulateView` 重構為 wrapper
-- [ ] Task 62c：批次 checkin 工具（N 次 + 進度條）
-- [ ] Task 62d：失敗 toast 沿用 ApiError handling
-- [ ] Task 62e：Vitest 每種 simulate emit + ack
+- [x] Task 62a：抽出 `SimulateControlsPanel.vue` 共用元件
+- [x] Task 62b：既有 `SimulateView` 重構為 wrapper
+- [x] Task 62c：批次 checkin 工具（N 次 + PrimeVue ProgressBar）
+- [x] Task 62d：失敗 toast 沿用 `ApiError` handling
+- [x] Task 62e：Vitest 涵蓋 4 section render / test-mode toggle / batch ProgressBar / alias ack 等
 
 ### Task 63 - Overlay Preview iframe
 
-- [ ] Task 63a：Iframe `src` 動態組合
-- [ ] Task 63b：Hub tab 切換（chat / member / alerts）
-- [ ] Task 63c：背景切換（5 選 1）
-- [ ] Task 63d：Preset dropdown（讀 `GET /api/overlay/presets`）
-- [ ] Task 63e：Custom preset draft/production 切換
-- [ ] Task 63f：Reload button（bump timestamp）
-- [ ] Task 63g：iframe sandbox attribute 維持安全
+- [x] Task 63a：Iframe `src` 動態組合
+- [x] Task 63b：Hub tab 切換（chat / member / alerts）
+- [x] Task 63c：背景切換（5 選 1）
+- [x] Task 63d：Preset dropdown（讀 `GET /api/overlay/presets`）
+- [x] Task 63e：Custom preset draft/production 切換
+- [x] Task 63f：Reload button（bump timestamp）
+- [x] Task 63g：iframe sandbox attribute 維持安全 — 已修為 `sandbox="allow-scripts"`（移除 `allow-same-origin`）
 
 ### Task 64 - Chat Stream Panel
 
-- [ ] Task 64a：新增 `ChatStreamPanel.vue`
-- [ ] Task 64b：重用 `useOverlayHub("chat")` composable
-- [ ] Task 64c：列最新 50 筆（時間 / displayName / message snippet）
-- [ ] Task 64d：`memberSnapshot` chip 顯示
-- [ ] Task 64e：Clear 按鈕（不影響 history）
-- [ ] Task 64f：Vitest mock hub event
+- [x] Task 64a：新增 `ChatStreamPanel.vue`
+- [x] Task 64b：重用 `useOverlayHub("chat")` composable + 新增 `useHubConnectionState` 三層 reconnect pattern
+- [x] Task 64c：列最新 50 筆（時間 / displayName / message snippet）
+- [x] Task 64d：`memberSnapshot` chip 顯示
+- [x] Task 64e：Clear 按鈕（不影響 history）+ Reconnect 按鈕（Disconnected 才顯示）
+- [x] Task 64f：Vitest mock hub event + useHubConnectionState 8 case 覆蓋三層 pattern
 
 ---
 
