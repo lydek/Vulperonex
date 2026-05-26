@@ -101,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<TwitchAccessTokenProvider>();
         services.AddScoped<IHelixClient, TwitchHelixClient>();
         services.AddSingleton<IPlatformBadgeCache, TwitchBadgeCache>();
+        services.AddSingleton<TwitchBadgeSyncCoordinator>();
         services.AddSingleton<TwitchTokenEndpoint>();
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
@@ -162,6 +163,10 @@ public static class DependencyInjection
         // EF as soon as their ExecuteAsync runs. If the migration is queued
         // later, those reads hit a database that has no schema yet.
         services.AddHostedService<DatabaseMigrationStartupService>();
+        // DefaultWorkflowRuleSeedService runs after migration so it can write to the
+        // WorkflowRules table; seeds `!checkin` chat rule on first boot so
+        // out-of-the-box installs immediately have a working chat → checkin pipeline.
+        services.AddHostedService<DefaultWorkflowRuleSeedService>();
         services.AddHostedService<SimulationAdapterStartupService>();
         services.AddHostedService<TwitchBadgeSyncHostedService>();
         services.AddHostedService<MemberModuleHostedService>();
