@@ -1,4 +1,4 @@
-import { onScopeDispose, onMounted, onUnmounted, ref, type Ref } from "vue";
+import { onScopeDispose, ref, type Ref } from "vue";
 import { HubConnectionState } from "@microsoft/signalr";
 
 /**
@@ -64,6 +64,17 @@ export function useHubConnectionState(connection: HubConnectionLike): HubConnect
   connection.onreconnecting?.(() => syncFromConnection());
   connection.onreconnected?.(() => syncFromConnection());
 
+  // Start eagerly so detached effect-scope callers (tests, app-shell
+  // singletons) get the same L3 polling behavior as component callers.
+  if (typeof document === "undefined" || !document.hidden) {
+    startPolling();
+  }
+
+  if (typeof document !== "undefined") {
+    visibilityListener = onVisibilityChange;
+    document.addEventListener("visibilitychange", visibilityListener);
+  }
+
   // L2 — manual reconnect, caller-triggered only
   async function manualReconnect(): Promise<void> {
     if (disposed) return;
@@ -114,16 +125,19 @@ export function useHubConnectionState(connection: HubConnectionLike): HubConnect
   function onVisibilityChange(): void {
     if (disposed) return;
     if (typeof document === "undefined") return;
-    if (!document.hidden && connection.state === HubConnectionState.Disconnected) {
-      void manualReconnect();
+    if (document.hidden) {
+      // Tab backgrounded — pause L3 polling to skip wasted ref reads.
+      // Callbacks (L1) still fire if browser delivers them, but most
+      // engines throttle background timers anyway.
+      stopPolling();
+    } else {
+      // Returning to foreground — sync immediately then resume L3 cadence.
+      syncFromConnection();
+      startPolling();
+      if (connection.state === HubConnectionState.Disconnected) {
+        void manualReconnect();
+      }
     }
-  }
-
-  function attachVisibility(): void {
-    if (typeof document === "undefined") return;
-    if (visibilityListener) return;
-    visibilityListener = onVisibilityChange;
-    document.addEventListener("visibilitychange", visibilityListener);
   }
 
   function detachVisibility(): void {
@@ -141,12 +155,6 @@ export function useHubConnectionState(connection: HubConnectionLike): HubConnect
     detachVisibility();
   }
 
-  onMounted(() => {
-    startPolling();
-    attachVisibility();
-  });
-
-  onUnmounted(dispose);
   onScopeDispose(dispose);
 
   return {

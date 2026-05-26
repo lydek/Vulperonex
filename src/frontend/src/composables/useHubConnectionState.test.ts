@@ -81,12 +81,10 @@ describe("useHubConnectionState", () => {
     const scope = effectScope();
     const api = scope.run(() => useHubConnectionState(connection))!;
 
-    // Force-attach poll loop (onMounted not triggered without component)
-    // — use syncNow as proxy after silent state mutation
     connection.state = HubConnectionState.Disconnected;
     expect(api.state.value).toBe(HubConnectionState.Connected); // not yet synced
 
-    api.syncNow();
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
     expect(api.state.value).toBe(HubConnectionState.Disconnected);
     scope.stop();
   });
@@ -156,6 +154,28 @@ describe("useHubConnectionState", () => {
     // advance far beyond — no auto-reschedule should fire
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 2);
     expect(connection.startMock).toHaveBeenCalledTimes(1);
+    scope.stop();
+  });
+
+  it("visibility hidden pauses L3 polling; foreground resumes + syncs", async () => {
+    const connection = new FakeHubConnection();
+    connection.state = HubConnectionState.Connected;
+    const scope = effectScope();
+    const api = scope.run(() => useHubConnectionState(connection))!;
+    expect(api.state.value).toBe(HubConnectionState.Connected);
+
+    // Background mutation while hidden — no auto-sync until visible
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    connection.state = HubConnectionState.Disconnected;
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(api.state.value).toBe(HubConnectionState.Connected);
+
+    // Foreground regain — immediate sync
+    Object.defineProperty(document, "hidden", { value: false, configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(api.state.value).toBe(HubConnectionState.Disconnected);
+
     scope.stop();
   });
 
