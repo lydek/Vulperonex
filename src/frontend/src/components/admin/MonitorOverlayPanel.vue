@@ -14,7 +14,7 @@ const selectedPresetKey = ref<string>("");
 const currentEnv = ref<"draft" | "production">("production");
 const timestamp = ref<number>(Date.now());
 
-const bgType = ref<"transparent" | "green" | "pink" | "color" | "url">("transparent");
+const bgType = ref<"transparent" | "checker" | "black" | "green" | "pink" | "color" | "url">("transparent");
 const customColor = ref<string>("#f4f6f8");
 const customUrl = ref<string>("");
 
@@ -65,8 +65,21 @@ const iframeSrc = computed(() => {
   return `${baseUri}${separator}${params.toString()}`;
 });
 
+const CHECKER_LIGHT = "#ffffff";
+const CHECKER_DARK = "#c8ccd1";
+const checkerStyle = {
+  backgroundColor: CHECKER_LIGHT,
+  backgroundImage: `linear-gradient(45deg, ${CHECKER_DARK} 25%, transparent 25%), linear-gradient(-45deg, ${CHECKER_DARK} 25%, transparent 25%), linear-gradient(45deg, transparent 75%, ${CHECKER_DARK} 75%), linear-gradient(-45deg, transparent 75%, ${CHECKER_DARK} 75%)`,
+  backgroundSize: "20px 20px",
+  backgroundPosition: "0 0, 0 10px, 10px -10px, -10px 0"
+};
+
 const containerStyle = computed(() => {
   switch (bgType.value) {
+    case "checker":
+      return checkerStyle;
+    case "black":
+      return { backgroundColor: "#000000" };
     case "green":
       return { backgroundColor: "#00ff00" };
     case "pink":
@@ -166,6 +179,8 @@ function reloadIframe(): void {
       <span class="tool-title">{{ t("monitor.preview.toolbar.background") }}</span>
       <div class="bg-options">
         <label class="bg-radio-label"><input v-model="bgType" type="radio" value="transparent" /><span>Transparent</span></label>
+        <label class="bg-radio-label"><input v-model="bgType" type="radio" value="checker" /><span class="dot checker"></span> Checker</label>
+        <label class="bg-radio-label"><input v-model="bgType" type="radio" value="black" /><span class="dot black"></span> Black</label>
         <label class="bg-radio-label"><input v-model="bgType" type="radio" value="green" /><span class="dot green"></span> Green</label>
         <label class="bg-radio-label"><input v-model="bgType" type="radio" value="pink" /><span class="dot pink"></span> Pink</label>
         <label class="bg-radio-label"><input v-model="bgType" type="radio" value="color" /><span>Color Picker</span></label>
@@ -395,6 +410,17 @@ function reloadIframe(): void {
 
 .dot.green { background: #00ff00; }
 .dot.pink { background: #ff007f; }
+.dot.black { background: #000000; }
+.dot.checker {
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, #c8ccd1 25%, transparent 25%),
+    linear-gradient(-45deg, #c8ccd1 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #c8ccd1 75%),
+    linear-gradient(-45deg, transparent 75%, #c8ccd1 75%);
+  background-size: 6px 6px;
+  background-position: 0 0, 0 3px, 3px -3px, -3px 0;
+}
 
 .color-picker-input {
   width: 24px;

@@ -116,6 +116,21 @@ describe("MonitorOverlayPanel", () => {
     expect(canvas.attributes("style") ?? "").toContain("rgb(0, 255, 0)");
   });
 
+  it("should apply checker and black background options to canvas style", async () => {
+    const wrapper = await mountPanel();
+    await flushPromises();
+
+    const checkerRadio = wrapper.findAll('input[type="radio"]').find((r) => r.attributes("value") === "checker");
+    expect(checkerRadio).toBeDefined();
+    await checkerRadio!.setValue();
+    expect(wrapper.find(".iframe-canvas").attributes("style") ?? "").toContain("linear-gradient");
+
+    const blackRadio = wrapper.findAll('input[type="radio"]').find((r) => r.attributes("value") === "black");
+    expect(blackRadio).toBeDefined();
+    await blackRadio!.setValue();
+    expect(wrapper.find(".iframe-canvas").attributes("style") ?? "").toContain("rgb(0, 0, 0)");
+  });
+
   it("should bump iframe src timestamp on reload click", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(1700000000000));
