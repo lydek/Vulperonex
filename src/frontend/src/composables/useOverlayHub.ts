@@ -125,6 +125,7 @@ export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOption
     error: computed(() => error.value),
     state: computed(() => state.value),
     lastEventAt: computed(() => lastEventAt.value),
+    connection,
     start,
     stop,
     clear

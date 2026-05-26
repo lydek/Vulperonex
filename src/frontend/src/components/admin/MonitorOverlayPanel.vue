@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   getOverlayPresetCatalog,
   type OverlayPresetDescriptor
 } from "@/api/client";
+
+const { t } = useI18n();
 
 const activeHub = ref<"chat" | "member" | "alerts">("chat");
 const presets = ref<OverlayPresetDescriptor[]>([]);
@@ -105,6 +108,16 @@ function reloadIframe(): void {
 
 <template>
   <div class="overlay-monitor-card" data-testid="monitor-overlay-panel">
+    <header class="preview-eyebrow" data-testid="preview-eyebrow">
+      <span class="preview-icon" aria-hidden="true">🖥️</span>
+      <div class="preview-titles">
+        <p class="preview-overline">{{ t("monitor.preview.eyebrow") }}</p>
+        <h2 class="preview-title">{{ t("monitor.preview.title") }}</h2>
+      </div>
+      <span class="preview-hub-chip" data-testid="preview-hub-chip">{{ activeHub.toUpperCase() }}</span>
+    </header>
+
+    <div class="preview-toolbar" data-testid="preview-toolbar">
     <header class="monitor-controls-header">
       <div class="hub-tabs">
         <button
@@ -138,14 +151,19 @@ function reloadIframe(): void {
           </button>
         </div>
 
-        <button type="button" class="reload-btn" title="Reload Overlay" @click="reloadIframe">
-          Reload
+        <button
+          type="button"
+          class="reload-btn"
+          :title="t('monitor.preview.toolbar.reload')"
+          @click="reloadIframe"
+        >
+          ↻ {{ t("monitor.preview.toolbar.reload") }}
         </button>
       </div>
     </header>
 
     <section class="bg-settings-row">
-      <span class="tool-title">Preview Background</span>
+      <span class="tool-title">{{ t("monitor.preview.toolbar.background") }}</span>
       <div class="bg-options">
         <label class="bg-radio-label"><input v-model="bgType" type="radio" value="transparent" /><span>Transparent</span></label>
         <label class="bg-radio-label"><input v-model="bgType" type="radio" value="green" /><span class="dot green"></span> Green</label>
@@ -163,18 +181,19 @@ function reloadIframe(): void {
         class="url-input"
       />
     </section>
+    </div>
 
-    <main class="iframe-container-outer">
+    <main class="iframe-container-outer" data-testid="preview-canvas">
       <div class="iframe-canvas" :style="containerStyle">
         <iframe
           v-if="iframeSrc"
           :src="iframeSrc"
-          sandbox="allow-scripts allow-same-origin"
+          sandbox="allow-scripts"
           class="preview-iframe"
-          title="Overlay Preview"
+          :title="t('monitor.preview.iframeTitle')"
         ></iframe>
         <div v-else class="no-preview">
-          <p>No preset available for this hub.</p>
+          <p>{{ t("monitor.preview.noPreset") }}</p>
         </div>
       </div>
     </main>
@@ -187,21 +206,79 @@ function reloadIframe(): void {
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  border: 1px solid #d6dde5;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 12px 28px rgba(15, 23, 32, 0.08);
+  border: 1px solid var(--monitor-border, #d6dde5);
+  border-radius: var(--monitor-radius-card, 12px);
+  background: var(--monitor-bg-elevated, #ffffff);
+  box-shadow: var(--monitor-shadow-elevated, 0 12px 28px rgba(15, 23, 32, 0.08));
+}
+
+/* Eyebrow row — strong workspace identity */
+.preview-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
+  background: var(--monitor-bg-surface, rgba(248, 250, 251, 0.92));
+}
+
+.preview-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.preview-titles {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+
+.preview-overline {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--monitor-text-muted, #5f6f80);
+}
+
+.preview-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--monitor-text-accent, #164f48);
+}
+
+.preview-hub-chip {
+  padding: 3px 10px;
+  border-radius: var(--monitor-radius-pill, 999px);
+  border: 1px solid var(--monitor-accent, #2d9d78);
+  background: rgba(45, 157, 120, 0.08);
+  color: var(--monitor-text-accent, #145a44);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+/* Toolbar wrapper — groups controls header + bg row */
+.preview-toolbar {
+  display: flex;
+  flex-direction: column;
+  background: var(--monitor-bg-elevated, #ffffff);
 }
 
 .monitor-controls-header {
-  height: 52px;
+  height: 48px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 12px;
   padding: 0 16px;
-  border-bottom: 1px solid #d6dde5;
-  background: #ffffff;
+  border-bottom: 1px solid var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
+  background: var(--monitor-bg-elevated, #ffffff);
 }
 
 .hub-tabs,
@@ -209,8 +286,8 @@ function reloadIframe(): void {
   display: flex;
   gap: 4px;
   padding: 3px;
-  border-radius: 8px;
-  border: 1px solid #d6dde5;
+  border-radius: var(--monitor-radius-button, 8px);
+  border: 1px solid var(--monitor-border, #d6dde5);
   background: #f4f6f8;
 }
 
@@ -218,18 +295,24 @@ function reloadIframe(): void {
 .env-btn {
   border: none;
   background: transparent;
-  color: #5f6f80;
+  color: var(--monitor-text-muted, #5f6f80);
   padding: 5px 12px;
   border-radius: 6px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.hub-tab-btn:hover:not(.active),
+.env-btn:hover:not(.active) {
+  color: var(--monitor-text-primary, #18202a);
 }
 
 .hub-tab-btn.active,
 .env-btn.active {
-  background: #ffffff;
-  color: #164f48;
+  background: var(--monitor-bg-elevated, #ffffff);
+  color: var(--monitor-text-accent, #164f48);
   box-shadow: 0 1px 3px rgba(15, 23, 32, 0.12);
 }
 
@@ -242,30 +325,38 @@ function reloadIframe(): void {
 
 .selector-label,
 .tool-title {
-  color: #5f6f80;
-  font-size: 12px;
-  font-weight: 600;
+  color: var(--monitor-text-muted, #5f6f80);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .preset-select,
 .url-input {
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--monitor-border, #d6dde5);
   border-radius: 6px;
-  background: #ffffff;
-  color: #18202a;
+  background: var(--monitor-bg-elevated, #ffffff);
+  color: var(--monitor-text-primary, #18202a);
   font-size: 12px;
   padding: 4px 8px;
 }
 
 .reload-btn {
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--monitor-border, #d6dde5);
   border-radius: 6px;
-  background: #ffffff;
-  color: #394756;
+  background: var(--monitor-bg-elevated, #ffffff);
+  color: var(--monitor-text-primary, #394756);
   font-size: 12px;
   font-weight: 700;
   padding: 5px 10px;
   cursor: pointer;
+  transition: background-color 120ms ease, transform 120ms ease;
+}
+
+.reload-btn:hover {
+  background: #f4f6f8;
+  transform: rotate(-15deg);
 }
 
 .bg-settings-row {
@@ -274,8 +365,7 @@ function reloadIframe(): void {
   gap: 12px;
   flex-wrap: wrap;
   padding: 8px 16px;
-  border-bottom: 1px solid #d6dde5;
-  background: #f8fafb;
+  background: var(--monitor-bg-surface, #f8fafb);
   font-size: 12px;
 }
 
@@ -323,6 +413,10 @@ function reloadIframe(): void {
   flex: 1;
   background: #edf2f7;
   overflow: hidden;
+  position: relative;
+  padding: 12px;
+  border-top: 1px solid var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
+  min-height: 280px;
 }
 
 .iframe-canvas {
@@ -331,6 +425,11 @@ function reloadIframe(): void {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: var(--monitor-radius-card, 12px);
+  border: 1px solid var(--monitor-border, #d6dde5);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 32, 0.06);
+  overflow: hidden;
+  background: transparent;
 }
 
 .preview-iframe {
@@ -341,7 +440,7 @@ function reloadIframe(): void {
 }
 
 .no-preview {
-  color: #5f6f80;
+  color: var(--monitor-text-muted, #5f6f80);
   font-size: 13px;
 }
 </style>

@@ -39,11 +39,81 @@ function routeFetch(simulateResponse: () => Response) {
 describe("SimulateControlsPanel", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.stubGlobal("fetch", routeFetch(() => new Response("{}", { status: 200 })));
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+  });
+
+  it("should render four primary sections (test-mode / event / identity / event-fields)", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="section-test-mode"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="section-event-type"]').exists()).toBe(true);
+    // alias defaults to chat → full identity + event-fields visible
+    expect(wrapper.find('[data-testid="section-identity"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="section-event-fields"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="section-batch"]').exists()).toBe(false);
+  });
+
+  it("should toggle test-mode switch and reflect chip state", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    const toggle = wrapper.find('[data-testid="test-mode-toggle"] input[type="checkbox"]');
+    expect(toggle.exists()).toBe(true);
+    expect((toggle.element as HTMLInputElement).checked).toBe(true);
+    expect(wrapper.find(".toggle-state-chip").text()).toBe("TEST");
+
+    await toggle.setValue(false);
+    expect(wrapper.find(".toggle-state-chip").text()).toBe("LIVE");
+  });
+
+  it("should show batch section only when alias is checkin", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="section-batch"]').exists()).toBe(false);
+
+    const aliasSelect = wrapper.findAll("select")[0];
+    await aliasSelect.setValue("checkin");
+    expect(wrapper.find('[data-testid="section-batch"]').exists()).toBe(true);
+    // compact identity when checkin
+    expect(wrapper.find('[data-testid="section-identity-compact"]').exists()).toBe(true);
+  });
+
+  it("should render PrimeVue ProgressBar with ARIA when batch running", async () => {
+    const fetchMock = routeFetch(() => new Response(JSON.stringify({
+      accepted: true, eventTypeKey: "system.member.checked_in", eventId: "evt-batch-aria",
+      platform: "simulation", platformUserId: "batch-user", displayName: "Batch User",
+      occurredAt: "2026-05-24T00:00:00Z"
+    }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    await flushPromises();
+    const selects = wrapper.findAll("select");
+    await selects[0].setValue("checkin");
+
+    const numberInputs = wrapper.findAll('input[type="number"]');
+    await numberInputs[1].setValue("2");
+    await wrapper.find('[data-testid="batch-run-btn"]').trigger("click");
+
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(50);
+    await flushPromises();
+
+    // First iteration tick — progress visible
+    const progressBlock = wrapper.find('[data-testid="batch-progress"]');
+    expect(progressBlock.exists()).toBe(true);
+    const bar = progressBlock.find(".monitor-progress");
+    expect(bar.exists()).toBe(true);
+
+    await vi.runAllTimersAsync();
+    await flushPromises();
   });
 
   it("should post checkin payload to the dedicated endpoint and render ack", async () => {

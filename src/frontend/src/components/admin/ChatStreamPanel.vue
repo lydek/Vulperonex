@@ -1,8 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
+import { HubConnectionState } from "@microsoft/signalr";
 import { useOverlayHub, type OverlayHubEvent } from "@/composables/useOverlayHub";
+import { useHubConnectionState } from "@/composables/useHubConnectionState";
 
-const { events, state, start } = useOverlayHub("chat");
+const { t } = useI18n();
+
+const { events, start, connection } = useOverlayHub("chat");
+const { state: hubState, reconnectAttempt, manualReconnect } = useHubConnectionState(connection);
 const localEvents = ref<OverlayHubEvent[]>([]);
 
 watch(
@@ -37,16 +43,31 @@ function clearLocal(): void {
 }
 
 const statusColor = computed(() => {
-  switch (state.value) {
-    case "Connected":
+  switch (hubState.value) {
+    case HubConnectionState.Connected:
       return "#2d9d78";
-    case "Connecting":
-    case "Reconnecting":
+    case HubConnectionState.Connecting:
+    case HubConnectionState.Reconnecting:
       return "#d38a35";
     default:
       return "#d95f5f";
   }
 });
+
+const statusKey = computed<"connected" | "reconnecting" | "connecting" | "disconnected">(() => {
+  switch (hubState.value) {
+    case HubConnectionState.Connected:
+      return "connected";
+    case HubConnectionState.Reconnecting:
+      return "reconnecting";
+    case HubConnectionState.Connecting:
+      return "connecting";
+    default:
+      return "disconnected";
+  }
+});
+
+const showReconnectButton = computed(() => hubState.value === HubConnectionState.Disconnected);
 
 function formatTime(sentAt?: string): string {
   if (!sentAt) return "";
@@ -75,23 +96,42 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   <section class="chat-stream-card" data-testid="chat-stream-panel">
     <header class="panel-header">
       <div class="header-left">
-        <span class="status-indicator" :style="{ backgroundColor: statusColor }"></span>
+        <span
+          class="status-indicator"
+          :style="{ backgroundColor: statusColor }"
+          :title="t(`monitor.chat.live.${statusKey}`)"
+          data-testid="chat-status-dot"
+        ></span>
         <div>
-          <h3 class="panel-title">聊天室事件流</h3>
-          <p class="panel-subtitle">即時顯示收到的聊天訊息、角色與會員卡資訊。</p>
+          <h3 class="panel-title">{{ t("monitor.chat.title") }}</h3>
+          <p class="panel-subtitle">{{ t("monitor.chat.subtitle") }}</p>
         </div>
       </div>
 
-      <button type="button" class="clear-btn" @click="clearLocal">清空</button>
+      <div class="header-right">
+        <button
+          v-if="showReconnectButton"
+          type="button"
+          class="reconnect-btn"
+          data-testid="chat-reconnect-btn"
+          :title="reconnectAttempt > 0 ? t('monitor.chat.reconnectRetry', { attempt: reconnectAttempt }) : t('monitor.chat.reconnect')"
+          @click="manualReconnect"
+        >
+          ↻ {{ t("monitor.chat.reconnect") }}
+        </button>
+        <button type="button" class="clear-btn" @click="clearLocal">
+          {{ t("monitor.chat.clear") }}
+        </button>
+      </div>
     </header>
 
     <div class="table-container">
       <table v-if="localEvents.length > 0" class="stream-table">
         <thead>
           <tr>
-            <th class="col-time">時間</th>
-            <th class="col-user">使用者</th>
-            <th class="col-msg">訊息</th>
+            <th class="col-time">{{ t("monitor.chat.col.time") }}</th>
+            <th class="col-user">{{ t("monitor.chat.col.user") }}</th>
+            <th class="col-msg">{{ t("monitor.chat.col.message") }}</th>
           </tr>
         </thead>
         <tbody>
@@ -131,8 +171,8 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 
       <div v-else class="empty-stream">
         <div class="empty-icon">...</div>
-        <p>目前還沒有聊天室事件。</p>
-        <p class="empty-sub">從左側送出模擬聊天事件後，這裡會即時顯示結果。</p>
+        <p>{{ t("monitor.chat.emptyTitle") }}</p>
+        <p class="empty-sub">{{ t("monitor.chat.emptyHint") }}</p>
       </div>
     </div>
   </section>
@@ -145,22 +185,45 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   min-height: 0;
   height: 100%;
   overflow: hidden;
-  border: 1px solid #d8e2dc;
-  border-radius: 24px;
+  border: 1px solid var(--monitor-border, #d8e2dc);
+  border-radius: var(--monitor-radius-card, 12px);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 246, 0.98)),
     radial-gradient(circle at top left, rgba(45, 157, 120, 0.12), transparent 40%);
-  box-shadow: 0 18px 48px rgba(33, 58, 52, 0.12);
+  box-shadow: var(--monitor-shadow-elevated, 0 18px 48px rgba(33, 58, 52, 0.12));
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px 22px;
-  border-bottom: 1px solid #dde7e1;
-  background: rgba(250, 252, 251, 0.9);
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--monitor-border-subtle, #dde7e1);
+  background: var(--monitor-bg-surface, rgba(250, 252, 251, 0.9));
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.reconnect-btn {
+  border: 1px solid var(--monitor-warning-border, rgba(245, 158, 11, 0.22));
+  border-radius: var(--monitor-radius-pill, 999px);
+  background: var(--monitor-warning-subtle, #fff7e6);
+  color: var(--monitor-warning, #b45a0a);
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 120ms ease, background-color 120ms ease;
+}
+
+.reconnect-btn:hover {
+  transform: translateY(-1px);
+  background: #ffe9c2;
 }
 
 .header-left {

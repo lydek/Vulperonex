@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
+import ProgressBar from "primevue/progressbar";
 import {
   ApiError,
   getTwitchBadges,
@@ -25,6 +26,11 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+
+// Test mode — UI-only label for now. TODO: backend `isTest` flag pending.
+// When backend lands the flag, wire into postSimulate / postSimulateCheckIn
+// request body. Until then, this toggle is operator visual context only.
+const isTestMode = ref(true);
 
 const alias = ref<SimulateAlias>("chat");
 const platformUserId = ref("");
@@ -98,6 +104,12 @@ const showRecipientInput = computed(() => alias.value === "giftsub");
 const showBitsInput = computed(() => alias.value === "bits");
 const showRewardInput = computed(() => alias.value === "redeem");
 const showStampInput = computed(() => alias.value === "checkin");
+
+const batchProgressLabel = computed(() => {
+  if (batchSize.value <= 0) return "0%";
+  const done = Math.round((batchProgress.value / 100) * batchSize.value);
+  return `${done}/${batchSize.value}`;
+});
 
 async function onSubmit(event: Event): Promise<void> {
   event.preventDefault();
@@ -198,149 +210,249 @@ async function startBatchCheckin(): Promise<void> {
 </script>
 
 <template>
-  <div class="simulate-container" :class="{ 'is-embedded': props.isEmbedded }">
+  <div class="simulate-container" :class="{ 'is-embedded': props.isEmbedded }" data-testid="simulate-controls">
     <header v-if="!props.isEmbedded" class="page-header">
       <h1 class="page-title">{{ t("simulate.title") }}</h1>
       <p class="page-subtitle">{{ t("simulate.subtitle") }}</p>
     </header>
 
     <section class="simulate-card">
-      <h3 v-if="props.isEmbedded" class="card-title">模擬事件</h3>
+      <h3 v-if="props.isEmbedded" class="card-title">{{ t("monitor.controls.cardTitle") }}</h3>
+
+      <!-- Section 1: Test Mode -->
+      <fieldset class="form-section section-test-mode" data-testid="section-test-mode">
+        <legend class="section-legend">
+          <span class="section-icon" aria-hidden="true">🛠️</span>
+          {{ t("monitor.controls.section.testMode.title") }}
+        </legend>
+        <label class="toggle-row" data-testid="test-mode-toggle">
+          <input
+            v-model="isTestMode"
+            type="checkbox"
+            role="switch"
+            :aria-checked="isTestMode"
+            :disabled="batchRunning"
+            class="toggle-switch"
+          />
+          <span class="toggle-label">
+            <strong>{{ t("monitor.controls.testMode.label") }}</strong>
+            <span class="toggle-helper">{{ t("monitor.controls.testMode.helper") }}</span>
+          </span>
+          <span class="toggle-state-chip" :class="{ on: isTestMode }">
+            {{ isTestMode ? t("monitor.controls.testMode.on") : t("monitor.controls.testMode.off") }}
+          </span>
+        </label>
+      </fieldset>
 
       <form class="simulate-form" @submit="onSubmit" novalidate>
-        <label class="form-field">
-          <span class="form-label">{{ t("simulate.alias") }}</span>
-          <select v-model="alias" :disabled="batchRunning" :aria-label="t('simulate.alias')">
-            <option v-for="option in aliasOptions" :key="option" :value="option">
-              {{ t(`simulate.aliasOption.${option}`, option) }}
-            </option>
-          </select>
-        </label>
-
-        <div class="form-row">
+        <!-- Section 2: Event Type -->
+        <fieldset class="form-section section-event-type" data-testid="section-event-type">
+          <legend class="section-legend">
+            <span class="section-icon" aria-hidden="true">⚡</span>
+            {{ t("monitor.controls.section.event.title") }}
+          </legend>
           <label class="form-field">
-            <span class="form-label">{{ t("simulate.platformUserId") }}</span>
+            <span class="form-label">{{ t("simulate.alias") }}</span>
+            <select v-model="alias" :disabled="batchRunning" :aria-label="t('simulate.alias')">
+              <option v-for="option in aliasOptions" :key="option" :value="option">
+                {{ t(`simulate.aliasOption.${option}`, option) }}
+              </option>
+            </select>
+          </label>
+        </fieldset>
+
+        <!-- Section 3: Identity & Appearance (shown for non-checkin) -->
+        <fieldset
+          v-if="showIdentityInputs"
+          class="form-section section-identity"
+          data-testid="section-identity"
+        >
+          <legend class="section-legend">
+            <span class="section-icon" aria-hidden="true">👤</span>
+            {{ t("monitor.controls.section.identity.title") }}
+          </legend>
+
+          <div class="form-row">
+            <label class="form-field">
+              <span class="form-label">{{ t("simulate.platformUserId") }}</span>
+              <input
+                v-model="platformUserId"
+                type="text"
+                autocomplete="off"
+                :disabled="batchRunning"
+                placeholder="e.g. sim-user-id"
+              />
+            </label>
+
+            <label class="form-field">
+              <span class="form-label">{{ t("simulate.displayName") }}</span>
+              <input
+                v-model="displayName"
+                type="text"
+                autocomplete="off"
+                :disabled="batchRunning"
+                placeholder="e.g. Sim User"
+              />
+            </label>
+          </div>
+
+          <div class="form-field">
+            <span class="form-label">{{ t("monitor.controls.identity.colorLabel") }}</span>
+            <div class="color-picker-row">
+              <input
+                v-model="colorHex"
+                type="color"
+                class="color-swatch"
+                :disabled="batchRunning"
+                :aria-label="t('monitor.controls.identity.colorLabel')"
+              />
+              <input
+                v-model="colorHex"
+                type="text"
+                class="color-hex-input"
+                :disabled="batchRunning"
+                placeholder="#FFCA28"
+                maxlength="7"
+              />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <span class="form-label">{{ t("monitor.controls.identity.badgesLabel") }}</span>
+            <p v-if="badgesError" class="field-help error">{{ badgesError }}</p>
+            <p v-else-if="!badgesReady" class="field-help">
+              {{ t("monitor.controls.identity.badgesNotReady") }}
+            </p>
+            <div v-if="featuredBadges.length > 0" class="badge-grid">
+              <button
+                v-for="badge in featuredBadges"
+                :key="badge.key"
+                type="button"
+                class="badge-chip"
+                :class="{ selected: isBadgeSelected(badge.key) }"
+                :disabled="batchRunning"
+                :title="`${badge.title ?? badge.setId} (${badge.key})`"
+                @click="toggleBadge(badge.key)"
+              >
+                <img v-if="badge.imageUrl1x" :src="badge.imageUrl1x" alt="" class="badge-chip-img" />
+                <span class="badge-chip-label">{{ badge.title ?? badge.setId }}</span>
+              </button>
+            </div>
+            <p v-if="featuredBadges.length === 0 && badgesReady" class="field-help">
+              {{ t("monitor.controls.identity.badgesEmpty") }}
+            </p>
+          </div>
+        </fieldset>
+
+        <!-- Section 4: Identity (compact — for checkin alias) -->
+        <fieldset
+          v-else
+          class="form-section section-identity"
+          data-testid="section-identity-compact"
+        >
+          <legend class="section-legend">
+            <span class="section-icon" aria-hidden="true">👤</span>
+            {{ t("monitor.controls.section.identity.title") }}
+          </legend>
+          <div class="form-row">
+            <label class="form-field">
+              <span class="form-label">{{ t("simulate.platformUserId") }}</span>
+              <input
+                v-model="platformUserId"
+                type="text"
+                autocomplete="off"
+                :disabled="batchRunning"
+                placeholder="e.g. sim-user-id"
+              />
+            </label>
+
+            <label class="form-field">
+              <span class="form-label">{{ t("simulate.displayName") }}</span>
+              <input
+                v-model="displayName"
+                type="text"
+                autocomplete="off"
+                :disabled="batchRunning"
+                placeholder="e.g. Sim User"
+              />
+            </label>
+          </div>
+        </fieldset>
+
+        <!-- Section 5: Event-specific Fields -->
+        <fieldset
+          v-if="showMessageInput || showTierInput || showRecipientInput || showBitsInput || showRewardInput || showStampInput"
+          class="form-section section-event-fields"
+          data-testid="section-event-fields"
+        >
+          <legend class="section-legend">
+            <span class="section-icon" aria-hidden="true">📝</span>
+            {{ t("monitor.controls.section.eventFields.title") }}
+          </legend>
+
+          <label v-if="showMessageInput" class="form-field">
+            <span class="form-label">
+              {{ alias === 'redeem' ? t('monitor.controls.fields.redeemInput') : t("simulate.message") }}
+            </span>
             <input
-              v-model="platformUserId"
+              v-model="message"
               type="text"
               autocomplete="off"
               :disabled="batchRunning"
-              placeholder="e.g. sim-user-id"
+              :placeholder="alias === 'chat' ? 'Type simulation message...' : 'Type redeem input...'"
             />
           </label>
 
-          <label class="form-field">
-            <span class="form-label">{{ t("simulate.displayName") }}</span>
+          <label v-if="showTierInput" class="form-field">
+            <span class="form-label">{{ t("simulate.tier") }}</span>
+            <select v-model="tier" :disabled="batchRunning">
+              <option value="1000">Tier 1 (1000)</option>
+              <option value="2000">Tier 2 (2000)</option>
+              <option value="3000">Tier 3 (3000)</option>
+            </select>
+          </label>
+
+          <label v-if="showRecipientInput" class="form-field">
+            <span class="form-label">{{ t("monitor.controls.fields.recipient") }}</span>
             <input
-              v-model="displayName"
+              v-model="recipientDisplayName"
               type="text"
               autocomplete="off"
               :disabled="batchRunning"
-              placeholder="e.g. Sim User"
+              placeholder="Recipient..."
             />
           </label>
-        </div>
 
-        <label v-if="showMessageInput" class="form-field">
-          <span class="form-label">{{ alias === 'redeem' ? 'Redeem Input' : t("simulate.message") }}</span>
-          <input
-            v-model="message"
-            type="text"
-            autocomplete="off"
-            :disabled="batchRunning"
-            :placeholder="alias === 'chat' ? 'Type simulation message...' : 'Type redeem input...'"
-          />
-        </label>
+          <label v-if="showBitsInput" class="form-field">
+            <span class="form-label">{{ t("monitor.controls.fields.bits") }}</span>
+            <input v-model="bits" type="number" min="1" :disabled="batchRunning" />
+          </label>
 
-        <label v-if="showTierInput" class="form-field">
-          <span class="form-label">{{ t("simulate.tier") }}</span>
-          <select v-model="tier" :disabled="batchRunning">
-            <option value="1000">Tier 1 (1000)</option>
-            <option value="2000">Tier 2 (2000)</option>
-            <option value="3000">Tier 3 (3000)</option>
-          </select>
-        </label>
+          <label v-if="showRewardInput" class="form-field">
+            <span class="form-label">{{ t("monitor.controls.fields.rewardId") }}</span>
+            <input v-model="rewardId" type="text" autocomplete="off" :disabled="batchRunning" />
+          </label>
 
-        <label v-if="showRecipientInput" class="form-field">
-          <span class="form-label">Recipient Display Name</span>
-          <input
-            v-model="recipientDisplayName"
-            type="text"
-            autocomplete="off"
-            :disabled="batchRunning"
-            placeholder="Recipient..."
-          />
-        </label>
+          <label v-if="showStampInput" class="form-field">
+            <span class="form-label">{{ t("monitor.controls.fields.stampCount") }}</span>
+            <input v-model="stampCount" type="number" min="1" max="100" :disabled="batchRunning" />
+          </label>
+        </fieldset>
 
-        <label v-if="showBitsInput" class="form-field">
-          <span class="form-label">Bits Amount</span>
-          <input v-model="bits" type="number" min="1" :disabled="batchRunning" />
-        </label>
+        <!-- Section 6: Batch Tools (checkin only) -->
+        <fieldset
+          v-if="alias === 'checkin'"
+          class="form-section section-batch"
+          data-testid="section-batch"
+        >
+          <legend class="section-legend">
+            <span class="section-icon" aria-hidden="true">📦</span>
+            {{ t("monitor.controls.section.batch.title") }}
+          </legend>
 
-        <label v-if="showRewardInput" class="form-field">
-          <span class="form-label">Reward ID</span>
-          <input v-model="rewardId" type="text" autocomplete="off" :disabled="batchRunning" />
-        </label>
-
-        <label v-if="showStampInput" class="form-field">
-          <span class="form-label">Stamp Count</span>
-          <input v-model="stampCount" type="number" min="1" max="100" :disabled="batchRunning" />
-        </label>
-
-        <div v-if="showIdentityInputs" class="form-field">
-          <span class="form-label">名稱顏色</span>
-          <div class="color-picker-row">
-            <input
-              v-model="colorHex"
-              type="color"
-              class="color-swatch"
-              :disabled="batchRunning"
-              aria-label="名稱顏色"
-            />
-            <input
-              v-model="colorHex"
-              type="text"
-              class="color-hex-input"
-              :disabled="batchRunning"
-              placeholder="#FFCA28"
-              maxlength="7"
-            />
-          </div>
-        </div>
-
-        <div v-if="showIdentityInputs" class="form-field">
-          <span class="form-label">身份徽章</span>
-          <p v-if="badgesError" class="field-help error">{{ badgesError }}</p>
-          <p v-else-if="!badgesReady" class="field-help">
-            徽章快取尚未就緒（Twitch 尚未授權或同步中），仍可送出但 overlay 不會顯示徽章。
-          </p>
-          <div v-if="featuredBadges.length > 0" class="badge-grid">
-            <button
-              v-for="badge in featuredBadges"
-              :key="badge.key"
-              type="button"
-              class="badge-chip"
-              :class="{ selected: isBadgeSelected(badge.key) }"
-              :disabled="batchRunning"
-              :title="`${badge.title ?? badge.setId} (${badge.key})`"
-              @click="toggleBadge(badge.key)"
-            >
-              <img v-if="badge.imageUrl1x" :src="badge.imageUrl1x" alt="" class="badge-chip-img" />
-              <span class="badge-chip-label">{{ badge.title ?? badge.setId }}</span>
-            </button>
-          </div>
-          <p v-if="featuredBadges.length === 0 && badgesReady" class="field-help">
-            尚未取得可用徽章。請確認 Twitch OAuth 已完成且 `Twitch:BroadcasterId` 已設定。
-          </p>
-        </div>
-
-        <div class="action-buttons-group">
-          <button type="submit" class="primary-button" :disabled="submitting || batchRunning">
-            {{ submitting ? t("simulate.submitting") : t("simulate.submit") }}
-          </button>
-
-          <div v-if="alias === 'checkin'" class="batch-controls">
-            <div class="batch-input-row">
+          <div class="batch-input-row">
+            <label class="form-field">
+              <span class="form-label">{{ t("monitor.controls.batch.count") }}</span>
               <input
                 v-model="batchSize"
                 type="number"
@@ -348,20 +460,44 @@ async function startBatchCheckin(): Promise<void> {
                 max="100"
                 class="batch-size-input"
                 :disabled="batchRunning"
-                title="Batch Size"
+                :title="t('monitor.controls.batch.count')"
               />
-              <button type="button" class="batch-button" :disabled="batchRunning" @click="startBatchCheckin">
-                連續打卡
-              </button>
-            </div>
+            </label>
+            <button
+              type="button"
+              class="batch-button"
+              :disabled="batchRunning"
+              data-testid="batch-run-btn"
+              @click="startBatchCheckin"
+            >
+              {{ t("monitor.controls.batch.run") }}
+            </button>
           </div>
-        </div>
 
-        <div v-if="batchProgress > 0" class="progress-bar-container">
-          <div class="progress-bar-label">Batch CheckIn Progress: {{ batchProgress }}%</div>
-          <div class="progress-bar">
-            <div class="progress-fill" :style="{ width: `${batchProgress}%` }"></div>
+          <div v-if="batchProgress > 0 || batchRunning" class="batch-progress" data-testid="batch-progress">
+            <div class="batch-progress-label">
+              {{ t("monitor.controls.batch.progress") }}: {{ batchProgressLabel }}
+            </div>
+            <ProgressBar
+              :value="batchProgress"
+              :show-value="false"
+              :pt="{
+                root: { class: 'monitor-progress' },
+                value: { class: 'monitor-progress__fill' }
+              }"
+              :aria-label="t('monitor.controls.batch.progress')"
+              :aria-valuenow="batchProgress"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            />
           </div>
+        </fieldset>
+
+        <!-- Submit -->
+        <div class="action-buttons-group">
+          <button type="submit" class="primary-button" :disabled="submitting || batchRunning">
+            {{ submitting ? t("simulate.submitting") : t("simulate.submit") }}
+          </button>
         </div>
       </form>
 
@@ -406,37 +542,119 @@ async function startBatchCheckin(): Promise<void> {
 
 .page-title {
   margin: 0;
-  color: #164f48;
+  color: var(--monitor-text-accent, #164f48);
   font-size: 1.35rem;
   font-weight: 800;
 }
 
 .page-subtitle {
   margin: 0.35rem 0 0;
-  color: #6a847b;
+  color: var(--monitor-text-muted, #6a847b);
 }
 
 .simulate-card {
-  border: 1px solid #d8e2dc;
-  border-radius: 24px;
+  border: 1px solid var(--monitor-border, #d8e2dc);
+  border-radius: var(--monitor-radius-card, 12px);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 247, 0.98)),
     radial-gradient(circle at top left, rgba(45, 157, 120, 0.12), transparent 42%);
-  box-shadow: 0 18px 48px rgba(33, 58, 52, 0.12);
-  padding: 22px;
+  box-shadow: var(--monitor-shadow-elevated, 0 18px 48px rgba(33, 58, 52, 0.12));
+  padding: 20px;
 }
 
 .card-title {
   margin: 0 0 18px;
-  color: #164f48;
+  color: var(--monitor-text-accent, #164f48);
   font-size: 1.05rem;
   font-weight: 800;
+}
+
+/* Section rhythm — dense control cards */
+.form-section {
+  border: 1px solid var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
+  border-radius: 12px;
+  padding: 14px 16px 16px;
+  margin: 0 0 14px 0;
+  background: var(--monitor-bg-elevated, #ffffff);
+}
+
+.form-section:last-of-type {
+  margin-bottom: 0;
+}
+
+.section-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--monitor-text-muted, #5f6f80);
+  background: var(--monitor-bg-surface, rgba(255, 255, 255, 0.92));
+  border: 1px solid var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
+  border-radius: var(--monitor-radius-pill, 999px);
+}
+
+.section-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Test mode toggle */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+.toggle-switch {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--monitor-accent, #2d9d78);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.toggle-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.85rem;
+  color: var(--monitor-text-primary, #213a34);
+}
+
+.toggle-helper {
+  font-size: 0.75rem;
+  color: var(--monitor-text-muted, #6a847b);
+  font-weight: 400;
+}
+
+.toggle-state-chip {
+  padding: 3px 10px;
+  border-radius: var(--monitor-radius-pill, 999px);
+  border: 1px solid var(--monitor-border, #d6dde5);
+  background: var(--monitor-bg-elevated, #ffffff);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--monitor-text-muted, #6a847b);
+}
+
+.toggle-state-chip.on {
+  color: var(--monitor-warning, #f59e0b);
+  border-color: var(--monitor-warning-border, rgba(245, 158, 11, 0.22));
+  background: var(--monitor-warning-subtle, #fff7e6);
 }
 
 .simulate-form {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 0;
 }
 
 .form-row {
@@ -448,13 +666,22 @@ async function startBatchCheckin(): Promise<void> {
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
+.form-field + .form-field {
+  margin-top: 10px;
+}
+
+.form-section .form-field + .form-field,
+.form-section .form-row + .form-field {
+  margin-top: 10px;
+}
+
 .form-label {
-  color: #5b756c;
-  font-size: 0.82rem;
+  color: var(--monitor-text-muted, #5b756c);
+  font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
@@ -463,19 +690,19 @@ async function startBatchCheckin(): Promise<void> {
 .form-field select {
   width: 100%;
   min-width: 0;
-  border: 1px solid #cfdcd6;
-  border-radius: 14px;
-  background: #ffffff;
-  color: #213a34;
-  padding: 0.88rem 0.95rem;
-  font-size: 0.96rem;
+  border: 1px solid var(--monitor-border, #cfdcd6);
+  border-radius: var(--monitor-radius-button, 8px);
+  background: var(--monitor-bg-elevated, #ffffff);
+  color: var(--monitor-text-primary, #213a34);
+  padding: 0.65rem 0.75rem;
+  font-size: 0.9rem;
   transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
 }
 
 .form-field input:focus,
 .form-field select:focus {
   outline: none;
-  border-color: #2d9d78;
+  border-color: var(--monitor-accent, #2d9d78);
   box-shadow: 0 0 0 3px rgba(45, 157, 120, 0.14);
 }
 
@@ -484,34 +711,6 @@ async function startBatchCheckin(): Promise<void> {
   background: #f5f8f6;
   color: #7f958d;
   cursor: not-allowed;
-}
-
-.roles-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  padding: 12px;
-  border: 1px solid #d6e0db;
-  border-radius: 16px;
-  background: rgba(244, 248, 246, 0.9);
-}
-
-.role-checkbox {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  color: #355e56;
-  font-size: 0.92rem;
-  font-weight: 600;
-}
-
-.role-checkbox span {
-  overflow-wrap: anywhere;
-}
-
-.role-checkbox input {
-  accent-color: #2d9d78;
 }
 
 .color-picker-row {
@@ -523,9 +722,9 @@ async function startBatchCheckin(): Promise<void> {
 
 .color-swatch {
   width: 56px;
-  height: 44px;
-  border: 1px solid #cfdcd6;
-  border-radius: 12px;
+  height: 38px;
+  border: 1px solid var(--monitor-border, #cfdcd6);
+  border-radius: var(--monitor-radius-button, 8px);
   background: #fff;
   padding: 2px;
   cursor: pointer;
@@ -540,11 +739,11 @@ async function startBatchCheckin(): Promise<void> {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 8px;
-  padding: 12px;
-  border: 1px solid #d6e0db;
-  border-radius: 16px;
-  background: rgba(244, 248, 246, 0.9);
-  max-height: 240px;
+  padding: 10px;
+  border: 1px dashed var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
+  border-radius: 10px;
+  background: rgba(244, 248, 246, 0.6);
+  max-height: 200px;
   overflow-y: auto;
 }
 
@@ -552,12 +751,12 @@ async function startBatchCheckin(): Promise<void> {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid #cfdcd6;
+  padding: 5px 9px;
+  border-radius: var(--monitor-radius-pill, 999px);
+  border: 1px solid var(--monitor-border, #cfdcd6);
   background: #fff;
-  color: #213a34;
-  font-size: 0.82rem;
+  color: var(--monitor-text-primary, #213a34);
+  font-size: 0.78rem;
   font-weight: 700;
   cursor: pointer;
   transition: border-color 120ms ease, background-color 120ms ease, transform 120ms ease;
@@ -568,9 +767,9 @@ async function startBatchCheckin(): Promise<void> {
 }
 
 .badge-chip.selected {
-  border-color: #2d9d78;
+  border-color: var(--monitor-accent, #2d9d78);
   background: #e7f4ee;
-  color: #145a44;
+  color: var(--monitor-text-accent, #145a44);
 }
 
 .badge-chip:disabled {
@@ -579,8 +778,8 @@ async function startBatchCheckin(): Promise<void> {
 }
 
 .badge-chip-img {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 2px;
   flex-shrink: 0;
 }
@@ -597,34 +796,74 @@ async function startBatchCheckin(): Promise<void> {
 }
 
 .field-help {
-  margin: 8px 0 0;
-  color: #688279;
-  font-size: 0.78rem;
+  margin: 6px 0 0;
+  color: var(--monitor-text-muted, #688279);
+  font-size: 0.75rem;
   line-height: 1.5;
+}
+
+/* Batch */
+.batch-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.batch-size-input {
+  text-align: center;
+}
+
+.batch-progress {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.batch-progress-label {
+  color: var(--monitor-text-muted, #5d786f);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* PrimeVue ProgressBar — pt-driven */
+:deep(.monitor-progress) {
+  height: 8px;
+  border-radius: var(--monitor-radius-pill, 999px);
+  background: #dbe8e1;
+  overflow: hidden;
+  position: relative;
+}
+
+:deep(.monitor-progress__fill) {
+  height: 100%;
+  background: linear-gradient(90deg, var(--monitor-accent, #2d9d78), #68b596);
+  transition: width 200ms ease;
 }
 
 .action-buttons-group {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 4px;
+  margin-top: 14px;
 }
 
 .primary-button,
 .batch-button {
   border: none;
-  border-radius: 16px;
-  padding: 0.95rem 1rem;
-  font-size: 0.96rem;
+  border-radius: var(--monitor-radius-button, 10px);
+  padding: 0.78rem 1rem;
+  font-size: 0.92rem;
   font-weight: 800;
   cursor: pointer;
   transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #2d9d78, #267e62);
-  color: #ffffff;
-  box-shadow: 0 14px 28px rgba(45, 157, 120, 0.22);
+  background: var(--monitor-accent-gradient, linear-gradient(135deg, #2d9d78, #267e62));
+  color: var(--monitor-text-inverse, #ffffff);
+  box-shadow: var(--monitor-shadow-accent, 0 8px 18px rgba(45, 157, 120, 0.22));
 }
 
 .primary-button:hover:not(:disabled),
@@ -639,88 +878,44 @@ async function startBatchCheckin(): Promise<void> {
   transform: none;
 }
 
-.batch-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.batch-input-row {
-  display: grid;
-  grid-template-columns: 92px minmax(0, 1fr);
-  gap: 10px;
-}
-
-.batch-size-input {
-  text-align: center;
-}
-
 .batch-button {
   background: linear-gradient(135deg, #eef7f3, #dbeee5);
-  color: #1d5d4f;
+  color: var(--monitor-text-accent, #1d5d4f);
   border: 1px solid #bfd8cc;
-}
-
-.progress-bar-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid #d6e0db;
-  background: rgba(244, 248, 246, 0.9);
-}
-
-.progress-bar-label {
-  color: #5d786f;
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.progress-bar {
-  height: 10px;
-  border-radius: 999px;
-  background: #dbe8e1;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #2d9d78, #68b596);
-  transition: width 160ms ease;
+  padding: 0.65rem 1.1rem;
 }
 
 .ack-card {
   margin-top: 16px;
-  padding: 14px 16px;
-  border-radius: 18px;
-  border: 1px solid #d7e3dc;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--monitor-border, #d7e3dc);
   background: #f8fbf9;
 }
 
 .ack-headline {
-  margin: 0 0 10px;
-  color: #1d5d4f;
-  font-size: 0.92rem;
+  margin: 0 0 8px;
+  color: var(--monitor-text-accent, #1d5d4f);
+  font-size: 0.88rem;
   font-weight: 800;
 }
 
 .ack-grid {
   display: grid;
   grid-template-columns: 124px minmax(0, 1fr);
-  gap: 6px 12px;
+  gap: 4px 12px;
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
 }
 
 .ack-grid dt {
-  color: #688279;
+  color: var(--monitor-text-muted, #688279);
   font-weight: 700;
 }
 
 .ack-grid dd {
   margin: 0;
-  color: #213a34;
+  color: var(--monitor-text-primary, #213a34);
 }
 
 .monitor-mono {
@@ -730,32 +925,31 @@ async function startBatchCheckin(): Promise<void> {
 
 .ack-error {
   margin-top: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(191, 88, 88, 0.22);
+  border-radius: 12px;
+  border: 1px solid var(--monitor-danger-border, rgba(191, 88, 88, 0.22));
   background: rgba(244, 218, 218, 0.62);
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .ack-error-code {
-  margin: 0 0 6px;
-  color: #b43a3a;
+  margin: 0 0 4px;
+  color: var(--monitor-danger, #b43a3a);
   font-weight: 800;
 }
 
 .ack-error-detail {
   margin: 0;
   color: #8a3f3f;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   overflow-wrap: anywhere;
 }
 
 @media (max-width: 860px) {
   .simulate-card {
-    padding: 18px;
+    padding: 16px;
   }
 
   .form-row,
-  .roles-grid,
   .batch-input-row,
   .ack-grid {
     grid-template-columns: 1fr;

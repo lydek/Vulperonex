@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
+import { nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { getHealth } from "@/api/client";
 import SimulateControlsPanel from "@/components/admin/SimulateControlsPanel.vue";
@@ -8,14 +8,35 @@ import ChatStreamPanel from "@/components/admin/ChatStreamPanel.vue";
 
 const { t } = useI18n();
 
-const showDrawer = ref(false);
-const isDesktop = ref(true);
-const serverHealth = ref<"healthy" | "unhealthy" | "checking">("checking");
+const WIDE_BREAKPOINT = 1280;
 
-function updateWidth(): void {
-  isDesktop.value = window.innerWidth >= 1024;
-  if (isDesktop.value) {
-    showDrawer.value = false;
+const isWide = ref(true);
+const isSiderOpen = ref(true);
+const showDrawer = ref(false);
+const serverHealth = ref<"healthy" | "unhealthy" | "checking">("checking");
+const toggleBtnRef = ref<HTMLButtonElement | null>(null);
+const drawerCloseBtnRef = ref<HTMLButtonElement | null>(null);
+
+// rAF-debounced layout sync — avoids flap during continuous resize.
+let resizeFrame: number | null = null;
+function scheduleLayoutUpdate(): void {
+  if (resizeFrame !== null) return;
+  resizeFrame = window.requestAnimationFrame(() => {
+    resizeFrame = null;
+    applyLayoutForCurrentWidth();
+  });
+}
+
+function applyLayoutForCurrentWidth(): void {
+  const nextIsWide = window.innerWidth >= WIDE_BREAKPOINT;
+  const wasWide = isWide.value;
+  isWide.value = nextIsWide;
+
+  // Only reset open-state on actual breakpoint transition — not on every resize tick.
+  if (nextIsWide && !wasWide) {
+    showDrawer.value = false; // entering wide: close drawer
+  } else if (!nextIsWide && wasWide) {
+    isSiderOpen.value = false; // entering narrow: collapse rail
   }
 }
 
@@ -31,76 +52,134 @@ async function checkHealth(): Promise<void> {
 let healthInterval: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
-  isDesktop.value = window.innerWidth >= 1024;
-  window.addEventListener("resize", updateWidth);
+  applyLayoutForCurrentWidth();
+  isSiderOpen.value = isWide.value;
+  window.addEventListener("resize", scheduleLayoutUpdate);
+  document.addEventListener("keydown", onKeydown);
   void checkHealth();
   healthInterval = setInterval(checkHealth, 10000);
 });
 
 onUnmounted(() => {
-  window.removeEventListener("resize", updateWidth);
+  window.removeEventListener("resize", scheduleLayoutUpdate);
+  document.removeEventListener("keydown", onKeydown);
+  if (resizeFrame !== null) {
+    window.cancelAnimationFrame(resizeFrame);
+    resizeFrame = null;
+  }
   if (healthInterval) clearInterval(healthInterval);
 });
 
-function toggleDrawer(): void {
-  showDrawer.value = !showDrawer.value;
+function toggleSider(): void {
+  if (isWide.value) {
+    isSiderOpen.value = !isSiderOpen.value;
+  } else {
+    showDrawer.value = !showDrawer.value;
+  }
 }
+
+function closeDrawer(): void {
+  showDrawer.value = false;
+}
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape" && showDrawer.value) {
+    closeDrawer();
+  }
+}
+
+// Basic focus management: open drawer → focus close button; close → return focus to toggle.
+watch(showDrawer, async (open) => {
+  await nextTick();
+  if (open) {
+    drawerCloseBtnRef.value?.focus();
+  } else {
+    toggleBtnRef.value?.focus();
+  }
+});
 </script>
 
 <template>
   <div class="monitor-dashboard" data-testid="monitor-dashboard">
-    <header class="dashboard-header">
+    <header class="dashboard-header glass">
       <div class="header-left">
-        <span class="logo-icon" aria-hidden="true">V</span>
-        <div>
-          <p class="dashboard-eyebrow">Live Preview</p>
+        <span class="header-icon" aria-hidden="true">⚙️</span>
+        <div class="header-titles">
+          <p class="dashboard-eyebrow">{{ t("monitor.dashboard.eyebrow") }}</p>
           <h1 class="dashboard-title">{{ t("monitor.dashboard.title") }}</h1>
         </div>
       </div>
 
       <div class="header-right">
         <button
-          v-if="!isDesktop"
+          ref="toggleBtnRef"
           type="button"
-          class="toggle-sim-btn"
-          @click="toggleDrawer"
+          class="toggle-sim-btn sider-toggle"
+          :aria-expanded="isWide ? isSiderOpen : showDrawer"
+          :aria-controls="isWide ? 'monitor-sider' : 'monitor-drawer'"
+          @click="toggleSider"
         >
           {{ t("monitor.dashboard.simulateEvent") }}
         </button>
 
-        <div class="status-chip" :class="serverHealth">
-          <span class="chip-dot"></span>
-          <span class="chip-text">{{ t("monitor.dashboard.server") }}{{ serverHealth.toUpperCase() }}</span>
+        <div class="status-chip" :class="serverHealth" role="status" data-testid="status-chip">
+          <span class="chip-dot" aria-hidden="true"></span>
+          <span class="chip-text">
+            {{ t("monitor.dashboard.signalrLabel") }}{{ t(`monitor.dashboard.health.${serverHealth}`) }}
+          </span>
         </div>
       </div>
     </header>
 
-    <div class="dashboard-workspace">
-      <aside v-if="isDesktop" class="workspace-aside simulate-column">
-        <SimulateControlsPanel :isEmbedded="true" />
+    <div class="monitor-body">
+      <aside
+        v-if="isWide"
+        id="monitor-sider"
+        class="controls-sider"
+        :class="{ open: isSiderOpen }"
+        :aria-hidden="!isSiderOpen"
+        data-testid="controls-sider"
+      >
+        <div class="sider-content">
+          <SimulateControlsPanel :isEmbedded="true" />
+        </div>
       </aside>
 
-      <main class="workspace-main preview-column">
-        <MonitorOverlayPanel />
+      <main class="main-area" data-testid="main-area">
+        <section class="preview-panel" data-testid="preview-panel">
+          <MonitorOverlayPanel />
+        </section>
+        <aside class="chat-panel" data-testid="chat-panel">
+          <ChatStreamPanel />
+        </aside>
       </main>
-
-      <aside class="workspace-aside chat-column">
-        <ChatStreamPanel />
-      </aside>
     </div>
 
     <div
-      v-if="!isDesktop && showDrawer"
+      v-if="!isWide && showDrawer"
       class="drawer-backdrop"
-      @click="showDrawer = false"
+      role="presentation"
+      @click="closeDrawer"
     >
-      <div class="drawer-content" @click.stop>
+      <div
+        id="monitor-drawer"
+        class="drawer-content"
+        role="dialog"
+        :aria-label="t('monitor.dashboard.simulateControls')"
+        @click.stop
+      >
         <header class="drawer-header">
           <h3>{{ t("monitor.dashboard.simulateControls") }}</h3>
-          <button type="button" class="drawer-close" @click="showDrawer = false">×</button>
+          <button
+            ref="drawerCloseBtnRef"
+            type="button"
+            class="drawer-close"
+            :aria-label="t('common.close')"
+            @click="closeDrawer"
+          >×</button>
         </header>
         <div class="drawer-body">
-          <SimulateControlsPanel :isEmbedded="true" @simulated="showDrawer = false" />
+          <SimulateControlsPanel :isEmbedded="true" @simulated="closeDrawer" />
         </div>
       </div>
     </div>
@@ -114,19 +193,24 @@ function toggleDrawer(): void {
   height: calc(100vh - 48px);
   margin: -24px;
   overflow: hidden;
-  background: linear-gradient(180deg, #f8fafb 0%, #eef3f1 100%);
-  color: #18202a;
+  background: var(--monitor-bg-base);
+  color: var(--monitor-text-primary);
 }
 
 .dashboard-header {
-  height: 64px;
+  height: var(--monitor-header-height);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 20px;
-  border-bottom: 1px solid #d6dde5;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(12px);
+  padding: 0 1.5rem;
+  border-bottom: 1px solid var(--monitor-border);
+  z-index: 10;
+}
+
+.dashboard-header.glass {
+  background: var(--monitor-bg-surface);
+  backdrop-filter: blur(var(--monitor-header-blur));
+  -webkit-backdrop-filter: blur(var(--monitor-header-blur));
 }
 
 .header-left,
@@ -136,15 +220,16 @@ function toggleDrawer(): void {
   gap: 12px;
 }
 
-.logo-icon {
-  width: 34px;
-  height: 34px;
-  display: inline-grid;
-  place-items: center;
-  border-radius: 10px;
-  background: linear-gradient(135deg, #1f6f64 0%, #2f8a78 100%);
-  color: #ffffff;
-  font-weight: 800;
+.header-icon {
+  font-size: 24px;
+  line-height: 1;
+  filter: drop-shadow(0 1px 2px rgba(31, 111, 100, 0.25));
+}
+
+.header-titles {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
 }
 
 .dashboard-eyebrow {
@@ -153,116 +238,169 @@ function toggleDrawer(): void {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #5f6f80;
+  color: var(--monitor-text-muted);
 }
 
 .dashboard-title {
   margin: 0;
   font-size: 18px;
   font-weight: 700;
-  color: #164f48;
+  letter-spacing: 0.04em;
+  color: var(--monitor-text-accent);
 }
 
 .toggle-sim-btn {
   border: none;
-  border-radius: 8px;
+  border-radius: var(--monitor-radius-button);
   padding: 7px 14px;
-  background: linear-gradient(135deg, #1f6f64 0%, #164f48 100%);
-  color: #ffffff;
+  background: var(--monitor-accent-gradient);
+  color: var(--monitor-text-inverse);
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(31, 111, 100, 0.18);
+  box-shadow: var(--monitor-shadow-accent);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.toggle-sim-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(31, 111, 100, 0.22);
+}
+
+.toggle-sim-btn:focus-visible {
+  outline: 2px solid var(--monitor-accent);
+  outline-offset: 2px;
 }
 
 .status-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid #d6dde5;
-  background: #ffffff;
+  padding: 5px 12px;
+  border-radius: var(--monitor-radius-pill);
+  border: 1px solid var(--monitor-border);
+  background: var(--monitor-bg-elevated);
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .chip-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
-  box-shadow: 0 0 6px currentColor;
+  animation: monitor-pulse-dot 1.8s ease-in-out infinite;
 }
 
 .status-chip.healthy {
-  color: #10b981;
-  border-color: rgba(16, 185, 129, 0.22);
-  background: #eaf7f1;
+  color: var(--monitor-success);
+  border-color: var(--monitor-success-border);
+  background: var(--monitor-success-subtle);
 }
 
 .status-chip.unhealthy {
-  color: #ef4444;
-  border-color: rgba(239, 68, 68, 0.22);
-  background: #fdf0ef;
+  color: var(--monitor-danger);
+  border-color: var(--monitor-danger-border);
+  background: var(--monitor-danger-subtle);
 }
 
 .status-chip.checking {
-  color: #f59e0b;
-  border-color: rgba(245, 158, 11, 0.22);
-  background: #fff7e6;
+  color: var(--monitor-warning);
+  border-color: var(--monitor-warning-border);
+  background: var(--monitor-warning-subtle);
 }
 
-.dashboard-workspace {
+.monitor-body {
   flex: 1;
   display: flex;
-  gap: 16px;
+  min-height: 0;
+  position: relative;
+}
+
+/* Collapsible sider — width animates 0 → 380px */
+.controls-sider {
+  width: 0;
+  background: var(--monitor-bg-surface);
+  border-right: 0 solid var(--monitor-border);
+  transition: width var(--monitor-sider-transition), border-right-width var(--monitor-sider-transition);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.controls-sider.open {
+  width: var(--monitor-sider-width);
+  border-right-width: 1px;
+}
+
+.sider-content {
+  width: var(--monitor-sider-width);
+  height: 100%;
+  overflow-y: auto;
   padding: 16px;
   box-sizing: border-box;
-  overflow: hidden;
 }
 
-.workspace-aside {
-  width: 320px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-.workspace-main {
-  min-width: 0;
+.main-area {
   flex: 1;
+  display: grid;
+  grid-template-columns: 7fr 3fr;
+  gap: 1px;
+  background: var(--monitor-border-subtle);
+  min-width: 0;
+}
+
+.preview-panel,
+.chat-panel {
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  background: var(--monitor-bg-elevated);
   overflow: hidden;
 }
 
+.chat-panel {
+  border-left: 1px solid var(--monitor-border);
+}
+
+/* Medium screens — tighten chat column */
+@media (max-width: 1440px) {
+  .main-area {
+    grid-template-columns: 6fr 4fr;
+  }
+}
+
+/* Narrow — stack preview above chat */
 @media (max-width: 1023px) {
-  .dashboard-workspace {
-    flex-direction: column;
+  .main-area {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
     overflow-y: auto;
   }
 
-  .workspace-aside.chat-column {
-    width: 100%;
+  .preview-panel {
     height: 400px;
+    flex-shrink: 0;
   }
 
-  .preview-column {
-    height: 500px;
-    flex-shrink: 0;
+  .chat-panel {
+    border-left: none;
+    border-top: 1px solid var(--monitor-border);
+    min-height: 500px;
   }
 }
 
+/* Drawer (narrow only) */
 .drawer-backdrop {
   position: fixed;
   inset: 0;
   z-index: 9999;
   display: flex;
   justify-content: flex-end;
-  background: rgba(15, 23, 32, 0.4);
+  background: var(--monitor-bg-overlay);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .drawer-content {
@@ -270,13 +408,13 @@ function toggleDrawer(): void {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-left: 1px solid #d6dde5;
-  box-shadow: -10px 0 30px rgba(15, 23, 32, 0.14);
-  animation: slideIn 0.25s ease-out;
+  background: var(--monitor-bg-elevated);
+  border-left: 1px solid var(--monitor-border);
+  box-shadow: var(--monitor-shadow-elevated);
+  animation: monitor-drawer-slide 0.25s ease-out;
 }
 
-@keyframes slideIn {
+@keyframes monitor-drawer-slide {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
@@ -287,26 +425,43 @@ function toggleDrawer(): void {
   justify-content: space-between;
   align-items: center;
   padding: 0 20px;
-  border-bottom: 1px solid #d6dde5;
+  border-bottom: 1px solid var(--monitor-border);
 }
 
 .drawer-header h3 {
   margin: 0;
   font-size: 15px;
-  color: #164f48;
+  color: var(--monitor-text-accent);
 }
 
 .drawer-close {
   border: none;
   background: transparent;
-  color: #5f6f80;
+  color: var(--monitor-text-muted);
   font-size: 20px;
   cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--monitor-radius-button);
+}
+
+.drawer-close:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--monitor-text-primary);
 }
 
 .drawer-body {
   flex: 1;
   padding: 16px;
   overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .controls-sider,
+  .toggle-sim-btn,
+  .chip-dot,
+  .drawer-content {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 </style>

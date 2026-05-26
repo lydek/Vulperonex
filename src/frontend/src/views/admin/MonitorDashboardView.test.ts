@@ -45,6 +45,10 @@ async function importView() {
   return module.default;
 }
 
+function setWindowWidth(w: number): void {
+  Object.defineProperty(window, "innerWidth", { value: w, configurable: true, writable: true });
+}
+
 describe("MonitorDashboardView", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -55,8 +59,8 @@ describe("MonitorDashboardView", () => {
     vi.restoreAllMocks();
   });
 
-  it("should render three-panel desktop layout", async () => {
-    window.innerWidth = 1280;
+  it("should render three-panel desktop layout at wide breakpoint", async () => {
+    setWindowWidth(1440);
     const MonitorDashboardView = await importView();
 
     const wrapper = mount(MonitorDashboardView, {
@@ -70,11 +74,50 @@ describe("MonitorDashboardView", () => {
     expect(wrapper.find('[data-testid="simulate-controls-stub"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="monitor-overlay-stub"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="chat-stream-stub"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="status-chip"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("HEALTHY");
   });
 
+  it("should render eyebrow + glass header", async () => {
+    setWindowWidth(1440);
+    const MonitorDashboardView = await importView();
+
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+
+    expect(wrapper.find(".dashboard-header.glass").exists()).toBe(true);
+    expect(wrapper.find(".dashboard-eyebrow").text()).toBe("LIVE PREVIEW");
+    expect(wrapper.find(".dashboard-title").exists()).toBe(true);
+    expect(wrapper.find(".header-icon").exists()).toBe(true);
+  });
+
+  it("should default sider open on wide screen and toggle collapse", async () => {
+    setWindowWidth(1440);
+    const MonitorDashboardView = await importView();
+
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+
+    const sider = wrapper.find('[data-testid="controls-sider"]');
+    expect(sider.exists()).toBe(true);
+    expect(sider.classes()).toContain("open");
+    expect(sider.attributes("aria-hidden")).toBe("false");
+
+    const toggle = wrapper.find(".sider-toggle");
+    expect(toggle.attributes("aria-expanded")).toBe("true");
+
+    await toggle.trigger("click");
+    expect(sider.classes()).not.toContain("open");
+    expect(sider.attributes("aria-hidden")).toBe("true");
+    expect(toggle.attributes("aria-expanded")).toBe("false");
+  });
+
   it("should open drawer on mobile and close it after simulate emit", async () => {
-    window.innerWidth = 768;
+    setWindowWidth(768);
     const MonitorDashboardView = await importView();
 
     const wrapper = mount(MonitorDashboardView, {
@@ -86,6 +129,7 @@ describe("MonitorDashboardView", () => {
 
     expect(wrapper.find(".toggle-sim-btn").exists()).toBe(true);
     expect(wrapper.find(".drawer-content").exists()).toBe(false);
+    expect(wrapper.find('[data-testid="controls-sider"]').exists()).toBe(false);
 
     await wrapper.find(".toggle-sim-btn").trigger("click");
     expect(wrapper.find(".drawer-content").exists()).toBe(true);
@@ -94,5 +138,87 @@ describe("MonitorDashboardView", () => {
     await flushPromises();
 
     expect(wrapper.find(".drawer-content").exists()).toBe(false);
+  });
+
+  it("should reflect server health class on chip", async () => {
+    setWindowWidth(1440);
+    const MonitorDashboardView = await importView();
+
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+
+    const chip = wrapper.find('[data-testid="status-chip"]');
+    expect(chip.classes()).toContain("healthy");
+  });
+
+  it("should expose role=status on chip and role=dialog on drawer", async () => {
+    setWindowWidth(768);
+    const MonitorDashboardView = await importView();
+
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="status-chip"]').attributes("role")).toBe("status");
+
+    await wrapper.find(".sider-toggle").trigger("click");
+    expect(wrapper.find(".drawer-content").attributes("role")).toBe("dialog");
+  });
+
+  it("should support i18n zh-TW switch", async () => {
+    setWindowWidth(1440);
+    const MonitorDashboardView = await importView();
+    const i18n = buildI18n();
+    i18n.global.locale.value = "zh-TW";
+
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [i18n, createPinia()] }
+    });
+    await flushPromises();
+
+    expect(wrapper.find(".dashboard-title").text()).toBe("即時狀態中心");
+    expect(wrapper.text()).toContain("HEALTHY");
+  });
+
+  it("should close drawer on Escape keydown", async () => {
+    setWindowWidth(768);
+    const MonitorDashboardView = await importView();
+
+    const wrapper = mount(MonitorDashboardView, {
+      attachTo: document.body,
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+
+    await wrapper.find(".sider-toggle").trigger("click");
+    expect(wrapper.find(".drawer-content").exists()).toBe(true);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await flushPromises();
+
+    expect(wrapper.find(".drawer-content").exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it("should preserve sider state when wide and not flap on resize tick", async () => {
+    setWindowWidth(1440);
+    const MonitorDashboardView = await importView();
+    const wrapper = mount(MonitorDashboardView, {
+      global: { plugins: [buildI18n(), createPinia()] }
+    });
+    await flushPromises();
+
+    // Collapse sider while wide
+    await wrapper.find(".sider-toggle").trigger("click");
+    expect(wrapper.find('[data-testid="controls-sider"]').classes()).not.toContain("open");
+
+    // Simulate continuous resize at same wide width — should not reset open state
+    window.dispatchEvent(new Event("resize"));
+    await flushPromises();
+    // (rAF callback may not fire under fake timers; the key assertion is no regression)
+    expect(wrapper.find('[data-testid="controls-sider"]').classes()).not.toContain("open");
   });
 });

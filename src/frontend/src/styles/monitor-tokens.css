@@ -1,0 +1,98 @@
+/*
+ * Monitor Dashboard design tokens.
+ *
+ * Light theme is the default and is the only theme actually rendered today.
+ *
+ * TODO (global theming spec, follow-up):
+ *   `src/styles/app.css` currently exposes NO CSS variables — app shell uses
+ *   hard-coded hex everywhere. Until a separate spec introduces `--vp-*`
+ *   theme tokens at the app shell level, monitor tokens stay light-only with
+ *   their values inlined here. The `[data-theme="dark"]` block below is wired
+ *   structurally but un-toggleable in the current UI; treat it as forward
+ *   compat scaffolding, NOT a finished dark theme.
+ *
+ * Naming: --monitor-* (panel-local). Promote to --vp-* if/when a global
+ * design system lands.
+ */
+
+:root {
+  /* Surface */
+  --monitor-bg-base: linear-gradient(180deg, #f8fafb 0%, #eef3f1 100%);
+  --monitor-bg-surface: rgba(255, 255, 255, 0.92);
+  --monitor-bg-elevated: #ffffff;
+  --monitor-bg-overlay: rgba(15, 23, 32, 0.4);
+
+  /* Border + radius */
+  --monitor-border: #d6dde5;
+  --monitor-border-subtle: rgba(214, 221, 229, 0.6);
+  --monitor-radius-card: 12px;
+  --monitor-radius-pill: 999px;
+  --monitor-radius-button: 8px;
+
+  /* Text */
+  --monitor-text-primary: #18202a;
+  --monitor-text-muted: #5f6f80;
+  --monitor-text-accent: #164f48;
+  --monitor-text-inverse: #ffffff;
+
+  /* Accent */
+  --monitor-accent: #1f6f64;
+  --monitor-accent-strong: #164f48;
+  --monitor-accent-gradient: linear-gradient(135deg, #1f6f64 0%, #2f8a78 100%);
+
+  /* Status */
+  --monitor-success: #10b981;
+  --monitor-success-subtle: #eaf7f1;
+  --monitor-success-border: rgba(16, 185, 129, 0.22);
+  --monitor-danger: #ef4444;
+  --monitor-danger-subtle: #fdf0ef;
+  --monitor-danger-border: rgba(239, 68, 68, 0.22);
+  --monitor-warning: #f59e0b;
+  --monitor-warning-subtle: #fff7e6;
+  --monitor-warning-border: rgba(245, 158, 11, 0.22);
+
+  /* Glass header */
+  --monitor-header-height: 4.5rem;
+  --monitor-header-blur: 12px;
+
+  /* Sider */
+  --monitor-sider-width: 380px;
+  --monitor-sider-transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Shadow */
+  --monitor-shadow-elevated: 0 10px 30px rgba(15, 23, 32, 0.14);
+  --monitor-shadow-accent: 0 4px 12px rgba(31, 111, 100, 0.18);
+}
+
+[data-theme="dark"] {
+  --monitor-bg-base: linear-gradient(180deg, #0f1419 0%, #1a2026 100%);
+  --monitor-bg-surface: rgba(28, 34, 42, 0.92);
+  --monitor-bg-elevated: #1c222a;
+  --monitor-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  --monitor-border: #2a323c;
+  --monitor-border-subtle: rgba(42, 50, 60, 0.6);
+
+  --monitor-text-primary: #e6edf3;
+  --monitor-text-muted: #8a96a3;
+  --monitor-text-accent: #4cd1bf;
+
+  --monitor-accent: #4cd1bf;
+  --monitor-accent-strong: #2f8a78;
+  --monitor-accent-gradient: linear-gradient(135deg, #2f8a78 0%, #4cd1bf 100%);
+
+  --monitor-success-subtle: rgba(16, 185, 129, 0.16);
+  --monitor-danger-subtle: rgba(239, 68, 68, 0.16);
+  --monitor-warning-subtle: rgba(245, 158, 11, 0.16);
+}
+
+/* Reusable pulse-dot animation for status chip */
+@keyframes monitor-pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
