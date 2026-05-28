@@ -103,6 +103,7 @@ public static partial class VulperonexWebApplication
         app.MapWorkflowRuleEndpoints();
         app.MapWorkflowTimerEndpoints();
         app.MapEventTypeEndpoints();
+        app.MapMetadataEndpoints();
         app.MapConfigEndpoints();
         app.MapMemberEndpoints();
         app.MapPluginModuleEndpoints();

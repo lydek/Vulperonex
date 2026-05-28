@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
+using Vulperonex.Application.Workflows.Metadata;
+
 namespace Vulperonex.Application.Workflows.Actions;
 
-using System.Text.Json.Serialization;
-
+[ActionMetadata("Lookup Twitch User", "Lookup user profile and details from Twitch API")]
 public sealed record LookupTwitchUserAction : WorkflowAction
 {
     public const string ActionType = "lookupTwitchUser";
@@ -9,7 +11,9 @@ public sealed record LookupTwitchUserAction : WorkflowAction
     [JsonIgnore]
     public override string Type => ActionType;
 
+    [ActionParam("Username", "string", required: false, help: "Twitch username (login) to search")]
     public string? Login { get; init; }
 
+    [ActionParam("User ID", "string", required: false, help: "Twitch unique user ID to search")]
     public string? UserId { get; init; }
 }
