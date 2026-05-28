@@ -1,5 +1,34 @@
 # Phase 8 · Workflow Rule Typed Filter & Observability — Implementation Plan
 
+## Progress Snapshot (2026-05-28)
+
+| Task | Status | Notes |
+|---|---|---|
+| Task 0.1 — `workflow.timer` Bootstrapper | ✅ Done | `WorkflowInternalEventTypeBootstrapper` + integration test |
+| Task A.1 — ExpressionContext RuleId/RuleName | ✅ Done | nullable props, all call sites pass rule |
+| Task A.2 — NCalc structured log | ✅ Done | 3 silent paths, SHA1 hash, no PII; unit tested |
+| Task A.3 — WorkflowEngine log tiers | ✅ Done | warn/debug split + WarnedFilterKeys rate-limit |
+| Task A.4 — known-filter-keys.md | ✅ Done | placeholder pre-Phase B |
+| Task A5.1 — drop `WorkflowTrigger.EventTypeKey` | ✅ Done | + DB scrub via consolidate migration |
+| Task A5.2 — drop `WorkflowTrigger.MatchCondition` | ✅ Done | engine `??` fallback removed |
+| Task A5.3 — `EventTypeKey` → `string?` + validator branch | ✅ Done | + integration test (sub-workflow 201) + SQLite migration test |
+| Phase C.1a — registry + 4 matchers | ✅ Done | All 7 matchers + DI + boundary check; FrozenDictionary singleton |
+| **Phase C.1b — §1 sample end-to-end test** | ⏳ Blocked on B.3 | Needs Phase B.3 typed sample reseed |
+| **Phase B.1 — ITriggerMetadataProvider** | ⏳ Next | endpoint + 7 event types |
+| Phase B.2 — IActionMetadataProvider | ⏳ Pending | attribute + reflection |
+| Phase B.3 — DB wipe + typed sample reseed | ⏳ Pending | 7 sample rules (Plan §B.3) |
+| Phase B.4 — strict validator | ⏳ Pending | `InvalidFilterKey` 400 |
+| Phase D — Reka UI Drawer + schema-driven editor | ⏳ Gate D pending | PoC + bundle measure |
+| Phase E — Role chip UX | ⏳ Pending | |
+
+**Test counts**: 250 unit + 231 integration = 481 passing. 0 failing.
+
+**Review C-1/C-2/C-3/C-4 + I-1..I-6 status**: all resolved or false-alarm. See review history in session.
+
+---
+
+
+
 > **Spec 基準**：[`docs/zh-TW/specs/workflow-rule-design-comparison.md`](../../specs/workflow-rule-design-comparison.md)
 >
 > **狀態**：Draft · **建立日**：2026-05-28 · **作者**：Codex
