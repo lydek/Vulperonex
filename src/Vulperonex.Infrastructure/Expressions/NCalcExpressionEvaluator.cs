@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using System.Text.RegularExpressions;
 using NCalc;
 using Vulperonex.Application.Expressions;
@@ -7,6 +9,13 @@ namespace Vulperonex.Infrastructure.Expressions;
 
 public sealed partial class NCalcExpressionEvaluator : IExpressionEvaluator
 {
+    private readonly ILogger<NCalcExpressionEvaluator> _logger;
+
+    public NCalcExpressionEvaluator(ILogger<NCalcExpressionEvaluator> logger)
+    {
+        _logger = logger;
+    }
+
     public object? Evaluate(string expression, WorkflowExpressionContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -28,15 +37,37 @@ public sealed partial class NCalcExpressionEvaluator : IExpressionEvaluator
 
             if (ncalcExpression.HasErrors())
             {
+                var hash = ComputeExpressionHash(expression);
+                _logger.LogWarning(
+                    "Expression parsing failed. RuleId={RuleId}, RuleName={RuleName}, ExpressionHash={ExpressionHash}, ErrorClass=ParseError",
+                    context.RuleId ?? "N/A",
+                    context.RuleName ?? "N/A",
+                    hash);
                 return false;
             }
 
             return ncalcExpression.Evaluate();
         }
-        catch
+        catch (Exception ex)
         {
+            var hash = ComputeExpressionHash(expression);
+            _logger.LogWarning(
+                ex,
+                "Expression evaluation failed. RuleId={RuleId}, RuleName={RuleName}, ExpressionHash={ExpressionHash}, ErrorClass=EvalError, ExceptionType={ExceptionType}",
+                context.RuleId ?? "N/A",
+                context.RuleName ?? "N/A",
+                hash,
+                ex.GetType().Name);
             return false;
         }
+    }
+
+    private static string ComputeExpressionHash(string expression)
+    {
+        if (string.IsNullOrEmpty(expression)) return string.Empty;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(expression);
+        var hashBytes = System.Security.Cryptography.SHA1.HashData(bytes);
+        return Convert.ToHexString(hashBytes)[..8];
     }
 
     private static string RewriteNamespacePaths(string expression)

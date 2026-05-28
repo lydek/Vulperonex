@@ -7,6 +7,8 @@ public sealed record ExpressionContext(
     IReadOnlyDictionary<string, object?> Member,
     IReadOnlyDictionary<string, object?> Failure)
 {
+    public string? RuleId { get; init; }
+    public string? RuleName { get; init; }
     public ExpressionContext(
         IReadOnlyDictionary<string, object?> Trigger,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, object?>> Steps,

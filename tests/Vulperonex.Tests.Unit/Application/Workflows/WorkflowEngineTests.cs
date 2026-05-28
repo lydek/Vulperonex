@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows;
@@ -458,7 +459,6 @@ public sealed class WorkflowEngineTests
         var rule = NewRule() with
         {
             Trigger = new WorkflowTrigger(
-                StreamEventKeys.UserSentMessage,
                 new Dictionary<string, string> { ["MessageText"] = "!HELLO" }),
         };
         await using var bus = new InMemoryStreamEventBus();
@@ -483,6 +483,111 @@ public sealed class WorkflowEngineTests
         await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
 
         executor.Executions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Given_UnknownFilterKey_When_ExecutingRule_Then_LogsWarning()
+    {
+        var logger = new CollectingEngineLogger();
+        var rule = NewRule() with
+        {
+            Trigger = new WorkflowTrigger(
+                new Dictionary<string, string> { ["invalid_filter_key"] = "val" }),
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        var engine = new WorkflowEngine(
+            bus,
+            new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
+            new WorkflowConditionEvaluator(new FakeClock()),
+            Array.Empty<IWorkflowActionExecutor>(),
+            new InMemoryWorkflowActionExecutionStore(),
+            new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
+            new InMemoryWorkflowThrottleService(new FakeClock()),
+            new FakeClock(),
+            logger);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        logger.Logs.Should().Contain(log =>
+            log.Level == LogLevel.Warning &&
+            log.Message.Contains("Unknown filter key used in rule") &&
+            log.Message.Contains("invalid_filter_key"));
+    }
+
+    [Fact]
+    public async Task Given_FilterValueMismatch_When_ExecutingRule_Then_LogsDebug()
+    {
+        var logger = new CollectingEngineLogger();
+        var rule = NewRule() with
+        {
+            Trigger = new WorkflowTrigger(
+                new Dictionary<string, string> { ["CommandName"] = "!checkin" }),
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        var engine = new WorkflowEngine(
+            bus,
+            new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
+            new WorkflowConditionEvaluator(new FakeClock()),
+            Array.Empty<IWorkflowActionExecutor>(),
+            new InMemoryWorkflowActionExecutionStore(),
+            new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
+            new InMemoryWorkflowThrottleService(new FakeClock()),
+            new FakeClock(),
+            logger);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
+
+        logger.Logs.Should().Contain(log =>
+            log.Level == LogLevel.Debug &&
+            log.Message.Contains("workflow_rule_skipped") &&
+            log.Message.Contains("Reason=FilterValueMismatch"));
+    }
+
+    [Fact]
+    public async Task Given_MatchConditionFalse_When_ExecutingRule_Then_LogsDebug()
+    {
+        var logger = new CollectingEngineLogger();
+        var rule = NewRule() with
+        {
+            MatchCondition = "Trigger.MessageText == '!other'",
+        };
+        await using var bus = new InMemoryStreamEventBus();
+        var engine = new WorkflowEngine(
+            bus,
+            new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
+            new WorkflowConditionEvaluator(new FakeClock()),
+            Array.Empty<IWorkflowActionExecutor>(),
+            new InMemoryWorkflowActionExecutionStore(),
+            new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
+            new InMemoryWorkflowThrottleService(new FakeClock()),
+            new FakeClock(),
+            logger);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
+
+        logger.Logs.Should().Contain(log =>
+            log.Level == LogLevel.Debug &&
+            log.Message.Contains("workflow_rule_skipped") &&
+            log.Message.Contains("Reason=MatchConditionFalse"));
+    }
+
+    private sealed class CollectingEngineLogger : ILogger<WorkflowEngine>
+    {
+        public List<(LogLevel Level, string Message)> Logs { get; } = new();
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            Logs.Add((logLevel, formatter(state, exception)));
+        }
     }
 
     [Fact]
@@ -557,7 +662,7 @@ public sealed class WorkflowEngineTests
         await using var engine = NewEngine(
             bus,
             [rule],
-            [executor, new StopIfActionExecutor(new NCalcExpressionEvaluator())]);
+            [executor, new StopIfActionExecutor(new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance))]);
 
         await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
 
@@ -612,7 +717,6 @@ public sealed class WorkflowEngineTests
         {
             EventTypeKey = "workflow.followup",
             Trigger = new WorkflowTrigger(
-                "workflow.followup",
                 new Dictionary<string, string> { ["Payload.target"] = "alice" }),
         };
         await using var bus = new InMemoryStreamEventBus();
@@ -690,9 +794,10 @@ public sealed class WorkflowEngineTests
             new WorkflowConditionEvaluator(new FakeClock()),
             executors,
             new InMemoryWorkflowActionExecutionStore(),
-            new NCalcExpressionEvaluator(),
+            new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
-            new FakeClock());
+            new FakeClock(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance);
     }
 
     private static WorkflowRule NewRule(

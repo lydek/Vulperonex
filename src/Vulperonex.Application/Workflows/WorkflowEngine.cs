@@ -9,6 +9,8 @@ using Vulperonex.Application.Workflows.Conditions;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 
+using Microsoft.Extensions.Logging;
+
 namespace Vulperonex.Application.Workflows;
 
 public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
@@ -28,6 +30,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _ruleSemaphores = new();
     private IDisposable? _subscription;
 
+    private readonly ILogger<WorkflowEngine> _logger;
+
     public WorkflowEngine(
         IStreamEventBus eventBus,
         IRuleSnapshotCache ruleSnapshotCache,
@@ -36,7 +40,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IWorkflowActionExecutionStore executionStore,
         IExpressionEvaluator expressionEvaluator,
         IWorkflowThrottleService throttleService,
-        IClock clock)
+        IClock clock,
+        ILogger<WorkflowEngine> logger)
     {
         _eventBus = eventBus;
         _ruleSnapshotCache = ruleSnapshotCache;
@@ -46,6 +51,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         _expressionEvaluator = expressionEvaluator;
         _throttleService = throttleService;
         _clock = clock;
+        _logger = logger;
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -127,7 +133,16 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IReadOnlyDictionary<string, string>? args = null,
         CancellationToken cancellationToken = default)
     {
-        if (!MatchesConditions(rule, streamEvent) || !MatchesTrigger(rule, streamEvent))
+        if (!MatchesConditions(rule, streamEvent))
+        {
+            _logger.LogDebug(
+                "workflow_rule_skipped: RuleId={RuleId}, RuleName={RuleName}, Reason=ConditionsNotMet",
+                rule.Id,
+                rule.Name);
+            return;
+        }
+
+        if (!MatchesTrigger(rule, streamEvent))
         {
             return;
         }
@@ -135,6 +150,10 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         await using var throttleLease = await _throttleService.TryAcquireAsync(rule, streamEvent, cancellationToken);
         if (throttleLease is null)
         {
+            _logger.LogDebug(
+                "workflow_rule_skipped: RuleId={RuleId}, RuleName={RuleName}, Reason=ThrottleDeny",
+                rule.Id,
+                rule.Name);
             return;
         }
 
@@ -224,30 +243,73 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private bool MatchesTrigger(WorkflowRule rule, IStreamEvent streamEvent)
     {
         var expressionContext = BuildExpressionContext(
+            rule,
             streamEvent,
             new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
             failure: null);
 
         var trigger = rule.Trigger;
-        if (trigger is not null && !MatchesTriggerFilter(trigger.Filter, expressionContext.Trigger))
+        if (trigger is not null && !MatchesTriggerFilter(rule, trigger.Filter, expressionContext.Trigger))
         {
             return false;
         }
 
-        var matchCondition = rule.MatchCondition ?? trigger?.MatchCondition;
-        return string.IsNullOrWhiteSpace(matchCondition)
+        var matchCondition = rule.MatchCondition;
+        var isMatch = string.IsNullOrWhiteSpace(matchCondition)
             || CoerceToBoolean(_expressionEvaluator.Evaluate(matchCondition, expressionContext));
+
+        if (!isMatch)
+        {
+            _logger.LogDebug(
+                "workflow_rule_skipped: RuleId={RuleId}, RuleName={RuleName}, Reason=MatchConditionFalse, MatchCondition={MatchCondition}",
+                rule.Id,
+                rule.Name,
+                matchCondition);
+            return false;
+        }
+
+        return true;
     }
 
-    private static bool MatchesTriggerFilter(
+    // TODO(Phase B): replace with ITriggerMetadataProvider
+    private static readonly HashSet<string> KnownFilterKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CommandName", "Prefix", "MinAmount", "Tier", "IsGift", "RewardName", "TimerName",
+        "MinGiftCount", "MinViewers"
+    };
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> WarnedFilterKeys = new();
+
+    private bool MatchesTriggerFilter(
+        WorkflowRule rule,
         IReadOnlyDictionary<string, string> filter,
         IReadOnlyDictionary<string, object?> triggerValues)
     {
         foreach (var (key, expected) in filter)
         {
+            if (!KnownFilterKeys.Contains(key))
+            {
+                var cacheKey = $"{rule.Id}:{key}";
+                if (WarnedFilterKeys.TryAdd(cacheKey, 0))
+                {
+                    _logger.LogWarning(
+                        "Unknown filter key used in rule. RuleId={RuleId}, RuleName={RuleName}, FilterKey={FilterKey}",
+                        rule.Id,
+                        rule.Name,
+                        key);
+                }
+            }
+
             if (!triggerValues.TryGetValue(key, out var actual)
                 || !string.Equals(actual?.ToString(), expected, StringComparison.OrdinalIgnoreCase))
             {
+                _logger.LogDebug(
+                    "workflow_rule_skipped: RuleId={RuleId}, RuleName={RuleName}, Reason=FilterValueMismatch, FilterKey={FilterKey}, Expected={Expected}, Actual={Actual}",
+                    rule.Id,
+                    rule.Name,
+                    key,
+                    expected,
+                    actual?.ToString() ?? "null");
                 return false;
             }
         }
@@ -342,7 +404,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     {
         var action = actions[actionIndex];
         var key = new ActionExecutionKey(streamEvent.EventId, rule.Id, actionIndex, invocationId, phase);
-        var expressionContext = BuildExpressionContext(streamEvent, stepOutputs, failure, args);
+        var expressionContext = BuildExpressionContext(rule, streamEvent, stepOutputs, failure, args);
 
         if (!await _executionStore.TryBeginAsync(key, cancellationToken))
         {
@@ -378,6 +440,15 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             catch (Exception ex)
             {
                 await _executionStore.MarkFailedAsync(key, CancellationToken.None);
+
+                _logger.LogWarning(
+                    ex,
+                    "Action execution failed. RuleId={RuleId}, RuleName={RuleName}, ActionIndex={ActionIndex}, ActionType={ActionType}",
+                    rule.Id,
+                    rule.Name,
+                    actionIndex,
+                    action.Type);
+
                 return action.ErrorBehavior is ErrorBehavior.ContinueOnError
                     ? WorkflowPipelineResult.Success
                     : WorkflowPipelineResult.Failed(
@@ -466,6 +537,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     }
 
     private static ExpressionContext BuildExpressionContext(
+        WorkflowRule? rule,
         IStreamEvent streamEvent,
         IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs,
         WorkflowFailureContext? failure,
