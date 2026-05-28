@@ -6,6 +6,7 @@ using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
+using Vulperonex.Application.Workflows.Filters;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 
@@ -31,6 +32,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private IDisposable? _subscription;
 
     private readonly ILogger<WorkflowEngine> _logger;
+    private readonly TriggerFilterMatcherRegistry _matcherRegistry;
 
     public WorkflowEngine(
         IStreamEventBus eventBus,
@@ -41,7 +43,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IExpressionEvaluator expressionEvaluator,
         IWorkflowThrottleService throttleService,
         IClock clock,
-        ILogger<WorkflowEngine> logger)
+        ILogger<WorkflowEngine> logger,
+        TriggerFilterMatcherRegistry matcherRegistry)
     {
         _eventBus = eventBus;
         _ruleSnapshotCache = ruleSnapshotCache;
@@ -52,6 +55,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         _throttleService = throttleService;
         _clock = clock;
         _logger = logger;
+        _matcherRegistry = matcherRegistry;
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -249,7 +253,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             failure: null);
 
         var trigger = rule.Trigger;
-        if (trigger is not null && !MatchesTriggerFilter(rule, trigger.Filter, expressionContext.Trigger))
+        if (trigger is not null && !MatchesTriggerFilter(rule, streamEvent.EventTypeKey, trigger.Filter, expressionContext.Trigger))
         {
             return false;
         }
@@ -282,9 +286,29 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
 
     private bool MatchesTriggerFilter(
         WorkflowRule rule,
+        string eventTypeKey,
         IReadOnlyDictionary<string, string> filter,
         IReadOnlyDictionary<string, object?> triggerValues)
     {
+        // Phase C: dispatch to typed matcher when registry has entry for event type.
+        if (_matcherRegistry.TryMatch(eventTypeKey, filter, triggerValues, out var isMatch))
+        {
+            if (!isMatch)
+            {
+                _logger.LogDebug(
+                    "workflow_rule_skipped: RuleId={RuleId}, RuleName={RuleName}, Reason=TypedFilterMismatch, EventTypeKey={EventTypeKey}",
+                    rule.Id,
+                    rule.Name,
+                    eventTypeKey);
+            }
+            return isMatch;
+        }
+
+        // Fallback: generic dict equality (Phase C 向後相容窗口期；warn 標識 event type 缺 typed matcher）
+        _logger.LogDebug(
+            "Falling back to generic filter dispatch. EventTypeKey={EventTypeKey} has no typed matcher registered.",
+            eventTypeKey);
+
         foreach (var (key, expected) in filter)
         {
             if (!KnownFilterKeys.Contains(key))

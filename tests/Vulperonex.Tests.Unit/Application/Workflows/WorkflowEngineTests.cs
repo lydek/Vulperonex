@@ -5,6 +5,8 @@ using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
+using Vulperonex.Application.Workflows.Filters;
+using Vulperonex.Application.Workflows.Filters.Matchers;
 using Vulperonex.Application.Workflows.Dtos;
 using Vulperonex.Adapters.Simulation;
 using Vulperonex.Domain;
@@ -486,8 +488,10 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
-    public async Task Given_UnknownFilterKey_When_ExecutingRule_Then_LogsWarning()
+    public async Task Given_UnknownFilterKey_When_ExecutingRule_FallbackPath_Then_LogsWarning()
     {
+        // Use empty matcher registry to force fallback path (Phase C 向後相容窗口).
+        // Typed matchers (Phase B 上線後) 將取代此路徑並對未知 key 做嚴格驗證。
         var logger = new CollectingEngineLogger();
         var rule = NewRule() with
         {
@@ -504,7 +508,8 @@ public sealed class WorkflowEngineTests
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            logger);
+            logger,
+            NewEmptyMatcherRegistry());
 
         await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
 
@@ -533,14 +538,15 @@ public sealed class WorkflowEngineTests
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            logger);
+            logger,
+            NewMatcherRegistry());
 
         await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
 
         logger.Logs.Should().Contain(log =>
             log.Level == LogLevel.Debug &&
             log.Message.Contains("workflow_rule_skipped") &&
-            log.Message.Contains("Reason=FilterValueMismatch"));
+            log.Message.Contains("Reason=TypedFilterMismatch"));
     }
 
     [Fact]
@@ -561,7 +567,8 @@ public sealed class WorkflowEngineTests
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            logger);
+            logger,
+            NewMatcherRegistry());
 
         await engine.ExecuteRuleAsync(rule, NewMessageEvent(messageText: "!hello"), TestContext.Current.CancellationToken);
 
@@ -797,7 +804,32 @@ public sealed class WorkflowEngineTests
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance,
+            NewMatcherRegistry());
+    }
+
+    internal static TriggerFilterMatcherRegistry NewMatcherRegistry()
+    {
+        var matchers = new ITriggerFilterMatcher[]
+        {
+            new MatchChatMessage(),
+            new MatchUserDonated(),
+            new MatchUserSubscribed(),
+            new MatchUserGiftedSub(),
+            new MatchChannelRaided(),
+            new MatchRewardRedeemed(),
+            new MatchWorkflowTimer(),
+        };
+        return new TriggerFilterMatcherRegistry(
+            matchers,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TriggerFilterMatcherRegistry>.Instance);
+    }
+
+    internal static TriggerFilterMatcherRegistry NewEmptyMatcherRegistry()
+    {
+        return new TriggerFilterMatcherRegistry(
+            Array.Empty<ITriggerFilterMatcher>(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TriggerFilterMatcherRegistry>.Instance);
     }
 
     private static WorkflowRule NewRule(

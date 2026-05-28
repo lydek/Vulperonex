@@ -5,6 +5,8 @@ using Vulperonex.Application.EventBus;
 using Vulperonex.Application.EventTypes;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Workflows;
+using Vulperonex.Application.Workflows.Filters;
+using Vulperonex.Application.Workflows.Filters.Matchers;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
 using Vulperonex.Application.Workflows.Dtos;
@@ -69,6 +71,19 @@ public sealed class TwitchWorkflowEquivalenceTests
             Actions = [new SendChatMessageAction { Template = "Echo {event.message}" }],
         };
 
+        var matcherRegistry = new TriggerFilterMatcherRegistry(
+            new ITriggerFilterMatcher[]
+            {
+                new MatchChatMessage(),
+                new MatchUserDonated(),
+                new MatchUserSubscribed(),
+                new MatchUserGiftedSub(),
+                new MatchChannelRaided(),
+                new MatchRewardRedeemed(),
+                new MatchWorkflowTimer(),
+            },
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<TriggerFilterMatcherRegistry>.Instance);
+
         return new WorkflowEngine(
             bus,
             new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
@@ -78,7 +93,8 @@ public sealed class TwitchWorkflowEquivalenceTests
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance,
+            matcherRegistry);
     }
 
     private sealed class RecordingChatSender(string platform) : IPlatformChatSender

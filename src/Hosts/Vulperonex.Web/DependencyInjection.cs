@@ -23,6 +23,8 @@ using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Application.Workflows.Conditions;
 using Vulperonex.Application.Workflows.Timers;
 using Vulperonex.Application.Workflows.Metadata;
+using Vulperonex.Application.Workflows.Filters;
+using Vulperonex.Application.Workflows.Filters.Matchers;
 using Vulperonex.Infrastructure.Workflows.Metadata;
 using Vulperonex.Infrastructure.Data;
 using Vulperonex.Infrastructure.Auth;
@@ -134,6 +136,14 @@ public static class DependencyInjection
         services.AddSingleton<IWorkflowThrottleService, InMemoryWorkflowThrottleService>();
         services.AddSingleton<ITriggerMetadataProvider, TriggerMetadataProvider>();
         services.AddSingleton<IActionMetadataProvider, ActionMetadataProvider>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchChatMessage>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchUserDonated>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchUserSubscribed>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchUserGiftedSub>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchChannelRaided>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchRewardRedeemed>();
+        services.AddSingleton<ITriggerFilterMatcher, MatchWorkflowTimer>();
+        services.AddSingleton<TriggerFilterMatcherRegistry>();
         services.AddSingleton<IChatOutbox, InMemoryChatOutbox>();
         services.AddScoped<IWorkflowActionExecutor>(serviceProvider =>
             new SendChatMessageActionExecutor(

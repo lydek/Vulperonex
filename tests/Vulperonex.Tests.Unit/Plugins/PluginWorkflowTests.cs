@@ -50,7 +50,8 @@ public sealed class PluginWorkflowTests
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance);
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance,
+            Vulperonex.Tests.Unit.Application.Workflows.WorkflowEngineTests.NewMatcherRegistry());
         await engine.StartAsync(TestContext.Current.CancellationToken);
 
         registry.IsKnownForWorkflow(CustomEventPlugin.CustomEventKey).Should().BeTrue();
