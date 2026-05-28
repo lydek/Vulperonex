@@ -596,13 +596,12 @@ metadata-clean check；讀取路徑無需改。
 #### Task D.2: `TriggerEditor` 改 schema-driven
 
 **Description**：拉 `/api/metadata/triggers` `FilterFieldsFor(eventTypeKey)`
-依 schema 渲染 typed 欄位，取代 generic key/value rows。違規 legacy filter
-key 顯示 chip + 單鍵清理。
+依 schema 渲染 typed 欄位，取代 generic key/value rows。
 
 **Acceptance criteria**：
 - [ ] 切到 `user.message` → 出現 `CommandName` / `Prefix` typed input
 - [ ] 切到 `user.donated` → 出現 `MinAmount` number input
-- [ ] 違規 rule（`migrationWarnings != []`）顯示橘色 chip + 「移除 legacy filter」按鈕
+- [ ] 編輯器只渲染 metadata 定義的 typed 欄位，不依賴 `migrationWarnings` 或任何 legacy filter 清理流程
 
 **Verification**：
 - [ ] frontend unit test
