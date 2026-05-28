@@ -13,6 +13,7 @@ public static class StreamEventDescriptions
         [StreamEventKeys.RewardRedeemed] = new("User redeemed a reward", IsSystemEvent: false),
         [StreamEventKeys.PlatformConnectionChanged] = new("Platform connection status changed", IsSystemEvent: true),
         [StreamEventKeys.MemberCheckedIn] = new("Member checked in", IsSystemEvent: true),
+        [StreamEventKeys.WorkflowTimer] = new("Timer fired", IsSystemEvent: false),
     };
 
     public static string? GetDescription(string eventTypeKey)

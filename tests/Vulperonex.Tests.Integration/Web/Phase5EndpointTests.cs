@@ -382,6 +382,38 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_WorkflowRuleCreate_When_EventTypeKeyIsNull_Then_Returns400WithUnknownEventTypeKey()
+    {
+        // Guards against ArgumentNullException being thrown by
+        // ConcurrentDictionary.TryGetValue(null) inside
+        // IStreamEventTypeRegistry.IsKnownForWorkflow, which would surface
+        // as HTTP 500 instead of the contracted 400 + UNKNOWN_EVENT_TYPE_KEY.
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var payload = new
+        {
+            name = "Null event type",
+            eventTypeKey = (string?)null,
+            isEnabled = true,
+            priority = 0,
+            conditions = Array.Empty<object>(),
+            actions = new object[] { new { type = "sendChatMessage", template = "hi" } },
+            executionMode = "Serial",
+            maxParallelism = 1,
+        };
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            payload,
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("UNKNOWN_EVENT_TYPE_KEY");
+    }
+
+    [Fact]
     public async Task Given_WorkflowRuleValidation_When_InvalidConditionIsSubmitted_Then_ErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();

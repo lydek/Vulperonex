@@ -21,6 +21,15 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
 
     public string? Validate(WorkflowRuleUpsertRequest request)
     {
+        // Null / whitespace EventTypeKey: short-circuit before the registry
+        // lookup. ConcurrentDictionary.TryGetValue throws ArgumentNullException
+        // on a null key, which would surface as a 500 from the endpoint
+        // instead of the intended 400 + UnknownEventTypeKey contract.
+        if (string.IsNullOrWhiteSpace(request.EventTypeKey))
+        {
+            return ErrorCodes.UnknownEventTypeKey;
+        }
+
         if (!eventTypeRegistry.IsKnownForWorkflow(request.EventTypeKey))
         {
             return ErrorCodes.UnknownEventTypeKey;

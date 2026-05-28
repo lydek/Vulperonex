@@ -18,6 +18,7 @@ public sealed class StreamEventDescriptionsTests
             StreamEventKeys.UserGiftedSubscription,
             StreamEventKeys.ChannelRaided,
             StreamEventKeys.RewardRedeemed,
+            StreamEventKeys.WorkflowTimer,
         };
 
         foreach (var key in workflowVisibleKeys)
@@ -48,6 +49,7 @@ public sealed class StreamEventDescriptionsTests
                 StreamEventKeys.UserSubscribed,
                 StreamEventKeys.UserGiftedSubscription,
                 StreamEventKeys.ChannelRaided,
-                StreamEventKeys.RewardRedeemed);
+                StreamEventKeys.RewardRedeemed,
+                StreamEventKeys.WorkflowTimer);
     }
 }
