@@ -174,6 +174,7 @@ public static class DependencyInjection
         services.AddHostedService<OverlayEventForwarder>();
         services.AddHostedService<SystemConfigChangedForwarder>();
         services.AddHostedService<ChatOutboxDispatcher>();
+        services.AddHostedService<WorkflowInternalEventTypeBootstrapper>();
         services.AddHostedService<WorkflowTimerHostedService>();
         services.AddSingleton<AppLogsSink>(provider =>
             new AppLogsSink(provider.GetRequiredService<IServiceScopeFactory>()));
