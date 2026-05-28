@@ -5,12 +5,15 @@ using Vulperonex.Application.EventTypes;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Conditions;
+using Vulperonex.Application.Workflows.Metadata;
 using Vulperonex.Web.Errors;
 using Vulperonex.Web.Workflows;
 
 namespace Vulperonex.Web.Validation;
 
-public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegistry)
+public sealed class WorkflowRuleValidator(
+    IStreamEventTypeRegistry eventTypeRegistry,
+    ITriggerMetadataProvider triggerMetadataProvider)
 {
     private const int MaxTemplateLength = 500;
     private const int MaxRegexLength = 512;
@@ -42,6 +45,21 @@ public sealed class WorkflowRuleValidator(IStreamEventTypeRegistry eventTypeRegi
             if (!eventTypeRegistry.IsKnownForWorkflow(request.EventTypeKey))
             {
                 return ErrorCodes.UnknownEventTypeKey;
+            }
+
+            if (request.Trigger?.Filter is not null)
+            {
+                var allowedFields = triggerMetadataProvider.GetFilterFieldsFor(request.EventTypeKey)
+                    .Select(f => f.Key)
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var key in request.Trigger.Filter.Keys)
+                {
+                    if (!allowedFields.Contains(key))
+                    {
+                        return ErrorCodes.InvalidFilterKey;
+                    }
+                }
             }
         }
 

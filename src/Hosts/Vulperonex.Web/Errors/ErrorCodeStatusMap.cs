@@ -45,6 +45,7 @@ public static class ErrorCodeStatusMap
         [ErrorCodes.RefererMismatch] = StatusCodes.Status400BadRequest,
         [ErrorCodes.InvalidRefererHeader] = StatusCodes.Status400BadRequest,
         [ErrorCodes.DeployFailed] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.InvalidFilterKey] = StatusCodes.Status400BadRequest,
     };
 
     public static int GetStatusCode(string errorCode)

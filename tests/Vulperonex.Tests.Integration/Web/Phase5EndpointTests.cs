@@ -414,6 +414,41 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_RuleWithUnknownFilterKey_When_Post_Then_Returns400WithInvalidFilterKey()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var payload = new
+        {
+            name = "Bad Filter Key Rule",
+            eventTypeKey = "user.message",
+            isEnabled = true,
+            priority = 0,
+            trigger = new
+            {
+                filter = new Dictionary<string, string>
+                {
+                    ["InvalidKeyName"] = "someValue"
+                }
+            },
+            conditions = Array.Empty<object>(),
+            actions = new object[] { new { type = "sendChatMessage", template = "hi" } },
+            executionMode = "Serial",
+            maxParallelism = 1,
+        };
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            payload,
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("INVALID_FILTER_KEY");
+    }
+
+    [Fact]
     public async Task Given_SubWorkflowRule_WithoutEventTypeKey_When_Create_Then_Returns201()
     {
         await using var app = await StartAppAsync();
@@ -439,6 +474,39 @@ public sealed class Phase5EndpointTests
 
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         response.StatusCode.Should().Be(HttpStatusCode.Created, "response body was {0}", body);
+    }
+
+    [Fact]
+    public async Task Given_TriggerMetadataEndpoint_When_Called_Then_ReturnsAvailableTriggersWithFilterFieldsAndVariables()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/metadata/triggers", TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
+        body.Should().Contain("\"key\":\"user.message\"");
+        body.Should().Contain("\"displayName\":\"User Message\"");
+        body.Should().Contain("\"filterFields\"");
+        body.Should().Contain("\"validVariables\"");
+    }
+
+    [Fact]
+    public async Task Given_ActionMetadataEndpoint_When_Called_Then_ReturnsAvailableActions()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/metadata/actions", TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", body);
+        body.Should().Contain("\"type\":\"sendChatMessage\"");
+        body.Should().Contain("\"displayName\":\"Send Chat Message\"");
+        body.Should().Contain("\"type\":\"delay\"");
+        body.Should().Contain("\"displayName\":\"Delay\"");
+        body.Should().Contain("\"parameters\"");
     }
 
     [Fact]

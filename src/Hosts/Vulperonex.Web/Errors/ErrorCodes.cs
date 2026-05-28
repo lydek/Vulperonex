@@ -43,4 +43,5 @@ public static class ErrorCodes
     public const string InvalidFilePath = "INVALID_FILE_PATH";
     public const string UnsupportedFileExtension = "UNSUPPORTED_FILE_EXTENSION";
     public const string DeployFailed = "DEPLOY_FAILED";
+    public const string InvalidFilterKey = "INVALID_FILTER_KEY";
 }
