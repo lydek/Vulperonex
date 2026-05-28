@@ -19,7 +19,7 @@ public static class WorkflowRuleJsonMapper
             rule.Id,
             rule.Name,
             rule.EventTypeKey,
-            rule.Trigger ?? new WorkflowTrigger(rule.EventTypeKey),
+            rule.Trigger,
             rule.MatchCondition,
             rule.IsSubWorkflow,
             rule.IsEnabled,
@@ -46,7 +46,7 @@ public static class WorkflowRuleJsonMapper
             Id = id,
             Name = request.Name,
             EventTypeKey = request.EventTypeKey,
-            Trigger = NormalizeTrigger(request.EventTypeKey, request.Trigger),
+            Trigger = request.Trigger,
             MatchCondition = request.MatchCondition,
             IsSubWorkflow = request.IsSubWorkflow,
             IsEnabled = request.IsEnabled,
@@ -73,13 +73,5 @@ public static class WorkflowRuleJsonMapper
     {
         return element.Deserialize<WorkflowAction>(JsonOptions)
             ?? throw new JsonException("Action was null.");
-    }
-
-    private static WorkflowTrigger NormalizeTrigger(string eventTypeKey, WorkflowTrigger? trigger)
-    {
-        return (trigger ?? new WorkflowTrigger(eventTypeKey)) with
-        {
-            EventTypeKey = eventTypeKey,
-        };
     }
 }

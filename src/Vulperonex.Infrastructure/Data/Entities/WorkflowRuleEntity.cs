@@ -6,7 +6,7 @@ public sealed class WorkflowRuleEntity
 
     public string Name { get; set; } = string.Empty;
 
-    public string EventTypeKey { get; set; } = string.Empty;
+    public string? EventTypeKey { get; set; }
 
     public string? TriggerJson { get; set; }
 

@@ -7,7 +7,7 @@ public sealed record WorkflowRule
 {
     public required string Id { get; init; }
     public required string Name { get; init; }
-    public required string EventTypeKey { get; init; }
+    public string? EventTypeKey { get; init; }
     public WorkflowTrigger? Trigger { get; init; }
     public string? MatchCondition { get; init; }
     public bool IsSubWorkflow { get; init; }

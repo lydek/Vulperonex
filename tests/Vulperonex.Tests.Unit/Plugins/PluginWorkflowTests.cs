@@ -47,9 +47,10 @@ public sealed class PluginWorkflowTests
             new WorkflowConditionEvaluator(new FakeClock()),
             [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),
-            new NCalcExpressionEvaluator(),
+            new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
-            new FakeClock());
+            new FakeClock(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance);
         await engine.StartAsync(TestContext.Current.CancellationToken);
 
         registry.IsKnownForWorkflow(CustomEventPlugin.CustomEventKey).Should().BeTrue();

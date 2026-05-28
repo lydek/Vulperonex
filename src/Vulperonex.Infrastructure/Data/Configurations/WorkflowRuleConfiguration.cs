@@ -12,7 +12,7 @@ public sealed class WorkflowRuleConfiguration : IEntityTypeConfiguration<Workflo
         builder.HasKey(rule => rule.Id);
         builder.Property(rule => rule.Id).HasColumnType("TEXT");
         builder.Property(rule => rule.Name).HasColumnType("TEXT");
-        builder.Property(rule => rule.EventTypeKey).HasColumnType("TEXT");
+        builder.Property(rule => rule.EventTypeKey).HasColumnType("TEXT").IsRequired(false);
         builder.Property(rule => rule.TriggerJson).HasColumnType("TEXT");
         builder.Property(rule => rule.MatchCondition).HasColumnType("TEXT");
         builder.Property(rule => rule.IsSubWorkflow).HasColumnType("INTEGER");

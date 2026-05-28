@@ -69,10 +69,8 @@ public sealed class DefaultWorkflowRuleSeedService(
             EventTypeKey = "user.message",
             IsEnabled = true,
             Priority = 100,
-            Trigger = new WorkflowTrigger(
-                EventTypeKey: "user.message",
-                Filter: null,
-                MatchCondition: "Trigger.MessageText == '!checkin'"),
+            Trigger = new WorkflowTrigger(),
+            MatchCondition = "Trigger.MessageText == '!checkin'",
             Actions =
             [
                 new TriggerCheckInAction

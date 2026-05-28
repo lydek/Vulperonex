@@ -186,6 +186,6 @@ describe("RuleEditorView", () => {
     const parsed = JSON.parse(serialized as string) as Record<string, unknown>;
     expect(parsed.name).toBe("Exported");
     expect(parsed.actions).toEqual([{ type: "sendChatMessage", template: "hi" }]);
-    expect(parsed.trigger).toMatchObject({ eventTypeKey: "" });
+    expect(parsed.trigger).toEqual({ filter: {} });
   });
 });

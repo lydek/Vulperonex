@@ -1,10 +1,13 @@
+using System.Text.Json.Serialization;
+
 namespace Vulperonex.Application.Workflows;
 
-public sealed record WorkflowTrigger(
-    string EventTypeKey,
-    IReadOnlyDictionary<string, string>? Filter = null,
-    string? MatchCondition = null)
+public sealed record WorkflowTrigger
 {
-    public IReadOnlyDictionary<string, string> Filter { get; init; } =
-        Filter ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, string> Filter { get; init; }
+
+    public WorkflowTrigger(IReadOnlyDictionary<string, string>? filter = null)
+    {
+        Filter = filter ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    }
 }

@@ -15,6 +15,7 @@ public static class ErrorCodeStatusMap
         [ErrorCodes.ActionMissingRequiredParam] = StatusCodes.Status400BadRequest,
         [ErrorCodes.InvalidActionConfig] = StatusCodes.Status400BadRequest,
         [ErrorCodes.InvalidRegexPattern] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.SubWorkflowMustNotHaveTrigger] = StatusCodes.Status400BadRequest,
         [ErrorCodes.InvalidRuleIdMismatch] = StatusCodes.Status400BadRequest,
         [ErrorCodes.UnknownSimulateEventType] = StatusCodes.Status400BadRequest,
         [ErrorCodes.ConfigKeySecurityNamespace] = StatusCodes.Status403Forbidden,

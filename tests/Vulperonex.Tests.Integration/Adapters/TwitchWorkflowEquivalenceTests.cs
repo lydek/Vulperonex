@@ -75,9 +75,10 @@ public sealed class TwitchWorkflowEquivalenceTests
             new WorkflowConditionEvaluator(new FakeClock()),
             [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),
-            new NCalcExpressionEvaluator(),
+            new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
-            new FakeClock());
+            new FakeClock(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance);
     }
 
     private sealed class RecordingChatSender(string platform) : IPlatformChatSender

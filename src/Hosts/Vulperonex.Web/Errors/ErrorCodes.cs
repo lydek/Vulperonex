@@ -13,6 +13,7 @@ public static class ErrorCodes
     public const string ActionMissingRequiredParam = "ACTION_MISSING_REQUIRED_PARAM";
     public const string InvalidActionConfig = "INVALID_ACTION_CONFIG";
     public const string InvalidRegexPattern = "INVALID_REGEX_PATTERN";
+    public const string SubWorkflowMustNotHaveTrigger = "SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER";
     public const string InvalidRuleIdMismatch = "INVALID_RULE_ID_MISMATCH";
     public const string UnknownSimulateEventType = "UNKNOWN_SIMULATE_EVENT_TYPE";
     public const string ConfigKeySecurityNamespace = "CONFIG_KEY_SECURITY_NAMESPACE";

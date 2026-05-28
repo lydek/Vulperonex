@@ -414,6 +414,63 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_SubWorkflowRule_WithoutEventTypeKey_When_Create_Then_Returns201()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var payload = new
+        {
+            name = "Sub-workflow rule",
+            eventTypeKey = (string?)null,
+            isSubWorkflow = true,
+            isEnabled = true,
+            priority = 0,
+            conditions = Array.Empty<object>(),
+            actions = new object[] { new { type = "sendChatMessage", template = "hi" } },
+            executionMode = "Serial",
+            maxParallelism = 1,
+        };
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            payload,
+            TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.Created, "response body was {0}", body);
+    }
+
+    [Fact]
+    public async Task Given_SubWorkflowRule_WithEventTypeKey_When_Create_Then_Returns400WithSubWorkflowMustNotHaveTrigger()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var payload = new
+        {
+            name = "Sub-workflow rule",
+            eventTypeKey = "user.message",
+            isSubWorkflow = true,
+            isEnabled = true,
+            priority = 0,
+            conditions = Array.Empty<object>(),
+            actions = new object[] { new { type = "sendChatMessage", template = "hi" } },
+            executionMode = "Serial",
+            maxParallelism = 1,
+        };
+
+        var response = await client.PostAsJsonAsync(
+            "/api/rules",
+            payload,
+            TestContext.Current.CancellationToken);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest, "response body was {0}", body);
+        body.Should().Contain("SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER");
+    }
+
+    [Fact]
     public async Task Given_WorkflowRuleValidation_When_InvalidConditionIsSubmitted_Then_ErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();
@@ -510,6 +567,20 @@ public sealed class Phase5EndpointTests
         json.Should().Contain("\"key\":\"user.message\"");
         json.Should().Contain("\"isSimulatable\":true");
         json.Should().NotContain("platform.connection_changed");
+    }
+
+    [Fact]
+    public async Task Given_EventTypesEndpoint_When_AppStarted_Then_WorkflowTimerIsRegistered()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var response = await client.GetAsync("/api/event-types", TestContext.Current.CancellationToken);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("\"key\":\"workflow.timer\"");
+        json.Should().Contain("\"isSimulatable\":false");
     }
 
     [Fact]
@@ -1083,6 +1154,49 @@ public sealed class Phase5EndpointTests
 
         public void ApplyUserOnlyPermissions(string path)
         {
+        }
+    }
+
+    [Fact]
+    public async Task Given_DatabaseWithEmptyStringEventTypeKeyAndInnerTriggerProperties_When_MigrationRuns_Then_LiftsPropertiesToOuterColumnsCorrectly()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        try
+        {
+            await using (var app = await StartAppAsync(["Database:Path", databasePath], manualMigration: false))
+            {
+                await using var scope = app.Services.CreateAsyncScope();
+                var context = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
+                
+                var migrator = Microsoft.EntityFrameworkCore.Infrastructure.AccessorExtensions
+                    .GetInfrastructure(context.Database)
+                    .GetRequiredService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
+                
+                await migrator.MigrateAsync("20260525085813_AddMemberAuditLogSubjectKindIndex");
+
+                var triggerJson = "{\"eventTypeKey\":\"user.message\",\"filter\":{},\"matchCondition\":\"1 == 1\"}";
+                await context.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO WorkflowRules (Id, Name, EventTypeKey, MatchCondition, TriggerJson, IsSubWorkflow, IsEnabled, Priority, ExecutionMode, MaxParallelism, TimeoutSeconds, ConditionsJson, ActionsJson, OnFailureActionsJson, CreatedAt, ThrottleJson, Version) " +
+                    "VALUES ('migration_test_rule', 'Test Rule', '', '', {0}, 0, 1, 100, 'Serial', 1, 30, '[]', '[]', '[]', '2026-05-16 00:00:00', '{{}}', 0);",
+                    triggerJson);
+
+                await migrator.MigrateAsync("20260528164414_ConsolidateWorkflowRuleSchema");
+
+                context.ChangeTracker.Clear();
+                var dbRule = await context.Set<WorkflowRuleEntity>().FirstOrDefaultAsync(r => r.Id == "migration_test_rule");
+                
+                dbRule.Should().NotBeNull();
+                dbRule!.EventTypeKey.Should().Be("user.message");
+                dbRule.MatchCondition.Should().Be("1 == 1");
+
+                using var doc = JsonDocument.Parse(dbRule.TriggerJson!);
+                doc.RootElement.TryGetProperty("eventTypeKey", out _).Should().BeFalse();
+                doc.RootElement.TryGetProperty("matchCondition", out _).Should().BeFalse();
+            }
+        }
+        finally
+        {
+            DeleteSqliteFiles(databasePath);
         }
     }
 }

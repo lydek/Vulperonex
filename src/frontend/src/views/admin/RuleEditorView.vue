@@ -174,7 +174,7 @@ async function loadExisting(): Promise<void> {
   try {
     const rule = await getRule(ruleId.value);
     name.value = rule.name;
-    eventTypeKey.value = rule.eventTypeKey;
+    eventTypeKey.value = rule.eventTypeKey ?? "";
     priority.value = rule.priority;
     isEnabled.value = rule.isEnabled;
     isSubWorkflow.value = rule.isSubWorkflow;
@@ -221,7 +221,7 @@ async function onSubmit(event: Event): Promise<void> {
 
   const body: WorkflowRuleUpsertRequest = {
     name: name.value.trim(),
-    eventTypeKey: eventTypeKey.value,
+    eventTypeKey: isSubWorkflow.value ? null : eventTypeKey.value,
     isEnabled: isEnabled.value,
     priority: priority.value,
     conditions,
@@ -231,12 +231,10 @@ async function onSubmit(event: Event): Promise<void> {
     maxParallelism: 1,
     throttle: throttle.value,
     timeoutSeconds: timeoutSeconds.value,
-    trigger: {
-      eventTypeKey: eventTypeKey.value,
-      filter: triggerFilter.value,
-      matchCondition: matchCondition.value.trim().length > 0 ? matchCondition.value.trim() : null
+    trigger: isSubWorkflow.value ? null : {
+      filter: triggerFilter.value
     },
-    matchCondition: matchCondition.value.trim().length > 0 ? matchCondition.value.trim() : null,
+    matchCondition: isSubWorkflow.value ? null : (matchCondition.value.trim().length > 0 ? matchCondition.value.trim() : null),
     isSubWorkflow: isSubWorkflow.value
   };
 
@@ -292,7 +290,7 @@ function buildExportPayload(): string | null {
   const trimmedMatchCondition = matchCondition.value.trim();
   const exportPayload = {
     name: name.value.trim(),
-    eventTypeKey: eventTypeKey.value,
+    eventTypeKey: isSubWorkflow.value ? null : eventTypeKey.value,
     isEnabled: isEnabled.value,
     priority: priority.value,
     conditions,
@@ -302,12 +300,10 @@ function buildExportPayload(): string | null {
     maxParallelism: 1,
     throttle: throttle.value,
     timeoutSeconds: timeoutSeconds.value,
-    trigger: {
-      eventTypeKey: eventTypeKey.value,
-      filter: triggerFilter.value,
-      matchCondition: trimmedMatchCondition.length > 0 ? trimmedMatchCondition : null
+    trigger: isSubWorkflow.value ? null : {
+      filter: triggerFilter.value
     },
-    matchCondition: trimmedMatchCondition.length > 0 ? trimmedMatchCondition : null,
+    matchCondition: isSubWorkflow.value ? null : (trimmedMatchCondition.length > 0 ? trimmedMatchCondition : null),
     isSubWorkflow: isSubWorkflow.value
   };
 

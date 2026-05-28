@@ -6,8 +6,8 @@ namespace Vulperonex.Web.Workflows;
 public sealed record WorkflowRuleDto(
     string Id,
     string Name,
-    string EventTypeKey,
-    WorkflowTrigger Trigger,
+    string? EventTypeKey,
+    WorkflowTrigger? Trigger,
     string? MatchCondition,
     bool IsSubWorkflow,
     bool IsEnabled,
@@ -25,7 +25,7 @@ public sealed record WorkflowRuleDto(
 public sealed record WorkflowRuleUpsertRequest(
     string? Id,
     string Name,
-    string EventTypeKey,
+    string? EventTypeKey,
     bool IsEnabled,
     int Priority,
     IReadOnlyList<JsonElement>? Conditions,

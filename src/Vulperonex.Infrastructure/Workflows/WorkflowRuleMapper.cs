@@ -22,7 +22,7 @@ internal static class WorkflowRuleMapper
             Id = entity.Id,
             Name = entity.Name,
             EventTypeKey = entity.EventTypeKey,
-            Trigger = DeserializeTrigger(entity.TriggerJson, entity.EventTypeKey),
+            Trigger = DeserializeTrigger(entity.TriggerJson),
             MatchCondition = entity.MatchCondition,
             IsSubWorkflow = entity.IsSubWorkflow,
             Conditions = JsonSerializer.Deserialize<IReadOnlyList<WorkflowCondition>>(entity.ConditionsJson, JsonOptions) ?? [],
@@ -58,7 +58,7 @@ internal static class WorkflowRuleMapper
             Id = rule.Id,
             Name = rule.Name,
             EventTypeKey = rule.EventTypeKey,
-            TriggerJson = JsonSerializer.Serialize(NormalizeTrigger(rule), JsonOptions),
+            TriggerJson = rule.Trigger is not null ? JsonSerializer.Serialize(rule.Trigger, JsonOptions) : null,
             MatchCondition = rule.MatchCondition,
             IsSubWorkflow = rule.IsSubWorkflow,
             ConditionsJson = JsonSerializer.Serialize(rule.Conditions, JsonOptions),
@@ -79,7 +79,7 @@ internal static class WorkflowRuleMapper
     {
         entity.Name = rule.Name;
         entity.EventTypeKey = rule.EventTypeKey;
-        entity.TriggerJson = JsonSerializer.Serialize(NormalizeTrigger(rule), JsonOptions);
+        entity.TriggerJson = rule.Trigger is not null ? JsonSerializer.Serialize(rule.Trigger, JsonOptions) : null;
         entity.MatchCondition = rule.MatchCondition;
         entity.IsSubWorkflow = rule.IsSubWorkflow;
         entity.ConditionsJson = JsonSerializer.Serialize(rule.Conditions, JsonOptions);
@@ -93,21 +93,13 @@ internal static class WorkflowRuleMapper
         entity.TimeoutSeconds = rule.TimeoutSeconds;
     }
 
-    private static WorkflowTrigger DeserializeTrigger(string? triggerJson, string eventTypeKey)
+    private static WorkflowTrigger? DeserializeTrigger(string? triggerJson)
     {
         if (string.IsNullOrWhiteSpace(triggerJson))
         {
-            return new WorkflowTrigger(eventTypeKey);
+            return null;
         }
 
-        return JsonSerializer.Deserialize<WorkflowTrigger>(triggerJson, JsonOptions) ?? new WorkflowTrigger(eventTypeKey);
-    }
-
-    private static WorkflowTrigger NormalizeTrigger(WorkflowRule rule)
-    {
-        return (rule.Trigger ?? new WorkflowTrigger(rule.EventTypeKey)) with
-        {
-            EventTypeKey = rule.EventTypeKey,
-        };
+        return JsonSerializer.Deserialize<WorkflowTrigger>(triggerJson, JsonOptions);
     }
 }
