@@ -100,7 +100,7 @@
 **驗收準則：**
 - [ ] 單元測試、整合測試和架構測試專案已存在並包含在方案中。
 - [ ] 測試套件選擇遵循 `docs/SPEC.md`；第一階段授權此任務所需的 SPEC 命名測試與覆蓋率套件（`xUnit 3`、`NSubstitute`、`FluentAssertions 7`、`NetArchTest`、`coverlet.msbuild 6.0.2`）。
-- [ ] 每個測試專案僅在需要證明運行環境設置成功時才包含占位用的冒煙測試。
+- [ ] 每個測試專案僅在需要證明執行環境設置成功時才包含占位用的冒煙測試。
 
 **驗證：**
 - [ ] `dotnet restore Vulperonex.sln /m:1 /nr:false /p:UseSharedCompilation=false` 執行成功。如果環境需要儲存庫本地的 NuGet 隔離，請在建立或確認該檔案後使用 `--configfile NuGet.Config`。
@@ -319,7 +319,7 @@
 
 ## 任務 3c：完成成員測試與覆蓋率
 
-**描述：** 新增針對成員行為的測試，並運行第一階段覆蓋率守門。
+**描述：** 新增針對成員行為的測試，並執行第一階段覆蓋率守門。
 
 **驗收準則：**
 - [ ] 成員測試使用 Given/When/Then 命名或主體註釋。

@@ -9,7 +9,7 @@
 - 英文為預設文件語言，保留原始檔名。
 - 在地化 Markdown 文件放在 `docs/<locale>/` 之下，並與英文來源維持相同的相對路徑與純淨檔名。
 - 繁體中文文件使用 `docs/zh-TW/` 目錄樹。
-- 不使用 `*.zh-TW.md` 這類語系後綴命名；改採專用語系資料夾策略。
+- 不使用 `*.zh-TW.md` 這類語系字尾命名；改採專用語系資料夾策略。
 
 本專案由四個可執行 Host 組成：
 
@@ -36,7 +36,7 @@
 
 ---
 
-## 取得原始碼
+## 取得原始程式碼
 
 ```powershell
 git clone <repo-url> Vulperonex
@@ -181,7 +181,7 @@ pnpm dev
 ```
 
 - Vite dev server 監聽 `127.0.0.1:5173`（host 鎖 loopback）。
-- 透過 vite proxy 轉發 `/api/*` + `/hubs/*` 到後端 Web host。
+- 經由 vite proxy 轉寄 `/api/*` + `/hubs/*` 到後端 Web host。
 - HMR 啟用。需要後端先跑起來才能呼叫 admin API。
 
 ### 生產建置
@@ -243,7 +243,7 @@ dotnet test --filter "FullyQualifiedName~MemberMutationEndpointTests"
 ```
 
 > 整合測試的 `CreateClient` 會：
-> - 配置 per-test 臨時 `Security:CsrfTokenPath`，避免並發 IO 鎖死
+> - 配置 per-test 臨時 `Security:CsrfTokenPath`，避免並行 IO 鎖死
 > - 從 DI 取 `AdminCsrfTokenProvider.Token` 設為 `X-Admin-Csrf` 標頭
 > - 注入對齊本機 host 的 `Origin` + `Referer` 雙標頭
 
@@ -266,7 +266,7 @@ watch 模式：
 pnpm vitest
 ```
 
-### 全測試一鍵
+### 全測試單鍵
 
 ```powershell
 dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
@@ -347,7 +347,7 @@ Vulperonex/
 | `dotnet build` 失敗：file is locked | 確認加上 `/m:1 /nr:false /p:UseSharedCompilation=false` |
 | 整合測試 CSRF 403 | 確認測試從 DI 取 `AdminCsrfTokenProvider.Token`，未 hardcode `"true"` |
 | 前端 dev 連不到 API | 後端先啟動，確認 vite proxy 目標 port 對齊 console 印出 URL |
-| `pnpm install` 卡住 | 刪 `src/frontend/node_modules` + `pnpm-lock.yaml` 後重裝 |
+| `pnpm install` 卡住 | 刪 `src/frontend/node_modules` + `pnpm-lock.yaml` 後重灌 |
 | SQLite 遷移錯誤 | 刪 `%LOCALAPPDATA%/Vulperonex/*.db` 重新啟動觸發自動 migrate |
 | Desktop 啟動白屏 | 安裝 [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/) |
 

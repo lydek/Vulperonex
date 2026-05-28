@@ -167,14 +167,14 @@
 - [ ] 重連成功後發布 `PlatformConnectionChangedEvent { IsConnected = true }`。
 - [ ] 重連延遲使用 1s -> 2s -> 4s 指數退避，最大 60s，並套用 ±20% 抖動 (jitter) 以避免多個用戶端同步重連。
 - [ ] EventSub 10 分鐘重播視窗 (replay window) 內的重播事件不因重播標記而被 adapter 過濾；僅當同一 `(platform, sourceEventId)` 在重複刪除快取 (dedup cache) 內重複送達時才跳過。重複刪除快取上限為 1000 筆條目或 10 分鐘 TTL，任一條件先達成即汰換。
-- [ ] EventSub 超過重播視窗後繼續運行並記錄警告 (warning)，不發生當機 (crash) 或死結 (deadlock)。
+- [ ] EventSub 超過重播視窗後繼續執行並記錄警告 (warning)，不發生當機 (crash) 或死結 (deadlock)。
 
 **驗證：**
 - [ ] 單元測試（虛擬時鐘 + 虛擬 socket）：前三次基準延遲約為 1s、2s、4s，套用抖動後仍落在 ±20% 範圍，且不超過 60s。
 - [ ] 單元測試：斷線與重連發布連線變更事件，順序正確。
 - [ ] 單元測試：EventSub 重播視窗內兩個錯過的事件均已發布。
 - [ ] 單元測試：同一 `(platform, sourceEventId)` 在重複刪除快取內重複送達時僅發布一次，且 10 分鐘 TTL 到期後會釋放快取條目。
-- [ ] 單元測試：EventSub 重播逾時記錄警告並繼續運行。
+- [ ] 單元測試：EventSub 重播逾時記錄警告並繼續執行。
 
 **依賴：** 任務 12c
 

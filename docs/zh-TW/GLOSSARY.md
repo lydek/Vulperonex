@@ -1,6 +1,6 @@
 # 統一語言與術語對照表：Vulperonex
 
-本文件定義了 Vulperonex 的核心領域名詞（Domain Terms）。為維護系統的概念完整性，避免在英文程式碼、API Payload、前端語系資源（i18n）與中文文檔之間產生語意偏差，所有開發者與翻譯者皆須嚴格遵守以下名詞對照與定義。
+本文件定義了 Vulperonex 的核心領域名詞（Domain Terms）。為維護系統的概念完整性，避免在英文程式碼、API Payload、前端語系資源（i18n）與中文文件之間產生語意偏差，所有開發者與翻譯者皆須嚴格遵守以下名詞對照與定義。
 
 ---
 
@@ -39,7 +39,7 @@
 ### 6. Workflow Action / 工作流動作
 * **英文術語**：`WorkflowAction` / `Action`
 * **中文翻譯**：`工作流動作` / `動作`
-* **領域定義**：當規則被觸發且前置條件全數通過後執行的具體工作（如 SendChatMessage 發送聊天訊息、InvokeSubWorkflow 呼叫子工作流）。
+* **領域定義**：當規則被觸發且前置條件全數通過後執行的具體工作（如 SendChatMessage 傳送聊天訊息、InvokeSubWorkflow 呼叫子工作流）。
 * **程式碼型別**：`Vulperonex.Domain.Workflows.Actions.WorkflowAction`
 
 ### 7. Simulation / 模擬
@@ -51,25 +51,25 @@
 ### 8. Overlay / 疊加幕
 * **英文術語**：`Overlay`
 * **中文翻譯**：`疊加幕`
-* **領域定義**：供 OBS 或其他實況軟體透過瀏覽器來源（Browser Source）載入渲染的 Web 視圖（如聊天室疊加幕 `/overlay/chat`、會員卡疊加幕 `/overlay/member`、訂閱特效疊加幕 `/overlay/alerts`）。
+* **領域定義**：供 OBS 或其他實況軟體經由瀏覽器來源（Browser Source）載入渲染的 Web 檢視（如聊天室疊加幕 `/overlay/chat`、會員卡疊加幕 `/overlay/member`、訂閱特效疊加幕 `/overlay/alerts`）。
 * **程式碼型別**：`Vulperonex.Application.Overlay.OverlayModule`
 
 ### 9. Preset / 預設配置
 * **英文術語**：`Preset` / `Template`
 * **中文翻譯**：`預設配置` / `樣板`
-* **領域定義**：疊加幕視圖的渲染樣式與版面配置，分為核心內建的 Vue Preset，以及使用者上傳的靜態自訂 HTML Preset。
+* **領域定義**：疊加幕檢視的渲染樣式與版面配置，分為核心內建的 Vue Preset，以及使用者上傳的靜態自訂 HTML Preset。
 * **程式碼型別**：`Vulperonex.Application.Overlay.Dtos.ChatOverlayPreset`
 
 ### 10. Transient Delivery Queue (TDQ) / 瞬態遞送佇列
 * **英文術語**：`TransientDeliveryQueue` / `TDQ`
 * **中文翻譯**：`瞬態遞送佇列` / `瞬態佇列`
-* **領域定義**：基於 SQLite 的瞬態緩衝佇列。當記憶體事件匯流排通道（Channel）滿載溢出時負責落地儲存，並於系統重啟時自動重播，以保證「至少遞送一次（At-Least-Once）」的可靠性。
+* **領域定義**：基於 SQLite 的瞬態緩衝佇列。當記憶體事件匯流排通道（Channel）滿載溢出時負責落地儲存，並於系統重新啟動時自動重播，以保證「至少遞送一次（At-Least-Once）」的可靠性。
 * **程式碼型別**：`Vulperonex.Infrastructure.EventBus.TransientDeliveryQueue`
 
 ### 11. Deduplication (Dedup) / 重複抑制
 * **英文術語**：`Deduplication` / `Dedup`
 * **中文翻譯**：`重複抑制` / `去重`
-* **領域定義：** 透過 `ActionExecutionLog` 持久化比對，防止同一個事件（EventId）在重播或併發時被重複執行同一動作的安全防護機制。
+* **領域定義：** 透過 `ActionExecutionLog` 持久化比對，防止同一個事件（EventId）在重播或並行時被重複執行同一動作的安全防護機制。
 * **程式碼型別**：`Vulperonex.Infrastructure.EventBus.ActionExecutionLog`
 
 ### 12. Audit Log / 稽核日誌
@@ -81,7 +81,7 @@
 ### 13. Loyalty / 忠誠點數
 * **英文術語**：`Loyalty` / `LoyaltyInfo`
 * **中文翻譯**：`忠誠度` / `忠誠點數`
-* **領域定義**：會員透過與實況互動、簽到或打卡所累積積攢的忠誠積分與次數資訊。
+* **領域定義**：會員透過與實況互動、簽到或打卡所累積積攢的忠誠點數與次數資訊。
 * **程式碼型別**：`Vulperonex.Domain.Members.LoyaltyInfo`
 
 ### 14. Check-In / 打卡簽到

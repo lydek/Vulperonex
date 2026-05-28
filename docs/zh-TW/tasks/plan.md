@@ -503,7 +503,7 @@ frontend (Vue SPA)
 - [ ] 單元測試：斷線 → 立即 publish `PlatformConnectionChangedEvent { IsConnected: false, Reason: "reconnecting" }`，重連成功後 publish `{ IsConnected: true }`（兩個事件依序驗證）
 - [ ] 單元測試（EventSub replay）：模擬 EventSub 斷線後在 10 分鐘窗口內重連，server 重播 2 個已錯過的事件 → 兩個事件均正常 publish 到 bus（adapter 不過濾 replay events）
 - [ ] 單元測試（EventSub dedup）：同一 `(platform, sourceEventId)` 在 dedup cache 內重複送達時只 publish 一次，且 10 分鐘 TTL 到期後會釋放 cache entry
-- [ ] 單元測試（EventSub replay 超時）：斷線超過 10 分鐘（fake clock）→ 重連後無 replay event → adapter 繼續正常運行（無 crash / deadlock），並記錄 warning log「events may have been lost」
+- [ ] 單元測試（EventSub replay 超時）：斷線超過 10 分鐘（fake clock）→ 重連後無 replay event → adapter 繼續正常執行（無 crash / deadlock），並記錄 warning log「events may have been lost」
 - [ ] 單元測試（adapter cache update — subscribe）：publish `UserSubscribedEvent` → adapter 事件回調呼叫 `IPlatformUserInfoCache.UpdateAsync`，使 `IsSubscriber = true`（mock cache 驗証）
 - [ ] 單元測試（adapter cache update — donate）：publish `UserDonatedEvent`（含 cumulative `TotalBitsGiven`）→ `IPlatformUserInfoCache.UpdateAsync` 被呼叫，快取 `TotalBitsGiven` 使用 `max(existing, incoming)` monotonic absolute replacement（非 `+= amount`）；重播同一事件 → `TotalBitsGiven` 不變；out-of-order 較小 incoming value 不覆蓋較大 existing value；若平台後台人工調整導致需要降低本地值，Phase 4 不自動回退，未來需走明確 admin reset
 - [ ] 單元測試（adapter cache update — follow）：publish `UserFollowedEvent` → `IPlatformUserInfoCache.UpdateAsync` 被呼叫，follower badge 出現於 `Badges`（mock cache 驗証）
@@ -669,7 +669,7 @@ frontend (Vue SPA)
 - [x] Overlay port 5001 不需驗證即可連線
 - [x] 埠衝突時自動嘗試 +2 pair（最多到 5008/5009），全部失敗時回報清晰錯誤
 - [x] 兩埠以 `IPAddress.Loopback`（IPv4）+ `IPAddress.IPv6Loopback`（IPv6）雙重繫結
-- [x] `/hubs/events` 能轉發 `PlatformConnectionChangedEvent`
+- [x] `/hubs/events` 能轉寄 `PlatformConnectionChangedEvent`
 - [x] `/hubs/overlay/chat` 與 `/hubs/overlay/alerts` 的 JSON key set 精確符合白名單；不洩漏 `memberId`、`platformUserId` 等內部識別碼
 - [x] `/hubs/overlay/member` 可連線但 MVP 不 publish 事件，作為 post-MVP skeleton
 
@@ -1010,7 +1010,7 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 **描述：** 將 `/overlay/chat` 提升為 preset/template-driven overlay。提供多個內建樣板，並保留後續匯入 / 匯出能力；core 只定義 preset/package contract，不直接耦合 OneComme runtime。
 **驗收標準：**
 - [ ] 至少提供兩個可切換聊天樣板：Vulperonex 預設樣板 + 另一個內建或可安裝樣板。
-- [ ] 樣板切換透過設定或 admin UI 完成，不需直接修改前端原始碼。
+- [ ] 樣板切換透過設定或 admin UI 完成，不需直接修改前端原始程式碼。
 - [ ] 樣板渲染仍遵守 DTO 白名單與 text binding，不引入 `v-html` raw payload 直出。
 
 #### Task 43 - OneComme Compatibility Path

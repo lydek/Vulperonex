@@ -11,7 +11,7 @@
 
 **Vulperonex** 是一個平台無關的直播自動化工具，它聚合來自直播平台的事件，並透過統一的事件驅動架構驅動響應式功能（聊天疊層、工作流、成員追蹤、音效）。MVP 支援 Twitch；架構設計為可擴充至其他平台而不需修改 Domain/Application 層。
 
-**原因：** 現有工具（包括前身專案 Omni-Commander）與 Twitch 特有概念高度耦合。Vulperonex 透過領域事件 (Domain Events) 將平台特定的事件源與功能消費者分離，從而能夠以極少的程式碼添加新平台，並將測試/模擬支持作為一等事件源。
+**原因：** 現有工具（包括前身專案 Omni-Commander）與 Twitch 特有概念高度耦合。Vulperonex 透過領域事件 (Domain Events) 將平台特定的事件源與功能消費者分離，從而能夠以極少的程式碼新增平台，並將測試/模擬支持作為一等事件源。
 
 ### 目標使用者
 
@@ -42,7 +42,7 @@
 | 桌面殼層 | Photino.NET 3.x |
 | 外掛程式系統 | `IVulperonexPlugin` (自訂契約，MVP 階段在啟動時靜態引用) |
 | 單元測試 | xUnit 3 / NSubstitute / FluentAssertions 7 |
-| 測試方法 | BDD 場景定義 + TDD 紅/綠/重構實作 |
+| 測試方法 | BDD 情境定義 + TDD 紅/綠/重構實作 |
 
 ### 前端 (Vue 3.5+ / Vite 7.x)
 
@@ -300,9 +300,9 @@ public record UserDisplayInfo(
 
 | 領域事件 | 快取更新 |
 |---|---|
-| `UserSubscribedEvent` | `IsSubscriber=true`, `SubscriptionTier`, 添加訂閱者徽章 |
+| `UserSubscribedEvent` | `IsSubscriber=true`, `SubscriptionTier`, 新增訂閱者徽章 |
 | `UserDonatedEvent` | `TotalBitsGiven = max(existing, event.TotalBitsGiven)`（**monotonic 絕對值替換**，非 `+= amount`；event payload 攜帶 cumulative total，TDQ 重播不重複累加，out-of-order 舊 payload 不得讓累積值回退；若平台後台人工調整導致需要降低本地值，需走未來明確 admin reset 流程）|
-| `UserFollowedEvent` | 添加追隨者徽章 |
+| `UserFollowedEvent` | 新增追隨者徽章 |
 
 **事件上的顯示提示 (DisplayHints)：**
 
@@ -821,13 +821,13 @@ vulperonex rule delete  <ruleId|prefix|--name <name>> [--yes]
 
 僅接受別名值；拒絕原始 EventTypeKey 字串，以保持 CLI/REST/WorkflowRule 命名清晰。
 
-**配置鍵註冊表：** `ISystemSettingsService` 對在 `SystemSettingKey` 中定義的類型化常數進行操作（而非任意字串）。任何註冊表中缺失的鍵都會返回 `UNKNOWN_CONFIG_KEY`。新設定需要添加常數 — 不允許自由文字鍵。
+**配置鍵註冊表：** `ISystemSettingsService` 對在 `SystemSettingKey` 中定義的類型化常數進行操作（而非任意字串）。任何註冊表中缺失的鍵都會返回 `UNKNOWN_CONFIG_KEY`。新設定需要新增常數 — 不允許自由文字鍵。
 
 **Config key 大小寫規則：** 所有 key 為 **canonical lowercase**（`log.min_level`、`oauth.twitch.refresh_token`）。API 在 prefix denylist 比對與 registry lookup 前，均先將傳入 `{key}` 做 `ToLowerInvariant()` 正規化 — `OAuth.Twitch.Refresh_Token` 與 `oauth.twitch.refresh_token` 視為同一 key，同樣觸發 403 denylist。DB 儲存時亦使用 lowercase。
 
 **攔截優先順序（重要）：** `/api/config/{key}` 請求依序執行以下檢查：(1) key 正規化（`ToLowerInvariant()`）；(2) **受保護 prefix denylist**（`security.*` → 403 `CONFIG_KEY_SECURITY_NAMESPACE`；`oauth.*` → 403 `OAUTH_CREDENTIAL_NAMESPACE`）；(3) **registry lookup**（`UNKNOWN_CONFIG_KEY`）。prefix denylist **先於** registry 執行 — 未知的 `oauth.*` key（如未來新增的 `oauth.unknown.refresh_token` 尚未在 registry 中）同樣回 403，不回 400 `UNKNOWN_CONFIG_KEY`。
 
-**安全命名空間配置鍵** (`security.*`) 在 `/api/config/{key}` 被**攔截** — 返回 403 + `CONFIG_KEY_SECURITY_NAMESPACE`。**OAuth 憑據鍵** (`oauth.*`，例如 `oauth.twitch.refresh_token`) 在 `/api/config/{key}` 同樣被**攔截** — 返回 403 + `OAUTH_CREDENTIAL_NAMESPACE`（OAuth token 只透過 PKCE 流程寫入，不允許 REST CRUD）。對於 MVP，Twitch OAuth 憑據由任務 12 中的 PKCE 流程儲存，無法透過配置端點進行 CRUD 存取。`/api/settings/security/*` 是保留的路徑字首，MVP 階段不添加 CRUD 端點；Kestrel loopback-only binding 本身已保護這些路徑，無需額外 middleware。
+**安全命名空間配置鍵** (`security.*`) 在 `/api/config/{key}` 被**攔截** — 返回 403 + `CONFIG_KEY_SECURITY_NAMESPACE`。**OAuth 憑據鍵** (`oauth.*`，例如 `oauth.twitch.refresh_token`) 在 `/api/config/{key}` 同樣被**攔截** — 返回 403 + `OAUTH_CREDENTIAL_NAMESPACE`（OAuth token 只透過 PKCE 流程寫入，不允許 REST CRUD）。對於 MVP，Twitch OAuth 憑據由任務 12 中的 PKCE 流程儲存，無法透過配置端點進行 CRUD 存取。`/api/settings/security/*` 是保留的路徑字首，MVP 階段不新增 CRUD 端點；Kestrel loopback-only binding 本身已保護這些路徑，無需額外 middleware。
 
 ---
 
@@ -847,7 +847,7 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 **聊天 overlay 樣板系統：**
 
 - `/overlay/chat` 必須支援**多個內建樣板 / preset**，至少包含 Vulperonex 預設樣板；內建樣板需可對應「單一樣板目錄 / 單一樣板封包」概念，而不是寫死單版面。
-- 樣板選擇必須是**設定層級**能力，而不是要求使用者直接改前端原始碼；後續可擴充為樣板清單、預覽、匯入 / 匯出。
+- 樣板選擇必須是**設定層級**能力，而不是要求使用者直接改前端原始程式碼；後續可擴充為樣板清單、預覽、匯入 / 匯出。
 - 樣板渲染仍必須遵守 MVP 安全界線：使用 DTO 白名單與 text binding；**不得以 `v-html` 或任意 raw HTML 直接穿透 event payload**。
 - **OneComme 相容屬於擴充功能 / 外掛程式類型能力，不屬於 core 直接內建整合。** Core 只需提供可擴充的樣板 preset / package contract；OneComme 相容可透過外掛、樣板匯入器、或 adapter 套件實作。
 - 以 **OneComme** 作為優先相容目標之一。目的不是 1:1 複製其內部實作，而是提供足夠接近的樣板結構 / 匯入映射 / 相容契約，降低既有 OneComme 使用者的遷移成本，同時維持 core 與第三方樣板生態的邊界。
@@ -861,7 +861,7 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 | 管道 | 適用對象 | 路徑模式 | 實作位置 |
 |------|---------|----------|----------|
 | **Vue 預設 Preset** | 一般使用者，零設定可用 | `/overlay/chat`、`/overlay/member`、`/overlay/alerts` | `src/frontend/src/views/overlay/**` + `presets/*.vue` |
-| **靜態 HTML 覆蓋 (Override)** | 進階使用者 / 第三方樣板 | `/overlay/{hub}.html`、`/overlay/custom/{slug}.html` | 後端 `wwwroot/overlay/` 目錄；對應原始碼為 `src/frontend/public/overlay/`（Vite build 時複製） |
+| **靜態 HTML 覆蓋 (Override)** | 進階使用者 / 第三方樣板 | `/overlay/{hub}.html`、`/overlay/custom/{slug}.html` | 後端 `wwwroot/overlay/` 目錄；對應原始程式碼為 `src/frontend/public/overlay/`（Vite build 時複製） |
 
 **Preset 選擇優先順序（後端解析）：**
 
@@ -1022,7 +1022,7 @@ wwwroot/overlay/custom/{slug}/
 **Draft/Production 隔離：**
 
 - Draft 編輯不影響 OBS 載入的 production。
-- `GET /overlay/custom/{slug}/index.html`（無 path 後綴）統一映射到 `production/index.html`。OBS 不直接觸碰 draft。
+- `GET /overlay/custom/{slug}/index.html`（無 path 字尾）統一映射到 `production/index.html`。OBS 不直接觸碰 draft。
 - 預覽 iframe 走 `/overlay/custom/{slug}/draft/index.html`，與 production 隔離。
 - Deploy 為**原子操作**：先驗 history 寫入完成，再把 draft 內容**整目錄複製**到 production（不是 rename，避部分檔案失效）；複製完成才回 200。
 
@@ -1050,7 +1050,7 @@ wwwroot/overlay/custom/{slug}/
 Serilog
 ├── 接收端: Console       — 有顏色的，開發使用，預設級別：Debug
 ├── 接收端: Rolling file  — 每日輪換，預設保留：7 天
-└── 接收端: SQLite 資料表 AppLogs — 應用程式內日誌查看器，預設保留：30 天
+└── 接收端: SQLite 資料表 AppLogs — 應用程式內日誌檢視器，預設保留：30 天
 ```
 
 **每個日誌條目豐富了結構化上下文欄位：**
@@ -1073,7 +1073,7 @@ log.db_retention_days     = 30
 log.db_max_size_mb        = 100             // 次要上限；超過則刪除最舊 rows（以先觸發者為準）
 ```
 
-`AppLogs` SQLite 資料表支援應用程式內的日誌查看器（可按級別、EventTypeKey、MemberId 過濾）。後台工作程式清除邏輯（以先觸發者為準）：(1) 清除早於 `log.db_retention_days` 的行；(2) 若 SQLite 頁面計數 × page_size 超過 `log.db_max_size_mb`，持續刪除最舊的行直到估算大小降至閾值以下。**注意：SQLite DELETE 不立即縮減實體檔案大小**，需在大小清除後執行 `PRAGMA auto_vacuum = FULL`（建庫時設定）或顯式 `VACUUM`；建議建庫時設定 `auto_vacuum = FULL`，確保刪除後 page 歸還 OS。測試驗證以 `PRAGMA page_count * page_size` 估算大小，不依賴實體 `FileInfo.Length`。
+`AppLogs` SQLite 資料表支援應用程式內的日誌檢視器（可按級別、EventTypeKey、MemberId 過濾）。後台工作程式清除邏輯（以先觸發者為準）：(1) 清除早於 `log.db_retention_days` 的行；(2) 若 SQLite 頁面計數 × page_size 超過 `log.db_max_size_mb`，持續刪除最舊的行直到估算大小降至閾值以下。**注意：SQLite DELETE 不立即縮減實體檔案大小**，需在大小清除後執行 `PRAGMA auto_vacuum = FULL`（建庫時設定）或顯式 `VACUUM`；建議建庫時設定 `auto_vacuum = FULL`，確保刪除後 page 歸還 OS。測試驗證以 `PRAGMA page_count * page_size` 估算大小，不依賴實體 `FileInfo.Length`。
 
 ---
 
@@ -1096,7 +1096,7 @@ builder.Services.AddVulperonexPlugin<MyCustomPlugin>();
   - 外掛程式的熱載入 / 熱卸載
 ```
 
-第二階段將添加：掃描 `{app_dir}/plugins/`，`appsettings.json` 中的可選白名單/黑名單，用於卸載的 `AssemblyLoadContext`。一個 DLL 載入失敗 → 記錄錯誤 → 跳過 → 其他 DLL 不受影響。
+第二階段將新增：掃描 `{app_dir}/plugins/`，`appsettings.json` 中的可選白名單/黑名單，用於卸載的 `AssemblyLoadContext`。一個 DLL 載入失敗 → 記錄錯誤 → 跳過 → 其他 DLL 不受影響。
 
 **啟動順序 (MVP)：**
 1. 從 DI 解析靜態註冊的外掛程式
@@ -1282,12 +1282,12 @@ MemberAuditLogs:
 ### 4.20 模組與外掛程式管理系統 Module & Plugin Management (Phase 7D)
 
 **背景與動機：**
-目前核心服務（打卡、計數器、抽獎點數、音效畫面、外部 OneComme Bridge 等）雖然作為 Hosted Services 或外掛外掛程式運行，但沒有提供集中管理其啟用/停用（ON/OFF）狀態的頁面。當特定模組關閉時，其相依之模組仍盲目運行可能導致狀態漂移。
+目前核心服務（打卡、計數器、抽獎點數、音效畫面、外部 OneComme Bridge 等）雖然作為 Hosted Services 或外掛程式執行，但沒有提供集中管理其啟用/停用（ON/OFF）狀態的頁面。當特定模組關閉時，其相依之模組仍盲目執行可能導致狀態漂移。
 
 **設計與規格：**
 1. **模組/外掛程式開關狀態儲存**：
    - 透過 `ISystemSettingsService` 將模組啟用狀態儲存在資料庫/系統設定檔中，使用鍵名 `modules.enabled.{moduleName}`。
-   - 所有核心 Hosted Services 在 `ExecuteAsync` 或 `StartAsync` 時需動態偵測該設定值，若為 `false` 則跳過註冊、攔截或動作執行（No-Op 狀態），已在運行的 Hosted Services 在偵測到設定變更時應即時切換狀態。
+   - 所有核心 Hosted Services 在 `ExecuteAsync` 或 `StartAsync` 時需動態偵測該設定值，若為 `false` 則跳過註冊、攔截或動作執行（No-Op 狀態），已在執行的 Hosted Services 在偵測到設定變更時應即時切換狀態。
    - 對於 `IWorkflowActionExecutor`（例如 `TriggerCheckInActionExecutor`），若關聯的模組（如打卡模組）已關閉，則應拒絕執行動作並拋出對應的 `WorkflowExecutionException`。
 
 2. **模組相依性解析 (Dependency Resolution)**：
@@ -1304,7 +1304,7 @@ MemberAuditLogs:
      - 當使用者在 UI 上**啟用**一個具有相依性的模組時（例如啟用 `CheckInModule`），若其相依模組（例如 `MemberModule`）為關閉狀態，系統應**自動一併開啟**其相依模組，或**彈出警示並拒絕啟動**。
 
 3. **模組管理端點 (API)**：
-   - `GET /api/plugins-modules`：列出所有模組/外掛名稱、中文顯示名稱、說明、目前是否運行 (`IsActive`) 以及相依列表。
+   - `GET /api/plugins-modules`：列出所有模組/外掛名稱、中文顯示名稱、說明、目前是否執行中 (`IsActive`) 以及相依列表。
    - `POST /api/plugins-modules/{name}/toggle`：參數為 `enabled: bool`。觸發相依性計算，成功執行後回傳拓撲變動後的所有模組狀態清單。
 
 4. **UI 管理頁面**：
@@ -1336,7 +1336,7 @@ MemberAuditLogs:
 ### 4.22 視覺化與直覺化工作流設定 UI Intuitive Workflow Rule Editor (Phase 7D)
 
 **背景與動機：**
-現有的工作流規則設定界面要求使用者手動輸入特定 JSON 或純文字表達式，對不熟悉技術的實況主而言極不直覺。此階段將引進視覺化引導編輯界面，徹底摒棄低效的自由文字設定。
+現有的工作流規則設定介面要求使用者手動輸入特定 JSON 或純文字運算式，對不熟悉技術的實況主而言極不直覺。此階段將引進視覺化引導編輯介面，徹底摒棄低效的自由文字設定。
 
 **設計與規格：**
 1. **條件建構器 (Condition Builder)**：
@@ -1644,7 +1644,7 @@ export function useStreamEvents() {
 ### 7.3 覆蓋率目標
 
 - 領域層 (Domain)：> 90% — 僅針對 `Vulperonex.Tests.Unit` 測量（領域是純邏輯，無 I/O）。
-- 應用層 (Application)：> 80% — 僅針對 `Vulperonex.Tests.Unit` 測量。整合測試**不**併入此門檻（coverlet.msbuild 無法在單個指令中合併兩個測試專案的報告）。如果因為應用層行為僅被整合測試覆蓋而導致單元測試覆蓋率低於 80%，解決方案是添加聚焦的單元測試（使用 Fakes/Mocks），而非放寬門檻或切換到合併報告。
+- 應用層 (Application)：> 80% — 僅針對 `Vulperonex.Tests.Unit` 測量。整合測試**不**併入此門檻（coverlet.msbuild 無法在單個指令中合併兩個測試專案的報告）。如果因為應用層行為僅被整合測試覆蓋而導致單元測試覆蓋率低於 80%，解決方案是新增聚焦的單元測試（使用 Fakes/Mocks），而非放寬門檻或切換到合併報告。
 - 適配器 (Adapters)：透過 SimulationAdapter 等效性進行整合測試（真實適配器使用相同的領域映射邏輯）。
 
 **強制執行：** 使用 **`coverlet.msbuild`**（而非 `coverlet.collector`）來根據閾值判定建構失敗。固定明確版本以避免偏差 — 使用中央套件管理或 `<PackageReference Include="coverlet.msbuild" Version="6.0.2" />`（在專案設定時固定到最新穩定版）。對於門檻工具，**不接受**萬用字元版本。
@@ -1665,23 +1665,23 @@ dotnet test tests/Vulperonex.Tests.Unit \
     /p:Exclude="[*.Tests.*]*" \
     /p:Threshold=80 /p:ThresholdType=line /p:ThresholdStat=average
 ```
-任一指令在覆蓋率低於閾值時會以非零值退出，導致 CI 建構失敗。可以添加 `reportgenerator` 用於 HTML 報告，但它不是門檻機制。
+任一指令在覆蓋率低於閾值時會以非零值退出，導致 CI 建構失敗。可以新增 `reportgenerator` 用於 HTML 報告，但它不是門檻機制。
 
 ### 7.4 BDD + TDD 紀律
 
-- 每個行為都從 BDD 風格的場景開始：Given / When / Then (給定 / 當 / 那麼)。
-- 場景是驗收契約；在實作被視為完成前，它必須映射到一個或多個自動化測試。
+- 每個行為都從 BDD 風格的情境開始：Given / When / Then (給定 / 當 / 那麼)。
+- 情境是驗收契約；在實作被視為完成前，它必須映射到一個或多個自動化測試。
 - 實作遵循 TDD：先寫失敗測試，確認「紅燈」，編寫通過測試的最少程式碼，確認「綠燈」，然後在測試通過的情況下重構。
-- 新的領域邏輯 → 首先根據 BDD 場景編寫失敗的單元測試。
+- 新的領域邏輯 → 首先根據 BDD 情境編寫失敗的單元測試。
 - 錯誤修復 → 在更改生產程式碼前，先用失敗測試重現。
 - 重構 → 確保測試維持綠燈。
-- 整合場景盡可能使用 SimulationAdapter。
+- 整合情境盡可能使用 SimulationAdapter。
 - 手動驗證可以作為 Photino、OBS 和瀏覽器執行時期行為的 BDD+TDD 補充，但它不能替代自動化驗收測試。
 
 **測試命名慣例（最低標準）：**
 - C# 測試方法名稱：`Given_<狀態>_When_<操作>_Then_<預期>` (使用底線, PascalCase 段落)  
   範例：`Given_ValidRule_When_EventMatches_Then_SendChatMessageCalled`
-- 如果未使用專門的場景檔案，BDD 場景**必須**出現在測試方法體頂部的 `// Given / When / Then` 註釋區塊中。
+- 如果未使用專門的情境檔案，BDD 情境**必須**出現在測試方法體頂部的 `// Given / When / Then` 註釋區塊中。
 - 前端 (Vitest)：`describe` = 元件/Composable 名稱；`it` = `should <預期> when <條件>`
 
 ---
@@ -1699,9 +1699,9 @@ dotnet test tests/Vulperonex.Tests.Unit \
 
 ### 8.2 需先諮詢 (Ask first)
 
-- 向解決方案添加新的頂級專案（**Task 1 初始專案已授權，不需逐一詢問；Task 1 以外的額外新專案才 ask-first**）。
-- 刪除或重命名欄位的架構遷移。
-- 添加新的 NuGet / npm **相依套件**（包含 oxlint 等 dev tool — 詢問後安裝一次，**已安裝後執行 lint 屬驗證步驟，不需再詢問**）。例外：Phase 1 Task 1c 所需且本 SPEC 已命名的測試/coverage 套件已預先授權，不需逐一詢問：`xUnit 3`、`NSubstitute`、`FluentAssertions 7`、`NetArchTest`、`coverlet.msbuild 6.0.2`。
+- 向解決方案新增頂級專案（**Task 1 初始專案已授權，不需逐一詢問；Task 1 以外的額外新專案才 ask-first**）。
+- 刪除或重新命名欄位的架構遷移。
+- 新增 NuGet / npm **相依套件**（包含 oxlint 等 dev tool — 詢問後安裝一次，**已安裝後執行 lint 屬驗證步驟，不需再詢問**）。例外：Phase 1 Task 1c 所需且本 SPEC 已命名的測試/coverage 套件已預先授權，不需逐一詢問：`xUnit 3`、`NSubstitute`、`FluentAssertions 7`、`NetArchTest`、`coverlet.msbuild 6.0.2`。
 - 更改公共外掛程式契約 (`IVulperonexPlugin`)。
 - 在第二階段之後修改核心領域事件的形狀。
 
@@ -1744,7 +1744,7 @@ dotnet test tests/Vulperonex.Tests.Unit \
 
 - [ ] **SC-10：** 整合測試 `Plugin_CanPublishCustomEvent_TriggeringWorkflow`：外掛程式呼叫 `IPluginContext.Events.PublishAsync(customEvent)`；具有匹配 `EventTypeKey` 的 `WorkflowRule` 觸發；`IPlatformChatSender` 模擬對象接收到 `SendAsync`。
 
-- [ ] **SC-11：** 手動 / 整合驗證 `ChatOverlayTemplatePreset_CanSwitchWithoutCodeEdit`：`/overlay/chat` 可在不修改前端原始碼的前提下切換至少兩個樣板，至少包含 Vulperonex 內建預設與另一個可安裝 preset；切換後 payload contract 不變，且渲染仍遵守 DTO 白名單與 text binding。
+- [ ] **SC-11：** 手動 / 整合驗證 `ChatOverlayTemplatePreset_CanSwitchWithoutCodeEdit`：`/overlay/chat` 可在不修改前端原始程式碼的前提下切換至少兩個樣板，至少包含 Vulperonex 內建預設與另一個可安裝 preset；切換後 payload contract 不變，且渲染仍遵守 DTO 白名單與 text binding。
 
 - [ ] **SC-11b：** 擴充功能驗證 `OneCommeCompatibility_ExtensionContract_Works`：OneComme 相容能力以外掛 / 匯入器 / adapter 形式接入，不要求 core 直接綁定其執行期；驗證可辨識 OneComme 樣板目錄結構或對應 package metadata，並映射到 Vulperonex chat overlay preset contract。
 
@@ -1917,4 +1917,4 @@ Photino 失去連線 → 顯示嵌入式靜態回退 HTML
 1. **準備好進行第一階段實作。** SPEC.md 和 plan.md 已完成多輪審查；所有 P1 問題已解決。從任務 1 開始。
 2. plan.md 包含完整的任務列表、驗收準則、依賴圖和文件產出。
 3. todo.md 是執行清單 — 在那裡追蹤進度。
-4. 根據 BDD 場景和 TDD 紅/綠/重構，逐任務實作。
+4. 根據 BDD 情境和 TDD 紅/綠/重構，逐任務實作。
