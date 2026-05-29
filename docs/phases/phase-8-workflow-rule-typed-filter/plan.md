@@ -529,11 +529,11 @@ DELETE FROM workflow_rules;
 #### Gate D · Pre-execution Checklist
 
 - [x] **AQ-1 Resolved**: Adopt Reka UI (headless) + existing custom CSS (AD-6).
-- [ ] **Reka UI PoC**: Run `pnpm add reka-ui` and build a minimal working example of a Drawer, Tabs, and Form.
+- [x] **Reka UI PoC**: Run `pnpm add reka-ui` and build a minimal working example of a Drawer, Tabs, and Form.
   - Measure bundle size (before/after gzip, target +<200 KB, estimate ~30 KB).
   - **Design Tokens Integration Verification**: Verify that Reka primitive unstyled slots / data-attributes (`data-state`, `data-orientation`, etc.) can be hooked by existing CSS variable selectors, ensuring theme colors (dark/light, accent colors) are inherited completely without rewriting the token system.
   - List styling integration samples for at least 3 critical components (Drawer / Tabs / Dialog).
-- [ ] Log PoC results in ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md`.
+- [x] Log PoC results in ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md`.
 - [ ] If PoC bundle size exceeds limits → Fall back to Naive UI tree-shake → If still exceeding, hand-craft the components.
 - [ ] If PoC token integration friction exceeds expectations → Evaluate Inspira UI styled recipes as a baseline.
 - [ ] Phase B endpoints are live (D depends on B).

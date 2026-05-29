@@ -116,7 +116,7 @@ export async function getMember(
 export interface WorkflowRuleSummary {
   id: string;
   name: string;
-  eventTypeKey: string;
+  eventTypeKey: string | null;
   isEnabled: boolean;
   priority: number;
   createdAt: string;
@@ -124,7 +124,7 @@ export interface WorkflowRuleSummary {
 }
 
 export interface WorkflowTrigger {
-  eventTypeKey: string;
+  eventTypeKey?: string | null;
   filter: Record<string, string>;
   matchCondition?: string | null;
 }
@@ -137,7 +137,7 @@ export interface WorkflowThrottlePolicy {
 }
 
 export interface WorkflowRuleDetail extends WorkflowRuleSummary {
-  trigger: WorkflowTrigger;
+  trigger: WorkflowTrigger | null;
   matchCondition?: string | null;
   isSubWorkflow: boolean;
   conditions: unknown[];
@@ -370,7 +370,7 @@ export async function completeTwitchDeviceAuth(
 export interface WorkflowRuleUpsertRequest {
   id?: string;
   name: string;
-  eventTypeKey: string;
+  eventTypeKey: string | null;
   isEnabled: boolean;
   priority: number;
   conditions: unknown[];
@@ -380,7 +380,7 @@ export interface WorkflowRuleUpsertRequest {
   maxParallelism?: number;
   throttle?: WorkflowThrottlePolicy;
   timeoutSeconds?: number;
-  trigger?: WorkflowTrigger;
+  trigger?: WorkflowTrigger | null;
   matchCondition?: string | null;
   isSubWorkflow?: boolean;
 }
@@ -974,5 +974,4 @@ export async function deleteMemberWithToken(
     throw new ApiError(response.status, await safeReadBody(response));
   }
 }
-
 

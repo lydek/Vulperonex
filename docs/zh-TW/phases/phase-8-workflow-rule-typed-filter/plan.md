@@ -587,13 +587,13 @@ metadata-clean check；讀取路徑無需改。
 #### Gate D · 開工前 checklist
 
 - [x] **AQ-1 已決**：採 Reka UI（headless）+ 自家 CSS（AD-6）
-- [ ] **Reka UI PoC**：`pnpm add reka-ui` 後實裝最小 Drawer + Tabs + Form 範例
+- [x] **Reka UI PoC**：`pnpm add reka-ui` 後實裝最小 Drawer + Tabs + Form 範例
   - 量測 bundle 數字（before/after gzip，目標 +<200 KB，預估 ~30 KB）
   - **Design Tokens 對接驗證**：確認 Reka primitive 之 unstyled slot / data-attribute
     （`data-state`、`data-orientation` 等）可被既有 CSS 變數選擇器 hook 住，
     主題配色（dark/light、accent color）能完整繼承，無需重寫 token 系統
   - 列舉至少 3 個關鍵元件 (Drawer / Tabs / Dialog) 的 styling integration sample
-- [ ] PoC 結果落 ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md`
+- [x] PoC 結果落 ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md`
 - [ ] PoC 若 bundle 超標 → 改 Naive UI tree-shake → 仍超標則純手刻
 - [ ] PoC 若 token 摩擦超預期 → 評估 Inspira UI styled recipe 作為 baseline
 - [ ] Phase B endpoint 上線（D 依賴 B）
