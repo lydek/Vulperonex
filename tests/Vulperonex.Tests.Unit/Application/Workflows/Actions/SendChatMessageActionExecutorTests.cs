@@ -15,10 +15,11 @@ public sealed class SendChatMessageActionExecutorTests
     {
         var outbox = new InMemoryChatOutbox(TimeProvider.System);
         var executor = new SendChatMessageActionExecutor(outbox, new TemplateRenderer());
+        var context = NewContext("twitch");
 
         await executor.ExecuteAsync(
             new SendChatMessageAction { Template = "Hello {user.displayName}" },
-            NewContext("twitch"),
+            context,
             TestContext.Current.CancellationToken);
 
         var item = (await outbox.SnapshotAsync(TestContext.Current.CancellationToken))
@@ -26,6 +27,7 @@ public sealed class SendChatMessageActionExecutorTests
         item.Platform.Should().Be("twitch");
         item.Message.Should().Be("Hello Alice");
         item.Status.Should().Be(ChatOutboxItemStatus.Pending);
+        item.DedupKey.Should().Be($"action:{context.StreamEvent.EventId}:rule-1:0");
     }
 
     [Fact]

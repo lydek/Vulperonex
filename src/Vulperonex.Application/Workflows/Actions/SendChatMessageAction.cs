@@ -22,6 +22,7 @@ public sealed record SendChatMessageAction : WorkflowAction
     // Property retained for plugin/internal routing and raw-JSON overrides.
     public string? Channel { get; init; }
 
-    [ActionParam("Deduplication Key", "string", required: false, help: "Deduplication key to prevent duplicate messages")]
+    // Deduplication Key is not exposed in the editor; automatically generated based on EventId, WorkflowRuleId, and ActionIndex.
+    // Property retained for plugin/internal routing and raw-JSON overrides.
     public string? DedupKey { get; init; }
 }

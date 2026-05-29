@@ -34,7 +34,9 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
         var platform = sendChatMessage.TargetPlatform ?? context.StreamEvent.Platform;
         var message = _templateRenderer.Render(sendChatMessage.Template, context.StreamEvent);
         var channel = RenderOptional(sendChatMessage.Channel, context.StreamEvent);
-        var dedupKey = RenderOptional(sendChatMessage.DedupKey, context.StreamEvent);
+        var dedupKey = string.IsNullOrWhiteSpace(sendChatMessage.DedupKey)
+            ? $"action:{context.StreamEvent.EventId}:{context.WorkflowRule.Id}:{context.ActionIndex}"
+            : _templateRenderer.Render(sendChatMessage.DedupKey, context.StreamEvent);
 
         await _chatOutbox.EnqueueAsync(platform, channel, message, dedupKey, cancellationToken).ConfigureAwait(false);
         return ActionExecutionResult.Completed;
