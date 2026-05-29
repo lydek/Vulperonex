@@ -246,9 +246,41 @@ function normalizeRole(value: string): string {
           </DialogClose>
         </header>
 
-        <p v-if="loading" role="status" data-testid="rule-drawer-loading">
-          {{ t("rules.loading") }}
-        </p>
+        <div v-if="loading" class="rule-drawer__skeleton animate-pulse" role="status" aria-label="Loading rule details" data-testid="rule-drawer-loading">
+          <div class="skeleton-tabs">
+            <div class="skeleton-tab active"></div>
+            <div class="skeleton-tab"></div>
+            <div class="skeleton-tab"></div>
+          </div>
+          <div class="skeleton-body">
+            <div class="skeleton-field">
+              <div class="skeleton-label"></div>
+              <div class="skeleton-input"></div>
+            </div>
+            <div class="skeleton-field-inline">
+              <div class="skeleton-checkbox"></div>
+              <div class="skeleton-label-short"></div>
+            </div>
+            <div class="skeleton-field">
+              <div class="skeleton-label"></div>
+              <div class="skeleton-input-large"></div>
+            </div>
+            <div class="skeleton-grid">
+              <div class="skeleton-field">
+                <div class="skeleton-label"></div>
+                <div class="skeleton-input"></div>
+              </div>
+              <div class="skeleton-field">
+                <div class="skeleton-label"></div>
+                <div class="skeleton-input"></div>
+              </div>
+            </div>
+          </div>
+          <div class="skeleton-footer">
+            <div class="skeleton-button"></div>
+            <div class="skeleton-button primary"></div>
+          </div>
+        </div>
 
         <p v-if="error" class="ack-error-code" role="alert" data-testid="rule-drawer-error">
           {{ error }}
@@ -465,5 +497,129 @@ function normalizeRole(value: string): string {
   .rule-drawer__basic-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* 骨架屏脈動閃爍動畫 */
+.animate-pulse {
+  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.rule-drawer__skeleton {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  padding-top: 8px;
+}
+
+.skeleton-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #e6ebf0;
+  padding-bottom: 8px;
+}
+
+.skeleton-tab {
+  width: 72px;
+  height: 28px;
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.skeleton-tab.active {
+  background: #cbd5e1;
+}
+
+.skeleton-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow: hidden;
+}
+
+.skeleton-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.skeleton-field-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.skeleton-label {
+  width: 80px;
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.skeleton-label-short {
+  width: 120px;
+  height: 14px;
+  background: #e2e8f0;
+  border-radius: 3px;
+}
+
+.skeleton-input {
+  width: 100%;
+  height: 38px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.skeleton-input-large {
+  width: 100%;
+  height: 88px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+}
+
+.skeleton-checkbox {
+  width: 16px;
+  height: 16px;
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.skeleton-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e6ebf0;
+  padding-top: 16px;
+}
+
+.skeleton-button {
+  width: 80px;
+  height: 38px;
+  background: #f1f5f9;
+  border-radius: 6px;
+}
+
+.skeleton-button.primary {
+  background: #cbd5e1;
+  width: 96px;
 }
 </style>
