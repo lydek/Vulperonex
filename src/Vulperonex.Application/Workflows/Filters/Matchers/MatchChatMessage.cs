@@ -5,10 +5,22 @@ namespace Vulperonex.Application.Workflows.Filters.Matchers;
 
 public sealed class MatchChatMessage : ITriggerFilterMatcher
 {
+    private static readonly HashSet<string> KnownFilterKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "CommandName",
+        "MessageText",
+        "Prefix",
+    };
+
     public string EventTypeKey => "user.message";
 
     public bool Match(IReadOnlyDictionary<string, string> filter, IReadOnlyDictionary<string, object?> triggerValues)
     {
+        if (!TriggerFilterMatcherGuards.ContainsOnlyKnownKeys(filter, KnownFilterKeys))
+        {
+            return false;
+        }
+
         if (!triggerValues.TryGetValue("MessageText", out var msgObj) || msgObj is not string msg)
         {
             return false;
@@ -29,6 +41,12 @@ public sealed class MatchChatMessage : ITriggerFilterMatcher
             {
                 return false;
             }
+        }
+
+        if (filter.TryGetValue("MessageText", out var expectedMessage)
+            && !string.Equals(msg, expectedMessage, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
         }
 
         if (filter.TryGetValue("Prefix", out var prefix))

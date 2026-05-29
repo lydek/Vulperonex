@@ -5,22 +5,28 @@ namespace Vulperonex.Application.Workflows.Filters.Matchers;
 
 public sealed class MatchRewardRedeemed : ITriggerFilterMatcher
 {
+    private static readonly HashSet<string> KnownFilterKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "RewardName",
+    };
+
     public string EventTypeKey => "reward.redeemed";
 
     public bool Match(IReadOnlyDictionary<string, string> filter, IReadOnlyDictionary<string, object?> triggerValues)
     {
+        if (!TriggerFilterMatcherGuards.ContainsOnlyKnownKeys(filter, KnownFilterKeys))
+        {
+            return false;
+        }
+
         if (filter.TryGetValue("RewardName", out var expectedName))
         {
-            object? nameObj = null;
-            if (!triggerValues.TryGetValue("RewardTitle", out nameObj) &&
-                !triggerValues.TryGetValue("RewardName", out nameObj) &&
-                !triggerValues.TryGetValue("Title", out nameObj) &&
-                !triggerValues.TryGetValue("Name", out nameObj))
+            if (!triggerValues.TryGetValue("RewardTitle", out var nameObj) || nameObj == null)
             {
                 return false;
             }
 
-            if (nameObj == null || !string.Equals(nameObj.ToString(), expectedName, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(nameObj.ToString(), expectedName, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

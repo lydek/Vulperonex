@@ -5,21 +5,33 @@ namespace Vulperonex.Application.Workflows.Filters.Matchers;
 
 public sealed class MatchChannelRaided : ITriggerFilterMatcher
 {
+    private static readonly HashSet<string> KnownFilterKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "MinViewers",
+    };
+
     public string EventTypeKey => "channel.raided";
 
     public bool Match(IReadOnlyDictionary<string, string> filter, IReadOnlyDictionary<string, object?> triggerValues)
     {
-        if (filter.TryGetValue("MinViewers", out var minViewersStr) && int.TryParse(minViewersStr, out var minViewers))
+        if (!TriggerFilterMatcherGuards.ContainsOnlyKnownKeys(filter, KnownFilterKeys))
         {
-            object? viewersObj = null;
-            if (!triggerValues.TryGetValue("ViewerCount", out viewersObj) &&
-                !triggerValues.TryGetValue("MinViewers", out viewersObj) &&
-                !triggerValues.TryGetValue("Viewers", out viewersObj))
+            return false;
+        }
+
+        if (filter.TryGetValue("MinViewers", out var minViewersStr))
+        {
+            if (!int.TryParse(minViewersStr, out var minViewers))
             {
                 return false;
             }
 
-            if (viewersObj == null || !int.TryParse(viewersObj.ToString(), out var actualViewers) || actualViewers < minViewers)
+            if (!triggerValues.TryGetValue("ViewerCount", out var viewersObj) || viewersObj == null)
+            {
+                return false;
+            }
+
+            if (!int.TryParse(viewersObj.ToString(), out var actualViewers) || actualViewers < minViewers)
             {
                 return false;
             }

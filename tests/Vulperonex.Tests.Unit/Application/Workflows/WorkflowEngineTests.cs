@@ -488,11 +488,11 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
-    public async Task Given_UnknownFilterKey_When_ExecutingRule_FallbackPath_Then_LogsWarning()
+    public async Task Given_UnknownFilterKey_When_ExecutingRule_FallbackPath_Then_RuleDoesNotExecute()
     {
-        // Use empty matcher registry to force fallback path (Phase C 向後相容窗口).
-        // Typed matchers (Phase B 上線後) 將取代此路徑並對未知 key 做嚴格驗證。
-        var logger = new CollectingEngineLogger();
+        // Empty matcher registry forces the generic dict-equality fallback path.
+        // A filter key with no matching trigger value must fail the match.
+        var executor = new RecordingActionExecutor();
         var rule = NewRule() with
         {
             Trigger = new WorkflowTrigger(
@@ -503,20 +503,17 @@ public sealed class WorkflowEngineTests
             bus,
             new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
             new WorkflowConditionEvaluator(new FakeClock()),
-            Array.Empty<IWorkflowActionExecutor>(),
+            [executor],
             new InMemoryWorkflowActionExecutionStore(),
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),
             new FakeClock(),
-            logger,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<WorkflowEngine>.Instance,
             NewEmptyMatcherRegistry());
 
         await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
 
-        logger.Logs.Should().Contain(log =>
-            log.Level == LogLevel.Warning &&
-            log.Message.Contains("Unknown filter key used in rule") &&
-            log.Message.Contains("invalid_filter_key"));
+        executor.Executions.Should().BeEmpty();
     }
 
     [Fact]

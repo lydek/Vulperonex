@@ -275,15 +275,6 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         return true;
     }
 
-    // TODO(Phase B): replace with ITriggerMetadataProvider
-    private static readonly HashSet<string> KnownFilterKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "CommandName", "Prefix", "MinAmount", "Tier", "IsGift", "RewardName", "TimerName",
-        "MinGiftCount", "MinViewers"
-    };
-
-    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte> WarnedFilterKeys = new();
-
     private bool MatchesTriggerFilter(
         WorkflowRule rule,
         string eventTypeKey,
@@ -304,26 +295,13 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             return isMatch;
         }
 
-        // Fallback: generic dict equality (Phase C 向後相容窗口期；warn 標識 event type 缺 typed matcher）
+        // Fallback: generic dict equality for event types without a typed matcher.
         _logger.LogDebug(
             "Falling back to generic filter dispatch. EventTypeKey={EventTypeKey} has no typed matcher registered.",
             eventTypeKey);
 
         foreach (var (key, expected) in filter)
         {
-            if (!KnownFilterKeys.Contains(key))
-            {
-                var cacheKey = $"{rule.Id}:{key}";
-                if (WarnedFilterKeys.TryAdd(cacheKey, 0))
-                {
-                    _logger.LogWarning(
-                        "Unknown filter key used in rule. RuleId={RuleId}, RuleName={RuleName}, FilterKey={FilterKey}",
-                        rule.Id,
-                        rule.Name,
-                        key);
-                }
-            }
-
             if (!triggerValues.TryGetValue(key, out var actual)
                 || !string.Equals(actual?.ToString(), expected, StringComparison.OrdinalIgnoreCase))
             {
@@ -585,6 +563,27 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             trigger["RewardId"] = rewardEvent.RewardId;
             trigger["RewardTitle"] = rewardEvent.RewardTitle;
             trigger["RedemptionId"] = rewardEvent.RedemptionId;
+        }
+
+        if (streamEvent is UserDonatedEvent donatedEvent)
+        {
+            trigger["TotalBitsGiven"] = donatedEvent.TotalBitsGiven;
+        }
+
+        if (streamEvent is UserSubscribedEvent subscribedEvent)
+        {
+            trigger["Tier"] = subscribedEvent.Tier;
+        }
+
+        if (streamEvent is UserGiftedSubscriptionEvent giftedSubEvent)
+        {
+            trigger["Tier"] = giftedSubEvent.Tier;
+            trigger["GiftCount"] = giftedSubEvent.GiftCount;
+        }
+
+        if (streamEvent is ChannelRaidedEvent raidedEvent)
+        {
+            trigger["ViewerCount"] = raidedEvent.ViewerCount;
         }
 
         if (streamEvent is WorkflowSystemEvent systemEvent)

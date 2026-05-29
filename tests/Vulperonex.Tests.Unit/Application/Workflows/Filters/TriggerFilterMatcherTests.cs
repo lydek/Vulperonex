@@ -80,7 +80,7 @@ public sealed class TriggerFilterMatcherTests
         var matcher = new MatchUserDonated();
         matcher.Match(
             new Dictionary<string, string> { ["MinAmount"] = minAmount },
-            new Dictionary<string, object?> { ["Amount"] = actual }).Should().Be(expected);
+            new Dictionary<string, object?> { ["TotalBitsGiven"] = actual }).Should().Be(expected);
     }
 
     [Fact]
@@ -98,7 +98,31 @@ public sealed class TriggerFilterMatcherTests
         var matcher = new MatchUserDonated();
         matcher.Match(
             new Dictionary<string, string>(),
-            new Dictionary<string, object?> { ["Amount"] = 5m }).Should().BeTrue();
+            new Dictionary<string, object?> { ["TotalBitsGiven"] = 5m }).Should().BeTrue();
+    }
+
+    [Fact]
+    public void TypedMatchers_UnknownFilterKey_ReturnsFalse()
+    {
+        var matcher = new MatchUserDonated();
+
+        matcher.Match(
+            new Dictionary<string, string> { ["BadKey"] = "100" },
+            new Dictionary<string, object?> { ["TotalBitsGiven"] = 100m })
+            .Should().BeFalse("typed filters must not silently ignore unknown keys");
+    }
+
+    [Theory]
+    [InlineData("not-a-number")]
+    [InlineData("")]
+    public void MatchUserDonated_InvalidMinAmount_ReturnsFalse(string minAmount)
+    {
+        var matcher = new MatchUserDonated();
+
+        matcher.Match(
+            new Dictionary<string, string> { ["MinAmount"] = minAmount },
+            new Dictionary<string, object?> { ["TotalBitsGiven"] = 100m })
+            .Should().BeFalse();
     }
 
     // ---------------------------------------------------------------------
