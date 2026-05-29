@@ -49,9 +49,16 @@ const customBgUrl = ref("");
 const customStampUrl = ref("");
 
 let settingsPollHandle: ReturnType<typeof setInterval> | null = null;
+const isSyncingHistory = ref(true);
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
 onMounted(() => {
-  void start();
+  void start().then(() => {
+    // Open a 1.5s sync window to absorb and suppress initial historical events
+    syncTimeout = setTimeout(() => {
+      isSyncingHistory.value = false;
+    }, 1500);
+  });
   void startSystemEvents();
   void fetchSettings();
   settingsPollHandle = setInterval(() => {
@@ -60,6 +67,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  if (syncTimeout !== null) {
+    clearTimeout(syncTimeout);
+    syncTimeout = null;
+  }
   if (settingsPollHandle !== null) {
     clearInterval(settingsPollHandle);
     settingsPollHandle = null;
@@ -80,17 +91,44 @@ watch(
   }
 );
 
+const lastProcessedEventId = ref<string | null>(null);
+
 watch(
-  () => events.value.length,
-  (newLength, oldLength) => {
-    if (newLength <= (oldLength || 0)) {
+  () => events.value,
+  (newEvents) => {
+    if (newEvents.length === 0) {
       return;
     }
 
-    const newest = events.value[0];
-    if (!newest) {
+    const newest = newEvents[0];
+    if (!newest || !newest.eventId) {
       return;
     }
+
+    // During history synchronization window, update card statically without triggering animations
+    if (isSyncingHistory.value) {
+      const total = newest.checkInCount || 1;
+      const displayStamps = total % MAX_STAMPS === 0 ? MAX_STAMPS : total % MAX_STAMPS;
+      const round = Math.max(1, Math.ceil(total / MAX_STAMPS));
+
+      cardData.value = {
+        name: newest.displayName || t("memberOverlay.unknownUser"),
+        avatarUrl: newest.avatarUrl || "",
+        targetStamp: displayStamps,
+        totalStamps: total,
+        round
+      };
+      currentStamps.value = displayStamps;
+      isFullStamps.value = displayStamps === MAX_STAMPS;
+      lastProcessedEventId.value = newest.eventId;
+      return;
+    }
+
+    if (newest.eventId === lastProcessedEventId.value) {
+      return;
+    }
+
+    lastProcessedEventId.value = newest.eventId;
 
     const total = newest.checkInCount || 1;
     const displayStamps = total % MAX_STAMPS === 0 ? MAX_STAMPS : total % MAX_STAMPS;
@@ -109,7 +147,8 @@ watch(
     });
 
     void processQueue();
-  }
+  },
+  { deep: true }
 );
 
 async function fetchSettings() {

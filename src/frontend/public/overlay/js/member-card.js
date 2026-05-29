@@ -224,6 +224,12 @@
             document.body.style.backgroundColor = 'transparent';
             document.body.classList.add('inline-mode');
         } else {
+            let isSyncingHistory = true;
+            setTimeout(() => {
+                isSyncingHistory = false;
+                logDebug("History synchronization window closed.");
+            }, 1500);
+
             // Connect to Vulperonex /hubs/overlay/member
             OverlayCommon.initSignalRConnection('/hubs/overlay/member', {
                 event: function (userData) {
@@ -233,6 +239,68 @@
                     const displayStamps = (total % 10 === 0) ? 10 : (total % 10);
                     const displayName = userData.displayName || "Unknown User";
                     const avatarUrl = userData.avatarUrl || "";
+
+                    if (isSyncingHistory) {
+                        // Statically update the card data without pushing to queue or rendering animations
+                        const userAvatar = document.getElementById('user-avatar');
+                        const userName = document.getElementById('user-name');
+                        const roundWatermark = document.getElementById('round-watermark');
+                        const stampsGrid = document.getElementById('stamps-grid');
+                        const progressBadge = document.getElementById('progress-badge');
+                        const progressBarFill = document.getElementById('progress-bar-fill');
+                        const cardElement = document.getElementById('loyalty-card');
+
+                        let currentRound = Math.max(1, Math.ceil(total / MAX_STAMPS));
+
+                        if (cardElement) cardElement.classList.remove('full-stamps', 'shake');
+
+                        if (userAvatar) {
+                            userAvatar.src = avatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23666'/><text x='50' y='55' font-family='Arial' font-size='40' font-weight='bold' fill='%23fff' text-anchor='middle' dominant-baseline='middle'>?</text></svg>";
+                        }
+                        if (userName) userName.textContent = displayName;
+                        if (roundWatermark) {
+                            roundWatermark.textContent = `Vol.${String(currentRound).padStart(2, '0')}`;
+                        }
+                        if (progressBadge) {
+                            progressBadge.textContent = `${displayStamps} / ${MAX_STAMPS}`;
+                        }
+                        if (progressBarFill) {
+                            progressBarFill.style.width = ((displayStamps / MAX_STAMPS) * 100) + "%";
+                        }
+
+                        if (stampsGrid) {
+                            stampsGrid.innerHTML = '';
+                            for (let i = 1; i <= MAX_STAMPS; i++) {
+                                const slot = document.createElement('div');
+                                slot.className = 'stamp-slot';
+                                slot.textContent = i;
+
+                                let seedPref = displayName + "_R" + currentRound + "_S" + i;
+                                let rot = (OverlayCommon.getDeterministicRandom(seedPref + "_rot") * 50) - 25;
+                                let dx = (OverlayCommon.getDeterministicRandom(seedPref + "_x") * 1.5) - 0.75;
+                                let dy = (OverlayCommon.getDeterministicRandom(seedPref + "_y") * 1.5) - 0.75;
+                                let scale = 0.95 + (OverlayCommon.getDeterministicRandom(seedPref + "_s") * 0.1);
+
+                                slot.style.setProperty('--rot', rot + 'deg');
+                                slot.style.setProperty('--dx', dx + 'px');
+                                slot.style.setProperty('--dy', dy + 'px');
+                                slot.style.setProperty('--scale', scale);
+
+                                if (i <= displayStamps) {
+                                    slot.classList.add('stamped');
+                                    slot.textContent = '';
+                                }
+                                stampsGrid.appendChild(slot);
+                            }
+                        }
+
+                        if (displayStamps === MAX_STAMPS && cardElement) {
+                            cardElement.classList.add('full-stamps');
+                        }
+
+                        logDebug("Statically updated member-card with replayed history.");
+                        return;
+                    }
 
                     if (checkInQueue.length >= MAX_QUEUE_SIZE) {
                         logDebug("Queue full. Dropping the oldest event.");
