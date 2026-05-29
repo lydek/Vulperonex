@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import {
   buildVariableGroups,
   parseArrayModel,
@@ -18,6 +18,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: "select", value: string): void }>();
 
+const detailsEl = ref<HTMLDetailsElement | null>(null);
+const summaryEl = ref<HTMLElement | null>(null);
+const panelStyle = ref<Record<string, string>>({});
+
 const groups = computed<VariableGroup[]>(() => {
   const previousSteps = props.previousSteps
     ?? parseArrayModel(props.previousStepsJson ?? "[]");
@@ -29,7 +33,63 @@ const groups = computed<VariableGroup[]>(() => {
 
 function selectVariable(value: string): void {
   emit("select", value);
+  closePanel();
 }
+
+function onToggle(): void {
+  if (detailsEl.value?.open) {
+    positionPanel();
+    document.addEventListener("mousedown", onOutsideMouseDown, true);
+    window.addEventListener("resize", positionPanel);
+    window.addEventListener("scroll", positionPanel, true);
+  } else {
+    removeListeners();
+  }
+}
+
+function positionPanel(): void {
+  const summary = summaryEl.value;
+  if (!summary) {
+    return;
+  }
+
+  const rect = summary.getBoundingClientRect();
+  const margin = 8;
+  const width = Math.min(340, window.innerWidth - margin * 2);
+  const top = rect.bottom + 6;
+  const maxLeft = window.innerWidth - margin - width;
+  const left = Math.min(Math.max(rect.right - width, margin), Math.max(maxLeft, margin));
+  const maxHeight = Math.max(window.innerHeight - top - 12, 120);
+
+  panelStyle.value = {
+    position: "fixed",
+    top: `${top}px`,
+    left: `${left}px`,
+    width: `${width}px`,
+    maxHeight: `${maxHeight}px`
+  };
+}
+
+function onOutsideMouseDown(event: MouseEvent): void {
+  if (detailsEl.value && !detailsEl.value.contains(event.target as Node)) {
+    closePanel();
+  }
+}
+
+function closePanel(): void {
+  if (detailsEl.value) {
+    detailsEl.value.open = false;
+  }
+  removeListeners();
+}
+
+function removeListeners(): void {
+  document.removeEventListener("mousedown", onOutsideMouseDown, true);
+  window.removeEventListener("resize", positionPanel);
+  window.removeEventListener("scroll", positionPanel, true);
+}
+
+onBeforeUnmount(removeListeners);
 
 function filterTriggerVariables(
   groups: VariableGroup[],
@@ -58,9 +118,9 @@ function normalizeTriggerVariable(value: string): string {
 </script>
 
 <template>
-  <details class="variable-picker">
-    <summary class="variable-picker__summary" data-testid="variable-picker-toggle">{x} Variables</summary>
-    <div class="variable-picker__panel">
+  <details ref="detailsEl" class="variable-picker" @toggle="onToggle">
+    <summary ref="summaryEl" class="variable-picker__summary" data-testid="variable-picker-toggle">{x} Variables</summary>
+    <div class="variable-picker__panel" :style="panelStyle">
       <section v-for="group in groups" :key="group.key" class="variable-picker__group">
         <h3 class="variable-picker__title">{{ group.label }}</h3>
         <div class="variable-picker__list">

@@ -53,7 +53,7 @@ function buildExpression(): string {
   const variableInfo = getVariableInfo(variable);
   const normalizedRight = rightValue.value.trim();
   if (normalizedRight.length === 0) {
-    return `${variable} ${operator.value}`;
+    return variable;
   }
 
   if (variableInfo?.type === "number") {
@@ -78,14 +78,14 @@ function tryParseExpression(expression: string): boolean {
     return true;
   }
 
-  const match = trimmed.match(/^(Trigger|Member|Args|Step|Failure)\.[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*\s*(==|!=|>=|<=|>|<|contains)\s*(.+)$/i);
+  const match = trimmed.match(/^((?:Trigger|Member|Args|Step|Failure)\.[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*)(?:\s*(==|!=|>=|<=|>|<|contains)\s*(.*))?$/i);
   if (!match) {
     return false;
   }
 
-  leftVar.value = match[1] + trimmed.slice(match[1].length, trimmed.indexOf(match[2])).trimEnd();
-  operator.value = match[2];
-  rightValue.value = match[3].trim().replace(/^'(.*)'$/s, "$1").replace(/^"(.*)"$/s, "$1");
+  leftVar.value = match[1];
+  operator.value = match[2] ?? "==";
+  rightValue.value = (match[3] ?? "").trim().replace(/^'(.*)'$/s, "$1").replace(/^"(.*)"$/s, "$1");
   mode.value = "visual";
   return true;
 }
