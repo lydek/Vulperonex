@@ -1,6 +1,14 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import ConditionExpressionInput from "./ConditionExpressionInput.vue";
+
+vi.mock("vue-i18n", () => ({
+  useI18n: () => ({
+    t: (key: string) => key,
+    te: () => false
+  })
+}));
+
 
 describe("ConditionExpressionInput", () => {
   it("should build visual expressions from picked variables", async () => {

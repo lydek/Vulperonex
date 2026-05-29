@@ -83,9 +83,10 @@ describe("WorkflowActionsEditor", () => {
     await textareas[1].setValue("2\n3");
     await wrapper.find('[data-testid="workflow-actions-execution-0-raw-toggle"]').trigger("click");
     await wrapper.find('[data-testid="workflow-actions-execution-0"]').setValue("Trigger.IsModerator");
-    await wrapper.find('input[placeholder="Result"]').setValue("Pick");
+    await wrapper.find('.workflow-builder__meta-output input').setValue("Pick");
 
-    expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe(JSON.stringify([
+    const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
+    expect(emittedJson).toEqual([
       {
         type: "randomPicker",
         choices: ["alpha", "beta"],
@@ -93,7 +94,8 @@ describe("WorkflowActionsEditor", () => {
         executionCondition: "Trigger.IsModerator",
         outputVariable: "Pick"
       }
-    ], null, 2));
+    ]);
+
   });
 
   it("should remain openable with a fallback warning when metadata fails", async () => {
