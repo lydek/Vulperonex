@@ -24,9 +24,9 @@ public sealed class ActionMetadataProviderTests
         sendChat.DisplayName.Should().Be("Send Chat Message");
         sendChat.Description.Should().Be("Send a message to a stream platform chat");
         sendChat.Parameters.Should().Contain(p => p.Key == "Template" && p.Type == "string" && p.Required);
-        // TargetPlatform is intentionally not exposed as an editor parameter (cross-platform routing is internal-only).
+        // TargetPlatform & Channel are intentionally not exposed as editor parameters (internal / global routing only).
         sendChat.Parameters.Should().NotContain(p => p.Key == "TargetPlatform");
-        sendChat.Parameters.Should().Contain(p => p.Key == "Channel" && p.Type == "string" && !p.Required);
+        sendChat.Parameters.Should().NotContain(p => p.Key == "Channel");
         sendChat.Parameters.Should().Contain(p => p.Key == "DedupKey" && p.Type == "string" && !p.Required);
 
         var delay = actions.Should().ContainSingle(a => a.Type == "delay").Subject;

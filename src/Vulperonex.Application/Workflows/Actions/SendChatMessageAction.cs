@@ -18,7 +18,8 @@ public sealed record SendChatMessageAction : WorkflowAction
     // Property retained for plugin/internal routing and raw-JSON overrides.
     public string? TargetPlatform { get; init; }
 
-    [ActionParam("Channel", "string", required: false, help: "Target stream channel name")]
+    // Channel routing is not exposed in the editor; defaults to the globally configured channel.
+    // Property retained for plugin/internal routing and raw-JSON overrides.
     public string? Channel { get; init; }
 
     [ActionParam("Deduplication Key", "string", required: false, help: "Deduplication key to prevent duplicate messages")]
