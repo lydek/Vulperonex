@@ -155,6 +155,8 @@ public sealed class OverlayEventForwarder(
     {
         var payload = new OverlayMemberPayload(
             SchemaVersion: 1,
+            EventId: streamEvent.EventId,
+            Timestamp: streamEvent.OccurredAt,
             DisplayName: streamEvent.User.DisplayName,
             AvatarUrl: streamEvent.AvatarUrl,
             CheckInCount: streamEvent.CheckInCount,

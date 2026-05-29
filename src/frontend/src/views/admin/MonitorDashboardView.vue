@@ -49,7 +49,7 @@ const HEALTH_POLL_INTERVAL_MS = 30_000;
 async function checkHealth(): Promise<void> {
   try {
     const res = await getHealth();
-    serverHealth.value = res.status === "Healthy" || res.status === "healthy" ? "healthy" : "unhealthy";
+    serverHealth.value = res.status === "Healthy" || res.status === "healthy" || res.status === "ok" ? "healthy" : "unhealthy";
   } catch {
     serverHealth.value = "unhealthy";
   }

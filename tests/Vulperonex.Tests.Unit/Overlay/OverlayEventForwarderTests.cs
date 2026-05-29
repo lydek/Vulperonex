@@ -97,6 +97,8 @@ public sealed class OverlayEventForwarderTests
         // Verify history persistence
         await _mockMemberHistory.Received(1).AddAsync(
             Arg.Is<OverlayMemberPayload>(p =>
+                p.EventId == checkInEvent.EventId &&
+                p.Timestamp == checkInEvent.OccurredAt &&
                 p.DisplayName == "Alice" &&
                 p.AvatarUrl == "http://avatar" &&
                 p.CheckInCount == 5 &&
