@@ -244,46 +244,86 @@ public static class OverlayPresetEndpoints
             }
         });
 
-        endpoints.MapGet("/overlay/{hub}", async (
-            string hub,
+        endpoints.MapGet("/overlay/chat", (
             HttpContext context,
             OverlayPresetStore store,
             ISystemSettingsService settings,
             CancellationToken cancellationToken) =>
-        {
-            if (!store.IsSupportedHub(hub))
-            {
-                return Results.NotFound();
-            }
+            HandleOverlayHubAsync("chat", context, store, settings, cancellationToken));
 
-            var queryPreset = context.Request.Query["preset"].ToString();
-            var configuredPreset = !string.IsNullOrWhiteSpace(queryPreset)
-                ? queryPreset
-                : await settings.GetAsync<string?>(store.GetSettingKeyForHub(hub), null, cancellationToken);
+        endpoints.MapGet("/overlay/member", (
+            HttpContext context,
+            OverlayPresetStore store,
+            ISystemSettingsService settings,
+            CancellationToken cancellationToken) =>
+            HandleOverlayHubAsync("member", context, store, settings, cancellationToken));
 
-            if (TryResolveCustomPreset(configuredPreset, store, out var relativePath))
-            {
-                var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
-                return Results.Redirect($"{relativePath}{queryString}");
-            }
-
-            return ServeSpaIndex(context);
-        });
+        endpoints.MapGet("/overlay/alerts", (
+            HttpContext context,
+            OverlayPresetStore store,
+            ISystemSettingsService settings,
+            CancellationToken cancellationToken) =>
+            HandleOverlayHubAsync("alerts", context, store, settings, cancellationToken));
 
         return endpoints;
     }
 
-    private static bool TryResolveCustomPreset(string? configuredPreset, OverlayPresetStore store, out string? relativePath)
+    private static async Task<IResult> HandleOverlayHubAsync(
+        string hub,
+        HttpContext context,
+        OverlayPresetStore store,
+        ISystemSettingsService settings,
+        CancellationToken cancellationToken)
+    {
+        var queryPreset = context.Request.Query["preset"].ToString();
+        var configuredPreset = !string.IsNullOrWhiteSpace(queryPreset)
+            ? queryPreset
+            : await settings.GetAsync<string?>(store.GetSettingKeyForHub(hub), null, cancellationToken);
+
+        if (TryResolvePresetRelativePath(configuredPreset, hub, store, out var relativePath))
+        {
+            if (relativePath!.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
+            {
+                var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
+                if (!configuredPreset.StartsWith("custom:", StringComparison.Ordinal) &&
+                    !queryString.Contains("preset=", StringComparison.OrdinalIgnoreCase) &&
+                    !string.IsNullOrWhiteSpace(configuredPreset))
+                {
+                    var separator = string.IsNullOrEmpty(queryString) ? "?" : "&";
+                    queryString += $"{separator}preset={configuredPreset}";
+                }
+                return Results.Redirect($"{relativePath}{queryString}");
+            }
+        }
+
+        return ServeSpaIndex(context);
+    }
+
+    private static bool TryResolvePresetRelativePath(string? configuredPreset, string hub, OverlayPresetStore store, out string? relativePath)
     {
         relativePath = null;
-        if (string.IsNullOrWhiteSpace(configuredPreset) || !configuredPreset.StartsWith("custom:", StringComparison.Ordinal))
+        if (string.IsNullOrWhiteSpace(configuredPreset))
         {
             return false;
         }
 
-        var slug = configuredPreset["custom:".Length..];
-        relativePath = store.ResolveCustomRelativePath(slug);
-        return relativePath is not null;
+        if (configuredPreset.StartsWith("custom:", StringComparison.Ordinal))
+        {
+            var slug = configuredPreset["custom:".Length..];
+            relativePath = store.ResolveCustomRelativePath(slug);
+            return relativePath is not null;
+        }
+
+        var builtin = store.GetBuiltIns()
+            .FirstOrDefault(p => string.Equals(p.HubName, hub, StringComparison.OrdinalIgnoreCase)
+                                 && string.Equals(p.Key, configuredPreset, StringComparison.OrdinalIgnoreCase));
+        if (builtin is not null)
+        {
+            relativePath = builtin.RelativeUrl;
+            return true;
+        }
+
+        return false;
     }
 
     private static IResult ServeSpaIndex(HttpContext context)
