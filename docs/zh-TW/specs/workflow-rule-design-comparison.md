@@ -42,7 +42,7 @@ DB 內既有一條 boot-seed 的 Phase 7 sample rule：trigger 為 `user.message
 
 對照 OC：`TriggerMatcher.cs` 依 `EventType` 走 typed switch dispatch，
 `ChatMessage` 自動處理「指令邊界 (`!so` 不誤匹 `!sorry`)」、`TwitchSub`
-有 `Tier`/`IsGift` 專屬欄位、`TwitchBits` 有 `MinAmount` 門檻比較等。
+有 `Tier` 專屬欄位、`TwitchBits` 有 `MinAmount` 門檻比較等。
 filter key 不是 user 自由填寫，是引擎針對事件型別開的固定槽位。
 
 ---
@@ -53,7 +53,7 @@ filter key 不是 user 自由填寫，是引擎針對事件型別開的固定槽
 |---|---|---|---|
 | Event type | `enum TriggerEventType`（9 個 typed） | `string EventTypeKey`（open） | OC 編譯時期保證；V 擴充無需改 enum |
 | Trigger 結構 | `WorkflowTrigger { EventType, Filter, MatchCondition }` | `WorkflowTrigger { EventTypeKey, Filter, MatchCondition }` | 同 |
-| Filter 語意 | per-event-type typed semantics（`CommandName`/`Prefix`/`MinViewers`/`Tier`/`IsGift`／`RewardName`） | generic `Dict<string,string>` 全 key 等值 | **OC 勝**；V 易誤用 |
+| Filter 語意 | per-event-type typed semantics（`CommandName`/`Prefix`/`MinViewers`/`Tier`／`RewardName`） | generic `Dict<string,string>` 全 key 等值 | **OC 勝**；V 易誤用 |
 | Action 模型 | `WorkflowStep { ActionName: string, Parameters: Dict<string,string> }` | `WorkflowAction` 抽象 + `[JsonPolymorphic]` 強型別 record（15 種，[Actions/](../../../src/Vulperonex.Application/Workflows/Actions/)） | **V 勝**；type-safe + IDE 補完 |
 | Sub-workflow | `Trigger == null` 隱式 | `IsSubWorkflow: bool` 顯式 + `InvokeSubWorkflowAction` | V 較清楚 |
 | Throttle | `ThrottlePolicy` | `WorkflowThrottlePolicy` | 一致 |
@@ -98,10 +98,10 @@ flowchart TD
     B -- 是 --> C{Dispatch by EventType}
     C -->|ChatMessage| D1[MatchChatMessage<br/>CommandName / Prefix · 邊界檢查]
     C -->|TwitchBits| D2[MatchMinThreshold MinAmount]
-    C -->|TwitchSub| D3[MatchSubFilter Tier + IsGift]
+    C -->|TwitchSub| D3[MatchSubFilter Tier]
     C -->|ChannelPoint| D4[MatchExactString RewardName]
     C -->|TwitchRaid| D5[MatchMinThreshold MinViewers]
-    C -->|Timer| D6[MatchExactString TimerName]
+    C -->|Timer| D6[MatchExactString TimerId]
     D1 --> E[Eval MatchCondition · 變數替換]
     D2 --> E
     D3 --> E
@@ -492,11 +492,11 @@ V 尚未釋出，無真實 operator 資料 → 走最簡路徑：
 - [ ] 內建 matcher（event key 對齊 [`StreamEventKeys.cs`](../../../src/Vulperonex.Domain/Events/StreamEventKeys.cs)）：
   - `user.message` → `MatchChatMessage`（CommandName / Prefix + 邊界檢查）
   - `user.donated` → `MatchMinThreshold(MinAmount)`
-  - `user.subscribed` → `MatchSubFilter(Tier, IsGift)`
+  - `user.subscribed` → `MatchSubFilter(Tier)`
   - `user.gifted_sub` → `MatchSubFilter(Tier) + MatchMinThreshold(MinGiftCount)`
   - `channel.raided` → `MatchMinThreshold(MinViewers)`
   - `reward.redeemed` → `MatchExactString(RewardName)`
-  - `workflow.timer` → `MatchExactString(TimerName)`
+  - `workflow.timer` → `MatchExactString(TimerId)`
   - 其他 → fallback generic dict + warn log（向後相容窗口期）
 - [ ] `WorkflowEngine.MatchesTrigger` 改呼 matcher registry
 - [ ] **`legacy_filter_blob` 不參與 matcher registry**（Phase B 政策已強制

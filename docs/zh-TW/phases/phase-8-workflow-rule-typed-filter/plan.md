@@ -538,11 +538,11 @@ metadata-clean check；讀取路徑無需改。
 |---|---|
 | `user.message` | `MatchChatMessage`（CommandName / Prefix + **邊界檢查**防 `!so`誤匹`!sorry`） |
 | `user.donated` | `MatchMinThreshold(MinAmount)` |
-| `user.subscribed` | `MatchSubFilter(Tier, IsGift)` |
+| `user.subscribed` | `MatchSubFilter(Tier)` |
 | `user.gifted_sub` | `MatchSubFilter(Tier) + MatchMinThreshold(MinGiftCount)` |
 | `channel.raided` | `MatchMinThreshold(MinViewers)` |
 | `reward.redeemed` | `MatchExactString(RewardName)` |
-| `workflow.timer` | `MatchExactString(TimerName)` |
+| `workflow.timer` | `MatchExactString(TimerId)` |
 | 其他 | fallback generic dict + warn log（向後相容） |
 
 **Acceptance criteria**：

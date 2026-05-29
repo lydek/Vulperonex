@@ -46,7 +46,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             return new[]
             {
-                new FilterFieldDto("MinAmount", "Minimum Amount", "number", Help: "Trigger when donation is equal or greater than this value")
+                new FilterFieldDto("MinAmount", "Minimum Bits", "number", Help: "Trigger when bits given is equal or greater than this value")
             };
         }
 
@@ -54,8 +54,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             return new[]
             {
-                new FilterFieldDto("Tier", "Subscription Tier", "string", Options: new[] { "1000", "2000", "3000" }, Help: "Trigger only for specific sub tier"),
-                new FilterFieldDto("IsGift", "Is Gifted", "boolean", Help: "Trigger only for gifted subscriptions")
+                new FilterFieldDto("Tier", "Subscription Tier", "string", Options: new[] { "1000", "2000", "3000" }, Help: "Trigger only for specific sub tier")
             };
         }
 
@@ -88,7 +87,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             return new[]
             {
-                new FilterFieldDto("TimerName", "Timer Name", "string", Help: "Trigger only on specific timer identifier, e.g. HourlyAlert")
+                new FilterFieldDto("TimerId", "Timer ID", "string", Help: "Trigger only on a specific timer id from the rule timer configuration")
             };
         }
 
@@ -108,6 +107,23 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             common.Add("MessageText");
         }
+        else if (eventTypeKey.Equals("user.donated", StringComparison.OrdinalIgnoreCase))
+        {
+            common.Add("TotalBitsGiven");
+        }
+        else if (eventTypeKey.Equals("user.subscribed", StringComparison.OrdinalIgnoreCase))
+        {
+            common.Add("Tier");
+        }
+        else if (eventTypeKey.Equals("user.gifted_sub", StringComparison.OrdinalIgnoreCase))
+        {
+            common.Add("Tier");
+            common.Add("GiftCount");
+        }
+        else if (eventTypeKey.Equals("channel.raided", StringComparison.OrdinalIgnoreCase))
+        {
+            common.Add("ViewerCount");
+        }
         else if (eventTypeKey.Equals("reward.redeemed", StringComparison.OrdinalIgnoreCase))
         {
             common.Add("RewardId");
@@ -116,7 +132,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         }
         else if (eventTypeKey.Equals("workflow.timer", StringComparison.OrdinalIgnoreCase))
         {
-            common.AddRange(new[] { "Depth", "Payload", "Payload.timerName" });
+            common.AddRange(new[] { "Depth", "Payload", "Payload.TimerId", "Payload.RuleId", "Payload.IntervalSeconds" });
         }
 
         return common;

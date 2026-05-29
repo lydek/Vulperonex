@@ -103,8 +103,9 @@ const triggerVariableDefinitions: VariableDefinition[] = [
   { path: "Trigger.Arg1", label: "Arg1", type: "string" },
   { path: "Trigger.RewardId", label: "Reward id", type: "string" },
   { path: "Trigger.RedemptionId", label: "Redemption id", type: "string" },
-  { path: "Trigger.TimerName", label: "Timer name", type: "string" },
-  { path: "Trigger.IntervalSeconds", label: "Interval seconds", type: "number" },
+  { path: "Trigger.Payload.TimerId", label: "Timer id", type: "string" },
+  { path: "Trigger.Payload.RuleId", label: "Timer rule id", type: "string" },
+  { path: "Trigger.Payload.IntervalSeconds", label: "Timer interval seconds", type: "number" },
   { path: "Trigger.IsTest", label: "Is test", type: "boolean", options: ["true", "false"] }
 ];
 

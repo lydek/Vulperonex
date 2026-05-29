@@ -53,4 +53,20 @@ public sealed class TriggerMetadataProviderTests
         variables.Should().Contain("EventTypeKey");
         variables.Should().Contain("MessageText");
     }
+
+    [Fact]
+    public void Given_WorkflowTimerEventKey_When_GetMetadataCalled_Then_UsesTimerPayloadVariables()
+    {
+        var registry = new InMemoryStreamEventTypeRegistry();
+        var provider = new TriggerMetadataProvider(registry);
+
+        var fields = provider.GetFilterFieldsFor("workflow.timer");
+        var variables = provider.GetValidVariablesFor("workflow.timer");
+
+        fields.Should().ContainSingle(field => field.Key == "TimerId");
+        variables.Should().Contain("Payload.TimerId");
+        variables.Should().Contain("Payload.RuleId");
+        variables.Should().Contain("Payload.IntervalSeconds");
+        variables.Should().NotContain("TimerName");
+    }
 }

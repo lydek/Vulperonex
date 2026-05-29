@@ -22,7 +22,7 @@ The chain of issues:
 >
 > **Development Stage Decision (2026-05-28)**: Vulperonex has not been released yet, and there is no real operator data. For Phase B, we will **directly wipe existing workflow rules and reseed typed examples**, rather than utilizing the audit path of `legacy_filter_blob` (reverting the previous AD-5). This document focuses on a **systemic** fix (typed dispatch + failure observability + template reconstruction) rather than a hotfix for that single bug.
 
-In comparison, OC's `TriggerMatcher.cs` performs a typed switch dispatch based on `EventType`. For instance, `ChatMessage` automatically handles command boundaries (preventing `!so` from matching `!sorry`), `TwitchSub` has dedicated fields like `Tier`/`IsGift`, and `TwitchBits` provides threshold comparisons like `MinAmount`. Filter keys are not freely typed by users; they are fixed slots defined by the engine for each event type.
+In comparison, OC's `TriggerMatcher.cs` performs a typed switch dispatch based on `EventType`. For instance, `ChatMessage` automatically handles command boundaries (preventing `!so` from matching `!sorry`), `TwitchSub` has dedicated fields like `Tier`, and `TwitchBits` provides threshold comparisons like `MinAmount`. Filter keys are not freely typed by users; they are fixed slots defined by the engine for each event type.
 
 ---
 
@@ -32,7 +32,7 @@ In comparison, OC's `TriggerMatcher.cs` performs a typed switch dispatch based o
 |---|---|---|---|
 | Event Type | `enum TriggerEventType` (9 typed events) | `string EventTypeKey` (open) | OC guarantees type safety at compile time; V allows extension without modifying enums. |
 | Trigger Structure | `WorkflowTrigger { EventType, Filter, MatchCondition }` | `WorkflowTrigger { EventTypeKey, Filter, MatchCondition }` | Identical |
-| Filter Semantics | Per-event-type typed semantics (`CommandName`/`Prefix`/`MinViewers`/`Tier`/`IsGift`/`RewardName`) | Generic `Dict<string,string>` matching all keys | **OC Wins**; V is prone to misuse. |
+| Filter Semantics | Per-event-type typed semantics (`CommandName`/`Prefix`/`MinViewers`/`Tier`/`RewardName`) | Generic `Dict<string,string>` matching all keys | **OC Wins**; V is prone to misuse. |
 | Action Model | `WorkflowStep { ActionName: string, Parameters: Dict<string,string> }` | `WorkflowAction` abstraction + `[JsonPolymorphic]` strongly typed records (15 types, [Actions/](../../src/Vulperonex.Application/Workflows/Actions/)) | **V Wins**; type-safe + IDE auto-completion. |
 | Sub-workflow | Implicit via `Trigger == null` | Explicit via `IsSubWorkflow: bool` + `InvokeSubWorkflowAction` | V is clearer. |
 | Throttle | `ThrottlePolicy` | `WorkflowThrottlePolicy` | Consistent |
@@ -76,10 +76,10 @@ flowchart TD
     B -- Yes --> C{Dispatch by EventType}
     C -->|ChatMessage| D1[MatchChatMessage<br/>CommandName / Prefix · Boundary Check]
     C -->|TwitchBits| D2[MatchMinThreshold MinAmount]
-    C -->|TwitchSub| D3[MatchSubFilter Tier + IsGift]
+    C -->|TwitchSub| D3[MatchSubFilter Tier]
     C -->|ChannelPoint| D4[MatchExactString RewardName]
     C -->|TwitchRaid| D5[MatchMinThreshold MinViewers]
-    C -->|Timer| D6[MatchExactString TimerName]
+    C -->|Timer| D6[MatchExactString TimerId]
     D1 --> E[Eval MatchCondition · Variable replacement]
     D2 --> E
     D3 --> E
@@ -399,11 +399,11 @@ V has not been released yet, and there is no real operator data → follow the s
 - [ ] Built-in Matchers (aligning event keys with [`StreamEventKeys.cs`](../../src/Vulperonex.Domain/Events/StreamEventKeys.cs)):
   - `user.message` → `MatchChatMessage` (CommandName / Prefix + boundary checks).
   - `user.donated` → `MatchMinThreshold(MinAmount)`.
-  - `user.subscribed` → `MatchSubFilter(Tier, IsGift)`.
+  - `user.subscribed` → `MatchSubFilter(Tier)`.
   - `user.gifted_sub` → `MatchSubFilter(Tier) + MatchMinThreshold(MinGiftCount)`.
   - `channel.raided` --> `MatchMinThreshold(MinViewers)`.
   - `reward.redeemed` → `MatchExactString(RewardName)`.
-  - `workflow.timer` → `MatchExactString(TimerName)`.
+  - `workflow.timer` → `MatchExactString(TimerId)`.
   - Others → fallback to generic dict + emit warning log (for backward compatibility).
 - [ ] Modify `WorkflowEngine.MatchesTrigger` to invoke the matcher registry.
 - [ ] **`legacy_filter_blob` does not participate in the matcher registry** (the Phase B policy forces it to be UI/audit only). The engine-visible `Trigger.Filter` is already scrubbed by migration.

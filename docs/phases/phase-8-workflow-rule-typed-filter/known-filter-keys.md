@@ -18,12 +18,11 @@ All valid filter keys currently supported by the engine are compiled below:
 | | `Prefix` | String | `"!help"` (messages starting with a specific prefix) |
 | **`user.donated`** (Donations/Bits) | `MinAmount` | Number | `100` (minimum Bits/amount threshold required) |
 | **`user.subscribed`** (Subscriptions) | `Tier` | String | `"1000"`, `"2000"`, `"3000"` (restricts to a specific subscription tier) |
-| | `IsGift` | Boolean | `true` or `false` (whether the subscription is gifted) |
 | **`user.gifted_sub`** (Gifted Subs) | `Tier` | String | `"1000"` (gifted subscription tier) |
 | | `MinGiftCount` | Number | `50` (minimum count of subs gifted in a single batch) |
 | **`channel.raided`** (Raids) | `MinViewers` | Number | `5` (minimum viewers brought in by the raid) |
 | **`reward.redeemed`** (Channel Points) | `RewardName` | String | `"Lottery Ticket"` (restricts to a specific channel point reward name) |
-| **`workflow.timer`** (Timer Fired) | `TimerName` | String | `"HourlyAlert"` (restricts to a specific timer identifier) |
+| **`workflow.timer`** (Timer Fired) | `TimerId` | String | `"hourly-alert"` (restricts to a specific timer id) |
 
 ---
 

@@ -18,12 +18,11 @@
 | | `Prefix` | 字串 | `"!help"` (以特定前綴開頭的訊息) |
 | **`user.donated`** (捐贈/Bits) | `MinAmount` | 數字 | `100` (捐贈的最低 Bits/金額門檻限制) |
 | **`user.subscribed`** (訂閱) | `Tier` | 字串 | `"1000"`, `"2000"`, `"3000"` (限定訂閱層級) |
-| | `IsGift` | 布林 | `true` 或 `false` (是否為贈送訂閱) |
 | **`user.gifted_sub`** (贈送訂閱) | `Tier` | 字串 | `"1000"` (贈送的訂閱層級) |
 | | `MinGiftCount` | 數字 | `50` (單次最低贈送份數門檻) |
 | **`channel.raided`** (Raid 襲擊) | `MinViewers` | 數字 | `5` (Raid 帶來的最低觀眾數門檻) |
 | **`reward.redeemed`** (忠誠點數兌換) | `RewardName` | 字串 | `"Lottery Ticket"` (限定特定的兌換項目名稱) |
-| **`workflow.timer`** (計時器觸發) | `TimerName` | 字串 | `"HourlyAlert"` (限定特定的計時器識別子) |
+| **`workflow.timer`** (計時器觸發) | `TimerId` | 字串 | `"hourly-alert"` (限定特定的計時器 id) |
 
 ---
 

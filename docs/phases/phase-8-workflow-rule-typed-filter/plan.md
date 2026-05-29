@@ -480,11 +480,11 @@ DELETE FROM workflow_rules;
 |---|---|
 | `user.message` | `MatchChatMessage` (CommandName / Prefix + **Boundary Checks** preventing `!so` from matching `!sorry`). |
 | `user.donated` | `MatchMinThreshold(MinAmount)`. |
-| `user.subscribed` | `MatchSubFilter(Tier, IsGift)`. |
+| `user.subscribed` | `MatchSubFilter(Tier)`. |
 | `user.gifted_sub` | `MatchSubFilter(Tier) + MatchMinThreshold(MinGiftCount)`. |
 | `channel.raided` | `MatchMinThreshold(MinViewers)`. |
 | `reward.redeemed` | `MatchExactString(RewardName)`. |
-| `workflow.timer` | `MatchExactString(TimerName)`. |
+| `workflow.timer` | `MatchExactString(TimerId)`. |
 | Others | Fallback to generic dict + emit warning log (for backward compatibility). |
 
 **Acceptance criteria**:
