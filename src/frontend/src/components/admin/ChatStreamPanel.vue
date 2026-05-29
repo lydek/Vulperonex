@@ -126,48 +126,42 @@ function getSegmentsText(ev: OverlayHubEvent): string {
     </header>
 
     <div class="table-container">
-      <table v-if="localEvents.length > 0" class="stream-table">
-        <thead>
-          <tr>
-            <th class="col-time">{{ t("monitor.chat.col.time") }}</th>
-            <th class="col-user">{{ t("monitor.chat.col.user") }}</th>
-            <th class="col-msg">{{ t("monitor.chat.col.message") }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="ev in localEvents" :key="ev.eventId" class="stream-row" data-testid="chat-stream-row">
-            <td class="cell-time">{{ formatTime(ev.timestamp ?? ev.sentAt) }}</td>
-            <td class="cell-user">
-              <div class="user-cell-wrapper">
-                <span class="username" :style="{ color: ev.colorHex || '#6d4fc2' }">
-                  {{ ev.displayName || "Anonymous" }}
-                </span>
+      <div v-if="localEvents.length > 0" class="chat-message-list">
+        <div
+          v-for="ev in localEvents"
+          :key="ev.eventId"
+          class="chat-message-item"
+          data-testid="chat-stream-row"
+        >
+          <span class="message-time">{{ formatTime(ev.timestamp ?? ev.sentAt) }}</span>
+          <div class="message-content-wrap">
+            <div class="message-user-info">
+              <span class="message-username" :style="{ color: ev.colorHex || '#6d4fc2' }">
+                {{ ev.displayName || "Anonymous" }}
+              </span>
 
-                <span
-                  v-for="role in ev.roles ?? []"
-                  :key="`${ev.eventId}-${role}`"
-                  class="role-pill"
-                >
-                  {{ role }}
-                </span>
+              <span
+                v-for="role in ev.roles ?? []"
+                :key="`${ev.eventId}-${role}`"
+                class="message-role-badge"
+              >
+                {{ role }}
+              </span>
 
-                <div v-if="ev.memberSnapshot" class="member-chip-preview" data-testid="member-chip">
-                  <img
-                    v-if="ev.memberSnapshot.avatarUrl"
-                    :src="ev.memberSnapshot.avatarUrl"
-                    class="chip-avatar"
-                    alt="avatar"
-                  />
-                  <span class="chip-count">打卡 {{ ev.memberSnapshot.checkInCount }}</span>
-                </div>
+              <div v-if="ev.memberSnapshot" class="message-member-badge" data-testid="member-chip">
+                <img
+                  v-if="ev.memberSnapshot.avatarUrl"
+                  :src="ev.memberSnapshot.avatarUrl"
+                  class="badge-avatar"
+                  alt="avatar"
+                />
+                <span class="badge-count">打卡 {{ ev.memberSnapshot.checkInCount }}</span>
               </div>
-            </td>
-            <td class="cell-msg">
-              <span class="msg-text">{{ getSegmentsText(ev) || "-" }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            </div>
+            <p class="message-text-body">{{ getSegmentsText(ev) || "-" }}</p>
+          </div>
+        </div>
+      </div>
 
       <div v-else class="empty-stream">
         <div class="empty-icon">...</div>
@@ -278,114 +272,106 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 .table-container {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
-.stream-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
+.chat-message-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  overflow-y: auto;
+  height: 100%;
+  box-sizing: border-box;
 }
 
-.stream-table th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 12px 18px;
-  background: rgba(236, 244, 240, 0.96);
-  border-bottom: 1px solid #dde7e1;
-  color: #58756c;
-  font-size: 0.76rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  text-align: left;
+.chat-message-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(45, 157, 120, 0.06);
+  box-shadow: 0 1px 3px rgba(33, 58, 52, 0.02);
+  transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
 
-.col-time {
-  width: 112px;
+.chat-message-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(33, 58, 52, 0.05);
+  background: #ffffff;
 }
 
-.col-user {
-  width: 240px;
-}
-
-.stream-row {
-  border-bottom: 1px solid #edf2ef;
-}
-
-.stream-row:hover {
-  background: rgba(241, 247, 244, 0.85);
-}
-
-.cell-time,
-.cell-user,
-.cell-msg {
-  padding: 14px 18px;
-  vertical-align: top;
-}
-
-.cell-time {
-  color: #5f786f;
+.message-time {
   font-family: Consolas, "Courier New", monospace;
-  font-size: 0.82rem;
+  font-size: 0.72rem;
+  color: #799086;
+  margin-top: 1px;
+  flex-shrink: 0;
   white-space: nowrap;
 }
 
-.user-cell-wrapper {
+.message-content-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.message-user-info {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 }
 
-.username {
+.message-username {
   font-weight: 800;
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
-.role-pill {
+.message-role-badge {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  padding: 0.2rem 0.55rem;
+  padding: 0.1rem 0.45rem;
   border: 1px solid #d8e3dd;
   background: #f4f8f6;
   color: #49685f;
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
-.member-chip-preview {
+.message-member-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   border-radius: 999px;
-  padding: 0.22rem 0.6rem;
-  background: rgba(242, 198, 63, 0.18);
-  border: 1px solid rgba(197, 151, 21, 0.22);
+  padding: 0.12rem 0.5rem;
+  background: rgba(242, 198, 63, 0.15);
+  border: 1px solid rgba(197, 151, 21, 0.2);
   color: #7a5c08;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
 }
 
-.chip-avatar {
-  width: 16px;
-  height: 16px;
+.badge-avatar {
+  width: 14px;
+  height: 14px;
   border-radius: 999px;
   object-fit: cover;
 }
 
-.cell-msg {
+.message-text-body {
+  margin: 0;
   color: #213a34;
-}
-
-.msg-text {
-  white-space: pre-wrap;
+  font-size: 0.86rem;
+  line-height: 1.45;
   word-break: break-word;
-  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .empty-stream {
