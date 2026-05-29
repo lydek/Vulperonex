@@ -860,15 +860,17 @@ http://localhost:5001/overlay/member    — 成員卡片顯示
 
 | 管道 | 適用對象 | 路徑模式 | 實作位置 |
 |------|---------|----------|----------|
-| **Vue 預設 Preset** | 一般使用者，零設定可用 | `/overlay/chat`、`/overlay/member`、`/overlay/alerts` | `src/frontend/src/views/overlay/**` + `presets/*.vue` |
-| **靜態 HTML 覆蓋 (Override)** | 進階使用者 / 第三方樣板 | `/overlay/{hub}.html`、`/overlay/custom/{slug}.html` | 後端 `wwwroot/overlay/` 目錄；對應原始程式碼為 `src/frontend/public/overlay/`（Vite build 時複製） |
+| **內建預設 Preset** | 一般使用者，零設定可用 | `/overlay/chat.html` (聊天)、`/overlay/member-card.html` (會員)、`/overlay/alerts` (警報) | `src/frontend/public/overlay/**` (靜態 HTML/JS) + `src/frontend/src/views/overlay/**` (警報 Vue 元件) |
+| **靜態 HTML 覆蓋 (Override)** | 進階使用者 / 第三方樣板 | `/overlay/custom/{slug}.html` | 後端 `wwwroot/overlay/` 目錄；對應原始程式碼為 `src/frontend/public/overlay/`（Vite build 時複製） |
 
 **Preset 選擇優先順序（後端解析）：**
 
 1. URL 直接指向 `*.html` → 載入靜態檔案
 2. URL 指向 `/overlay/{hub}` 且 `overlay.{hub}.preset` 系統設定指向 `custom:{slug}` → redirect 到 `/overlay/custom/{slug}.html`
-3. URL 指向 `/overlay/{hub}` 且 `overlay.{hub}.preset` 指向內建 preset key (例如 `kapchat`、`bubble`、`compact`) → 載入對應 Vue preset 元件
-4. 預設 fallback → KapChat preset (chat)、Rotan 風集章卡 (member)、Vulperonex 預設警報 (alerts)
+3. URL 指向 `/overlay/{hub}` 且 `overlay.{hub}.preset` 指向內建 preset key：
+   - `chat` 與 `member` → 解析至內建靜態 HTML `/overlay/chat.html` 或 `/overlay/member-card.html`（並帶入對應 query string 如 `?preset={key}`）
+   - `alerts` → 載入對應 Vue preset 元件（或 redirect 到 `/overlay/alerts`）
+4. 預設 fallback → `/overlay/chat.html` 的 `vulperonex-default` 預設（聊天）、`/overlay/member-card.html` 的 `rotan-checkin` 預設（會員）、Vulperonex 預設警報 Vue 頁面（警報）
 
 **自訂 HTML 上傳（Phase 7C — 此 PR 之後）：**
 

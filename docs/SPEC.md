@@ -844,15 +844,17 @@ Each URL is an independent Vue route that connects to its SignalR group upon mou
 
 | Pipeline | Target Audience | Path Pattern | Implementation Location |
 |---|---|---|---|
-| **Vue Default Preset** | General users, zero-config ready | `/overlay/chat`, `/overlay/member`, `/overlay/alerts` | `src/frontend/src/views/overlay/**` + `presets/*.vue` |
-| **Static HTML Override** | Advanced users / Third-party templates | `/overlay/{hub}.html`, `/overlay/custom/{slug}.html` | Backend `wwwroot/overlay/` directory; maps to `src/frontend/public/overlay/` in source code (copied during Vite build) |
+| **Built-in Presets** | General users, zero-config ready | `/overlay/chat.html` (chat), `/overlay/member-card.html` (member), `/overlay/alerts` (alerts Vue) | `src/frontend/public/overlay/**` (static HTML/JS) + `src/frontend/src/views/overlay/**` (alerts Vue) |
+| **Static HTML Override** | Advanced users / Third-party templates | `/overlay/custom/{slug}.html` | Backend `wwwroot/overlay/` directory; maps to `src/frontend/public/overlay/` in source code (copied during Vite build) |
 
 **Preset Selection Priority (Backend Resolution):**
 
 1. URL directly points to `*.html` → load static file.
 2. URL points to `/overlay/{hub}` and `overlay.{hub}.preset` system setting points to `custom:{slug}` → redirect to `/overlay/custom/{slug}.html`.
-3. URL points to `/overlay/{hub}` and `overlay.{hub}.preset` points to a built-in preset key (e.g. `kapchat`, `bubble`, `compact`) → load corresponding Vue preset component.
-4. Default fallback → KapChat preset (chat), Rotan-style collection card (member), Vulperonex default alert (alerts).
+3. URL points to `/overlay/{hub}` and `overlay.{hub}.preset` points to a built-in preset key:
+   - For `chat` and `member` → resolve to static built-in HTML `/overlay/chat.html` or `/overlay/member-card.html` (embedding preset query strings such as `?preset={key}`).
+   - For `alerts` → load corresponding Vue preset component (or redirect to `/overlay/alerts`).
+4. Default fallback → static `vulperonex-default` preset via `/overlay/chat.html` (chat), static `rotan-checkin` preset via `/overlay/member-card.html` (member), Vulperonex default alert Vue page (alerts).
 
 **Custom HTML Upload (Phase 7C — Post-this-PR):**
 
