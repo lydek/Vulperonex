@@ -3,7 +3,6 @@ import { computed, onMounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConditionExpressionInput from "@/components/admin/ConditionExpressionInput.vue";
 import EventTypeKeyDropdown from "@/components/admin/EventTypeKeyDropdown.vue";
-import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
 import { useTriggerMetadataStore } from "@/stores/triggerMetadata";
 import type { TriggerFilterFieldMetadata } from "@/api/client";
 
@@ -37,13 +36,20 @@ function updateEventTypeKey(value: string): void {
 }
 
 function updateFilterField(field: TriggerFilterFieldMetadata, value: string): void {
+  const normalized = field.type === "number" ? value.replace(/[^\d]/g, "") : value;
   const next = pruneFilter(props.filter, filterFields.value);
-  if (value.trim().length === 0) {
+  if (normalized.trim().length === 0) {
     delete next[field.key];
   } else {
-    next[field.key] = value;
+    next[field.key] = normalized;
   }
   emit("update:filter", next);
+}
+
+function blockNonIntegerKey(event: KeyboardEvent): void {
+  if (["e", "E", "+", "-", ".", ","].includes(event.key)) {
+    event.preventDefault();
+  }
 }
 
 function pruneUnknownFilterFields(): void {
@@ -130,8 +136,8 @@ function fieldInputType(field: TriggerFilterFieldMetadata): string {
             @change="updateFilterField(field, ($event.target as HTMLSelectElement).value)"
           >
             <option value="">{{ t("ruleEditor.trigger.anyValue") }}</option>
-            <option v-for="option in field.options" :key="option" :value="option">
-              {{ option }}
+            <option v-for="(option, index) in field.options" :key="option" :value="option">
+              {{ field.optionLabels?.[index] ?? option }}
             </option>
           </select>
           <select
@@ -148,16 +154,21 @@ function fieldInputType(field: TriggerFilterFieldMetadata): string {
             v-else-if="field.type === 'number'"
             :value="filter[field.key] ?? ''"
             :type="fieldInputType(field)"
+            min="0"
+            step="1"
+            inputmode="numeric"
             :aria-label="field.label"
+            @keydown="blockNonIntegerKey"
             @input="updateFilterField(field, ($event.target as HTMLInputElement).value)"
           />
-          <VariableFieldInput
+          <input
             v-else
-            :model-value="filter[field.key] ?? ''"
+            type="text"
+            :value="filter[field.key] ?? ''"
             :placeholder="field.label"
-            :data-test-id="`trigger-filter-input-${field.key}`"
-            :allowed-trigger-variables="validVariables"
-            @update:model-value="updateFilterField(field, $event)"
+            :data-testid="`trigger-filter-input-${field.key}`"
+            :aria-label="field.label"
+            @input="updateFilterField(field, ($event.target as HTMLInputElement).value)"
           />
           <span v-if="field.help" class="monitor-help">{{ field.help }}</span>
         </label>

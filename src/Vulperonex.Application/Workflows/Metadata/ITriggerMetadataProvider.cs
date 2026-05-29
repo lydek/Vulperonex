@@ -15,4 +15,5 @@ public sealed record FilterFieldDto(
     string Type,
     IReadOnlyList<string>? Options = null,
     string? Help = null,
-    bool Required = false);
+    bool Required = false,
+    IReadOnlyList<string>? OptionLabels = null);

@@ -54,7 +54,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             return new[]
             {
-                new FilterFieldDto("Tier", "Subscription Tier", "string", Options: new[] { "1000", "2000", "3000" }, Help: "Trigger only for specific sub tier")
+                new FilterFieldDto("Tier", "Subscription Tier", "string", Options: new[] { "1000", "2000", "3000" }, Help: "Trigger only for specific sub tier", OptionLabels: new[] { "Tier 1", "Tier 2", "Tier 3" })
             };
         }
 
@@ -62,7 +62,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             return new[]
             {
-                new FilterFieldDto("Tier", "Subscription Tier", "string", Options: new[] { "1000", "2000", "3000" }, Help: "Trigger only for specific sub tier"),
+                new FilterFieldDto("Tier", "Subscription Tier", "string", Options: new[] { "1000", "2000", "3000" }, Help: "Trigger only for specific sub tier", OptionLabels: new[] { "Tier 1", "Tier 2", "Tier 3" }),
                 new FilterFieldDto("MinGiftCount", "Minimum Gift Count", "number", Help: "Trigger only if gifted count is equal or greater than this")
             };
         }

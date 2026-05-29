@@ -164,6 +164,7 @@ export interface TriggerFilterFieldMetadata {
   label: string;
   type: TriggerFilterFieldType;
   options?: string[] | null;
+  optionLabels?: string[] | null;
   help?: string | null;
   required: boolean;
 }

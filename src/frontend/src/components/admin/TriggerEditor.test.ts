@@ -112,8 +112,9 @@ describe("TriggerEditor", () => {
     expect(wrapper.find('[data-testid="trigger-filter-field-Prefix"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="trigger-filter-add"]').exists()).toBe(false);
     expect(wrapper.findAll(".rule-filter-row")).toHaveLength(0);
-    expect(wrapper.text()).toContain("{Trigger.MessageText}");
-    expect(wrapper.text()).not.toContain("{Trigger.IsTest}");
+    expect(wrapper.text()).not.toContain("{Trigger.MessageText}");
+    expect(wrapper.text()).toContain("Trigger.MessageText");
+    expect(wrapper.text()).not.toContain("Trigger.IsTest");
   });
 
   it("should emit typed trigger filter and match condition updates", async () => {
@@ -171,7 +172,7 @@ describe("TriggerEditor", () => {
     }, { stubVariablePicker: false });
 
     await vi.waitFor(() => {
-      expect(wrapper.text()).toContain("{Trigger.MessageText}");
+      expect(wrapper.text()).toContain("Trigger.MessageText");
     });
 
     await wrapper.setProps({
@@ -184,6 +185,6 @@ describe("TriggerEditor", () => {
     });
 
     expect(wrapper.text()).toContain("Trigger.EventId");
-    expect(wrapper.text()).not.toContain("{Trigger.MessageText}");
+    expect(wrapper.text()).not.toContain("Trigger.MessageText");
   });
 });
