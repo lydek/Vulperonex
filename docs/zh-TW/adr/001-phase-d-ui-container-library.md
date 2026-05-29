@@ -13,8 +13,7 @@ Phase 8 Phase D needs an accessible drawer, tabs, and form shell for the workflo
 Use `reka-ui` for Phase D container primitives.
 
 - Version installed: `reka-ui@2.9.8`.
-- PoC component: `src/frontend/src/components/admin/RekaPhaseDPoc.vue`.
-- PoC test: `src/frontend/src/components/admin/RekaPhaseDPoc.test.ts`.
+- Original PoC component/test were retired after `RuleEditorDrawer.vue` became the routed implementation; the historical verification evidence below records the PoC gate.
 
 The PoC uses:
 
