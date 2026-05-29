@@ -45,7 +45,7 @@ const triggerMetadataResponse = [
         required: false
       }
     ],
-    validVariables: ["Amount"]
+    validVariables: ["EventId"]
   }
 ];
 
@@ -70,7 +70,7 @@ function mountTriggerEditor(props: {
   eventTypeKey: string;
   filter: Record<string, string>;
   matchCondition: string;
-}) {
+}, options: { stubVariablePicker?: boolean } = {}) {
   return mount(TriggerEditor, {
     props,
     global: {
@@ -82,7 +82,7 @@ function mountTriggerEditor(props: {
           template:
             '<select data-testid="event-type-select" :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option value="user.message">message</option><option value="user.donated">donated</option></select>'
         },
-        VariablePicker: true
+        ...(options.stubVariablePicker === false ? {} : { VariablePicker: true })
       }
     }
   });
@@ -103,7 +103,7 @@ describe("TriggerEditor", () => {
       eventTypeKey: "user.message",
       filter: {},
       matchCondition: ""
-    });
+    }, { stubVariablePicker: false });
 
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="trigger-filter-field-CommandName"]').exists()).toBe(true);
@@ -112,6 +112,8 @@ describe("TriggerEditor", () => {
     expect(wrapper.find('[data-testid="trigger-filter-field-Prefix"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="trigger-filter-add"]').exists()).toBe(false);
     expect(wrapper.findAll(".rule-filter-row")).toHaveLength(0);
+    expect(wrapper.text()).toContain("{Trigger.MessageText}");
+    expect(wrapper.text()).not.toContain("{Trigger.IsTest}");
   });
 
   it("should emit typed trigger filter and match condition updates", async () => {
@@ -159,5 +161,29 @@ describe("TriggerEditor", () => {
     expect(minAmount.attributes("type")).toBe("number");
     expect(wrapper.find('[data-testid="trigger-filter-field-CommandName"]').exists()).toBe(false);
     expect(wrapper.emitted("update:filter")?.at(-1)?.[0]).toEqual({ MinAmount: "100" });
+  });
+
+  it("should update variable picker entries when the event type changes", async () => {
+    const wrapper = mountTriggerEditor({
+      eventTypeKey: "user.message",
+      filter: {},
+      matchCondition: ""
+    }, { stubVariablePicker: false });
+
+    await vi.waitFor(() => {
+      expect(wrapper.text()).toContain("{Trigger.MessageText}");
+    });
+
+    await wrapper.setProps({
+      eventTypeKey: "user.donated",
+      filter: { MinAmount: "100" }
+    });
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="trigger-filter-field-MinAmount"]').exists()).toBe(true);
+    });
+
+    expect(wrapper.text()).toContain("Trigger.EventId");
+    expect(wrapper.text()).not.toContain("{Trigger.MessageText}");
   });
 });

@@ -23,6 +23,7 @@ const { t } = useI18n();
 const triggerMetadata = useTriggerMetadataStore();
 
 const filterFields = computed(() => triggerMetadata.fieldsFor(props.eventTypeKey));
+const validVariables = computed(() => triggerMetadata.variablesFor(props.eventTypeKey));
 const shouldPruneFilter = computed(() => triggerMetadata.hasMetadataFor(props.eventTypeKey));
 
 onMounted(() => {
@@ -155,6 +156,7 @@ function fieldInputType(field: TriggerFilterFieldMetadata): string {
             :model-value="filter[field.key] ?? ''"
             :placeholder="field.label"
             :data-test-id="`trigger-filter-input-${field.key}`"
+            :allowed-trigger-variables="validVariables"
             @update:model-value="updateFilterField(field, $event)"
           />
           <span v-if="field.help" class="monitor-help">{{ field.help }}</span>
@@ -167,6 +169,7 @@ function fieldInputType(field: TriggerFilterFieldMetadata): string {
         :model-value="matchCondition"
         placeholder="Trigger.MessageText == '!go'"
         data-test-id="rule-editor-match-condition"
+        :allowed-trigger-variables="validVariables"
         @update:model-value="emit('update:matchCondition', $event)"
       />
     </label>

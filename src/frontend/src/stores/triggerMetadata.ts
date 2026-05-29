@@ -54,6 +54,14 @@ export const useTriggerMetadataStore = defineStore("triggerMetadata", () => {
     return entriesByKey.value.get(eventTypeKey.toLowerCase())?.filterFields ?? [];
   }
 
+  function variablesFor(eventTypeKey: string | null | undefined): string[] {
+    if (!eventTypeKey) {
+      return [];
+    }
+
+    return entriesByKey.value.get(eventTypeKey.toLowerCase())?.validVariables ?? [];
+  }
+
   function hasMetadataFor(eventTypeKey: string | null | undefined): boolean {
     if (!eventTypeKey) {
       return false;
@@ -68,6 +76,7 @@ export const useTriggerMetadataStore = defineStore("triggerMetadata", () => {
     error: readonly(error),
     load,
     fieldsFor,
+    variablesFor,
     hasMetadataFor
   };
 });

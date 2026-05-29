@@ -14,6 +14,7 @@ const props = defineProps<{
   placeholder?: string;
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
+  allowedTriggerVariables?: string[];
   dataTestId?: string;
 }>();
 
@@ -132,7 +133,12 @@ function emitRaw(value: string): void {
           placeholder="Trigger.MessageText"
           readonly
         />
-        <VariablePicker :previous-steps="previousSteps" expression-mode @select="leftVar = $event" />
+        <VariablePicker
+          :previous-steps="previousSteps"
+          :allowed-trigger-variables="allowedTriggerVariables"
+          expression-mode
+          @select="leftVar = $event"
+        />
       </div>
       <select v-model="operator" :data-testid="dataTestId ? `${dataTestId}-operator` : undefined">
         <option v-for="option in operatorOptions" :key="option.value" :value="option.value">

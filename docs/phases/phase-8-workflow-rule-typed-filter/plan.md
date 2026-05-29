@@ -589,11 +589,11 @@ DELETE FROM workflow_rules;
 **Description**: Dynamically filter and display valid variables by pulling `ValidVariablesFor(eventTypeKey)` based on the active `eventTypeKey`.
 
 **Acceptance criteria**:
-- [ ] Under `user.message`, the picker only lists variables valid for this event type.
-- [ ] Switching event types instantly updates the variable list.
+- [x] Under `user.message`, the picker only lists variables valid for this event type.
+- [x] Switching event types instantly updates the variable list.
 
 **Verification**:
-- [ ] Frontend unit tests.
+- [x] Frontend unit tests.
 - [ ] Manual: Switch event types and verify the filtered lists.
 
 **Dependencies**: D.2

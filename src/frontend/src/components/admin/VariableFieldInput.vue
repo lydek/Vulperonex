@@ -10,6 +10,7 @@ const props = defineProps<{
   rows?: number;
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
+  allowedTriggerVariables?: string[];
   dataTestId?: string;
 }>();
 
@@ -65,6 +66,7 @@ async function insertVariable(variable: string): Promise<void> {
       class="variable-field__picker"
       :previous-steps="previousSteps"
       :previous-steps-json="previousStepsJson"
+      :allowed-trigger-variables="allowedTriggerVariables"
       @select="insertVariable"
     />
   </div>

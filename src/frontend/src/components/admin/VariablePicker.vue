@@ -11,6 +11,7 @@ const props = defineProps<{
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
   expressionMode?: boolean;
+  allowedTriggerVariables?: string[];
 }>();
 
 const emit = defineEmits<{ (event: "select", value: string): void }>();
@@ -18,11 +19,39 @@ const emit = defineEmits<{ (event: "select", value: string): void }>();
 const groups = computed<VariableGroup[]>(() => {
   const previousSteps = props.previousSteps
     ?? parseArrayModel(props.previousStepsJson ?? "[]");
-  return buildVariableGroups(previousSteps, props.expressionMode ?? false);
+  return filterTriggerVariables(
+    buildVariableGroups(previousSteps, props.expressionMode ?? false),
+    props.allowedTriggerVariables
+  );
 });
 
 function selectVariable(value: string): void {
   emit("select", value);
+}
+
+function filterTriggerVariables(
+  groups: VariableGroup[],
+  allowedTriggerVariables: string[] | undefined
+): VariableGroup[] {
+  if (!allowedTriggerVariables) {
+    return groups;
+  }
+
+  const allowed = new Set(allowedTriggerVariables.map(normalizeTriggerVariable));
+  return groups
+    .map(group => group.key !== "trigger"
+      ? group
+      : {
+          ...group,
+          variables: group.variables.filter(variable =>
+            allowed.has(normalizeTriggerVariable(variable.path)))
+        })
+    .filter(group => group.variables.length > 0);
+}
+
+function normalizeTriggerVariable(value: string): string {
+  const cleanValue = value.replace(/[{}]/g, "");
+  return cleanValue.replace(/^Trigger\./i, "");
 }
 </script>
 

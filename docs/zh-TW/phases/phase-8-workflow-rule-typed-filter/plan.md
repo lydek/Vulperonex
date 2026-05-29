@@ -651,11 +651,11 @@ metadata-clean check；讀取路徑無需改。
 **Description**：依當前 `eventTypeKey` 從 metadata 拉 `ValidVariablesFor()` 過濾顯示。
 
 **Acceptance criteria**：
-- [ ] `user.message` 下 picker 只列該 event 合法變數
-- [ ] 切換 event type 後 picker 列表同步更新
+- [x] `user.message` 下 picker 只列該 event 合法變數
+- [x] 切換 event type 後 picker 列表同步更新
 
 **Verification**：
-- [ ] frontend unit test
+- [x] frontend unit test
 - [ ] 手動切換驗證
 
 **Dependencies**：D.2
