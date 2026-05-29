@@ -204,7 +204,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <template #identity="{ item, index }">
-      <label class="form-field">
+      <label class="workflow-builder__identity-field form-field-inline">
         <span class="form-label">{{ fallbackLabel("ruleEditor.conditions", "Conditions") }}</span>
         <select
           :data-testid="`${prefix}-type-${index}`"
@@ -428,5 +428,15 @@ function updateRole(index: number, role: string, checked: boolean): void {
 .workflow-conditions__dialog-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.workflow-builder__identity-field {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.workflow-builder__identity-field select {
+  min-width: 180px;
+  max-width: 320px;
 }
 </style>

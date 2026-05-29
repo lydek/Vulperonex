@@ -84,6 +84,27 @@ function fallbackLabel(key: string, text: string): string {
   return te(key) ? t(key) : text;
 }
 
+function localizeMeta(key: string, fallback: string): string {
+  return te(key) ? t(key) : fallback;
+}
+
+function actionLabel(definition: ActionDefinition): string {
+  return localizeMeta(`ruleEditor.actionMeta.${definition.type}.label`, definition.label);
+}
+
+function actionDescription(definition: ActionDefinition): string {
+  return localizeMeta(`ruleEditor.actionMeta.${definition.type}.description`, definition.description);
+}
+
+function fieldLabel(actionType: string, field: FieldDefinition): string {
+  return localizeMeta(`ruleEditor.actionMeta.${actionType}.params.${field.key}.label`, field.label);
+}
+
+function fieldPlaceholder(actionType: string, field: FieldDefinition): string | undefined {
+  const localized = localizeMeta(`ruleEditor.actionMeta.${actionType}.params.${field.key}.help`, field.placeholder ?? "");
+  return localized.length > 0 ? localized : undefined;
+}
+
 function addItem(): void {
   items.value = [...items.value, actionDefinitions.value[0].create()];
   emitItems();
@@ -237,7 +258,7 @@ function previousStepsFor(index: number): JsonRecord[] {
     </template>
 
     <template #identity="{ item, index }">
-      <label class="form-field">
+      <label class="workflow-builder__identity-field form-field-inline">
         <span class="form-label">{{ fallbackLabel("ruleEditor.steps.type", "Type") }}</span>
         <select
           :data-testid="`${prefix}-type-${index}`"
@@ -245,7 +266,7 @@ function previousStepsFor(index: number): JsonRecord[] {
           @change="onTypeChange(index, ($event.target as HTMLSelectElement).value)"
         >
           <option v-for="definition in actionDefinitions" :key="definition.type" :value="definition.type">
-            {{ definition.label }}
+            {{ actionLabel(definition) }}
           </option>
           <option
             v-if="!definitionFor(item) && asString(item.type).length > 0"
@@ -257,8 +278,9 @@ function previousStepsFor(index: number): JsonRecord[] {
       </label>
       <p class="workflow-builder__summary">
         {{
-          definitionFor(item)?.description
-            ?? fallbackLabel(
+          definitionFor(item)
+            ? actionDescription(definitionFor(item)!)
+            : fallbackLabel(
               "ruleEditor.builder.unknownAction",
               "Unknown action type. Use advanced JSON fallback to edit unsupported fields."
             )
@@ -270,11 +292,11 @@ function previousStepsFor(index: number): JsonRecord[] {
       <div v-if="definitionFor(item)" class="workflow-builder__grid">
         <template v-for="field in definitionFor(item)?.fields" :key="field.key">
           <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
-            <span class="form-label">{{ field.label }}</span>
+            <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
             <VariableFieldInput
               v-if="field.kind === 'text' && field.key !== 'condition'"
               :model-value="String(fieldValue(item, field))"
-              :placeholder="field.placeholder"
+              :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
               :action-definitions="actionDefinitions"
               @update:model-value="updateField(index, field, $event)"
@@ -282,7 +304,7 @@ function previousStepsFor(index: number): JsonRecord[] {
             <ConditionExpressionInput
               v-else-if="field.kind === 'text' && field.key === 'condition'"
               :model-value="String(fieldValue(item, field))"
-              :placeholder="field.placeholder"
+              :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
               :action-definitions="actionDefinitions"
               :data-test-id="`${prefix}-field-${field.key}-${index}`"
@@ -292,7 +314,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               v-else-if="field.kind === 'number'"
               :type="field.kind === 'number' ? 'number' : 'text'"
               :value="String(fieldValue(item, field))"
-              :placeholder="field.placeholder"
+              :placeholder="fieldPlaceholder(asString(item.type), field)"
               @input="updateField(index, field, ($event.target as HTMLInputElement).value)"
             />
             <select
@@ -312,16 +334,16 @@ function previousStepsFor(index: number): JsonRecord[] {
               :checked="Boolean(fieldValue(item, field))"
               @change="updateField(index, field, ($event.target as HTMLInputElement).checked)"
             />
-            <span>{{ field.label }}</span>
+            <span>{{ fieldLabel(asString(item.type), field) }}</span>
           </label>
 
           <label v-else-if="field.kind === 'textarea'" class="form-field workflow-builder__wide">
-            <span class="form-label">{{ field.label }}</span>
+            <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
             <VariableFieldInput
               :model-value="String(fieldValue(item, field))"
               multiline
               :rows="4"
-              :placeholder="field.placeholder"
+              :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
               :action-definitions="actionDefinitions"
               @update:model-value="updateField(index, field, $event)"
@@ -329,11 +351,11 @@ function previousStepsFor(index: number): JsonRecord[] {
           </label>
 
           <label v-else-if="field.kind === 'string-map' || field.kind === 'json-object' || field.kind === 'string-list' || field.kind === 'number-list'" class="form-field workflow-builder__wide">
-            <span class="form-label">{{ field.label }}</span>
+            <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
             <textarea
               :rows="3"
               :value="String(fieldValue(item, field))"
-              :placeholder="field.placeholder"
+              :placeholder="fieldPlaceholder(asString(item.type), field)"
               @input="updateField(index, field, ($event.target as HTMLTextAreaElement).value)"
             />
           </label>
@@ -395,7 +417,7 @@ function previousStepsFor(index: number): JsonRecord[] {
 .workflow-builder__grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
 }
 
 .workflow-builder__wide {
@@ -405,13 +427,17 @@ function previousStepsFor(index: number): JsonRecord[] {
 .workflow-builder__meta {
   display: grid;
   gap: 12px;
-  grid-template-columns: minmax(0, 1.7fr) minmax(220px, 0.8fr);
+  grid-template-columns: 1fr;
   align-items: start;
 }
 
-.workflow-builder__meta-condition,
+.workflow-builder__meta-condition {
+  min-width: 0;
+}
+
 .workflow-builder__meta-output {
   min-width: 0;
+  max-width: 320px;
 }
 
 textarea {
@@ -419,6 +445,16 @@ textarea {
   border-radius: 6px;
   padding: 10px 12px;
   resize: vertical;
+}
+
+.workflow-builder__identity-field {
+  margin-bottom: 0;
+  white-space: nowrap;
+}
+
+.workflow-builder__identity-field select {
+  min-width: 180px;
+  max-width: 320px;
 }
 
 @media (max-width: 720px) {

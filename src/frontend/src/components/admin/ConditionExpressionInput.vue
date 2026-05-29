@@ -179,9 +179,13 @@ function emitRaw(value: string): void {
 .condition-expression {
   display: grid;
   gap: 8px;
+  position: relative;
 }
 
 .condition-expression__mode {
+  position: absolute;
+  top: -28px;
+  right: 0;
   display: flex;
   gap: 6px;
   justify-content: flex-end;

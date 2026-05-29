@@ -150,14 +150,18 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
   gap: 12px;
 }
 
-.workflow-builder__header,
+.workflow-builder__header {
+  justify-content: space-between;
+  align-items: center;
+}
+
 .workflow-builder__card-header {
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .workflow-builder__identity {
-  align-items: flex-start;
+  align-items: center;
   flex: 1;
   min-width: 0;
 }
