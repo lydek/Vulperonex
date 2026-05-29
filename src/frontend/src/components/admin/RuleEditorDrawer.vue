@@ -21,6 +21,7 @@ import {
   type WorkflowRuleUpsertRequest,
   type WorkflowThrottlePolicy
 } from "@/api/client";
+import RoleChipSelector from "@/components/admin/RoleChipSelector.vue";
 import ThrottleEditor from "@/components/admin/ThrottleEditor.vue";
 import TriggerEditor from "@/components/admin/TriggerEditor.vue";
 import WorkflowActionsEditor from "@/components/admin/WorkflowActionsEditor.vue";
@@ -62,6 +63,12 @@ const error = ref<string | null>(null);
 const detail = ref<string | null>(null);
 
 const canSave = computed(() => props.ruleId !== null && !loading.value && !saving.value);
+const selectedRoles = computed({
+  get: () => extractSelectedRoles(conditionsText.value),
+  set: (roles: string[]) => {
+    conditionsText.value = stringifyConditionsWithRoles(conditionsText.value, roles);
+  }
+});
 
 watch(
   () => [props.open, props.ruleId] as const,
@@ -164,6 +171,60 @@ function describeError(caught: unknown): string {
   }
   return caught instanceof Error ? caught.message : String(caught);
 }
+
+function extractSelectedRoles(modelValue: string): string[] {
+  const conditions = parseConditions(modelValue);
+  const userRoleCondition = conditions.find(condition => condition.type === "userRole");
+  if (!userRoleCondition) {
+    return [];
+  }
+
+  return parseRoles(userRoleCondition.roles);
+}
+
+function stringifyConditionsWithRoles(modelValue: string, roles: string[]): string {
+  const conditions = parseConditions(modelValue)
+    .filter(condition => condition.type !== "userRole");
+
+  if (roles.length > 0) {
+    conditions.unshift({
+      type: "userRole",
+      mode: "HasAny",
+      roles: roles.join(", ")
+    });
+  }
+
+  return JSON.stringify(conditions, null, 2);
+}
+
+function parseConditions(modelValue: string): Record<string, unknown>[] {
+  try {
+    const parsed = JSON.parse(modelValue) as unknown;
+    return Array.isArray(parsed)
+      ? parsed.filter((entry): entry is Record<string, unknown> =>
+          typeof entry === "object" && entry !== null && !Array.isArray(entry))
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseRoles(value: unknown): string[] {
+  if (typeof value === "string") {
+    return value.split(",").map(role => normalizeRole(role)).filter(role => role.length > 0);
+  }
+
+  return [];
+}
+
+function normalizeRole(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase() === "vip") {
+    return "Vip";
+  }
+
+  return trimmed.length === 0 ? "" : trimmed[0].toUpperCase() + trimmed.slice(1);
+}
 </script>
 
 <template>
@@ -241,6 +302,8 @@ function describeError(caught: unknown): string {
                 <input v-model="isEnabled" type="checkbox" data-testid="rule-drawer-enabled" />
                 <span>{{ t("ruleEditor.isEnabled") }}</span>
               </label>
+
+              <RoleChipSelector v-model="selectedRoles" />
 
               <ThrottleEditor v-model="throttle" />
 

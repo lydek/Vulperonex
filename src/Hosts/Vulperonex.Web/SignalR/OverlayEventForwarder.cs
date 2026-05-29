@@ -233,12 +233,13 @@ public sealed class OverlayEventForwarder(
 
     private static IReadOnlyCollection<string> ExtractRoles(StreamRole roles)
     {
-        var resolved = new List<string>(4);
+        var resolved = new List<string>(5);
 
         if (roles.HasFlag(StreamRole.Subscriber)) resolved.Add("Subscriber");
         if (roles.HasFlag(StreamRole.Moderator)) resolved.Add("Moderator");
         if (roles.HasFlag(StreamRole.Vip)) resolved.Add("Vip");
         if (roles.HasFlag(StreamRole.Follower)) resolved.Add("Follower");
+        if (roles.HasFlag(StreamRole.Broadcaster)) resolved.Add("Broadcaster");
 
         return resolved;
     }

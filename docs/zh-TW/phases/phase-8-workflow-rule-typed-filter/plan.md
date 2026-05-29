@@ -713,12 +713,12 @@ moderator / subscriber / vip / everyone），勾選即 push 一個 `userRole`
 Condition 到 `Conditions[]`。
 
 **Acceptance criteria**：
-- [ ] 基本 tab 出現 role chip 區
-- [ ] 勾選 chip → `Conditions[]` 多一筆 `userRole` Condition
-- [ ] 取消勾選 → 該 Condition 移除
+- [x] 基本 tab 出現 role chip 區
+- [x] 勾選 chip → `Conditions[]` 多一筆 `userRole` Condition
+- [x] 取消勾選 → 該 Condition 移除
 
 **Verification**：
-- [ ] frontend unit test
+- [x] frontend unit test
 - [ ] 手動驗證
 
 **Dependencies**：Phase D.1（embed 在 Drawer 基本 tab）

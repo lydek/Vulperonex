@@ -109,6 +109,14 @@ public static partial class TwitchIrcMessageParser
             {
                 roles |= StreamRole.Moderator;
             }
+            else if (badge.StartsWith("broadcaster/", StringComparison.Ordinal))
+            {
+                roles |= StreamRole.Broadcaster;
+            }
+            else if (badge.StartsWith("vip/", StringComparison.Ordinal))
+            {
+                roles |= StreamRole.Vip;
+            }
             else if (badge.StartsWith("subscriber/", StringComparison.Ordinal))
             {
                 roles |= StreamRole.Subscriber;

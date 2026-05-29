@@ -608,6 +608,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             member["IsModerator"] = streamEvent.User.Roles.HasFlag(StreamRole.Moderator);
             member["IsVip"] = streamEvent.User.Roles.HasFlag(StreamRole.Vip);
             member["IsFollower"] = streamEvent.User.Roles.HasFlag(StreamRole.Follower);
+            member["IsBroadcaster"] = streamEvent.User.Roles.HasFlag(StreamRole.Broadcaster);
         }
 
         var failureValues = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);

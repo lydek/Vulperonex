@@ -79,6 +79,14 @@ Phase D.4 routed build output after action editor metadata moved from frontend h
 
 The D.4 delta is still within the Phase D budget.
 
+Phase E.1 routed build output after adding the Basic-tab role chip selector:
+
+- CSS bundle: `227.96 kB`, gzip `39.85 kB`.
+- Main JS bundle: `4,281.80 kB`, gzip `1,133.51 kB`.
+- Delta versus the Phase D.4 routed build: CSS gzip `+0.08 kB`, main JS gzip `+0.88 kB`.
+
+The E.1 delta is still within the Phase D/E UI budget.
+
 ## Consequences
 
 - Continue Phase D.1 with `reka-ui` rather than PrimeVue Dialog/Tabs.

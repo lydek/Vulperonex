@@ -63,7 +63,7 @@ export interface ConditionDefinition {
   create(): JsonRecord;
 }
 
-const roleOptions = ["Subscriber", "Moderator", "Vip", "Follower"] as const;
+const roleOptions = ["Broadcaster", "Subscriber", "Moderator", "Vip", "Follower"] as const;
 
 const userRoleOptions: SelectOption[] = [
   { label: "Has any", value: "HasAny" },

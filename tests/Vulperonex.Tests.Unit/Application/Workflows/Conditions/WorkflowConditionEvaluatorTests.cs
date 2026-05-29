@@ -13,6 +13,7 @@ public sealed class WorkflowConditionEvaluatorTests
     [InlineData(UserRoleMatchMode.HasAny, StreamRole.Subscriber | StreamRole.Vip, StreamRole.Vip, true)]
     [InlineData(UserRoleMatchMode.HasAll, StreamRole.Subscriber | StreamRole.Vip, StreamRole.Subscriber, false)]
     [InlineData(UserRoleMatchMode.NotHave, StreamRole.Moderator, StreamRole.Subscriber, true)]
+    [InlineData(UserRoleMatchMode.HasAny, StreamRole.Broadcaster | StreamRole.Moderator, StreamRole.Broadcaster, true)]
     public void Given_UserRoleCondition_When_Evaluated_Then_RoleModeIsApplied(
         UserRoleMatchMode mode,
         StreamRole requiredRoles,

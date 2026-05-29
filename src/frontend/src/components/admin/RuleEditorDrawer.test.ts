@@ -129,4 +129,45 @@ describe("RuleEditorDrawer", () => {
     expect(wrapper.emitted("saved")?.[0]).toEqual(["rule-a"]);
     expect(wrapper.emitted("update:open")?.at(-1)).toEqual([false]);
   });
+
+  it("adds and removes userRole conditions from role chips", async () => {
+    getRuleMock.mockResolvedValue({ ...ruleDetail, conditions: [] });
+    updateRuleMock.mockResolvedValue(ruleDetail);
+
+    mountDrawer();
+    await flushPromises();
+
+    document.body.querySelector<HTMLButtonElement>('[data-testid="role-chip-Moderator"]')?.click();
+    await flushPromises();
+
+    document.body.querySelector<HTMLButtonElement>('[data-testid="rule-drawer-save"]')?.click();
+    await flushPromises();
+
+    expect(updateRuleMock).toHaveBeenLastCalledWith(
+      "rule-a",
+      expect.objectContaining({
+        conditions: [{ type: "userRole", mode: "HasAny", roles: "Moderator" }]
+      })
+    );
+
+    document.body.innerHTML = "";
+    getRuleMock.mockResolvedValue({ ...ruleDetail, conditions: [{ type: "userRole", mode: "HasAny", roles: "Subscriber" }] });
+    updateRuleMock.mockClear();
+
+    mountDrawer();
+    await flushPromises();
+
+    document.body.querySelector<HTMLButtonElement>('[data-testid="role-chip-Subscriber"]')?.click();
+    await flushPromises();
+
+    document.body.querySelector<HTMLButtonElement>('[data-testid="rule-drawer-save"]')?.click();
+    await flushPromises();
+
+    expect(updateRuleMock).toHaveBeenLastCalledWith(
+      "rule-a",
+      expect.objectContaining({
+        conditions: []
+      })
+    );
+  });
 });

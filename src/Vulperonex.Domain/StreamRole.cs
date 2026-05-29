@@ -8,4 +8,5 @@ public enum StreamRole
     Moderator = 2,
     Vip = 4,
     Follower = 8,
+    Broadcaster = 16,
 }

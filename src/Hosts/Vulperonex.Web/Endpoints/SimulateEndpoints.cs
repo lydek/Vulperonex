@@ -280,7 +280,7 @@ public static class SimulateEndpoints
     private static bool IsCompositeRoleValue(int numericRoles)
     {
         // Numeric legacy payloads may combine known role flags; unknown bits are rejected.
-        const int allKnownFlags = (int)(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Vip | StreamRole.Follower);
+        const int allKnownFlags = (int)(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Vip | StreamRole.Follower | StreamRole.Broadcaster);
         return numericRoles >= 0 && (numericRoles & ~allKnownFlags) == 0;
     }
 

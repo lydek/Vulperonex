@@ -36,7 +36,7 @@ defineExpose({ focus });
 watch(() => props.modelValue, syncFromModel, { immediate: true });
 
 const prefix = computed(() => props.testIdPrefix ?? "workflow-conditions");
-const roleChoices = ["Subscriber", "Moderator", "Vip", "Follower"];
+const roleChoices = ["Broadcaster", "Subscriber", "Moderator", "Vip", "Follower"];
 
 function focus(): void {
   const firstInput = document.querySelector<HTMLInputElement>(`[data-testid="${prefix.value}-type-0"]`);

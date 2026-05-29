@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Vulperonex.Adapters.Twitch.Irc;
+using Vulperonex.Domain;
 using Xunit;
 
 namespace Vulperonex.Tests.Unit.Adapters.Twitch.Irc;
@@ -15,7 +16,7 @@ public sealed class TwitchIrcMessageParserTests
                 ["user-id"] = "42",
                 ["display-name"] = "Alice",
                 ["color"] = "#12A0ff",
-                ["badges"] = "subscriber/12,moderator/1,bad!ge/1,too/longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong",
+                ["badges"] = "subscriber/12,moderator/1,broadcaster/1,vip/1,bad!ge/1,too/longlonglonglonglonglonglonglonglonglonglonglonglonglonglonglonglong",
                 ["user.avatar"] = "https://static-cdn.jtvnw.net/avatar.png",
                 ["user.is_subscriber"] = "true",
                 ["user.bits_total"] = "100",
@@ -29,9 +30,10 @@ public sealed class TwitchIrcMessageParserTests
         result.Event.Platform.Should().Be("twitch");
         result.Event.User.UserId.Should().Be("42");
         result.Event.User.DisplayName.Should().Be("Alice");
+        result.Event.User.Roles.Should().Be(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Broadcaster | StreamRole.Vip);
         result.Event.MessageText.Should().Be("<b>hello</b>");
         result.DisplayHints.ColorHex.Should().Be("#12A0ff");
-        result.DisplayHints.Badges.Should().BeEquivalentTo("subscriber/12", "moderator/1");
+        result.DisplayHints.Badges.Should().BeEquivalentTo("subscriber/12", "moderator/1", "broadcaster/1", "vip/1");
         result.DisplayHints.Segments.Should().ContainSingle().Subject.Should().BeEquivalentTo(new { Type = "text", Value = "<b>hello</b>" });
         result.DisplayHints.IsSubscriber.Should().BeTrue();
         result.DisplayHints.TotalBitsGiven.Should().Be(100);

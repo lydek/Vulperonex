@@ -648,12 +648,12 @@ DELETE FROM workflow_rules;
 **Description**: Add a role-chip selector (Broadcaster / Moderator / Subscriber / VIP / Everyone) to the Drawer's Basic tab. Checking a role directly pushes a `userRole` Condition to `Conditions[]` behind the scenes.
 
 **Acceptance criteria**:
-- [ ] The role-chip selector appears on the Basic tab.
-- [ ] Checking a role pushes a corresponding `userRole` Condition to `Conditions[]`.
-- [ ] Unchecking the role removes the Condition.
+- [x] The role-chip selector appears on the Basic tab.
+- [x] Checking a role pushes a corresponding `userRole` Condition to `Conditions[]`.
+- [x] Unchecking the role removes the Condition.
 
 **Verification**:
-- [ ] Frontend unit tests.
+- [x] Frontend unit tests.
 - [ ] Manual verification.
 
 **Dependencies**: Phase D.1 (Embedded in the Drawer's Basic tab)
