@@ -461,7 +461,7 @@ public sealed class WorkflowEngineTests
         var rule = NewRule() with
         {
             Trigger = new WorkflowTrigger(
-                new Dictionary<string, string> { ["MessageText"] = "!HELLO" }),
+                new Dictionary<string, string> { ["CommandName"] = "!HELLO" }),
         };
         await using var bus = new InMemoryStreamEventBus();
         await using var engine = NewEngine(bus, [rule], [executor]);

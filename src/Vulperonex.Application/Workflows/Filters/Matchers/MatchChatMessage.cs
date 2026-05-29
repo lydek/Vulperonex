@@ -8,7 +8,6 @@ public sealed class MatchChatMessage : ITriggerFilterMatcher
     private static readonly HashSet<string> KnownFilterKeys = new(StringComparer.OrdinalIgnoreCase)
     {
         "CommandName",
-        "MessageText",
         "Prefix",
     };
 
@@ -41,12 +40,6 @@ public sealed class MatchChatMessage : ITriggerFilterMatcher
             {
                 return false;
             }
-        }
-
-        if (filter.TryGetValue("MessageText", out var expectedMessage)
-            && !string.Equals(msg, expectedMessage, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
         }
 
         if (filter.TryGetValue("Prefix", out var prefix))
