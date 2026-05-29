@@ -566,12 +566,12 @@ DELETE FROM workflow_rules;
 **Description**: Pull `FilterFieldsFor(eventTypeKey)` from `/api/metadata/triggers` to render typed fields dynamically, replacing the generic key/value rows.
 
 **Acceptance criteria**:
-- [ ] Switching to `user.message` displays `CommandName` and `Prefix` typed inputs.
-- [ ] Switching to `user.donated` displays a `MinAmount` number input.
-- [ ] The editor renders only metadata-defined typed fields and does not depend on `migrationWarnings` or any legacy-filter cleanup path.
+- [x] Switching to `user.message` displays `CommandName` and `Prefix` typed inputs.
+- [x] Switching to `user.donated` displays a `MinAmount` number input.
+- [x] The editor renders only metadata-defined typed fields and does not depend on `migrationWarnings` or any legacy-filter cleanup path.
 
 **Verification**:
-- [ ] Frontend unit tests.
+- [x] Frontend unit tests.
 - [ ] Manual: Switch through event types and verify fields.
 
 **Dependencies**: D.1 + Phase B.1

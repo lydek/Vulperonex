@@ -628,12 +628,12 @@ metadata-clean check；讀取路徑無需改。
 依 schema 渲染 typed 欄位，取代 generic key/value rows。
 
 **Acceptance criteria**：
-- [ ] 切到 `user.message` → 出現 `CommandName` / `Prefix` typed input
-- [ ] 切到 `user.donated` → 出現 `MinAmount` number input
-- [ ] 編輯器只渲染 metadata 定義的 typed 欄位，不依賴 `migrationWarnings` 或任何 legacy filter 清理流程
+- [x] 切到 `user.message` → 出現 `CommandName` / `Prefix` typed input
+- [x] 切到 `user.donated` → 出現 `MinAmount` number input
+- [x] 編輯器只渲染 metadata 定義的 typed 欄位，不依賴 `migrationWarnings` 或任何 legacy filter 清理流程
 
 **Verification**：
-- [ ] frontend unit test
+- [x] frontend unit test
 - [ ] 手動：每個 event type 切換驗證欄位
 
 **Dependencies**：D.1 + Phase B.1

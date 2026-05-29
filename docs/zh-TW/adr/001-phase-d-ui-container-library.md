@@ -55,6 +55,14 @@ Phase D.1 routed build output after `RuleEditorDrawer.vue` was imported by `Rule
 
 The routed delta is within the Phase D budget.
 
+Phase D.2 routed build output after `TriggerEditor.vue` was switched to metadata-driven typed fields:
+
+- CSS bundle: `227.53 kB`, gzip `39.78 kB`.
+- Main JS bundle: `4,280.65 kB`, gzip `1,133.06 kB`.
+- Delta versus the Phase D.1 routed build: CSS gzip `+0.03 kB`, main JS gzip `+0.64 kB`.
+
+The D.2 delta is still within the Phase D budget.
+
 ## Consequences
 
 - Continue Phase D.1 with `reka-ui` rather than PrimeVue Dialog/Tabs.

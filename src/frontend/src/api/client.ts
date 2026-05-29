@@ -157,6 +157,29 @@ export async function getRule(id: string, signal?: AbortSignal): Promise<Workflo
   return getJson<WorkflowRuleDetail>(`/api/rules/${encodeURIComponent(id)}`, signal);
 }
 
+export type TriggerFilterFieldType = "string" | "number" | "boolean" | string;
+
+export interface TriggerFilterFieldMetadata {
+  key: string;
+  label: string;
+  type: TriggerFilterFieldType;
+  options?: string[] | null;
+  help?: string | null;
+  required: boolean;
+}
+
+export interface TriggerMetadataEntry {
+  key: string;
+  displayName: string;
+  description: string;
+  filterFields: TriggerFilterFieldMetadata[];
+  validVariables: string[];
+}
+
+export async function getTriggerMetadata(signal?: AbortSignal): Promise<TriggerMetadataEntry[]> {
+  return getJson<TriggerMetadataEntry[]>("/api/metadata/triggers", signal);
+}
+
 export async function setRuleEnabled(
   id: string,
   isEnabled: boolean,
@@ -974,4 +997,3 @@ export async function deleteMemberWithToken(
     throw new ApiError(response.status, await safeReadBody(response));
   }
 }
-
