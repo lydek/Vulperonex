@@ -671,12 +671,12 @@ DELETE FROM workflow_rules;
 **Description**: Render the `userRole` Condition at the very top of the list in the Conditions tab. Scan `Conditions[]` and `MatchCondition` of existing rules; if they use `Member.IsModerator` or `Member.IsSubscriber` NCalc expressions, display a "Can be converted to UserRoleCondition" chip (guiding manual conversion, no automation).
 
 **Acceptance criteria**:
-- [ ] The `userRole` Condition renders at the first position of the Conditions list.
-- [ ] Rules utilizing `Member.IsModerator` NCalc expressions display an orange migration chip.
-- [ ] Clicking the chip opens a suggestion dialog without executing automatic changes.
+- [x] The `userRole` Condition renders at the first position of the Conditions list.
+- [x] Rules utilizing `Member.IsModerator` NCalc expressions display an orange migration chip.
+- [x] Clicking the chip opens a suggestion dialog without executing automatic changes.
 
 **Verification**:
-- [ ] Frontend unit tests.
+- [x] Frontend unit tests.
 - [ ] Manual: create a rule with a `Member.IsModerator` expression and verify that the chip is displayed.
 
 **Dependencies**: E.1
@@ -694,7 +694,7 @@ DELETE FROM workflow_rules;
 **Description**: Write a short guide illustrating common NCalc role expressions and their corresponding `UserRoleCondition` configurations.
 
 **Acceptance criteria**:
-- [ ] Includes at least 4 common mappings (Broadcaster / Mod / Sub / VIP).
+- [x] Includes at least 4 common mappings (Broadcaster / Mod / Sub / VIP).
 
 **Verification**:
 - [ ] Code review.

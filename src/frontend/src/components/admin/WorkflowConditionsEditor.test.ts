@@ -45,6 +45,60 @@ describe("WorkflowConditionsEditor", () => {
     ], null, 2));
   });
 
+  it("should pin the userRole condition to the first position", () => {
+    const wrapper = mount(WorkflowConditionsEditor, {
+      props: {
+        modelValue: JSON.stringify([
+          { type: "cooldown", scope: "Global", durationSeconds: 30 },
+          { type: "userRole", mode: "HasAny", roles: "Subscriber" }
+        ], null, 2),
+        title: "Conditions",
+        emptyText: "Empty"
+      },
+      global: { plugins: [buildI18n()] }
+    });
+
+    const firstType = wrapper.get('[data-testid="workflow-conditions-type-0"]');
+    expect((firstType.element as HTMLSelectElement).value).toBe("userRole");
+  });
+
+  it("should show a migration chip and open the suggestion dialog for legacy NCalc role expressions", async () => {
+    const wrapper = mount(WorkflowConditionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Conditions",
+        emptyText: "Empty",
+        matchCondition: "Member.IsModerator == true"
+      },
+      global: { plugins: [buildI18n()] }
+    });
+
+    const chip = wrapper.find('[data-testid="workflow-conditions-migration-chip"]');
+    expect(chip.exists()).toBe(true);
+
+    expect(wrapper.find('[data-testid="workflow-conditions-migration-dialog"]').exists()).toBe(false);
+    await chip.trigger("click");
+
+    const dialog = wrapper.find('[data-testid="workflow-conditions-migration-dialog"]');
+    expect(dialog.exists()).toBe(true);
+    expect(dialog.text()).toContain("Member.IsModerator");
+    // No automatic mutation: the model is never emitted from opening the dialog.
+    expect(wrapper.emitted("update:modelValue")).toBeUndefined();
+  });
+
+  it("should not show the migration chip when no legacy role expressions exist", () => {
+    const wrapper = mount(WorkflowConditionsEditor, {
+      props: {
+        modelValue: JSON.stringify([{ type: "userRole", mode: "HasAny", roles: "Subscriber" }], null, 2),
+        title: "Conditions",
+        emptyText: "Empty"
+      },
+      global: { plugins: [buildI18n()] }
+    });
+
+    expect(wrapper.find('[data-testid="workflow-conditions-migration-chip"]').exists()).toBe(false);
+  });
+
   it("should toggle user roles with checkboxes", async () => {
     const wrapper = mount(WorkflowConditionsEditor, {
       props: {

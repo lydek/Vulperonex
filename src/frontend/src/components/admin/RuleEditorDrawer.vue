@@ -312,6 +312,7 @@ function normalizeRole(value: string): string {
                 :title="t('ruleEditor.conditions')"
                 empty-text="No conditions yet. Add one to gate this workflow without editing raw JSON."
                 test-id-prefix="rule-drawer-conditions"
+                :match-condition="matchCondition"
               />
             </TabsContent>
 

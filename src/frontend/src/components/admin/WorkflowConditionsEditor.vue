@@ -3,6 +3,7 @@ import { computed, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import StepListShell from "@/components/admin/StepListShell.vue";
 import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
+import { detectLegacyRoleExpressions } from "@/lib/legacyRoleExpressionDetector";
 import {
   asBoolean,
   asNumber,
@@ -23,6 +24,7 @@ const props = defineProps<{
   title: string;
   emptyText: string;
   testIdPrefix?: string;
+  matchCondition?: string;
 }>();
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
@@ -30,6 +32,11 @@ const { t, te } = useI18n();
 
 const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
+const showMigrationDialog = ref(false);
+
+const migrationSuggestions = computed(() =>
+  detectLegacyRoleExpressions(items.value, props.matchCondition)
+);
 
 defineExpose({ focus });
 
@@ -47,7 +54,19 @@ function syncFromModel(modelValue: string): void {
   if (modelValue === lastSerialized.value) {
     return;
   }
-  items.value = parseArrayModel(modelValue);
+  items.value = pinUserRoleFirst(parseArrayModel(modelValue));
+}
+
+function pinUserRoleFirst(records: JsonRecord[]): JsonRecord[] {
+  const firstRoleIndex = records.findIndex((record) => asString(record.type) === "userRole");
+  if (firstRoleIndex <= 0) {
+    return records;
+  }
+
+  const next = records.slice();
+  const [roleCondition] = next.splice(firstRoleIndex, 1);
+  next.unshift(roleCondition);
+  return next;
 }
 
 function emitItems(): void {
@@ -160,6 +179,18 @@ function updateRole(index: number, role: string, checked: boolean): void {
 </script>
 
 <template>
+  <div v-if="migrationSuggestions.length > 0" class="workflow-conditions__migration">
+    <button
+      type="button"
+      class="workflow-conditions__migration-chip"
+      :data-testid="`${prefix}-migration-chip`"
+      @click="showMigrationDialog = true"
+    >
+      {{ fallbackLabel("ruleEditor.migration.chip", "Convert role expressions to UserRole condition") }}
+      ({{ migrationSuggestions.length }})
+    </button>
+  </div>
+
   <StepListShell
     :items="items"
     :title="title"
@@ -271,6 +302,47 @@ function updateRole(index: number, role: string, checked: boolean): void {
       </div>
     </template>
   </StepListShell>
+
+  <div
+    v-if="showMigrationDialog"
+    class="workflow-conditions__dialog-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="conditions-migration-title"
+    :data-testid="`${prefix}-migration-dialog`"
+  >
+    <div class="workflow-conditions__dialog-card">
+      <h2 id="conditions-migration-title" class="workflow-conditions__dialog-title">
+        {{ fallbackLabel("ruleEditor.migration.title", "Suggested role migrations") }}
+      </h2>
+      <p class="workflow-builder__summary">
+        {{
+          fallbackLabel(
+            "ruleEditor.migration.intro",
+            "These NCalc expressions can be replaced with a UserRole condition. Apply manually — nothing is changed automatically."
+          )
+        }}
+      </p>
+      <ul class="workflow-conditions__migration-list">
+        <li v-for="(suggestion, index) in migrationSuggestions" :key="index">
+          <code>{{ suggestion.token }}</code>
+          <span class="workflow-conditions__migration-source">{{ suggestion.source }}</span>
+          <span aria-hidden="true">→</span>
+          <code>{{ JSON.stringify(suggestion.replacement) }}</code>
+        </li>
+      </ul>
+      <div class="workflow-conditions__dialog-actions">
+        <button
+          type="button"
+          class="secondary-button"
+          :data-testid="`${prefix}-migration-close`"
+          @click="showMigrationDialog = false"
+        >
+          {{ fallbackLabel("ruleEditor.migration.close", "Close") }}
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -296,5 +368,65 @@ function updateRole(index: number, role: string, checked: boolean): void {
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 8px;
+}
+
+.workflow-conditions__migration {
+  margin-bottom: 10px;
+}
+
+.workflow-conditions__migration-chip {
+  border: 1px solid #d98324;
+  border-radius: 999px;
+  background: #fdf1e3;
+  color: #8a4b09;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 12px;
+}
+
+.workflow-conditions__migration-chip:hover {
+  background: #fae3c8;
+}
+
+.workflow-conditions__dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 32, 0.45);
+  z-index: 50;
+}
+
+.workflow-conditions__dialog-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 560px;
+  width: calc(100% - 32px);
+  box-shadow: 0 12px 40px rgba(15, 23, 32, 0.25);
+}
+
+.workflow-conditions__dialog-title {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+.workflow-conditions__migration-list {
+  margin: 12px 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.workflow-conditions__migration-source {
+  color: #5f6f80;
+  margin: 0 6px;
+}
+
+.workflow-conditions__dialog-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 </style>
