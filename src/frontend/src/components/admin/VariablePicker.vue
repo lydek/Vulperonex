@@ -119,7 +119,12 @@ function normalizeTriggerVariable(value: string): string {
 
 <template>
   <details ref="detailsEl" class="variable-picker" @toggle="onToggle">
-    <summary ref="summaryEl" class="variable-picker__summary" data-testid="variable-picker-toggle">{x} Variables</summary>
+    <summary
+      ref="summaryEl"
+      class="variable-picker__summary"
+      data-testid="variable-picker-toggle"
+      title="Insert variable"
+    >{x}</summary>
     <div class="variable-picker__panel" :style="panelStyle">
       <section v-for="group in groups" :key="group.key" class="variable-picker__group">
         <h3 class="variable-picker__title">{{ group.label }}</h3>

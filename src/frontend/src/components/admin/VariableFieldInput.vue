@@ -90,14 +90,14 @@ async function insertVariable(variable: string): Promise<void> {
 .variable-field :deep(textarea) {
   width: 100%;
   box-sizing: border-box;
-  padding-right: 78px;
+  padding-right: 44px;
 }
 
 .variable-field :deep(textarea) {
   min-height: 88px;
   border: 1px solid #d6dde5;
   border-radius: 6px;
-  padding: 10px 78px 10px 12px;
+  padding: 10px 44px 10px 12px;
   resize: vertical;
   background: #ffffff;
 }
