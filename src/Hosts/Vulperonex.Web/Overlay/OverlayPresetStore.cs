@@ -76,10 +76,10 @@ public sealed class OverlayPresetStore
 
     private static readonly IReadOnlyList<OverlayPresetDescriptor> BuiltInPresets =
     [
-        new("chat", "vulperonex-default", "builtin", "Vulperonex default", "/overlay/chat"),
-        new("chat", "compact-line", "builtin", "Compact line", "/overlay/chat"),
-        new("chat", "member-card-inline", "builtin", "Member card inline", "/overlay/chat"),
-        new("member", "rotan-checkin", "builtin", "Rotan checkin", "/overlay/member"),
+        new("chat", "vulperonex-default", "builtin", "Vulperonex default", "/overlay/chat.html"),
+        new("chat", "compact-line", "builtin", "Compact line", "/overlay/chat.html"),
+        new("chat", "member-card-inline", "builtin", "Member card inline", "/overlay/chat.html"),
+        new("member", "rotan-checkin", "builtin", "Rotan checkin", "/overlay/member-card.html"),
         new("alerts", "vulperonex-alerts", "builtin", "Vulperonex alerts", "/overlay/alerts"),
     ];
 
