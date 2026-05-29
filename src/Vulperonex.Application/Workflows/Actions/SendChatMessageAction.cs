@@ -14,7 +14,8 @@ public sealed record SendChatMessageAction : WorkflowAction
     [ActionParam("Template", "string", required: true, help: "Message content template using bracket variable notation")]
     public required string Template { get; init; }
 
-    [ActionParam("Target Platform", "string", required: false, help: "Target platform (e.g. twitch, simulation)")]
+    // Cross-platform routing is not exposed in the editor; defaults to the triggering event's platform.
+    // Property retained for plugin/internal routing and raw-JSON overrides.
     public string? TargetPlatform { get; init; }
 
     [ActionParam("Channel", "string", required: false, help: "Target stream channel name")]
