@@ -360,8 +360,9 @@ function normalizeRole(value: string): string {
 .rule-drawer {
   position: fixed;
   inset: 0 0 0 auto;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
   width: min(720px, 100vw);
   border-left: 1px solid #d6dde5;
   background: #ffffff;
@@ -389,6 +390,7 @@ function normalizeRole(value: string): string {
 }
 
 .rule-drawer__tabs {
+  flex: 1 1 auto;
   display: grid;
   grid-template-rows: auto 1fr;
   gap: 14px;

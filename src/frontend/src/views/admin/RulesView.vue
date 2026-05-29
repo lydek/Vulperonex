@@ -204,16 +204,8 @@ function describeError(caught: unknown): string {
                   <button
                     type="button"
                     class="icon-button"
-                    :data-testid="`edit-new-${rule.id}`"
-                    @click.stop="openDrawer(rule.id)"
-                  >
-                    {{ t("rules.editNew") }}
-                  </button>
-                  <button
-                    type="button"
-                    class="icon-button"
                     :data-testid="`edit-${rule.id}`"
-                    @click.stop="router.push({ name: 'rule-edit', params: { id: rule.id } })"
+                    @click.stop="openDrawer(rule.id)"
                   >
                     {{ t("rules.edit") }}
                   </button>

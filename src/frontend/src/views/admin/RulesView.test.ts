@@ -138,7 +138,7 @@ describe("RulesView", () => {
     expect(detail.text()).toContain("send_chat_message");
   });
 
-  it("should open the new drawer editor while preserving advanced edit route button", async () => {
+  it("should open the drawer editor from the row edit button", async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(new Response(JSON.stringify([ruleA]), { status: 200 }))
@@ -149,8 +149,7 @@ describe("RulesView", () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="edit-rule-a"]').exists()).toBe(true);
-    await wrapper.find('[data-testid="edit-new-rule-a"]').trigger("click");
+    await wrapper.find('[data-testid="edit-rule-a"]').trigger("click");
     await flushPromises();
 
     expect(wrapper.find('[data-testid="rule-editor-drawer"]').exists()).toBe(true);

@@ -30,7 +30,6 @@ export const router = createRouter({
     { path: "/timers", name: "timers", component: TimersView },
     { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },
     { path: "/rules/new", name: "rule-create", component: RuleEditorView },
-    { path: "/rules/:id/edit", name: "rule-edit", component: RuleEditorView, props: true },
     { path: "/twitch", name: "twitch-auth", component: TwitchAuthView },
     { path: "/overlay/chat", name: "overlay-chat", component: ChatOverlayView },
     { path: "/overlay/alerts", name: "overlay-alerts", component: AlertOverlayView },
