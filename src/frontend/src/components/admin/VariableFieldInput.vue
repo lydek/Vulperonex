@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, ref } from "vue";
 import VariablePicker from "@/components/admin/VariablePicker.vue";
-import type { JsonRecord } from "@/components/admin/workflowEditor";
+import type { ActionDefinition, JsonRecord } from "@/components/admin/workflowEditor";
 
 const props = defineProps<{
   modelValue: string;
@@ -11,6 +11,7 @@ const props = defineProps<{
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
   allowedTriggerVariables?: string[];
+  actionDefinitions?: ActionDefinition[];
   dataTestId?: string;
 }>();
 
@@ -67,6 +68,7 @@ async function insertVariable(variable: string): Promise<void> {
       :previous-steps="previousSteps"
       :previous-steps-json="previousStepsJson"
       :allowed-trigger-variables="allowedTriggerVariables"
+      :action-definitions="actionDefinitions"
       @select="insertVariable"
     />
   </div>

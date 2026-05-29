@@ -674,18 +674,18 @@ metadata-clean check；讀取路徑無需改。
 `/api/metadata/actions`。保留 fallback（API 失敗時用最小硬編集合避免 UI 全空）。
 
 **Acceptance criteria**：
-- [ ] `workflowEditor.ts` 不含 15 個 action 的 hardcode definition
-- [ ] 加新 action 只需動 BE record + attribute，FE 自動拉取無需改
-- [ ] API 失敗時 UI 仍可開啟（顯示 fallback warning）
+- [x] `workflowEditor.ts` 不含 15 個 action 的 hardcode definition
+- [x] 加新 action 只需動 BE record + attribute，FE 自動拉取無需改
+- [x] API 失敗時 UI 仍可開啟（顯示 fallback warning）
 
 **Verification**：
-- [ ] frontend unit test
+- [x] frontend unit test
 - [ ] 手動：mock API 失敗 → 確認 fallback
 
 **Dependencies**：D.1 + Phase B.2
 
 **Files**：
-- `src/frontend/src/lib/workflowEditor.ts`
+- `src/frontend/src/components/admin/workflowEditor.ts`
 - `src/frontend/src/stores/actionMetadata.ts`(新)
 - `src/frontend/src/components/admin/WorkflowActionsEditor.vue`
 - `src/frontend/src/components/admin/WorkflowConditionsEditor.vue`

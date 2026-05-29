@@ -611,18 +611,18 @@ DELETE FROM workflow_rules;
 **Description**: Remove hardcoded definitions in `workflowEditor.ts`, pulling instead from `/api/metadata/actions` on startup. Retain a minimal hardcoded fallback to prevent empty interfaces during API failures.
 
 **Acceptance criteria**:
-- [ ] `workflowEditor.ts` contains no hardcoded definitions for the 15 actions.
-- [ ] Adding a new action only requires modifying the BE record + metadata attribute; the FE harvests it automatically.
-- [ ] The UI remains openable on API failures (displaying a fallback warning).
+- [x] `workflowEditor.ts` contains no hardcoded definitions for the 15 actions.
+- [x] Adding a new action only requires modifying the BE record + metadata attribute; the FE harvests it automatically.
+- [x] The UI remains openable on API failures (displaying a fallback warning).
 
 **Verification**:
-- [ ] Frontend unit tests.
+- [x] Frontend unit tests.
 - [ ] Manual: mock API failures and verify fallback displays.
 
 **Dependencies**: D.1 + Phase B.2
 
 **Files**:
-- `src/frontend/src/lib/workflowEditor.ts`
+- `src/frontend/src/components/admin/workflowEditor.ts`
 - `src/frontend/src/stores/actionMetadata.ts` (New)
 - `src/frontend/src/components/admin/WorkflowActionsEditor.vue`
 - `src/frontend/src/components/admin/WorkflowConditionsEditor.vue`

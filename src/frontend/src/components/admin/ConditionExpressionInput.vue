@@ -6,6 +6,7 @@ import {
   getOperatorOptions,
   getVariableInfo,
   parseArrayModel,
+  type ActionDefinition,
   type JsonRecord
 } from "@/components/admin/workflowEditor";
 
@@ -15,6 +16,7 @@ const props = defineProps<{
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
   allowedTriggerVariables?: string[];
+  actionDefinitions?: ActionDefinition[];
   dataTestId?: string;
 }>();
 
@@ -136,6 +138,7 @@ function emitRaw(value: string): void {
         <VariablePicker
           :previous-steps="previousSteps"
           :allowed-trigger-variables="allowedTriggerVariables"
+          :action-definitions="actionDefinitions"
           expression-mode
           @select="leftVar = $event"
         />

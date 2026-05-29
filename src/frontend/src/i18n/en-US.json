@@ -82,6 +82,7 @@
   "ruleEditor.drawer.basic": "Basic",
   "ruleEditor.drawer.actions": "Action Steps",
   "ruleEditor.drawer.errors": "Error Handling",
+  "ruleEditor.actions.metadataFallback": "Action metadata is unavailable. The editor is using a minimal fallback action list.",
   "rules.loading": "Loading…",
   "rules.empty": "No rules yet.",
   "rules.enable": "Enable",

@@ -82,19 +82,6 @@ const cooldownScopeOptions: SelectOption[] = [
   { label: "Per user", value: "PerUser" }
 ];
 
-const overlayTargetOptions: SelectOption[] = [
-  { label: "Alerts", value: "alerts" },
-  { label: "Chat", value: "chat" },
-  { label: "Member", value: "member" }
-];
-
-const severityOptions: SelectOption[] = [
-  { label: "Info", value: "info" },
-  { label: "Success", value: "success" },
-  { label: "Warning", value: "warning" },
-  { label: "Error", value: "error" }
-];
-
 const operatorDefinitions: OperatorDefinition[] = [
   { label: "Equals (==)", value: "==" },
   { label: "Not equals (!=)", value: "!=" },
@@ -176,158 +163,15 @@ export const conditionDefinitions: ConditionDefinition[] = [
   }
 ];
 
-export const actionDefinitions: ActionDefinition[] = [
+export const fallbackActionDefinitions: ActionDefinition[] = [
   {
     type: "sendChatMessage",
     label: "Send chat message",
-    description: "Send a rendered template to chat via outbox.",
+    description: "Fallback action metadata used while backend metadata is unavailable.",
     fields: [
-      { key: "template", label: "Template", kind: "textarea", placeholder: "Hello {Member.DisplayName}" },
-      { key: "targetPlatform", label: "Target platform", kind: "text", placeholder: "twitch" },
-      { key: "channel", label: "Channel", kind: "text", placeholder: "{Trigger.Channel}" },
-      { key: "dedupKey", label: "Dedup key", kind: "text", placeholder: "{Trigger.EventId}" }
+      { key: "template", label: "Template", kind: "textarea", placeholder: "Hello {Member.DisplayName}" }
     ],
-    create: () => ({ type: "sendChatMessage", template: "" })
-  },
-  {
-    type: "randomPicker",
-    label: "Random picker",
-    description: "Pick one value from a list of choices.",
-    fields: [
-      { key: "choices", label: "Choices", kind: "string-list", placeholder: "alpha\nbeta\ngamma" },
-      { key: "weights", label: "Weights", kind: "number-list", placeholder: "1\n1\n1" }
-    ],
-    outputVariables: ["Picked", "Index"],
-    create: () => ({ type: "randomPicker", choices: [] })
-  },
-  {
-    type: "delay",
-    label: "Delay",
-    description: "Pause workflow execution for a period.",
-    fields: [{ key: "delayMs", label: "Delay (ms)", kind: "number" }],
-    create: () => ({ type: "delay", delayMs: 1000 })
-  },
-  {
-    type: "stopIf",
-    label: "Stop if",
-    description: "Stop current workflow when condition is true.",
-    fields: [{ key: "condition", label: "Condition", kind: "text", placeholder: "Trigger.MessageText == '!stop'" }],
-    create: () => ({ type: "stopIf", condition: "" })
-  },
-  {
-    type: "updateCounter",
-    label: "Update counter",
-    description: "Increment or decrement a named counter.",
-    fields: [
-      { key: "key", label: "Counter key", kind: "text", placeholder: "checkin.total" },
-      { key: "delta", label: "Delta", kind: "number" }
-    ],
-    outputVariables: ["Value"],
-    create: () => ({ type: "updateCounter", key: "", delta: 1 })
-  },
-  {
-    type: "invokeSubWorkflow",
-    label: "Invoke sub-workflow",
-    description: "Call another workflow and pass args.",
-    fields: [
-      { key: "workflowId", label: "Workflow id", kind: "text", placeholder: "rule-id" },
-      { key: "args", label: "Args", kind: "string-map", placeholder: "Target={Step.Pick.Picked}" }
-    ],
-    create: () => ({ type: "invokeSubWorkflow", workflowId: "", args: {} })
-  },
-  {
-    type: "lookupTwitchUser",
-    label: "Lookup Twitch user",
-    description: "Resolve Twitch user metadata by login or user id.",
-    fields: [
-      { key: "login", label: "Login", kind: "text", placeholder: "{Trigger.Arg0}" },
-      { key: "userId", label: "User id", kind: "text", placeholder: "{Trigger.UserId}" }
-    ],
-    outputVariables: ["Login", "DisplayName", "UserId", "IsFound"],
-    create: () => ({ type: "lookupTwitchUser", login: "" })
-  },
-  {
-    type: "shoutout",
-    label: "Shoutout",
-    description: "Issue a Twitch shoutout for a target login.",
-    fields: [{ key: "targetLogin", label: "Target login", kind: "text", placeholder: "{Trigger.Arg0}" }],
-    create: () => ({ type: "shoutout", targetLogin: "" })
-  },
-  {
-    type: "refundTwitchRedemption",
-    label: "Refund redemption",
-    description: "Cancel a redemption and refund channel points.",
-    fields: [
-      { key: "rewardId", label: "Reward id", kind: "text", placeholder: "{Trigger.RewardId}" },
-      { key: "redemptionId", label: "Redemption id", kind: "text", placeholder: "{Trigger.RedemptionId}" }
-    ],
-    create: () => ({ type: "refundTwitchRedemption", rewardId: "{Trigger.RewardId}", redemptionId: "{Trigger.RedemptionId}" })
-  },
-  {
-    type: "emitOverlayWidget",
-    label: "Emit overlay widget",
-    description: "Broadcast a strong-typed overlay widget payload.",
-    fields: [
-      { key: "widgetType", label: "Widget type", kind: "text", placeholder: "banner" },
-      { key: "overlayTarget", label: "Overlay target", kind: "select", options: overlayTargetOptions },
-      { key: "displayText", label: "Display text", kind: "textarea", placeholder: "Alert from {Member.DisplayName}" },
-      { key: "severity", label: "Severity", kind: "select", options: severityOptions },
-      { key: "durationMs", label: "Duration (ms)", kind: "number" }
-    ],
-    create: () => ({ type: "emitOverlayWidget", widgetType: "", overlayTarget: "alerts", displayText: "", severity: "info", durationMs: 5000 })
-  },
-  {
-    type: "emitSystemEvent",
-    label: "Emit system event",
-    description: "Publish a custom event to the internal event bus.",
-    fields: [
-      { key: "eventTypeKey", label: "Event type key", kind: "text", placeholder: "custom.fanout" },
-      { key: "payload", label: "Payload", kind: "string-map", placeholder: "message={Trigger.MessageText}" }
-    ],
-    create: () => ({ type: "emitSystemEvent", eventTypeKey: "", payload: {} })
-  },
-  {
-    type: "triggerEffect",
-    label: "Trigger effect",
-    description: "Broadcast a strong-typed overlay effect payload.",
-    fields: [
-      { key: "effectId", label: "Effect id", kind: "text", placeholder: "confetti" },
-      { key: "durationMs", label: "Duration (ms)", kind: "number" }
-    ],
-    create: () => ({ type: "triggerEffect", effectId: "" })
-  },
-  {
-    type: "triggerCheckIn",
-    label: "Trigger check-in",
-    description: "Increment check-in state for a user.",
-    fields: [
-      { key: "userId", label: "User id", kind: "text", placeholder: "{Member.UserId}" },
-      { key: "platform", label: "Platform", kind: "text", placeholder: "twitch" }
-    ],
-    create: () => ({ type: "triggerCheckIn", userId: "{Member.UserId}" })
-  },
-  {
-    type: "addLotteryTickets",
-    label: "Add lottery tickets",
-    description: "Grant counter-backed lottery tickets to a user.",
-    fields: [
-      { key: "userId", label: "User id", kind: "text", placeholder: "{Member.UserId}" },
-      { key: "amount", label: "Amount", kind: "number" }
-    ],
-    outputVariables: ["Value"],
-    create: () => ({ type: "addLotteryTickets", userId: "{Member.UserId}", amount: 1 })
-  },
-  {
-    type: "invokePlugin",
-    label: "Invoke plugin action",
-    description: "Call a plugin action with params and resolved args.",
-    fields: [
-      { key: "pluginId", label: "Plugin id", kind: "text", placeholder: "sample-plugin" },
-      { key: "actionId", label: "Action id", kind: "text", placeholder: "sample-action" },
-      { key: "params", label: "Params", kind: "json-object", placeholder: "{\"mode\":\"demo\"}" },
-      { key: "args", label: "Args", kind: "string-map", placeholder: "user={Member.DisplayName}" }
-    ],
-    create: () => ({ type: "invokePlugin", pluginId: "", actionId: "", params: {}, args: {} })
+    create: () => ({ type: "sendChatMessage" })
   }
 ];
 
@@ -458,8 +302,8 @@ export function fromJsonObjectText(value: string): JsonRecord {
   }
 }
 
-export function findActionDefinition(type: string): ActionDefinition | undefined {
-  return actionDefinitions.find((definition) => definition.type === type);
+export function findActionDefinition(type: string, definitions: ActionDefinition[] = fallbackActionDefinitions): ActionDefinition | undefined {
+  return definitions.find((definition) => definition.type === type);
 }
 
 export function findConditionDefinition(type: string): ConditionDefinition | undefined {
@@ -499,7 +343,11 @@ export function getOperatorOptions(path: string) {
   return operatorDefinitions.filter((definition) => !definition.types || definition.types.includes(variableType));
 }
 
-export function buildVariableGroups(previousSteps: JsonRecord[], expressionMode: boolean): VariableGroup[] {
+export function buildVariableGroups(
+  previousSteps: JsonRecord[],
+  expressionMode: boolean,
+  actionDefinitions: ActionDefinition[] = fallbackActionDefinitions
+): VariableGroup[] {
   const stepVariables: VariableDefinition[] = [];
 
   for (const item of previousSteps) {
@@ -508,7 +356,7 @@ export function buildVariableGroups(previousSteps: JsonRecord[], expressionMode:
       continue;
     }
 
-    const definition = findActionDefinition(asString(item.type));
+    const definition = findActionDefinition(asString(item.type), actionDefinitions);
     const outputFields = definition?.outputVariables ?? ["Status", "Value"];
     for (const outputField of outputFields) {
       stepVariables.push({

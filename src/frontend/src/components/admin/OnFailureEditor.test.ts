@@ -1,5 +1,6 @@
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { createPinia, setActivePinia } from "pinia";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createI18n } from "vue-i18n";
 import enUS from "@/i18n/en-US.json";
 import zhTW from "@/i18n/zh-TW.json";
@@ -16,10 +17,31 @@ function buildI18n() {
 }
 
 describe("OnFailureEditor", () => {
+  beforeEach(() => {
+    setActivePinia(createPinia());
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify([
+      {
+        type: "sendChatMessage",
+        displayName: "Send Chat Message",
+        description: "Send a message to chat",
+        parameters: [
+          { key: "Template", label: "Template", type: "string", required: true, help: "Message template" }
+        ]
+      }
+    ]), {
+      headers: { "Content-Type": "application/json" },
+      status: 200
+    })));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("should add steps via the shared action builder", async () => {
     const wrapper = mount(OnFailureEditor, {
       props: { modelValue: "[]" },
-      global: { plugins: [buildI18n()] }
+      global: { plugins: [buildI18n(), createPinia()] }
     });
 
     await wrapper.find('[data-testid="on-failure-actions-add"]').trigger("click");
@@ -36,7 +58,7 @@ describe("OnFailureEditor", () => {
   it("should expose the nested-onFailure notice", () => {
     const wrapper = mount(OnFailureEditor, {
       props: { modelValue: "[]" },
-      global: { plugins: [buildI18n()] }
+      global: { plugins: [buildI18n(), createPinia()] }
     });
 
     expect(wrapper.text()).toContain("nested");

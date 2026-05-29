@@ -71,6 +71,14 @@ Phase D.3 routed build output after `VariablePicker.vue` was filtered by trigger
 
 The D.3 delta is still within the Phase D budget.
 
+Phase D.4 routed build output after action editor metadata moved from frontend hardcoded definitions to `/api/metadata/actions`:
+
+- CSS bundle: `227.53 kB`, gzip `39.77 kB`.
+- Main JS bundle: `4,278.75 kB`, gzip `1,132.63 kB`.
+- Delta versus the Phase D.3 routed build: CSS gzip `-0.01 kB`, main JS gzip `-0.60 kB`.
+
+The D.4 delta is still within the Phase D budget.
+
 ## Consequences
 
 - Continue Phase D.1 with `reka-ui` rather than PrimeVue Dialog/Tabs.

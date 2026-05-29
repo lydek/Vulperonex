@@ -180,6 +180,25 @@ export async function getTriggerMetadata(signal?: AbortSignal): Promise<TriggerM
   return getJson<TriggerMetadataEntry[]>("/api/metadata/triggers", signal);
 }
 
+export interface ActionParameterMetadata {
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  help?: string | null;
+}
+
+export interface ActionMetadataEntry {
+  type: string;
+  displayName: string;
+  description: string;
+  parameters: ActionParameterMetadata[];
+}
+
+export async function getActionMetadata(signal?: AbortSignal): Promise<ActionMetadataEntry[]> {
+  return getJson<ActionMetadataEntry[]>("/api/metadata/actions", signal);
+}
+
 export async function setRuleEnabled(
   id: string,
   isEnabled: boolean,

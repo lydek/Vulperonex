@@ -3,6 +3,7 @@ import { computed } from "vue";
 import {
   buildVariableGroups,
   parseArrayModel,
+  type ActionDefinition,
   type JsonRecord,
   type VariableGroup
 } from "@/components/admin/workflowEditor";
@@ -12,6 +13,7 @@ const props = defineProps<{
   previousStepsJson?: string;
   expressionMode?: boolean;
   allowedTriggerVariables?: string[];
+  actionDefinitions?: ActionDefinition[];
 }>();
 
 const emit = defineEmits<{ (event: "select", value: string): void }>();
@@ -20,7 +22,7 @@ const groups = computed<VariableGroup[]>(() => {
   const previousSteps = props.previousSteps
     ?? parseArrayModel(props.previousStepsJson ?? "[]");
   return filterTriggerVariables(
-    buildVariableGroups(previousSteps, props.expressionMode ?? false),
+    buildVariableGroups(previousSteps, props.expressionMode ?? false, props.actionDefinitions),
     props.allowedTriggerVariables
   );
 });

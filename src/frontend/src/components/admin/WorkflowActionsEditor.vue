@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConditionExpressionInput from "@/components/admin/ConditionExpressionInput.vue";
 import StepListShell from "@/components/admin/StepListShell.vue";
 import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
 import {
-  actionDefinitions,
   asBoolean,
   asNumber,
   asString,
-  findActionDefinition,
   fromJsonObjectText,
   fromNumberListText,
   fromStringListText,
@@ -25,6 +23,7 @@ import {
   type FieldDefinition,
   type JsonRecord
 } from "@/components/admin/workflowEditor";
+import { useActionMetadataStore } from "@/stores/actionMetadata";
 
 const props = defineProps<{
   modelValue: string;
@@ -36,6 +35,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
 const { t, te } = useI18n();
+const actionMetadata = useActionMetadataStore();
 
 const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
@@ -45,6 +45,22 @@ defineExpose({ focus });
 watch(() => props.modelValue, syncFromModel, { immediate: true });
 
 const prefix = computed(() => props.testIdPrefix ?? "workflow-actions");
+const actionDefinitions = computed(() => actionMetadata.definitions);
+const metadataNotice = computed(() => {
+  if (!actionMetadata.fallbackActive) {
+    return props.notice;
+  }
+
+  return props.notice
+    ?? fallbackLabel(
+      "ruleEditor.actions.metadataFallback",
+      "Action metadata is unavailable. The editor is using a minimal fallback action list."
+    );
+});
+
+onMounted(() => {
+  void actionMetadata.load();
+});
 
 function focus(): void {
   const firstInput = document.querySelector<HTMLInputElement>(`[data-testid="${prefix.value}-type-0"]`);
@@ -69,7 +85,7 @@ function fallbackLabel(key: string, text: string): string {
 }
 
 function addItem(): void {
-  items.value = [...items.value, actionDefinitions[0].create()];
+  items.value = [...items.value, actionDefinitions.value[0].create()];
   emitItems();
 }
 
@@ -92,7 +108,7 @@ function moveItem(index: number, direction: -1 | 1): void {
 }
 
 function definitionFor(item: JsonRecord): ActionDefinition | undefined {
-  return findActionDefinition(asString(item.type));
+  return actionMetadata.findDefinition(asString(item.type));
 }
 
 function patchItem(index: number, patch: Partial<JsonRecord>): void {
@@ -103,7 +119,7 @@ function patchItem(index: number, patch: Partial<JsonRecord>): void {
 }
 
 function onTypeChange(index: number, nextType: string): void {
-  const definition = findActionDefinition(nextType);
+  const definition = actionMetadata.findDefinition(nextType);
   if (!definition) {
     patchItem(index, { type: nextType });
     return;
@@ -216,8 +232,8 @@ function previousStepsFor(index: number): JsonRecord[] {
     @move="moveItem"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <template v-if="notice" #notice>
-      <p class="workflow-builder__notice" role="note">{{ notice }}</p>
+    <template v-if="metadataNotice" #notice>
+      <p class="workflow-builder__notice" role="note">{{ metadataNotice }}</p>
     </template>
 
     <template #identity="{ item, index }">
@@ -260,6 +276,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :model-value="String(fieldValue(item, field))"
               :placeholder="field.placeholder"
               :previous-steps="previousStepsFor(index)"
+              :action-definitions="actionDefinitions"
               @update:model-value="updateField(index, field, $event)"
             />
             <ConditionExpressionInput
@@ -267,6 +284,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :model-value="String(fieldValue(item, field))"
               :placeholder="field.placeholder"
               :previous-steps="previousStepsFor(index)"
+              :action-definitions="actionDefinitions"
               :data-test-id="`${prefix}-field-${field.key}-${index}`"
               @update:model-value="updateField(index, field, $event)"
             />
@@ -305,6 +323,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :rows="4"
               :placeholder="field.placeholder"
               :previous-steps="previousStepsFor(index)"
+              :action-definitions="actionDefinitions"
               @update:model-value="updateField(index, field, $event)"
             />
           </label>
@@ -326,6 +345,7 @@ function previousStepsFor(index: number): JsonRecord[] {
             <ConditionExpressionInput
               :model-value="asString(item.executionCondition)"
               :previous-steps="previousStepsFor(index)"
+              :action-definitions="actionDefinitions"
               placeholder="Trigger.MessageText == '!go'"
               :data-test-id="`${prefix}-execution-${index}`"
               @update:model-value="patchItem(index, { executionCondition: $event })"
