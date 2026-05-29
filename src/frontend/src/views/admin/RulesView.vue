@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
+import RuleEditorDrawer from "@/components/admin/RuleEditorDrawer.vue";
 import {
   ApiError,
   deleteRule,
@@ -25,6 +26,8 @@ const detailError = ref<string | null>(null);
 const conflictNotice = ref<string | null>(null);
 const confirmDeleteId = ref<string | null>(null);
 const deleting = ref(false);
+const drawerRuleId = ref<string | null>(null);
+const isDrawerOpen = ref(false);
 
 onMounted(() => {
   void loadList();
@@ -77,6 +80,17 @@ async function toggleEnabled(rule: WorkflowRuleSummary): Promise<void> {
 function requestDelete(id: string): void {
   conflictNotice.value = null;
   confirmDeleteId.value = id;
+}
+
+function openDrawer(id: string): void {
+  conflictNotice.value = null;
+  drawerRuleId.value = id;
+  isDrawerOpen.value = true;
+}
+
+async function onDrawerSaved(id: string): Promise<void> {
+  await loadList();
+  await selectRule(id);
 }
 
 async function onConfirmDelete(): Promise<void> {
@@ -190,6 +204,14 @@ function describeError(caught: unknown): string {
                   <button
                     type="button"
                     class="icon-button"
+                    :data-testid="`edit-new-${rule.id}`"
+                    @click.stop="openDrawer(rule.id)"
+                  >
+                    {{ t("rules.editNew") }}
+                  </button>
+                  <button
+                    type="button"
+                    class="icon-button"
                     :data-testid="`edit-${rule.id}`"
                     @click.stop="router.push({ name: 'rule-edit', params: { id: rule.id } })"
                   >
@@ -263,6 +285,12 @@ function describeError(caught: unknown): string {
       :busy="deleting"
       @confirm="onConfirmDelete"
       @cancel="confirmDeleteId = null"
+    />
+
+    <RuleEditorDrawer
+      v-model:open="isDrawerOpen"
+      :rule-id="drawerRuleId"
+      @saved="onDrawerSaved"
     />
   </section>
 </template>

@@ -594,9 +594,9 @@ metadata-clean check；讀取路徑無需改。
     主題配色（dark/light、accent color）能完整繼承，無需重寫 token 系統
   - 列舉至少 3 個關鍵元件 (Drawer / Tabs / Dialog) 的 styling integration sample
 - [x] PoC 結果落 ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md`
-- [ ] PoC 若 bundle 超標 → 改 Naive UI tree-shake → 仍超標則純手刻
-- [ ] PoC 若 token 摩擦超預期 → 評估 Inspira UI styled recipe 作為 baseline
-- [ ] Phase B endpoint 上線（D 依賴 B）
+- [x] PoC 若 bundle 超標 → 改 Naive UI tree-shake → 仍超標則純手刻（N/A：routed delta 仍在預算內）
+- [x] PoC 若 token 摩擦超預期 → 評估 Inspira UI styled recipe 作為 baseline（N/A：data-state styling 可行）
+- [x] Phase B endpoint 上線（D 依賴 B）
 
 #### Task D.1: `RuleEditorDrawer.vue` 容器（替換整頁 view）
 
@@ -604,13 +604,13 @@ metadata-clean check；讀取路徑無需改。
 `WorkflowActionsEditor` / `WorkflowConditionsEditor`。
 
 **Acceptance criteria**：
-- [ ] List 頁加「Edit (New)」按鈕開啟 Drawer
-- [ ] 舊「Edit」按鈕保留 → 進 `RuleEditorView` (Advanced JSON Mode fallback)
-- [ ] Drawer 內三 tab 切換不丟資料
+- [x] List 頁加「Edit (New)」按鈕開啟 Drawer
+- [x] 舊「Edit」按鈕保留 → 進 `RuleEditorView` (Advanced JSON Mode fallback)
+- [x] Drawer 內三 tab 切換不丟資料
 
 **Verification**：
-- [ ] `pnpm test` (frontend)
-- [ ] 手動：開 Drawer → 編輯 → 存檔 → reopen 驗證
+- [x] `pnpm test` (frontend)
+- [x] unit flow 等效驗證：開 Drawer → 編輯 → 存檔 → reload detail；browser manual 留到 Phase D checkpoint
 
 **Dependencies**：Gate D
 

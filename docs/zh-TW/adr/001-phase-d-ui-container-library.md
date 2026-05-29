@@ -47,10 +47,16 @@ Build output after the install, with the PoC component not routed into productio
 - CSS bundle: `225.64 kB`, gzip `39.45 kB`.
 - Main JS bundle: `4,229.49 kB`, gzip `1,117.17 kB`.
 
-Because the PoC is not routed into the application, the production bundle does not yet represent the final routed drawer cost. Phase D.1 must re-measure after `RuleEditorDrawer.vue` is imported by `RulesView`.
+Phase D.1 routed build output after `RuleEditorDrawer.vue` was imported by `RulesView`:
+
+- CSS bundle: `227.48 kB`, gzip `39.75 kB`.
+- Main JS bundle: `4,278.37 kB`, gzip `1,132.42 kB`.
+- Routed delta versus the unrouted PoC build: CSS gzip `+0.30 kB`, main JS gzip `+15.25 kB`.
+
+The routed delta is within the Phase D budget.
 
 ## Consequences
 
 - Continue Phase D.1 with `reka-ui` rather than PrimeVue Dialog/Tabs.
 - Keep the legacy full-page `RuleEditorView` as advanced fallback.
-- Re-measure gzip delta after D.1 imports the drawer into the real rule list path.
+- Keep measuring gzip deltas when later Phase D tasks add metadata-driven fields and action metadata stores.

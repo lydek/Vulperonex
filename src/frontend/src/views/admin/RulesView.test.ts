@@ -19,7 +19,15 @@ function buildI18n() {
 function mountView() {
   return mount(RulesView, {
     global: {
-      plugins: [buildI18n(), createPinia()]
+      plugins: [buildI18n(), createPinia()],
+      stubs: {
+        RuleEditorDrawer: {
+          props: ["open", "ruleId"],
+          emits: ["update:open", "saved"],
+          template:
+            '<div v-if="open" data-testid="rule-editor-drawer"><button data-testid="drawer-stub-save" @click="$emit(\'saved\', ruleId)">Save</button></div>'
+        }
+      }
     }
   });
 }
@@ -128,5 +136,28 @@ describe("RulesView", () => {
     const detail = wrapper.find('[data-testid="rules-detail"]');
     expect(detail.exists()).toBe(true);
     expect(detail.text()).toContain("send_chat_message");
+  });
+
+  it("should open the new drawer editor while preserving advanced edit route button", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify([ruleA]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify([{ ...ruleA, name: "Drawer Updated" }]), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ...ruleADetail, name: "Drawer Updated" }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="edit-rule-a"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="edit-new-rule-a"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.find('[data-testid="rule-editor-drawer"]').exists()).toBe(true);
+    await wrapper.find('[data-testid="drawer-stub-save"]').trigger("click");
+    await flushPromises();
+
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/rules/");
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/rules/rule-a");
   });
 });
