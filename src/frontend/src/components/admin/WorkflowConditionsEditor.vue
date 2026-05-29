@@ -261,6 +261,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
               v-if="field.kind === 'text'"
               :model-value="String(fieldValue(item, field))"
               :placeholder="field.placeholder"
+              :filter-key="field.key"
               @update:model-value="updateField(index, field, $event)"
             />
             <input

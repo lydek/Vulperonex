@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from "vue";
+import { useI18n } from "vue-i18n";
 import {
   buildVariableGroups,
   parseArrayModel,
@@ -8,12 +9,24 @@ import {
   type VariableGroup
 } from "@/components/admin/workflowEditor";
 
+const { t, te } = useI18n();
+
+function getVariableLabel(entry: { path: string; label: string }): string {
+  const cleanPath = entry.path.replace(/[{}]/g, "");
+  const translationKey = `variables.${cleanPath}`;
+  if (te(translationKey)) {
+    return t(translationKey);
+  }
+  return entry.label || cleanPath;
+}
+
 const props = defineProps<{
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
   expressionMode?: boolean;
   allowedTriggerVariables?: string[];
   actionDefinitions?: ActionDefinition[];
+  filterKey?: string;
 }>();
 
 const emit = defineEmits<{ (event: "select", value: string): void }>();
@@ -25,11 +38,97 @@ const panelStyle = ref<Record<string, string>>({});
 const groups = computed<VariableGroup[]>(() => {
   const previousSteps = props.previousSteps
     ?? parseArrayModel(props.previousStepsJson ?? "[]");
-  return filterTriggerVariables(
+  const rawGroups = filterTriggerVariables(
     buildVariableGroups(previousSteps, props.expressionMode ?? false, props.actionDefinitions),
     props.allowedTriggerVariables
   );
+  if (!props.filterKey) {
+    return rawGroups;
+  }
+  return filterByFieldProperty(rawGroups, props.filterKey);
 });
+
+function filterByFieldProperty(rawGroups: VariableGroup[], filterKey: string): VariableGroup[] {
+  const key = filterKey.toLowerCase();
+
+  // 1. UserId / User / Member 相關欄位
+  if (key.includes("userid") || key.includes("user") || key.includes("member")) {
+    return rawGroups
+      .map(group => {
+        return {
+          ...group,
+          variables: group.variables.filter(v => {
+            const pathLower = v.path.toLowerCase();
+            if (pathLower.includes(".status")) {
+              return false;
+            }
+            return (
+              pathLower.includes("userid") ||
+              pathLower.includes("userlogin") ||
+              pathLower.includes("displayname")
+            );
+          })
+        };
+      })
+      .filter(group => group.variables.length > 0);
+  }
+
+  // 2. Platform 相關欄位
+  if (key.includes("platform")) {
+    return rawGroups
+      .map(group => {
+        return {
+          ...group,
+          variables: group.variables.filter(v => {
+            const pathLower = v.path.toLowerCase();
+            return pathLower.includes("platform") && !pathLower.includes(".status");
+          })
+        };
+      })
+      .filter(group => group.variables.length > 0);
+  }
+
+  // 3. Channel 相關欄位
+  if (key.includes("channel")) {
+    return rawGroups
+      .map(group => {
+        return {
+          ...group,
+          variables: group.variables.filter(v => {
+            const pathLower = v.path.toLowerCase();
+            return pathLower.includes("channel") && !pathLower.includes(".status");
+          })
+        };
+      })
+      .filter(group => group.variables.length > 0);
+  }
+
+  // 4. Cooldown key (主要填 user id 做冷卻鍵，與 UserId 類似但可適度包容其他鍵)
+  if (key === "key" || key.includes("cooldown")) {
+    return rawGroups
+      .map(group => {
+        return {
+          ...group,
+          variables: group.variables.filter(v => {
+            const pathLower = v.path.toLowerCase();
+            if (pathLower.includes(".status")) {
+              return false;
+            }
+            return (
+              pathLower.includes("userid") ||
+              pathLower.includes("userlogin") ||
+              pathLower.includes("displayname") ||
+              pathLower.includes("channel") ||
+              pathLower.includes("platform")
+            );
+          })
+        };
+      })
+      .filter(group => group.variables.length > 0);
+  }
+
+  return rawGroups;
+}
 
 function selectVariable(value: string): void {
   emit("select", value);
@@ -137,7 +236,11 @@ function normalizeTriggerVariable(value: string): string {
             @click="selectVariable(entry.path)"
           >
             <span class="variable-picker__token">{{ entry.path }}</span>
-            <span v-if="entry.hint" class="variable-picker__hint">{{ entry.hint }}</span>
+            <div class="variable-picker__desc-row">
+              <span class="variable-picker__label">{{ getVariableLabel(entry) }}</span>
+              <span v-if="entry.hint" class="variable-picker__hint-separator">·</span>
+              <span v-if="entry.hint" class="variable-picker__hint">{{ entry.hint }}</span>
+            </div>
           </button>
         </div>
       </section>
@@ -226,5 +329,22 @@ function normalizeTriggerVariable(value: string): string {
 .variable-picker__hint {
   color: #5f6f80;
   font-size: 11px;
+}
+
+.variable-picker__desc-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #5f6f80;
+  margin-top: 2px;
+}
+
+.variable-picker__label {
+  font-weight: 500;
+}
+
+.variable-picker__hint-separator {
+  opacity: 0.5;
 }
 </style>

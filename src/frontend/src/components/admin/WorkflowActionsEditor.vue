@@ -139,6 +139,25 @@ function patchItem(index: number, patch: Partial<JsonRecord>): void {
   emitItems();
 }
 
+function getDefaultOutputVariable(type: string): string | undefined {
+  switch (type) {
+    case "triggerCheckIn":
+      return "CheckIn";
+    case "updateCounter":
+      return "Counter";
+    case "randomPicker":
+      return "Picked";
+    case "lookupTwitchUser":
+      return "TwitchUser";
+    case "invokePlugin":
+      return "PluginResult";
+    case "invokeSubWorkflow":
+      return "SubWorkflowResult";
+    default:
+      return undefined;
+  }
+}
+
 function onTypeChange(index: number, nextType: string): void {
   const definition = actionMetadata.findDefinition(nextType);
   if (!definition) {
@@ -147,6 +166,10 @@ function onTypeChange(index: number, nextType: string): void {
   }
 
   const current = items.value[index] ?? {};
+  const nextOutputVariable = (current.outputVariable && String(current.outputVariable).trim().length > 0)
+    ? current.outputVariable
+    : getDefaultOutputVariable(nextType);
+
   items.value = items.value.map((item, itemIndex) => {
     if (itemIndex !== index) {
       return item;
@@ -155,7 +178,7 @@ function onTypeChange(index: number, nextType: string): void {
     return cleanRecord({
       ...definition.create(),
       executionCondition: current.executionCondition,
-      outputVariable: current.outputVariable,
+      outputVariable: nextOutputVariable,
       timeoutMs: current.timeoutMs,
       maxRetries: current.maxRetries,
       backoffMs: current.backoffMs,
@@ -299,6 +322,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
               :action-definitions="actionDefinitions"
+              :filter-key="field.key"
               @update:model-value="updateField(index, field, $event)"
             />
             <ConditionExpressionInput
@@ -346,6 +370,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
               :action-definitions="actionDefinitions"
+              :filter-key="field.key"
               @update:model-value="updateField(index, field, $event)"
             />
           </label>
@@ -378,7 +403,7 @@ function previousStepsFor(index: number): JsonRecord[] {
             <span class="form-label">{{ fallbackLabel("ruleEditor.outputVariable", "Output variable") }}</span>
             <input
               :value="asString(item.outputVariable)"
-              placeholder="Result"
+              :placeholder="fallbackLabel('ruleEditor.outputVariable.placeholder', 'e.g. CheckIn (referenced via {Step.CheckIn.Status})')"
               @input="patchItem(index, { outputVariable: ($event.target as HTMLInputElement).value })"
             />
           </label>

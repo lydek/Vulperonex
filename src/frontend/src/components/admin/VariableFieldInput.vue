@@ -13,6 +13,7 @@ const props = defineProps<{
   allowedTriggerVariables?: string[];
   actionDefinitions?: ActionDefinition[];
   dataTestId?: string;
+  filterKey?: string;
 }>();
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
@@ -69,6 +70,7 @@ async function insertVariable(variable: string): Promise<void> {
       :previous-steps-json="previousStepsJson"
       :allowed-trigger-variables="allowedTriggerVariables"
       :action-definitions="actionDefinitions"
+      :filter-key="filterKey"
       @select="insertVariable"
     />
   </div>
