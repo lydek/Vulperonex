@@ -41,9 +41,6 @@ onBeforeUnmount(() => {
           <RouterLink to="/timers" class="nav-link">{{ $t("nav.timers") }}</RouterLink>
           <RouterLink to="/chat-outbox" class="nav-link">{{ $t("nav.chatOutbox") }}</RouterLink>
           <RouterLink to="/twitch" class="nav-link">{{ $t("nav.twitchAuth") }}</RouterLink>
-          <RouterLink to="/overlay/chat" class="nav-link">{{ $t("nav.chatOverlay") }}</RouterLink>
-          <RouterLink to="/overlay/alerts" class="nav-link">{{ $t("nav.alertOverlay") }}</RouterLink>
-          <RouterLink to="/overlay/member" class="nav-link">{{ $t("nav.memberOverlay") }}</RouterLink>
         </nav>
       </div>
     </aside>
