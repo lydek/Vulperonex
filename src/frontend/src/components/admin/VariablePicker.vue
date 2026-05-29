@@ -20,6 +20,14 @@ function getVariableLabel(entry: { path: string; label: string }): string {
   return entry.label || cleanPath;
 }
 
+function getGroupLabel(group: { key: string; label: string }): string {
+  const translationKey = `variables.group.${group.key}`;
+  if (te(translationKey)) {
+    return t(translationKey);
+  }
+  return group.label;
+}
+
 const props = defineProps<{
   previousSteps?: JsonRecord[];
   previousStepsJson?: string;
@@ -226,7 +234,7 @@ function normalizeTriggerVariable(value: string): string {
     >{x}</summary>
     <div class="variable-picker__panel" :style="panelStyle">
       <section v-for="group in groups" :key="group.key" class="variable-picker__group">
-        <h3 class="variable-picker__title">{{ group.label }}</h3>
+        <h3 class="variable-picker__title">{{ getGroupLabel(group) }}</h3>
         <div class="variable-picker__list">
           <button
             v-for="entry in group.variables"
