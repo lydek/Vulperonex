@@ -4,7 +4,6 @@ import ChatOutboxView from "@/views/admin/ChatOutboxView.vue";
 import EventMonitorView from "@/views/admin/EventMonitorView.vue";
 import MembersView from "@/views/admin/MembersView.vue";
 import OverlayPresetsView from "@/views/admin/OverlayPresetsView.vue";
-import RuleEditorView from "@/views/admin/RuleEditorView.vue";
 import RulesView from "@/views/admin/RulesView.vue";
 import SettingsView from "@/views/admin/SettingsView.vue";
 import SimulateView from "@/views/admin/SimulateView.vue";
@@ -29,7 +28,6 @@ export const router = createRouter({
     { path: "/rules", name: "rules", component: RulesView },
     { path: "/timers", name: "timers", component: TimersView },
     { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },
-    { path: "/rules/new", name: "rule-create", component: RuleEditorView },
     { path: "/twitch", name: "twitch-auth", component: TwitchAuthView },
     { path: "/overlay/chat", name: "overlay-chat", component: ChatOverlayView },
     { path: "/overlay/alerts", name: "overlay-alerts", component: AlertOverlayView },

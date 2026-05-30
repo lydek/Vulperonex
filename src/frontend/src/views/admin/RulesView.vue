@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
-import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import RuleEditorDrawer from "@/components/admin/RuleEditorDrawer.vue";
@@ -15,7 +14,6 @@ import {
 } from "@/api/client";
 
 const { t } = useI18n();
-const router = useRouter();
 
 const rules = ref<WorkflowRuleSummary[]>([]);
 const selected = ref<WorkflowRuleDetail | null>(null);
@@ -82,7 +80,7 @@ function requestDelete(id: string): void {
   confirmDeleteId.value = id;
 }
 
-function openDrawer(id: string): void {
+function openDrawer(id: string | null): void {
   conflictNotice.value = null;
   drawerRuleId.value = id;
   isDrawerOpen.value = true;
@@ -143,7 +141,7 @@ function describeError(caught: unknown): string {
         type="button"
         class="primary-button"
         data-testid="rules-new"
-        @click="router.push({ name: 'rule-create' })"
+        @click="openDrawer(null)"
       >
         {{ t("rules.new") }}
       </button>
