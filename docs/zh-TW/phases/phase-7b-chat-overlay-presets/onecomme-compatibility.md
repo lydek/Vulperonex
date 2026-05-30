@@ -47,7 +47,7 @@ Vulperonex supports two ways to feed live platform events into `IStreamEventBus`
 
 | Path | Auth requirement | Source | Status |
 | --- | --- | --- | --- |
-| **Native EventSub** | Vulperonex holds Twitch OAuth (broadcaster grant) | `Vulperonex.Adapters.Twitch` connects `wss://eventsub.wss.twitch.tv/ws`, subscribes via Helix, publishes mapped events. | Implemented. Gated by `Twitch:EventSub:Enabled` + `Twitch:BroadcasterId` + a valid token. |
+| **Native TwitchLib (IRC + EventSub)** | Vulperonex holds Twitch OAuth (broadcaster grant) | Host wraps TwitchLib: IRC (`TwitchLib.Client`) for chat, EventSub WebSocket (`TwitchLib.EventSub.Websockets`) for alerts (follow/sub/cheer/raid/gift/redemption). Broadcaster auto-resolved from `Twitch:ChannelName`. Maps to the adapter's existing parser/event types. | Implemented. Gated by `Twitch:EventSub:Enabled` + `Twitch:ChannelName` (or `Twitch:BroadcasterId`) + a valid token. |
 | **OneComme bridge** | None for Vulperonex — OneComme owns the platform auth/session | OneComme ingests the platform itself; a bridge source relays OneComme comments into the bus through the same `IStreamEventSource` contract. | Planned. No bridge ingestion adapter ships yet; this row records the intended design. |
 
 Rationale for keeping OneComme as a first-class fallback:
