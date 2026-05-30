@@ -35,9 +35,28 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
             return;
         }
 
-        var response = await tokenEndpoint.RefreshAsync(refreshToken, cancellationToken);
-        Interlocked.Exchange(ref _accessToken, response.AccessToken);
-        await tokenStore.StoreRefreshTokenAsync("twitch", response.RefreshToken, cancellationToken);
+        try
+        {
+            var response = await tokenEndpoint.RefreshAsync(refreshToken, cancellationToken);
+            Interlocked.Exchange(ref _accessToken, response.AccessToken);
+            await tokenStore.StoreRefreshTokenAsync("twitch", response.RefreshToken, cancellationToken);
+        }
+        catch (Exception)
+        {
+            // If the refresh token is expired, revoked or invalid, set AuthorizationRequired = true
+            // and gracefully set accessToken to null so orchestrators can wait quietly.
+            AuthorizationRequired = true;
+            Interlocked.Exchange(ref _accessToken, null);
+            try
+            {
+                // Clear the invalid token to prevent repeated failed calls to id.twitch.tv
+                await tokenStore.StoreRefreshTokenAsync("twitch", string.Empty, cancellationToken);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
     }
 }
 
