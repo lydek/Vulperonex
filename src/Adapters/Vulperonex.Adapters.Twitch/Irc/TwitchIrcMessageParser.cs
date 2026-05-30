@@ -28,18 +28,22 @@ public static partial class TwitchIrcMessageParser
         var isSubscriber = string.Equals(GetTag(message, "user.is_subscriber", string.Empty), "true", StringComparison.OrdinalIgnoreCase)
             || badges.Any(badge => badge.StartsWith("subscriber/", StringComparison.Ordinal));
 
+        var parsedSegments = ParseSegments(message.Text, GetTag(message, "emotes", string.Empty));
+        var segments = parsedSegments.Select(s => new MessageSegment(s.Type, s.Value)).ToList();
+
         var streamEvent = new UserSentMessageEvent
         {
             EventId = GetTag(message, "msg-id", TwitchSyntheticEventId.New()),
             Platform = "twitch",
             User = new StreamUser("twitch", platformUserId, displayName, RolesFromBadges(badges)),
             MessageText = message.Text,
+            Segments = segments
         };
 
         var hints = new TwitchDisplayHints(
             color,
             badges,
-            [new DisplayHintSegment("text", message.Text)],
+            parsedSegments,
             GetTag(message, "user.avatar", string.Empty) is { Length: > 0 } avatar ? avatar : null,
             isSubscriber,
             bitsTotal);
@@ -131,6 +135,80 @@ public static partial class TwitchIrcMessageParser
 
     [GeneratedRegex("^[A-Za-z0-9_/-]+$", RegexOptions.CultureInvariant)]
     private static partial Regex BadgePartRegex();
+
+    private static IReadOnlyList<DisplayHintSegment> ParseSegments(string text, string emotesTag)
+    {
+        if (string.IsNullOrWhiteSpace(emotesTag) || string.IsNullOrWhiteSpace(text))
+        {
+            return [new DisplayHintSegment("text", text)];
+        }
+
+        try
+        {
+            var emoteOccurrences = new List<(int Start, int End, string EmoteId)>();
+            var parts = emotesTag.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            foreach (var part in parts)
+            {
+                var colonIndex = part.IndexOf(':', StringComparison.Ordinal);
+                if (colonIndex <= 0) continue;
+
+                var id = part[..colonIndex];
+                var positionsStr = part[(colonIndex + 1)..];
+                var positions = positionsStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
+                foreach (var pos in positions)
+                {
+                    var dashIndex = pos.IndexOf('-', StringComparison.Ordinal);
+                    if (dashIndex <= 0) continue;
+
+                    if (int.TryParse(pos[..dashIndex], out var start) &&
+                        int.TryParse(pos[(dashIndex + 1)..], out var end))
+                    {
+                        if (start >= 0 && end < text.Length && start <= end)
+                        {
+                            emoteOccurrences.Add((start, end, id));
+                        }
+                    }
+                }
+            }
+
+            if (emoteOccurrences.Count == 0)
+            {
+                return [new DisplayHintSegment("text", text)];
+            }
+
+            var sorted = emoteOccurrences.OrderBy(o => o.Start).ToList();
+            var segments = new List<DisplayHintSegment>();
+            var lastIdx = 0;
+
+            foreach (var occ in sorted)
+            {
+                if (occ.Start < lastIdx)
+                {
+                    continue;
+                }
+
+                if (occ.Start > lastIdx)
+                {
+                    segments.Add(new DisplayHintSegment("text", text[lastIdx..occ.Start]));
+                }
+
+                var url = $"https://static-cdn.jtvnw.net/emoticons/v2/{occ.EmoteId}/default/dark/1.0";
+                segments.Add(new DisplayHintSegment("emote", url));
+                lastIdx = occ.End + 1;
+            }
+
+            if (lastIdx < text.Length)
+            {
+                segments.Add(new DisplayHintSegment("text", text[lastIdx..]));
+            }
+
+            return segments;
+        }
+        catch
+        {
+            return [new DisplayHintSegment("text", text)];
+        }
+    }
 }
 
 public sealed record TwitchChatParseResult(UserSentMessageEvent Event, TwitchDisplayHints DisplayHints);

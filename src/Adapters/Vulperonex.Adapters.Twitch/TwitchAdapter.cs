@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Vulperonex.Adapters.Abstractions;
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Adapters.Twitch.Display;
@@ -83,34 +82,34 @@ public sealed class TwitchAdapter(
     }
 
     /// <summary>
-    /// Single public entry point for live Twitch ingestion. Routes an EventSub
-    /// notification <c>event</c> payload through the existing parse / map / dedup
-    /// / display-cache pipeline. <paramref name="displayCacheOverride"/> lets a
-    /// background host supply a scoped <see cref="TwitchDisplayCacheUpdater"/>
+    /// Ingest a live Twitch chat message (IRC). <paramref name="displayCacheOverride"/>
+    /// lets a background host supply a scoped <see cref="TwitchDisplayCacheUpdater"/>
     /// (the singleton adapter cannot capture the scoped user-info cache itself).
     /// </summary>
-    public Task IngestEventSubNotificationAsync(
-        string subscriptionType,
-        string messageId,
-        JsonElement @event,
+    public Task IngestChatAsync(
+        TwitchIrcMessage message,
         TwitchDisplayCacheUpdater? displayCacheOverride = null,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(subscriptionType);
         EnsureStarted();
+        return PublishIrcMessageAsync(message, displayCacheOverride ?? displayCacheUpdater, cancellationToken);
+    }
 
-        var updater = displayCacheOverride ?? displayCacheUpdater;
-
-        if (subscriptionType == TwitchEventSubMapper.ChatMessageType)
-        {
-            var irc = TwitchEventSubMapper.ToIrcMessage(@event, messageId);
-            return PublishIrcMessageAsync(irc, updater, cancellationToken);
-        }
-
-        var payload = TwitchEventSubMapper.ToMockPayload(subscriptionType, @event, messageId);
-        return payload is null
-            ? Task.CompletedTask
-            : PublishMappedEventAsync(TwitchEventMapper.Map(payload), updater, cancellationToken);
+    /// <summary>
+    /// Ingest a live Twitch alert (EventSub: follow / sub / cheer / raid / gift /
+    /// reward redemption) already mapped into a <see cref="TwitchMockPayload"/>.
+    /// </summary>
+    public Task IngestAlertAsync(
+        TwitchMockPayload payload,
+        TwitchDisplayCacheUpdater? displayCacheOverride = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(payload);
+        EnsureStarted();
+        return PublishMappedEventAsync(
+            TwitchEventMapper.Map(payload),
+            displayCacheOverride ?? displayCacheUpdater,
+            cancellationToken);
     }
 
     internal Task PublishIrcMessageAsync(TwitchIrcMessage message, CancellationToken cancellationToken = default)

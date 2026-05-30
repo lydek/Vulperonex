@@ -1,9 +1,7 @@
-using System.Text.Json;
 using FluentAssertions;
 using Vulperonex.Adapters.Abstractions;
 using Vulperonex.Adapters.Twitch;
 using Vulperonex.Adapters.Twitch.Display;
-using Vulperonex.Adapters.Twitch.EventSub;
 using Vulperonex.Adapters.Twitch.Irc;
 using Vulperonex.Domain.Events;
 using Vulperonex.Infrastructure.EventBus;
@@ -115,7 +113,7 @@ public sealed class TwitchAdapterEventTypeTests
     }
 
     [Fact]
-    public async Task Given_EventSubChatNotification_When_Ingested_Then_MessageEventPublishedAndDeduped()
+    public async Task Given_ChatMessage_When_IngestChatAsync_Then_MessageEventPublishedAndDeduped()
     {
         await using var bus = new InMemoryStreamEventBus();
         var cache = new RecordingPlatformUserInfoCache();
@@ -126,20 +124,20 @@ public sealed class TwitchAdapterEventTypeTests
             received.Add(streamEvent);
             return Task.CompletedTask;
         });
-        var chatEvent = JsonDocument.Parse("""
-        {
-            "chatter_user_id": "42",
-            "chatter_user_name": "Alice",
-            "message_id": "chat-1",
-            "message": { "text": "hello" }
-        }
-        """).RootElement.Clone();
+        var message = new TwitchIrcMessage(
+            new Dictionary<string, string>
+            {
+                ["msg-id"] = "chat-1",
+                ["user-id"] = "42",
+                ["display-name"] = "Alice",
+            },
+            "alice",
+            "streamer",
+            "hello");
 
         await adapter.StartAsync(TestContext.Current.CancellationToken);
-        await adapter.IngestEventSubNotificationAsync(
-            TwitchEventSubMapper.ChatMessageType, "env-1", chatEvent, new TwitchDisplayCacheUpdater(cache), TestContext.Current.CancellationToken);
-        await adapter.IngestEventSubNotificationAsync(
-            TwitchEventSubMapper.ChatMessageType, "env-1", chatEvent, new TwitchDisplayCacheUpdater(cache), TestContext.Current.CancellationToken);
+        await adapter.IngestChatAsync(message, new TwitchDisplayCacheUpdater(cache), TestContext.Current.CancellationToken);
+        await adapter.IngestChatAsync(message, new TwitchDisplayCacheUpdater(cache), TestContext.Current.CancellationToken);
         await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         received.Should().ContainSingle().Subject.EventId.Should().Be("chat-1");
@@ -147,7 +145,7 @@ public sealed class TwitchAdapterEventTypeTests
     }
 
     [Fact]
-    public async Task Given_EventSubFollowNotification_When_Ingested_Then_FollowEventPublished()
+    public async Task Given_AlertPayload_When_IngestAlertAsync_Then_EventPublished()
     {
         await using var bus = new InMemoryStreamEventBus();
         var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
@@ -157,13 +155,14 @@ public sealed class TwitchAdapterEventTypeTests
             received.Add(streamEvent);
             return Task.CompletedTask;
         });
-        var followEvent = JsonDocument.Parse("""
-        { "user_id": "42", "user_name": "Alice" }
-        """).RootElement.Clone();
 
         await adapter.StartAsync(TestContext.Current.CancellationToken);
-        await adapter.IngestEventSubNotificationAsync(
-            TwitchEventSubMapper.FollowType, "follow-1", followEvent, cancellationToken: TestContext.Current.CancellationToken);
+        await adapter.IngestAlertAsync(
+            new TwitchMockPayload(
+                TwitchMockPayloadKind.Followed,
+                new("twitch", "42", "Alice"),
+                SourceEventId: "follow-1"),
+            cancellationToken: TestContext.Current.CancellationToken);
         await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
 
         received.Should().ContainSingle();
