@@ -1,6 +1,6 @@
 import { HubConnectionBuilder, HubConnectionState } from "@microsoft/signalr";
 import { computed, onScopeDispose, ref } from "vue";
-import { apiBaseUrl, clearOverlayHistory } from "@/api/client";
+import { apiBaseUrl, clearOverlayHistory, withOverlayKey } from "@/api/client";
 
 export const OVERLAY_BUFFER_SIZE = 20;
 
@@ -47,7 +47,7 @@ export interface OverlayHubConnection {
 
 export function useOverlayHub(hubName: OverlayHubName, options: OverlayHubOptions = {}) {
   const connection = options.connection ?? new HubConnectionBuilder()
-    .withUrl(`${apiBaseUrl}/hubs/overlay/${hubName}`)
+    .withUrl(withOverlayKey(`${apiBaseUrl}/hubs/overlay/${hubName}`))
     .withAutomaticReconnect()
     .build();
   const events = ref<OverlayHubEvent[]>([]);

@@ -6,6 +6,7 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import HubStatusChip from "@/components/admin/HubStatusChip.vue";
 import { useOverlayHub } from "@/composables/useOverlayHub";
 import { useStreamEvents } from "@/composables/useStreamEvents";
+import { withOverlayKey } from "@/api/client";
 import { getDeterministicRandom } from "@/utils/deterministicRandom";
 import { cssUrl, sanitizeAssetUrl } from "@/utils/overlayAssetUrl";
 
@@ -153,8 +154,8 @@ watch(
 
 async function fetchSettings() {
   try {
-    const bgResponse = await fetch(`/api/config/${encodeURIComponent(MEMBER_BACKGROUND_KEY)}`);
-    const stampResponse = await fetch(`/api/config/${encodeURIComponent(MEMBER_STAMP_KEY)}`);
+    const bgResponse = await fetch(withOverlayKey(`/api/config/${encodeURIComponent(MEMBER_BACKGROUND_KEY)}`));
+    const stampResponse = await fetch(withOverlayKey(`/api/config/${encodeURIComponent(MEMBER_STAMP_KEY)}`));
     if (bgResponse.ok) {
       const bgData = await bgResponse.json();
       customBgUrl.value = sanitizeAssetUrl(bgData.value);

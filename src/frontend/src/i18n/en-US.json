@@ -579,6 +579,11 @@
   "variables.Failure.ErrorMessage": "Failure error message (Error Message)",
   "variables.Failure.StepType": "Failure step type (Step Type)",
   "variables.Step.CheckIn.Status": "Check-in execution status (Status)",
-  "variables.Step.CheckIn.Value": "Check-in return value (Value)"
+  "variables.Step.CheckIn.Value": "Check-in return value (Value)",
+  "overlayPresets.lan.title": "Cross-machine OBS URL",
+  "overlayPresets.lan.hint": "Use these URLs in OBS browser sources on another machine. Replace the host with this machine's LAN IP if it differs.",
+  "overlayPresets.lan.host": "Host / LAN IP",
+  "overlayPresets.lan.hostPlaceholder": "e.g. 192.168.1.20",
+  "overlayPresets.lan.copy": "Copy",
+  "overlayPresets.lan.copied": "Copied to clipboard"
 }
-

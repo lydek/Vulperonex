@@ -5,10 +5,12 @@ import {
   deleteOverlayCustomPreset,
   getConfigValue,
   getOverlayCustomPresets,
+  getOverlayLanInfo,
   getOverlayPresetCatalog,
   setConfigValue,
   uploadOverlayCustomPreset,
   type OverlayCustomPresetMetadata,
+  type OverlayLanInfo,
   type OverlayPresetDescriptor
 } from "@/api/client";
 import OverlayEditorModal from "@/components/admin/OverlayEditorModal.vue";
@@ -31,6 +33,8 @@ const alertsPreset = ref("vulperonex-alerts");
 const showMemberCard = ref(false);
 const uploadSlug = ref("");
 const uploadFile = ref<File | null>(null);
+const lanInfo = ref<OverlayLanInfo | null>(null);
+const lanHost = ref("");
 const loading = ref(false);
 const saving = ref(false);
 const uploading = ref(false);
@@ -40,6 +44,30 @@ const error = ref<string | null>(null);
 const chatOptions = computed(() => catalog.value.filter((entry) => entry.hubName === "chat"));
 const memberOptions = computed(() => catalog.value.filter((entry) => entry.hubName === "member"));
 const alertsOptions = computed(() => catalog.value.filter((entry) => entry.hubName === "alerts"));
+
+const obsUrls = computed<{ label: string; url: string }[]>(() => {
+  const info = lanInfo.value;
+  if (!info?.enabled || !info.accessKey) {
+    return [];
+  }
+  const host = (lanHost.value || window.location.hostname).trim();
+  const base = `http://${host}:${info.overlayPort}/overlay`;
+  const key = encodeURIComponent(info.accessKey);
+  return [
+    { label: "chat", url: `${base}/chat?k=${key}` },
+    { label: "member", url: `${base}/member?k=${key}` },
+    { label: "alerts", url: `${base}/alerts?k=${key}` }
+  ];
+});
+
+async function copyUrl(url: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(url);
+    message.value = t("overlayPresets.lan.copied");
+  } catch {
+    // Clipboard may be unavailable; user can select manually.
+  }
+}
 
 onMounted(() => {
   void reload();
@@ -55,6 +83,7 @@ async function reload(): Promise<void> {
     memberPreset.value = (await getConfigValue("overlay.member.preset")).value || "rotan-checkin";
     alertsPreset.value = (await getConfigValue("overlay.alerts.preset")).value || "vulperonex-alerts";
     showMemberCard.value = (await getConfigValue("overlay.chat.show_member_card")).value === "true";
+    lanInfo.value = await getOverlayLanInfo();
   } catch (caught) {
     error.value = caught instanceof Error ? caught.message : String(caught);
   } finally {
@@ -148,6 +177,23 @@ async function removePreset(slug: string): Promise<void> {
       <button type="button" class="primary-button" :disabled="saving" @click="saveSettings">
         {{ saving ? t("overlayPresets.saving") : t("overlayPresets.save") }}
       </button>
+    </section>
+
+    <section v-if="lanInfo?.enabled" class="status-card overlay-preset-panel">
+      <h2 class="section-title">{{ t("overlayPresets.lan.title") }}</h2>
+      <p class="page-subtitle">{{ t("overlayPresets.lan.hint") }}</p>
+      <label class="form-field">
+        <span class="form-label">{{ t("overlayPresets.lan.host") }}</span>
+        <input v-model="lanHost" type="text" :placeholder="$t('overlayPresets.lan.hostPlaceholder')" />
+      </label>
+      <ul class="event-list">
+        <li v-for="entry in obsUrls" :key="entry.label" class="event-item overlay-preset-list-item">
+          <code class="monitor-mono">{{ entry.url }}</code>
+          <button type="button" class="icon-button" @click="copyUrl(entry.url)">
+            {{ t("overlayPresets.lan.copy") }}
+          </button>
+        </li>
+      </ul>
     </section>
 
     <section class="status-card overlay-preset-panel">

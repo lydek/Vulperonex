@@ -57,6 +57,39 @@ export const apiBaseUrl = configuredBaseUrl
   ? configuredBaseUrl.replace(/\/$/, "")
   : "";
 
+/**
+ * Cross-machine overlay access key, read from the page URL (`?k=...`).
+ * Present only when OBS loads an overlay over the LAN; absent for same-machine admin/preview.
+ */
+export function getOverlayAccessKey(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const value = new URLSearchParams(window.location.search).get("k");
+  return value && value.length > 0 ? value : null;
+}
+
+/** Appends the overlay access key as a query param when present (used for SignalR hub URLs). */
+export function withOverlayKey(url: string): string {
+  const key = getOverlayAccessKey();
+  if (!key) {
+    return url;
+  }
+  return `${url}${url.includes("?") ? "&" : "?"}k=${encodeURIComponent(key)}`;
+}
+
+export interface OverlayLanInfo {
+  enabled: boolean;
+  bindAddress: string;
+  overlayPort: number;
+  accessKey: string | null;
+}
+
+/** Admin-only: cross-machine overlay LAN settings, for rendering the OBS browser-source URL. */
+export async function getOverlayLanInfo(signal?: AbortSignal): Promise<OverlayLanInfo> {
+  return getJson<OverlayLanInfo>("/api/overlay/lan-info", signal);
+}
+
 export async function getHealth(signal?: AbortSignal): Promise<HealthResponse> {
   return getJson<HealthResponse>("/health", signal);
 }
@@ -824,6 +857,13 @@ async function fetchWithCsrf(url: string, options: RequestInit = {}): Promise<Re
     } catch (err) {
       console.error("Failed to inject CSRF token", err);
     }
+  }
+
+  // When loaded as a cross-machine overlay (LAN), carry the access key so the server's
+  // LAN guard permits overlay-safe config reads. No-op for same-machine admin requests.
+  const overlayKey = getOverlayAccessKey();
+  if (overlayKey) {
+    headers["X-Overlay-Key"] = overlayKey;
   }
   
   return window.fetch(url, {

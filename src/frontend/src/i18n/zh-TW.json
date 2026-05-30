@@ -579,5 +579,11 @@
   "variables.Failure.ErrorMessage": "失敗錯誤訊息 (Error Message)",
   "variables.Failure.StepType": "失敗步驟類型 (Step Type)",
   "variables.Step.CheckIn.Status": "簽到執行狀態 (Status)",
-  "variables.Step.CheckIn.Value": "簽到回傳值 (Value)"
+  "variables.Step.CheckIn.Value": "簽到回傳值 (Value)",
+  "overlayPresets.lan.title": "跨機 OBS 網址",
+  "overlayPresets.lan.hint": "在另一台機器的 OBS browser source 使用這些網址。若主機不同，請將主機改成本機的區網 IP。",
+  "overlayPresets.lan.host": "主機 / 區網 IP",
+  "overlayPresets.lan.hostPlaceholder": "例如 192.168.1.20",
+  "overlayPresets.lan.copy": "複製",
+  "overlayPresets.lan.copied": "已複製到剪貼簿"
 }
