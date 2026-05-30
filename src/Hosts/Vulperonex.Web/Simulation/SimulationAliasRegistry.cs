@@ -11,6 +11,10 @@ public sealed class SimulationAliasRegistry
             ["chat"] = new("chat", StreamEventKeys.UserSentMessage, SimulationKind.Message),
             ["follow"] = new("follow", StreamEventKeys.UserFollowed, SimulationKind.Followed),
             ["sub"] = new("sub", StreamEventKeys.UserSubscribed, SimulationKind.Subscribed),
+            ["giftsub"] = new("giftsub", StreamEventKeys.UserGiftedSubscription, SimulationKind.GiftedSubscription),
+            ["raid"] = new("raid", StreamEventKeys.ChannelRaided, SimulationKind.Raided),
+            ["bits"] = new("bits", StreamEventKeys.UserDonated, SimulationKind.Donated),
+            ["redeem"] = new("redeem", StreamEventKeys.RewardRedeemed, SimulationKind.RewardRedeemed),
         };
 
     public IReadOnlyCollection<SimulationAlias> GetAll() => Aliases.Values.OrderBy(alias => alias.Alias).ToArray();
