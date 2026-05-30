@@ -16,6 +16,7 @@ import {
 } from "reka-ui";
 import {
   ApiError,
+  createRule,
   getRule,
   updateRule,
   type WorkflowRuleUpsertRequest,
@@ -62,7 +63,7 @@ const saving = ref(false);
 const error = ref<string | null>(null);
 const detail = ref<string | null>(null);
 
-const canSave = computed(() => props.ruleId !== null && !loading.value && !saving.value);
+const canSave = computed(() => name.value.trim().length > 0 && !loading.value && !saving.value);
 const selectedRoles = computed({
   get: () => extractSelectedRoles(conditionsText.value),
   set: (roles: string[]) => {
@@ -70,11 +71,38 @@ const selectedRoles = computed({
   }
 });
 
+function resetFields() {
+  activeTab.value = "basic";
+  name.value = "";
+  eventTypeKey.value = "";
+  priority.value = 100;
+  isEnabled.value = true;
+  isSubWorkflow.value = false;
+  matchCondition.value = "";
+  triggerFilter.value = {};
+  throttle.value = {
+    maxConcurrent: 0,
+    cooldownSeconds: 0,
+    perUserCooldown: false,
+    perUserCooldownSeconds: 0
+  };
+  timeoutSeconds.value = 30;
+  conditionsText.value = "[]";
+  actionsText.value = "[]";
+  onFailureText.value = "[]";
+  error.value = null;
+  detail.value = null;
+}
+
 watch(
   () => [props.open, props.ruleId] as const,
   ([open, ruleId]) => {
-    if (open && ruleId) {
-      void loadRule(ruleId);
+    if (open) {
+      if (ruleId) {
+        void loadRule(ruleId);
+      } else {
+        resetFields();
+      }
     }
   },
   { immediate: true }
@@ -111,7 +139,6 @@ async function loadRule(ruleId: string): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  if (!props.ruleId) return;
   error.value = null;
   detail.value = null;
 
@@ -154,8 +181,13 @@ async function save(): Promise<void> {
 
   saving.value = true;
   try {
-    await updateRule(props.ruleId, body);
-    emit("saved", props.ruleId);
+    if (props.ruleId) {
+      await updateRule(props.ruleId, body);
+      emit("saved", props.ruleId);
+    } else {
+      const created = await createRule(body);
+      emit("saved", created.id);
+    }
     close();
   } catch (caught) {
     error.value = describeError(caught);
@@ -234,7 +266,9 @@ function normalizeRole(value: string): string {
       <DialogContent class="rule-drawer" data-testid="rule-editor-drawer">
         <header class="rule-drawer__header">
           <div>
-            <DialogTitle class="section-title">{{ t("ruleEditor.drawer.title") }}</DialogTitle>
+            <DialogTitle class="section-title">
+              {{ props.ruleId ? t("ruleEditor.drawer.title") : (t("ruleEditor.drawer.titleCreate") || "建立新工作流程") }}
+            </DialogTitle>
             <DialogDescription class="status-label">
               {{ t("ruleEditor.drawer.subtitle") }}
             </DialogDescription>
@@ -371,7 +405,7 @@ function normalizeRole(value: string): string {
                 {{ t("common.cancel") }}
               </button>
               <button type="submit" class="primary-button" :disabled="!canSave" data-testid="rule-drawer-save">
-                {{ saving ? t("ruleEditor.submitting") : t("ruleEditor.update") }}
+                {{ saving ? t("ruleEditor.submitting") : (props.ruleId ? t("ruleEditor.update") : t("ruleEditor.create")) }}
               </button>
             </footer>
           </form>

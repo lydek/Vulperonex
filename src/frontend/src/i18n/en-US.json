@@ -77,6 +77,7 @@
   "ruleEditor.fileExtension": "Only .json files are accepted.",
   "ruleEditor.fileMime": "MIME type must be application/json.",
   "ruleEditor.drawer.title": "Edit workflow rule",
+  "ruleEditor.drawer.titleCreate": "Create new workflow",
   "ruleEditor.drawer.subtitle": "Use tabs for common edits; Advanced JSON remains available from the table.",
   "ruleEditor.drawer.basic": "Basic",
   "ruleEditor.drawer.actions": "Action Steps",

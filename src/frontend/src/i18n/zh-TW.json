@@ -77,6 +77,7 @@
   "ruleEditor.fileExtension": "僅接受 .json 副檔名。",
   "ruleEditor.fileMime": "MIME 類型必須為 application/json。",
   "ruleEditor.drawer.title": "編輯工作流程規則",
+  "ruleEditor.drawer.titleCreate": "建立新工作流程",
   "ruleEditor.drawer.subtitle": "常用欄位以分頁編輯；表格中的舊編輯仍保留進階 JSON 模式。",
   "ruleEditor.drawer.basic": "基本",
   "ruleEditor.drawer.actions": "動作步驟",
