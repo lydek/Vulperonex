@@ -167,8 +167,18 @@
             fetchGlobalCardSettings();
             setInterval(fetchGlobalCardSettings, 20000);
 
+            let isSyncingHistory = true;
+            setTimeout(() => {
+                isSyncingHistory = false;
+                console.log("[OverlayChat] History sync complete. Live member check-in rendering is now active.");
+            }, 1500);
+
             OverlayCommon.initSignalRConnection('/hubs/overlay/member', {
                 event: function (userData) {
+                    if (isSyncingHistory) {
+                        console.log("[OverlayChat] Ignored history member check-in to prevent clashing: ", userData.displayName);
+                        return;
+                    }
                     console.log("[OverlayChat] Member check-in event received: ", userData);
 
                     const total = userData.checkInCount || 1;

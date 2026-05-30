@@ -76,6 +76,11 @@ public static partial class VulperonexWebApplication
                     if ((isHtml || isOverlay) && !isDevException)
                     {
                         context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(isOverlay);
+                        
+                        // Disable HTTP Cache for all HTML and Overlay pages to enforce instant OBS updates
+                        context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+                        context.Response.Headers["Pragma"] = "no-cache";
+                        context.Response.Headers["Expires"] = "0";
                     }
                 }
                 return Task.CompletedTask;
@@ -84,7 +89,19 @@ public static partial class VulperonexWebApplication
         });
 
         app.UseDefaultFiles();
-        app.UseStaticFiles();
+        app.UseStaticFiles(new StaticFileOptions
+        {
+            OnPrepareResponse = ctx =>
+            {
+                var path = ctx.Context.Request.Path.Value;
+                if (path != null && path.StartsWith("/overlay", StringComparison.OrdinalIgnoreCase))
+                {
+                    ctx.Context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
+                    ctx.Context.Response.Headers["Pragma"] = "no-cache";
+                    ctx.Context.Response.Headers["Expires"] = "0";
+                }
+            }
+        });
 
         // Retrieve admin CSRF token (restricted by loopback and host allow-list)
         // 【Security Architecture Decision & Trade-offs】:
@@ -153,7 +170,7 @@ public static partial class VulperonexWebApplication
     {
         var frameAncestors = allowSameOriginFraming ? "'self'" : "'none'";
 
-        return $"default-src 'self'; connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:*; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; frame-ancestors {frameAncestors}; object-src 'none'; base-uri 'self';";
+        return $"default-src 'self'; connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:*; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://static-cdn.jtvnw.net; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors {frameAncestors}; object-src 'none'; base-uri 'self';";
     }
 
     private static string ResolveWebRootPath()
