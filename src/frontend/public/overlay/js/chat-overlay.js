@@ -25,6 +25,84 @@
 
         const MAX_MESSAGES = 15;
 
+        // Shared history syncing flag
+        let isSyncingHistory = true;
+        setTimeout(() => {
+            isSyncingHistory = false;
+            console.log("[OverlayChat] History sync complete. Live overlay rendering active.");
+        }, 1500);
+
+        // Dedup collection and renderer helper for member stamp cards
+        const renderedCheckIns = new Set();
+        function markCheckInRendered(displayName, count) {
+            const key = `${displayName}_${count}`;
+            renderedCheckIns.add(key);
+            if (renderedCheckIns.size > 100) {
+                const firstKey = renderedCheckIns.values().next().value;
+                renderedCheckIns.delete(firstKey);
+            }
+        }
+        function isCheckInAlreadyRendered(displayName, count) {
+            const key = `${displayName}_${count}`;
+            return renderedCheckIns.has(key);
+        }
+
+        // Shared Member Stamp Card HTML generator
+        function buildMemberCardHtml(displayName, total, avatarUrl, isHistory = false) {
+            const stamps = (total % 10 === 0) ? 10 : (total % 10);
+            const currentRound = Math.max(1, Math.ceil(total / 10));
+
+            // Build deterministic random layout for stamp slots
+            let stampsHtml = '';
+            for (let i = 1; i <= 10; i++) {
+                // In history replays we render the final stamp static immediately to avoid clashing animations
+                const isStamped = isHistory ? (i <= stamps) : (i < stamps);
+                const seedPref = displayName + "_R" + currentRound + "_S" + i;
+                const rot = (OverlayCommon.getDeterministicRandom(seedPref + "_rot") * 50) - 25;
+                const dx = (OverlayCommon.getDeterministicRandom(seedPref + "_x") * 1.5) - 0.75;
+                const dy = (OverlayCommon.getDeterministicRandom(seedPref + "_y") * 1.5) - 0.75;
+                const scale = 0.95 + (OverlayCommon.getDeterministicRandom(seedPref + "_s") * 0.1);
+
+                stampsHtml += `
+                <div class="stamp-slot ${isStamped ? 'stamped' : ''}" 
+                     style="--rot: ${rot}deg; --dx: ${dx}px; --dy: ${dy}px; --scale: ${scale};">
+                     ${isStamped ? '' : i}
+                </div>`;
+            }
+
+            // CSS Overrides for background configuration
+            const customBgStyle = cardBgUrl ? `background-image: url('${cardBgUrl}');` : '';
+            const overlayOpacity = cardBgUrl ? '1' : '0.6';
+            const customStampVar = cardStampUrl ? `--stamp-image: url('${cardStampUrl}');` : '';
+
+            return `
+            <div class="chat-checkin-wrapper" style="width: 420px; max-width: 100%; height: 210px; position: relative; margin-top: 10px; overflow: hidden; border-radius: 16px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); ${customStampVar}">
+                <div class="loyalty-card" style="width: 600px; height: 300px; transform: scale(0.7); transform-origin: top left; ${customBgStyle}">
+                    <div class="card-inner-bg">
+                        <div class="card-overlay" style="opacity: ${overlayOpacity};"></div>
+                        <div class="card-bg-pattern"></div>
+                        <div class="card-left">
+                            <div class="user-avatar-wrap">
+                                <img class="user-avatar" src="${avatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23666'/></svg>"}" />
+                            </div>
+                            <div class="user-name-container">
+                                <div class="user-name">${displayName}</div>
+                            </div>
+                            <div class="vip-badge">Channel Member</div>
+                        </div>
+                        <div class="card-right">
+                            <div class="card-header">
+                                <div class="card-title">Member Stamp Card</div>
+                            </div>
+                            <div class="stamps-grid">
+                                ${stampsHtml}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
         // Unified Chat Line Renderer (Vanilla JS)
         function renderChatMessage(data, isCheckIn = false) {
             // 1. Create message wrapper
@@ -112,6 +190,52 @@
                 chatLine.appendChild(chip);
             }
 
+            // Embed check-in card directly inside the normal chat line if it is a "!checkin" command message
+            if (showMemberCard && data.memberSnapshot) {
+                let messageText = "";
+                if (data.segments && Array.isArray(data.segments)) {
+                    messageText = data.segments.map(seg => seg.value || seg.text || '').join('');
+                } else {
+                    messageText = data.htmlMessage || data.HtmlMessage || "";
+                }
+
+                if (messageText.trim().toLowerCase().startsWith("!checkin")) {
+                    const snap = data.memberSnapshot;
+                    const snapName = snap.displayName || data.displayName;
+                    const snapCount = snap.checkInCount || 1;
+                    const snapAvatar = snap.avatarUrl || "";
+
+                    if (!isCheckInAlreadyRendered(snapName, snapCount)) {
+                        markCheckInRendered(snapName, snapCount);
+
+                        const cardHtml = buildMemberCardHtml(snapName, snapCount, snapAvatar, isSyncingHistory);
+                        const cardContainer = document.createElement('div');
+                        cardContainer.innerHTML = cardHtml;
+                        chatLine.appendChild(cardContainer);
+
+                        // Only animate dynamic stamp flying and shaking for live overlay updates (non-history)
+                        if (!isSyncingHistory) {
+                            setTimeout(() => {
+                                const stamps = (snapCount % 10 === 0) ? 10 : (snapCount % 10);
+                                const stampsGrid = cardContainer.querySelector('.stamps-grid');
+                                if (stampsGrid) {
+                                    const targetSlot = stampsGrid.children[stamps - 1];
+                                    if (targetSlot) {
+                                        targetSlot.classList.add('stamped', 'animate-stamp');
+                                        targetSlot.textContent = '';
+                                        const wrapper = cardContainer.querySelector('.chat-checkin-wrapper');
+                                        if (wrapper) {
+                                            wrapper.classList.add('shake');
+                                            setTimeout(() => wrapper.classList.remove('shake'), 400);
+                                        }
+                                    }
+                                }
+                            }, 800);
+                        }
+                    }
+                }
+            }
+
             // 7. Append to container and handle max messages limit with animation
             chatContainer.appendChild(chatLine);
 
@@ -184,58 +308,15 @@
                     const total = userData.checkInCount || 1;
                     const displayName = userData.displayName || "Unknown User";
                     const avatarUrl = userData.avatarUrl || "";
-                    const stamps = (total % 10 === 0) ? 10 : (total % 10);
-                    const currentRound = Math.max(1, Math.ceil(total / 10));
 
-                    // Build deterministic random layout for stamp slots
-                    let stampsHtml = '';
-                    for (let i = 1; i <= 10; i++) {
-                        const isStamped = i < stamps; // the last one will be animated in
-                        const seedPref = displayName + "_R" + currentRound + "_S" + i;
-                        const rot = (OverlayCommon.getDeterministicRandom(seedPref + "_rot") * 50) - 25;
-                        const dx = (OverlayCommon.getDeterministicRandom(seedPref + "_x") * 1.5) - 0.75;
-                        const dy = (OverlayCommon.getDeterministicRandom(seedPref + "_y") * 1.5) - 0.75;
-                        const scale = 0.95 + (OverlayCommon.getDeterministicRandom(seedPref + "_s") * 0.1);
-
-                        stampsHtml += `
-                        <div class="stamp-slot ${isStamped ? 'stamped' : ''}" 
-                             style="--rot: ${rot}deg; --dx: ${dx}px; --dy: ${dy}px; --scale: ${scale};">
-                             ${isStamped ? '' : i}
-                        </div>`;
+                    if (isCheckInAlreadyRendered(displayName, total)) {
+                        console.log("[OverlayChat] Card already rendered via ChatHub: ", displayName, total);
+                        return;
                     }
+                    markCheckInRendered(displayName, total);
 
-                    // CSS Overrides for background configuration
-                    const customBgStyle = cardBgUrl ? `background-image: url('${cardBgUrl}');` : '';
-                    const overlayOpacity = cardBgUrl ? '1' : '0.6';
-                    const customStampVar = cardStampUrl ? `--stamp-image: url('${cardStampUrl}');` : '';
-
-                    // Local Stamp Card HTML representation for 0ms loading speed
-                    const html = `
-                    <div class="chat-checkin-wrapper" style="width: 420px; max-width: 100%; height: 210px; position: relative; margin-top: 10px; overflow: hidden; border-radius: 16px; box-shadow: 0 8px 16px rgba(0,0,0,0.4); ${customStampVar}">
-                        <div class="loyalty-card" style="width: 600px; height: 300px; transform: scale(0.7); transform-origin: top left; ${customBgStyle}">
-                            <div class="card-inner-bg">
-                                <div class="card-overlay" style="opacity: ${overlayOpacity};"></div>
-                                <div class="card-bg-pattern"></div>
-                                <div class="card-left">
-                                    <div class="user-avatar-wrap">
-                                        <img class="user-avatar" src="${avatarUrl || "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23666'/></svg>"}" />
-                                    </div>
-                                    <div class="user-name-container">
-                                        <div class="user-name">${displayName}</div>
-                                    </div>
-                                    <div class="vip-badge">Channel Member</div>
-                                </div>
-                                <div class="card-right">
-                                    <div class="card-header">
-                                        <div class="card-title">Member Stamp Card</div>
-                                    </div>
-                                    <div class="stamps-grid">
-                                        ${stampsHtml}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>`;
+                    const stamps = (total % 10 === 0) ? 10 : (total % 10);
+                    const html = buildMemberCardHtml(displayName, total, avatarUrl, isSyncingHistory);
 
                     // Send system-style chat payload containing the local stamp card
                     const checkInPayload = {
@@ -253,7 +334,6 @@
                         const chatLines = chatContainer.querySelectorAll('.chat-line.checkin-message');
                         const lastLine = chatLines[chatLines.length - 1];
                         if (lastLine) {
-                            const loyaltyCard = lastLine.querySelector('.loyalty-card');
                             const stampsGrid = lastLine.querySelector('.stamps-grid');
                             if (stampsGrid) {
                                 const targetSlot = stampsGrid.children[stamps - 1];
