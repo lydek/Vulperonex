@@ -12,7 +12,7 @@ const emit = defineEmits<{
   (event: "update:modelValue", value: string): void;
 }>();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const eventTypes = ref<EventTypeMetadata[]>([]);
 const loading = ref(false);
 const errorCode = ref<string | null>(null);
@@ -63,7 +63,7 @@ function onChange(event: Event): void {
         :value="entry.key"
         :data-simulatable="entry.isSimulatable ? 'true' : 'false'"
       >
-        {{ entry.key }}
+        {{ te(`eventTypeKey.${entry.key}`) ? `${t(`eventTypeKey.${entry.key}`)} (${entry.key})` : entry.key }}
         <template v-if="entry.isSimulatable">— {{ t("eventTypeKey.badge.simulatable") }}</template>
         <template v-else>— {{ t("eventTypeKey.badge.unsupported") }}</template>
       </option>
