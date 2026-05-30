@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
+import { useTheme, type ThemePreference } from "@/composables/useTheme";
 import {
   ApiError,
   getPluginModules,
@@ -10,6 +11,7 @@ import {
 } from "@/api/client";
 
 const { t } = useI18n();
+const { preference: themePreference, resolvedTheme, setThemePreference } = useTheme();
 
 const modules = ref<PluginModule[]>([]);
 const loading = ref(false);
@@ -20,6 +22,7 @@ const confirmOpen = ref(false);
 const pendingTarget = ref<PluginModule | null>(null);
 const pendingEnabled = ref(false);
 const affectedModules = ref<PluginModule[]>([]);
+const themeOptions: ThemePreference[] = ["system", "light", "dark"];
 
 onMounted(async () => {
   await loadModules();
@@ -116,6 +119,11 @@ function applyError(caught: unknown): void {
   errorCode.value = "NETWORK_ERROR";
   errorDetail.value = caught instanceof Error ? caught.message : String(caught);
 }
+
+function updateTheme(event: Event): void {
+  const nextPreference = (event.target as HTMLSelectElement).value as ThemePreference;
+  setThemePreference(nextPreference);
+}
 </script>
 
 <template>
@@ -125,53 +133,77 @@ function applyError(caught: unknown): void {
       <p class="page-subtitle">{{ t("settings.modules.subtitle") }}</p>
     </header>
 
-    <div class="settings-toolbar">
-      <button type="button" class="secondary-button" :disabled="loading" @click="loadModules">
-        {{ t("common.refresh") }}
-      </button>
-    </div>
+    <section class="settings-section" aria-labelledby="theme-settings-title">
+      <div>
+        <h2 id="theme-settings-title" class="section-title">{{ t("settings.theme.title") }}</h2>
+        <p class="settings-section__copy">{{ t("settings.theme.subtitle") }}</p>
+      </div>
+      <label class="form-field theme-select-field">
+        <span class="form-label">{{ t("settings.theme.preference") }}</span>
+        <select :value="themePreference" data-testid="theme-preference-select" @change="updateTheme">
+          <option v-for="option in themeOptions" :key="option" :value="option">
+            {{ t(`settings.theme.${option}`) }}
+          </option>
+        </select>
+      </label>
+      <p class="settings-section__meta" data-testid="theme-resolved">
+        {{ t("settings.theme.resolved", { theme: t(`settings.theme.${resolvedTheme}`) }) }}
+      </p>
+    </section>
 
-    <p v-if="errorCode" class="ack-error-code" role="alert" data-testid="settings-error-code">
-      {{ errorCode }}
-      <span v-if="errorDetail" class="ack-error-detail">{{ errorDetail }}</span>
-    </p>
-
-    <div class="module-grid" data-testid="module-grid">
-      <article
-        v-for="module in modules"
-        :key="module.name"
-        class="module-card"
-        :data-testid="`module-card-${module.name}`"
-      >
-        <div class="module-card__header">
-          <div>
-            <p class="module-card__kind">{{ module.kind }}</p>
-            <h2 class="module-card__title">{{ module.displayName }}</h2>
-          </div>
-          <span class="module-card__state" :class="module.enabled ? 'is-enabled' : 'is-disabled'">
-            {{ module.enabled ? t("settings.modules.enabled") : t("settings.modules.disabled") }}
-          </span>
+    <section aria-labelledby="module-settings-title">
+      <div class="settings-toolbar">
+        <div>
+          <h2 id="module-settings-title" class="section-title">{{ t("settings.modules.sectionTitle") }}</h2>
+          <p class="settings-section__copy">{{ t("settings.modules.sectionSubtitle") }}</p>
         </div>
-
-        <p class="module-card__meta">
-          {{ t("settings.modules.dependsOn", { count: module.dependencies.length }) }}
-          {{ module.dependencies.join(", ") || t("settings.modules.none") }}
-        </p>
-        <p class="module-card__meta">
-          {{ t("settings.modules.usedBy", { count: module.dependents.length }) }}
-          {{ module.dependents.join(", ") || t("settings.modules.none") }}
-        </p>
-
-        <button
-          type="button"
-          class="primary-button module-card__toggle"
-          :disabled="busyModule === module.name"
-          @click="requestToggle(module)"
-        >
-          {{ module.enabled ? t("settings.modules.disable") : t("settings.modules.enable") }}
+        <button type="button" class="secondary-button" :disabled="loading" @click="loadModules">
+          {{ t("common.refresh") }}
         </button>
-      </article>
-    </div>
+      </div>
+
+      <p v-if="errorCode" class="ack-error-code" role="alert" data-testid="settings-error-code">
+        {{ errorCode }}
+        <span v-if="errorDetail" class="ack-error-detail">{{ errorDetail }}</span>
+      </p>
+
+      <div class="module-grid" data-testid="module-grid">
+        <article
+          v-for="module in modules"
+          :key="module.name"
+          class="module-card"
+          :data-testid="`module-card-${module.name}`"
+        >
+          <div class="module-card__header">
+            <div>
+              <p class="module-card__kind">{{ module.kind }}</p>
+              <h3 class="module-card__title">{{ module.displayName }}</h3>
+            </div>
+            <span class="module-card__state" :class="module.enabled ? 'is-enabled' : 'is-disabled'">
+              {{ module.enabled ? t("settings.modules.enabled") : t("settings.modules.disabled") }}
+            </span>
+          </div>
+
+          <p class="module-card__meta">
+            {{ t("settings.modules.dependsOn", { count: module.dependencies.length }) }}
+            {{ module.dependencies.join(", ") || t("settings.modules.none") }}
+          </p>
+          <p class="module-card__meta">
+            {{ t("settings.modules.usedBy", { count: module.dependents.length }) }}
+            {{ module.dependents.join(", ") || t("settings.modules.none") }}
+          </p>
+
+          <button
+            type="button"
+            class="primary-button module-card__toggle"
+            :disabled="busyModule === module.name"
+            @click="requestToggle(module)"
+          >
+            {{ module.enabled ? t("settings.modules.disable") : t("settings.modules.enable") }}
+          </button>
+        </article>
+      </div>
+    </section>
 
     <ConfirmDialog
       :open="confirmOpen"
@@ -189,8 +221,31 @@ function applyError(caught: unknown): void {
 <style scoped>
 .settings-toolbar {
   display: flex;
-  justify-content: flex-end;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 16px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: var(--vp-radius-card);
+  padding: 16px;
+  background: var(--vp-bg-surface);
+}
+
+.settings-section__copy,
+.settings-section__meta {
+  margin: 0;
+  color: var(--vp-text-muted);
+  font-size: 13px;
+}
+
+.theme-select-field {
+  max-width: 280px;
 }
 
 .module-grid {
@@ -200,11 +255,11 @@ function applyError(caught: unknown): void {
 }
 
 .module-card {
-  border: 1px solid #d6dde5;
-  border-radius: 16px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: var(--vp-radius-modal);
   padding: 18px;
-  background: linear-gradient(180deg, #ffffff 0%, #f6faf9 100%);
-  box-shadow: 0 10px 28px rgba(15, 23, 32, 0.08);
+  background: var(--vp-bg-surface);
+  box-shadow: var(--vp-shadow-elevated);
 }
 
 .module-card__header {
@@ -219,7 +274,7 @@ function applyError(caught: unknown): void {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 11px;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
 }
 
 .module-card__title {
@@ -228,25 +283,25 @@ function applyError(caught: unknown): void {
 }
 
 .module-card__state {
-  border-radius: 999px;
+  border-radius: var(--vp-radius-pill);
   padding: 4px 10px;
   font-size: 12px;
   font-weight: 700;
 }
 
 .module-card__state.is-enabled {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--vp-bg-success);
+  color: var(--vp-text-success);
 }
 
 .module-card__state.is-disabled {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--vp-bg-danger);
+  color: var(--vp-text-danger);
 }
 
 .module-card__meta {
   margin: 12px 0 0;
-  color: #394756;
+  color: var(--vp-text-secondary);
   font-size: 13px;
   line-height: 1.5;
 }

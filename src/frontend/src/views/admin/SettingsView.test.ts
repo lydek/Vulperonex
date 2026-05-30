@@ -1,6 +1,7 @@
 import { flushPromises, mount } from "@vue/test-utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createI18n } from "vue-i18n";
+import { resetThemeForTests, THEME_STORAGE_KEY } from "@/composables/useTheme";
 import enUS from "@/i18n/en-US.json";
 import zhTW from "@/i18n/zh-TW.json";
 import SettingsView from "./SettingsView.vue";
@@ -46,6 +47,8 @@ describe("SettingsView", () => {
   beforeEach(() => {
     apiMocks.getPluginModules.mockReset();
     apiMocks.togglePluginModule.mockReset();
+    resetThemeForTests();
+    window.localStorage.clear();
   });
 
   it("renders module cards from the API", async () => {
@@ -134,5 +137,22 @@ describe("SettingsView", () => {
     expect(apiMocks.togglePluginModule).toHaveBeenCalledWith("member", false);
     expect(wrapper.get('[data-testid="module-card-member"]').text()).toContain("Disabled");
     expect(wrapper.get('[data-testid="module-card-checkin"]').text()).toContain("Disabled");
+  });
+
+  it("updates the theme preference from settings", async () => {
+    apiMocks.getPluginModules.mockResolvedValue([]);
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        plugins: [buildI18n()]
+      }
+    });
+
+    await flushPromises();
+    await wrapper.get('[data-testid="theme-preference-select"]').setValue("dark");
+
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(wrapper.get('[data-testid="theme-resolved"]').text()).toContain("Dark");
   });
 });
