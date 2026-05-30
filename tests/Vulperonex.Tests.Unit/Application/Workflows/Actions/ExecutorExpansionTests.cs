@@ -520,6 +520,16 @@ public sealed class ExecutorExpansionTests
         {
             return Task.FromResult<IReadOnlyList<PlatformBadgeDescriptor>>([]);
         }
+
+        public Task CreateEventSubSubscriptionAsync(
+            string type,
+            string version,
+            IReadOnlyDictionary<string, string> condition,
+            string sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeClock : IClock

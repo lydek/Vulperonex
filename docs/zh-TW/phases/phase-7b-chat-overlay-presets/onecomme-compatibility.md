@@ -37,9 +37,30 @@ The chat overlay preset contract is defined by:
 | Template `package.json` metadata | Mapped | Extensions can ship metadata that resolves into `ChatOverlayPreset` entries; importer scans a presets directory and registers entries that match the contract. |
 | Template assets (images, fonts) | Mapped | Extension static assets must be co-located with the SFC and referenced through component imports, not raw `<img src>` to filesystem paths. |
 | Subscription / follower / cheer rendering | Out of scope for Phase 7B | Other overlays (alerts, member) keep their own preset slice for future phases. |
-| Real-time chat / IRC bridges | Out of scope | OneComme handles platform ingestion itself; Vulperonex pulls from `IStreamEventBus` which is fed by the Twitch adapter. |
+| Real-time chat / IRC bridges | Two ingestion paths | **Primary:** the native Twitch adapter feeds `IStreamEventBus` directly via EventSub WebSocket (requires Vulperonex OAuth). **Fallback (planned):** when the operator has not authorized Vulperonex, OneComme can perform platform ingestion + auth itself and relay comments into the bus through a OneComme bridge source. See [Dual Ingestion Strategy](#dual-ingestion-strategy). |
 | Per-template hot reload via filesystem watcher | Deferred | The first extension path is build-time registration; filesystem hot reload is tracked under a future polish phase. |
 | Sound / TTS pipeline | Out of scope | Tracked separately; not part of chat overlay preset contract. |
+
+## Dual Ingestion Strategy
+
+Vulperonex supports two ways to feed live platform events into `IStreamEventBus`. Both terminate at the same bus contract, so every downstream module (Workflow, Overlay, Member) is unaware of which source produced an event.
+
+| Path | Auth requirement | Source | Status |
+| --- | --- | --- | --- |
+| **Native EventSub** | Vulperonex holds Twitch OAuth (broadcaster grant) | `Vulperonex.Adapters.Twitch` connects `wss://eventsub.wss.twitch.tv/ws`, subscribes via Helix, publishes mapped events. | Implemented. Gated by `Twitch:EventSub:Enabled` + `Twitch:BroadcasterId` + a valid token. |
+| **OneComme bridge** | None for Vulperonex — OneComme owns the platform auth/session | OneComme ingests the platform itself; a bridge source relays OneComme comments into the bus through the same `IStreamEventSource` contract. | Planned. No bridge ingestion adapter ships yet; this row records the intended design. |
+
+Rationale for keeping OneComme as a first-class fallback:
+
+- **No-authorization onboarding.** An operator who has not (or cannot) complete the Vulperonex OAuth grant can still get live chat by pointing an existing OneComme install at Vulperonex. This removes the hard OAuth gate as a blocker for first-run.
+- **Core stays platform-agnostic.** The bridge is an adapter/plugin, never core code. The OneComme path must publish the same Domain Events (`UserSentMessageEvent`, etc.) the native adapter produces — no OneComme-specific types leak past the bus boundary.
+- **Mutually exclusive at runtime.** Operators pick one source per platform to avoid duplicate events; the native adapter's dedup cache only protects against EventSub replay, not cross-source duplication. Document selection as an explicit operator choice when the bridge ships.
+
+When implemented, the OneComme bridge source should:
+
+1. Consume OneComme's comment stream (its local HTTP/WebSocket API), not its renderer or admin UI (per the Non-Goals above).
+2. Map `comment.name` → `displayName`, `comment.message` → chat segment text (consistent with [OneComme Bridge](../../plugins/onecomme-bridge.md)).
+3. Publish through `IStreamEventSource` so it reuses the existing parse/dedup/display-cache pipeline.
 
 ## Extension / Import Path
 

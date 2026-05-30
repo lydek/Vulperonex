@@ -1,7 +1,9 @@
+using System.Text.Json;
 using FluentAssertions;
 using Vulperonex.Adapters.Abstractions;
 using Vulperonex.Adapters.Twitch;
 using Vulperonex.Adapters.Twitch.Display;
+using Vulperonex.Adapters.Twitch.EventSub;
 using Vulperonex.Adapters.Twitch.Irc;
 using Vulperonex.Domain.Events;
 using Vulperonex.Infrastructure.EventBus;
@@ -110,6 +112,63 @@ public sealed class TwitchAdapterEventTypeTests
         cache.Current.IsSubscriber.Should().BeTrue();
         cache.Current.SubscriptionTier.Should().Be("1000");
         cache.Current.Badges.Should().Contain("subscriber/1000");
+    }
+
+    [Fact]
+    public async Task Given_EventSubChatNotification_When_Ingested_Then_MessageEventPublishedAndDeduped()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var cache = new RecordingPlatformUserInfoCache();
+        var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
+        var received = new List<UserSentMessageEvent>();
+        bus.Subscribe<UserSentMessageEvent>((streamEvent, _) =>
+        {
+            received.Add(streamEvent);
+            return Task.CompletedTask;
+        });
+        var chatEvent = JsonDocument.Parse("""
+        {
+            "chatter_user_id": "42",
+            "chatter_user_name": "Alice",
+            "message_id": "chat-1",
+            "message": { "text": "hello" }
+        }
+        """).RootElement.Clone();
+
+        await adapter.StartAsync(TestContext.Current.CancellationToken);
+        await adapter.IngestEventSubNotificationAsync(
+            TwitchEventSubMapper.ChatMessageType, "env-1", chatEvent, new TwitchDisplayCacheUpdater(cache), TestContext.Current.CancellationToken);
+        await adapter.IngestEventSubNotificationAsync(
+            TwitchEventSubMapper.ChatMessageType, "env-1", chatEvent, new TwitchDisplayCacheUpdater(cache), TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        received.Should().ContainSingle().Subject.EventId.Should().Be("chat-1");
+        cache.Current.DisplayName.Should().Be("Alice");
+    }
+
+    [Fact]
+    public async Task Given_EventSubFollowNotification_When_Ingested_Then_FollowEventPublished()
+    {
+        await using var bus = new InMemoryStreamEventBus();
+        var adapter = new TwitchAdapter(bus, new InMemoryStreamEventTypeRegistry());
+        var received = new List<UserFollowedEvent>();
+        bus.Subscribe<UserFollowedEvent>((streamEvent, _) =>
+        {
+            received.Add(streamEvent);
+            return Task.CompletedTask;
+        });
+        var followEvent = JsonDocument.Parse("""
+        { "user_id": "42", "user_name": "Alice" }
+        """).RootElement.Clone();
+
+        await adapter.StartAsync(TestContext.Current.CancellationToken);
+        await adapter.IngestEventSubNotificationAsync(
+            TwitchEventSubMapper.FollowType, "follow-1", followEvent, cancellationToken: TestContext.Current.CancellationToken);
+        await bus.WaitForIdleAsync(TestContext.Current.CancellationToken);
+
+        received.Should().ContainSingle();
+        received[0].User.UserId.Should().Be("42");
+        received[0].EventId.Should().Be("follow-1");
     }
 
     private sealed class RecordingPlatformUserInfoCache : IPlatformUserInfoCache
