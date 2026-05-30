@@ -19,6 +19,7 @@ import {
 const { t } = useI18n();
 
 const members = ref<MemberReadModel[]>([]);
+const activeTab = ref<'identity' | 'checkin'>('identity');
 const selected = ref<MemberReadModel | null>(null);
 const platformFilter = ref<string>("");
 const loadingList = ref(false);
@@ -323,6 +324,26 @@ function describeError(caught: unknown): string {
   }
   return caught instanceof Error ? caught.message : String(caught);
 }
+
+function getPrimaryIdentity(member: MemberReadModel | null) {
+  if (!member || !member.identities || member.identities.length === 0) return null;
+  return member.identities.find(id => id.platform === 'twitch') || member.identities[0];
+}
+
+function getAvatarUrl(member: MemberReadModel) {
+  const primary = getPrimaryIdentity(member);
+  return primary?.avatarUrl || "https://static-cdn.jtvnw.net/user-default-pictures-uv/13e5fa74def228c3-profile_image-70x70.png";
+}
+
+function getDisplayName(member: MemberReadModel) {
+  const primary = getPrimaryIdentity(member);
+  return primary?.displayName || member.memberId;
+}
+
+function getIsSubscriber(member: MemberReadModel) {
+  const primary = getPrimaryIdentity(member);
+  return primary?.isSubscriber ?? false;
+}
 </script>
 
 <template>
@@ -390,6 +411,26 @@ function describeError(caught: unknown): string {
       {{ listError }}
     </p>
 
+    <!-- Premium Tabs Switcher -->
+    <div class="members-tabs">
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeTab === 'identity' }"
+        @click="activeTab = 'identity'"
+      >
+        <span class="tab-icon">👤</span>身分管理
+      </button>
+      <button
+        type="button"
+        class="tab-btn"
+        :class="{ active: activeTab === 'checkin' }"
+        @click="activeTab = 'checkin'"
+      >
+        <span class="tab-icon">📅</span>簽到管理
+      </button>
+    </div>
+
     <div class="members-layout">
       <!-- Members List Pane -->
       <div class="members-list-pane">
@@ -400,12 +441,16 @@ function describeError(caught: unknown): string {
         >
           {{ t("members.empty") }}
         </p>
-        <table v-else-if="members.length > 0" class="monitor-table" data-testid="members-table">
+        
+        <!-- Tab 1: Identity Management Table -->
+        <table v-else-if="members.length > 0 && activeTab === 'identity'" class="monitor-table" data-testid="members-table">
           <thead>
             <tr>
-              <th scope="col">{{ t("members.col.memberId") }}</th>
-              <th scope="col">{{ t("members.col.platforms") }}</th>
-              <th scope="col">{{ t("members.col.loyalty") }}</th>
+              <th scope="col" style="width: 70px; text-align: center;">{{ t("members.col.avatar") || "頭像" }}</th>
+              <th scope="col">{{ t("members.col.displayName") || "顯示名稱" }}</th>
+              <th scope="col">{{ t("members.col.twitchAccount") || "Twitch 帳號" }}</th>
+              <th scope="col" style="width: 140px; text-align: center;">{{ t("members.col.isSubscriber") || "身分狀態" }}</th>
+              <th scope="col" style="width: 220px; text-align: center;">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -416,16 +461,98 @@ function describeError(caught: unknown): string {
               data-testid="members-row"
               tabindex="0"
               role="button"
-              :aria-label="t('members.col.memberId') + ': ' + member.memberId"
+              :aria-label="getDisplayName(member)"
               @click="selectMember(member.memberId)"
               @keydown.enter.prevent="selectMember(member.memberId)"
               @keydown.space.prevent="selectMember(member.memberId)"
             >
-              <td class="monitor-mono">{{ member.memberId }}</td>
-              <td class="monitor-mono">
-                {{ member.identities.map((identity) => identity.platform).join(", ") || "-" }}
+              <td style="text-align: center;">
+                <div class="table-avatar-wrapper">
+                  <img :src="getAvatarUrl(member)" class="table-avatar" alt="Avatar" />
+                </div>
               </td>
-              <td class="monitor-mono">{{ member.loyalty.totalLoyalty }}</td>
+              <td>
+                <span class="table-display-name">{{ getDisplayName(member) }}</span>
+              </td>
+              <td>
+                <span class="table-login-name font-mono">@{{ getPrimaryIdentity(member)?.platformUserId || member.memberId }}</span>
+              </td>
+              <td style="text-align: center;">
+                <span :class="['role-badge-tag', getIsSubscriber(member) ? 'subscriber' : 'viewer']">
+                  {{ getIsSubscriber(member) ? '訂閱者' : '一般觀眾' }}
+                </span>
+              </td>
+              <td>
+                <div class="row-actions-wrapper" @click.stop>
+                  <button type="button" class="row-action-btn detail-btn-quaternary" @click="selectMember(member.memberId)">
+                    詳情
+                  </button>
+                  <button type="button" class="row-action-btn audit-btn-quaternary" @click="selectMember(member.memberId).then(() => openAuditDrawer())">
+                    紀錄
+                  </button>
+                  <button type="button" class="row-action-btn delete-btn-quaternary" @click="selectMember(member.memberId).then(() => startDelete())">
+                    刪除
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Tab 2: Checkin Management Table -->
+        <table v-else-if="members.length > 0 && activeTab === 'checkin'" class="monitor-table" data-testid="members-table-checkin">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 70px; text-align: center;">{{ t("members.col.avatar") || "頭像" }}</th>
+              <th scope="col">{{ t("members.col.user") || "使用者" }}</th>
+              <th scope="col" style="text-align: center; width: 130px;">{{ t("members.col.checkIns") || "累積打卡" }}</th>
+              <th scope="col" style="text-align: center; width: 130px;">{{ t("members.col.stampsCount") || "目前印章" }}</th>
+              <th scope="col" style="width: 250px; text-align: center;">打卡操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="member in members"
+              :key="member.memberId"
+              :class="['members-row', { 'members-row-selected': selected?.memberId === member.memberId }]"
+              data-testid="members-row"
+              tabindex="0"
+              role="button"
+              :aria-label="getDisplayName(member)"
+              @click="selectMember(member.memberId)"
+              @keydown.enter.prevent="selectMember(member.memberId)"
+              @keydown.space.prevent="selectMember(member.memberId)"
+            >
+              <td style="text-align: center;">
+                <div class="table-avatar-wrapper">
+                  <img :src="getAvatarUrl(member)" class="table-avatar" alt="Avatar" />
+                </div>
+              </td>
+              <td>
+                <div class="table-user-info">
+                  <span class="table-display-name">{{ getDisplayName(member) }}</span>
+                  <span class="table-login-name font-mono">@{{ getPrimaryIdentity(member)?.platformUserId || member.memberId }}</span>
+                </div>
+              </td>
+              <td style="text-align: center;" class="monitor-mono text-success-highlight">
+                {{ member.loyalty.checkInCount }}
+              </td>
+              <td style="text-align: center;" class="monitor-mono text-info-highlight">
+                {{ member.loyalty.totalLoyalty }}
+              </td>
+              <td>
+                <div class="row-actions-wrapper" @click.stop>
+                  <button type="button" class="row-action-btn adjust-btn-quaternary" @click="selectMember(member.memberId).then(() => openAdjustModal())">
+                    調整印章
+                  </button>
+                  <button type="button" class="row-action-btn reset-btn-quaternary" @click="selectMember(member.memberId).then(() => openResetModal())">
+                    重設數據
+                  </button>
+                  <button type="button" class="row-action-btn detail-btn-quaternary" @click="selectMember(member.memberId)">
+                    管理詳情
+                  </button>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -454,8 +581,12 @@ function describeError(caught: unknown): string {
         </p>
 
         <article v-if="selected" class="status-card glow-panel" data-testid="members-detail">
-          <div class="detail-header-row">
-            <h3 class="detail-sec-title monitor-mono">{{ selected.memberId }}</h3>
+          <div class="detail-profile-header">
+            <img :src="getAvatarUrl(selected)" class="detail-avatar" alt="Avatar" />
+            <div class="detail-profile-info">
+              <h3 class="detail-display-name">{{ getDisplayName(selected) }}</h3>
+              <p class="detail-username font-mono">ID: {{ selected.memberId }}</p>
+            </div>
             <span class="version-badge">v.{{ selected.updatedAtTicks }}</span>
           </div>
 
@@ -476,9 +607,12 @@ function describeError(caught: unknown): string {
                 v-for="identity in selected.identities"
                 :key="`${identity.platform}-${identity.platformUserId}`"
                 class="identity-item monitor-mono"
+                style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;"
               >
                 <span class="platform-name-tag">{{ identity.platform }}</span>
-                <span class="platform-id-value"> · {{ identity.platformUserId }}</span>
+                <span class="platform-id-value">{{ identity.platformUserId }}</span>
+                <span v-if="identity.displayName" class="platform-id-value" style="color: #BDE8E8; font-weight: 700;">({{ identity.displayName }})</span>
+                <span v-if="identity.isSubscriber" class="role-badge-tag subscriber" style="transform: scale(0.85); transform-origin: left center; margin-left: 4px;">{{ t("members.role.subscriber") || "訂閱者" }}</span>
               </li>
             </ul>
           </div>
@@ -1273,5 +1407,215 @@ function describeError(caught: unknown): string {
 @keyframes pulse {
   from { opacity: 0.6; }
   to { opacity: 1; }
+}
+
+/* Custom Table Styles */
+.table-avatar-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.table-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(189, 232, 232, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  background: rgba(30, 41, 59, 0.6);
+  object-fit: cover;
+}
+.table-user-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.table-display-name {
+  font-weight: 700;
+  color: #BDE8E8;
+  font-size: 13px;
+}
+.table-login-name {
+  font-size: 11px;
+  color: rgba(189, 232, 232, 0.4);
+}
+.role-badge-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+  border: 1px solid transparent;
+}
+.role-badge-tag.subscriber {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.1);
+  border-color: rgba(168, 85, 247, 0.2);
+}
+.role-badge-tag.viewer {
+  color: rgba(189, 232, 232, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Detail Card Header */
+.detail-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid rgba(189, 232, 232, 0.1);
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  position: relative;
+}
+.detail-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(6, 182, 212, 0.3);
+  box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15);
+  object-fit: cover;
+}
+.detail-profile-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.detail-display-name {
+  font-size: 18px;
+  font-weight: 800;
+  color: #BDE8E8;
+  margin: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.detail-username {
+  font-size: 11px;
+  color: rgba(189, 232, 232, 0.5);
+  margin: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Premium Switcher Tab Styles */
+.members-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(189, 232, 232, 0.1);
+  padding: 6px;
+  border-radius: 12px;
+  width: fit-content;
+  backdrop-filter: blur(10px);
+}
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(189, 232, 232, 0.6);
+  font-weight: 700;
+  font-size: 13.5px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tab-btn:hover {
+  color: #BDE8E8;
+  background: rgba(255, 255, 255, 0.04);
+}
+.tab-btn.active {
+  color: #fff;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.35);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+.tab-icon {
+  font-size: 15px;
+}
+
+/* Quaternary (Ghost) Action Buttons inside Rows */
+.row-actions-wrapper {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+.row-action-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.detail-btn-quaternary {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.15);
+  background: rgba(56, 189, 248, 0.04);
+}
+.detail-btn-quaternary:hover {
+  color: #fff;
+  background: #0284c7;
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+.audit-btn-quaternary {
+  color: #a78bfa;
+  border-color: rgba(167, 139, 250, 0.15);
+  background: rgba(167, 139, 250, 0.04);
+}
+.audit-btn-quaternary:hover {
+  color: #fff;
+  background: #7c3aed;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.4);
+}
+.delete-btn-quaternary {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.15);
+  background: rgba(248, 113, 113, 0.04);
+}
+.delete-btn-quaternary:hover {
+  color: #fff;
+  background: #dc2626;
+  box-shadow: 0 0 10px rgba(220, 38, 38, 0.4);
+}
+.adjust-btn-quaternary {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.15);
+  background: rgba(52, 211, 153, 0.04);
+}
+.adjust-btn-quaternary:hover {
+  color: #fff;
+  background: #059669;
+  box-shadow: 0 0 10px rgba(5, 150, 105, 0.4);
+}
+.reset-btn-quaternary {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.15);
+  background: rgba(251, 191, 36, 0.04);
+}
+.reset-btn-quaternary:hover {
+  color: #fff;
+  background: #d97706;
+  box-shadow: 0 0 10px rgba(217, 119, 6, 0.4);
+}
+
+/* Custom Table Row Highlight */
+.text-success-highlight {
+  color: #34d399 !important;
+  font-weight: 700 !important;
+}
+.text-info-highlight {
+  color: #38bdf8 !important;
+  font-weight: 700 !important;
 }
 </style>
