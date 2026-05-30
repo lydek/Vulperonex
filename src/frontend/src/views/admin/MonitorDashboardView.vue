@@ -321,7 +321,6 @@ watch(showDrawer, async (open) => {
   height: 8px;
   border-radius: 50%;
   background: currentColor;
-  animation: monitor-pulse-dot 1.8s ease-in-out infinite;
 }
 
 .status-chip.healthy {
