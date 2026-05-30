@@ -20,6 +20,7 @@ public static class SystemSettingKey
     public const string OverlayAlertsPreset = "overlay.alerts.preset";
     public const string OverlayChatShowMemberCard = "overlay.chat.show_member_card";
     public const string TwitchClientId = "twitch.client_id";
+    public const string TwitchChannelName = "twitch.channel_name";
     public const string OverlayMemberBackgroundUrl = "overlay.member.background_url";
     public const string OverlayMemberStampUrl = "overlay.member.stamp_url";
     public const string MembersAuditRetentionDays = "members.audit_retention_days";

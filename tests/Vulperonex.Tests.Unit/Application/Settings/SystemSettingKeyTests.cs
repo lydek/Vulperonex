@@ -45,6 +45,7 @@ public sealed class SystemSettingKeyTests
             "overlay.alerts.preset",
             "overlay.chat.show_member_card",
             "twitch.client_id",
+            "twitch.channel_name",
             "overlay.member.background_url",
             "overlay.member.stamp_url",
             "members.audit_retention_days",
