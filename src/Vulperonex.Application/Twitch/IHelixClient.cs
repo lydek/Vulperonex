@@ -22,6 +22,13 @@ public interface IHelixClient
     Task<IReadOnlyList<PlatformBadgeDescriptor>> GetChannelBadgesAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default);
+
+    Task CreateEventSubSubscriptionAsync(
+        string type,
+        string version,
+        IReadOnlyDictionary<string, string> condition,
+        string sessionId,
+        CancellationToken cancellationToken = default);
 }
 
 public sealed record PlatformUserProfile(

@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
@@ -146,6 +147,38 @@ public sealed class TwitchHelixClient(
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         response.EnsureSuccessStatusCode();
         return true;
+    }
+
+    public async Task CreateEventSubSubscriptionAsync(
+        string type,
+        string version,
+        IReadOnlyDictionary<string, string> condition,
+        string sessionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(type);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "eventsub/subscriptions")
+        {
+            Content = JsonContent.Create(new
+            {
+                type,
+                version,
+                condition,
+                transport = new { method = "websocket", session_id = sessionId },
+            }),
+        };
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+
+        // 409 Conflict = subscription already exists for this session; treat as success.
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            return;
+        }
+
+        response.EnsureSuccessStatusCode();
     }
 
     private async Task AddHelixHeadersAsync(HttpRequestMessage request, CancellationToken cancellationToken)

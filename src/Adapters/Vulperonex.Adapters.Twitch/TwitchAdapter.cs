@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Vulperonex.Adapters.Abstractions;
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Adapters.Twitch.Display;
@@ -78,10 +79,49 @@ public sealed class TwitchAdapter(
     {
         ArgumentNullException.ThrowIfNull(payload);
         EnsureStarted();
-        return PublishMappedEventAsync(TwitchEventMapper.Map(payload), cancellationToken);
+        return PublishMappedEventAsync(TwitchEventMapper.Map(payload), displayCacheUpdater, cancellationToken);
     }
 
-    internal async Task PublishIrcMessageAsync(TwitchIrcMessage message, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Single public entry point for live Twitch ingestion. Routes an EventSub
+    /// notification <c>event</c> payload through the existing parse / map / dedup
+    /// / display-cache pipeline. <paramref name="displayCacheOverride"/> lets a
+    /// background host supply a scoped <see cref="TwitchDisplayCacheUpdater"/>
+    /// (the singleton adapter cannot capture the scoped user-info cache itself).
+    /// </summary>
+    public Task IngestEventSubNotificationAsync(
+        string subscriptionType,
+        string messageId,
+        JsonElement @event,
+        TwitchDisplayCacheUpdater? displayCacheOverride = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(subscriptionType);
+        EnsureStarted();
+
+        var updater = displayCacheOverride ?? displayCacheUpdater;
+
+        if (subscriptionType == TwitchEventSubMapper.ChatMessageType)
+        {
+            var irc = TwitchEventSubMapper.ToIrcMessage(@event, messageId);
+            return PublishIrcMessageAsync(irc, updater, cancellationToken);
+        }
+
+        var payload = TwitchEventSubMapper.ToMockPayload(subscriptionType, @event, messageId);
+        return payload is null
+            ? Task.CompletedTask
+            : PublishMappedEventAsync(TwitchEventMapper.Map(payload), updater, cancellationToken);
+    }
+
+    internal Task PublishIrcMessageAsync(TwitchIrcMessage message, CancellationToken cancellationToken = default)
+    {
+        return PublishIrcMessageAsync(message, displayCacheUpdater, cancellationToken);
+    }
+
+    private async Task PublishIrcMessageAsync(
+        TwitchIrcMessage message,
+        TwitchDisplayCacheUpdater? updater,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(message);
         EnsureStarted();
@@ -92,24 +132,27 @@ public sealed class TwitchAdapter(
             return;
         }
 
-        if (displayCacheUpdater is not null)
+        if (updater is not null)
         {
-            await displayCacheUpdater.ApplyChatAsync(parsed.Event, parsed.DisplayHints, cancellationToken);
+            await updater.ApplyChatAsync(parsed.Event, parsed.DisplayHints, cancellationToken);
         }
 
         await eventBus.PublishAsync(parsed.Event, cancellationToken);
     }
 
-    private async Task PublishMappedEventAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
+    private async Task PublishMappedEventAsync(
+        IStreamEvent streamEvent,
+        TwitchDisplayCacheUpdater? updater,
+        CancellationToken cancellationToken)
     {
         if (!TryMarkNew(streamEvent.Platform, streamEvent.EventId))
         {
             return;
         }
 
-        if (displayCacheUpdater is not null)
+        if (updater is not null)
         {
-            await displayCacheUpdater.ApplyAsync(streamEvent, cancellationToken);
+            await updater.ApplyAsync(streamEvent, cancellationToken);
         }
 
         await eventBus.PublishAsync(streamEvent, cancellationToken);
