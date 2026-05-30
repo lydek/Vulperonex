@@ -190,6 +190,11 @@
 
     // DOMContentLoaded initialization
     window.addEventListener('DOMContentLoaded', () => {
+        const isPreview = urlParams.get('preview') === '1';
+        if (isPreview) {
+            document.body.classList.add('preview-mode');
+        }
+
         fetchSettings();
         setInterval(fetchSettings, 10000);
 
