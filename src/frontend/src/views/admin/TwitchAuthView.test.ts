@@ -70,6 +70,10 @@ function createTwitchAuthFetchMock(options?: {
       return clientIdResponse;
     }
 
+    if (url === "/api/config/twitch.channel_name") {
+      return new Response(JSON.stringify({ value: "test-channel" }), { status: 200 });
+    }
+
     if (url === "/api/twitch/auth/start" && startResponse) {
       return startResponse;
     }
@@ -126,7 +130,7 @@ describe("TwitchAuthView", () => {
     await wrapper.find('[data-testid="twitch-start"]').trigger("click");
     await flushPromises();
 
-    expect(fetchMock.mock.calls[2][0]).toBe("/api/twitch/auth/start");
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/twitch/auth/start");
     expect(window.open).toHaveBeenCalledWith(
       "https://id.twitch.tv/oauth2/authorize?x=1",
       "_blank",
@@ -151,14 +155,14 @@ describe("TwitchAuthView", () => {
     await wrapper.find('[data-testid="twitch-reset"]').trigger("click");
     await flushPromises();
     expect(wrapper.find("[role='dialog']").exists()).toBe(true);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     await wrapper.find(".danger-button").trigger("click");
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
-    expect(fetchMock.mock.calls[2][0]).toBe("/api/twitch/auth/token");
-    expect(fetchMock.mock.calls[2][1]).toMatchObject({ method: "DELETE" });
+    expect(fetchMock).toHaveBeenCalledTimes(7);
+    expect(fetchMock.mock.calls[3][0]).toBe("/api/twitch/auth/token");
+    expect(fetchMock.mock.calls[3][1]).toMatchObject({ method: "DELETE" });
     expect(wrapper.find('[data-testid="twitch-no-token"]').exists()).toBe(true);
   });
 
@@ -184,7 +188,7 @@ describe("TwitchAuthView", () => {
     });
     await flushPromises();
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(6);
     expect(wrapper.find('[data-testid="twitch-has-token"]').exists()).toBe(true);
   });
 

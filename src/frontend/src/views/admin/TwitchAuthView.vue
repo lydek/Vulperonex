@@ -12,6 +12,8 @@ import {
   completeTwitchDeviceAuth,
   getTwitchClientId,
   saveTwitchClientId,
+  getTwitchChannelName,
+  saveTwitchChannelName,
   type TwitchAuthStatusResponse
 } from "@/api/client";
 import { useExponentialPollingFallback } from "@/composables/useExponentialPollingFallback";
@@ -32,6 +34,10 @@ const pollingActive = ref(false);
 const inputClientId = ref("");
 const savingClientId = ref(false);
 const clientIdSaveSuccess = ref(false);
+
+const inputChannelName = ref("");
+const savingChannelName = ref(false);
+const channelNameSaveSuccess = ref(false);
 
 // Device flow states
 const deviceAuth = ref<{
@@ -118,6 +124,8 @@ async function loadStatus(): Promise<void> {
     status.value = await getTwitchAuthStatus();
     const currentId = await getTwitchClientId();
     inputClientId.value = currentId;
+    const currentChannelName = await getTwitchChannelName();
+    inputChannelName.value = currentChannelName;
   } catch (caught) {
     status.value = null;
     lastError.value = describeError(caught);
@@ -140,6 +148,23 @@ async function saveClientId(): Promise<void> {
     lastError.value = describeError(caught);
   } finally {
     savingClientId.value = false;
+  }
+}
+
+async function saveChannelName(): Promise<void> {
+  savingChannelName.value = true;
+  channelNameSaveSuccess.value = false;
+  try {
+    await saveTwitchChannelName(inputChannelName.value.trim());
+    channelNameSaveSuccess.value = true;
+    setTimeout(() => {
+      channelNameSaveSuccess.value = false;
+    }, 3000);
+    await loadStatus();
+  } catch (caught) {
+    lastError.value = describeError(caught);
+  } finally {
+    savingChannelName.value = false;
   }
 }
 
@@ -309,6 +334,34 @@ function describeError(caught: unknown): string {
       </div>
       <p v-if="clientIdSaveSuccess" class="twitch-save-success" role="status">
         ✓ {{ t("twitchAuth.clientIdEdit.saveSuccess") }}
+      </p>
+    </div>
+
+    <div class="status-card twitch-client-id-panel">
+      <h3 class="twitch-section-title">
+        <span aria-hidden="true">👤</span> {{ t("twitchAuth.channelNameEdit.title") }}
+      </h3>
+      <p class="twitch-section-description">
+        {{ t("twitchAuth.channelNameEdit.description") }}
+      </p>
+      <div class="twitch-client-id-row">
+        <input
+          v-model="inputChannelName"
+          type="text"
+          :placeholder="t('twitchAuth.channelNameEdit.placeholder')"
+          class="rule-editor-textarea twitch-client-id-input"
+        />
+        <button
+          type="button"
+          class="primary-button twitch-section-button"
+          :disabled="savingChannelName"
+          @click="saveChannelName"
+        >
+          {{ savingChannelName ? t("twitchAuth.channelNameEdit.saving") : t("twitchAuth.channelNameEdit.save") }}
+        </button>
+      </div>
+      <p v-if="channelNameSaveSuccess" class="twitch-save-success" role="status">
+        ✓ {{ t("twitchAuth.channelNameEdit.saveSuccess") }}
       </p>
     </div>
 

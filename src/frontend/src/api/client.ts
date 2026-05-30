@@ -944,6 +944,30 @@ export async function saveTwitchClientId(clientId: string, signal?: AbortSignal)
   }
 }
 
+export async function getTwitchChannelName(signal?: AbortSignal): Promise<string> {
+  try {
+    const res = await getJson<ConfigValueResponse>("/api/config/twitch.channel_name", signal);
+    return res.value || "";
+  } catch {
+    return "";
+  }
+}
+
+export async function saveTwitchChannelName(channelName: string, signal?: AbortSignal): Promise<void> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/config/twitch.channel_name`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ value: channelName }),
+    signal
+  });
+
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+}
+
 export interface MemberAuditLog {
   id: string;
   memberId: string;

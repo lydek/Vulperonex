@@ -8,7 +8,7 @@
 :root {
     --twitch-purple: #9146FF;
     --twitch-purple-light: #bf94ff;
-    --text-shadow-heavy: 1px 1px 2px rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.9);
+    --text-shadow-heavy: 1px 1px 2px rgba(0, 0, 0, 0.85);
 }
 
 .chat-container {
@@ -216,6 +216,7 @@
     font-size: 0.78rem;
     line-height: 1;
     vertical-align: middle;
+    text-shadow: none !important;
 }
 
 .member-chip__avatar {

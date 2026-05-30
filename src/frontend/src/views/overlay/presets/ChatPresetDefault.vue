@@ -73,7 +73,7 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
 <style scoped>
 .chat-preset-default {
   --twitch-purple-light: #bf94ff;
-  --text-shadow-heavy: 1px 1px 2px rgba(0, 0, 0, 0.9), 0 0 1px rgba(0, 0, 0, 0.9);
+  --text-shadow-heavy: 1px 1px 2px rgba(0, 0, 0, 0.85);
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
