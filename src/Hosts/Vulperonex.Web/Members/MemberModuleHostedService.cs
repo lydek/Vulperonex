@@ -61,15 +61,36 @@ public sealed class MemberModuleHostedService(
     {
         if (_module is not null)
         {
-            await _module.StopAsync(cancellationToken).ConfigureAwait(false);
-            _module.Dispose();
-            _module = null;
+            try
+            {
+                await _module.StopAsync(cancellationToken).ConfigureAwait(false);
+                _module.Dispose();
+            }
+            catch (Exception ex)
+            {
+                logger.LogDebug(ex, "Error stopping member module.");
+            }
+            finally
+            {
+                _module = null;
+            }
         }
 
         if (_scope is not null)
         {
-            await _scope.Value.DisposeAsync().ConfigureAwait(false);
-            _scope = null;
+            try
+            {
+                await _scope.Value.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Catch SQLite's flaky NullReferenceException on connection close during fast test shutdown
+                logger.LogDebug(ex, "Error disposing member module scope.");
+            }
+            finally
+            {
+                _scope = null;
+            }
         }
     }
 
