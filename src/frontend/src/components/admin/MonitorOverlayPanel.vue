@@ -13,6 +13,7 @@ const presets = ref<OverlayPresetDescriptor[]>([]);
 const selectedPresetKey = ref<string>("");
 const currentEnv = ref<"draft" | "production">("production");
 const timestamp = ref<number>(Date.now());
+const showMemberCard = ref<boolean>(true);
 
 const bgType = ref<"transparent" | "checker" | "black" | "green" | "pink" | "color" | "url">("transparent");
 const customColor = ref<string>("#f4f6f8");
@@ -59,6 +60,10 @@ const iframeSrc = computed(() => {
 
   if (preset.kind === "builtin") {
     params.set("preview", "1");
+  }
+
+  if (activeHub.value === "chat") {
+    params.set("showMemberCard", String(showMemberCard.value));
   }
 
   const separator = baseUri.includes("?") ? "&" : "?";
@@ -195,6 +200,14 @@ function reloadIframe(): void {
         placeholder="https://example.com/bg.png"
         class="url-input"
       />
+
+      <!-- Embedded Member Card integration toggle when CHAT is active -->
+      <div v-if="activeHub === 'chat'" class="chat-integration-toggle" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+        <label class="bg-radio-label" style="font-weight: 700; color: var(--monitor-text-accent, #164f48);">
+          <input v-model="showMemberCard" type="checkbox" style="accent-color: #1f6f64;" />
+          <span>整合打卡彈窗 (Show Check-in)</span>
+        </label>
+      </div>
     </section>
     </div>
 

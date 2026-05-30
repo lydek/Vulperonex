@@ -45,9 +45,9 @@
     left: 50px;
 }
 
-/* Preview Mode Scaling: Scale down to 0.9x to fit perfectly in monitor preview panel */
+/* Preview Mode Scaling: Scale down to 0.75x to fit perfectly in monitor preview panel */
 body.preview-mode .card-container {
-    transform: scale(0.9) !important;
+    transform: scale(0.75) !important;
     top: 15px !important;
     left: -1200px !important;
 }

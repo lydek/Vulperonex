@@ -92,20 +92,160 @@
     display: inline-block;
 }
 
-/* ✦ ice-spring Entry Animation */
-.ice-spring-enter-active {
+/* ✦ Pure CSS Entry / Exit Animation for Vanilla JS */
+.chat-line.enter {
     animation: iceSpring 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
-.ice-spring-leave-active {
+.chat-line.exit {
+    opacity: 0;
+    transform: translateX(-30px);
     transition: all 0.3s ease;
 }
 
-.ice-spring-leave-to {
-    opacity: 0;
-    transform: translateX(-30px);
+@keyframes iceSpring {
+    0% {
+        opacity: 0;
+        transform: translateX(-20px) scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
 }
 
-.ice-spring-move {
-    transition: transform 0.3s ease;
+/* =========================================================
+   Theme Preset Overrides
+   ========================================================= */
+
+/* 1. Compact Line Preset */
+.chat-container.preset-compact-line {
+    display: grid;
+    gap: 4px;
+    font-size: 14px;
+    line-height: 1.4;
+    height: 95vh;
+}
+
+.preset-compact-line .chat-line {
+    display: flex;
+    gap: 6px;
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 6px;
+    width: auto;
+    align-items: center;
+}
+
+.preset-compact-line .chat-username {
+    font-size: 14px;
+    font-weight: 600;
+    color: #164f48;
+    text-shadow: none;
+}
+
+.preset-compact-line .chat-colon {
+    font-size: 14px;
+    color: #97a3b3;
+    text-shadow: none;
+    margin-right: 0;
+}
+
+.preset-compact-line .chat-colon::before {
+    content: " › ";
+}
+.preset-compact-line .chat-colon {
+    font-size: 0px; /* Hide original colon */
+}
+.preset-compact-line .chat-colon * {
+    font-size: 14px;
+}
+
+.preset-compact-line .chat-content {
+    font-size: 14px;
+    color: #1f2937;
+    text-shadow: none;
+    font-weight: normal;
+}
+
+/* 2. Member Card Inline Preset */
+.chat-container.preset-member-card-inline {
+    display: grid;
+    gap: 10px;
+    height: 95vh;
+}
+
+.preset-member-card-inline .chat-line {
+    padding: 10px 12px;
+    border-radius: 14px;
+    background: rgba(9, 18, 28, 0.66);
+    border: 1px solid rgba(189, 232, 232, 0.18);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.18);
+    display: block;
+    width: auto;
+}
+
+.preset-member-card-inline .chat-username {
+    color: #f8fbff;
+    text-shadow: none;
+    font-weight: 900;
+}
+
+.preset-member-card-inline .chat-colon {
+    color: #efeff1;
+    text-shadow: none;
+}
+
+.preset-member-card-inline .chat-content {
+    color: #d6dde7;
+    text-shadow: none;
+    font-weight: normal;
+}
+
+/* 3. Member Chip Styling (Shared) */
+.member-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border: 1px solid rgba(189, 232, 232, 0.45);
+    border-radius: 999px;
+    background: rgba(8, 20, 32, 0.78);
+    color: #dff7f7;
+    font-size: 0.78rem;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.member-chip__avatar {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.member-chip__label {
+    font-weight: 700;
+}
+
+.member-chip__count {
+    color: #97d9d9;
+    font-weight: 600;
+}
+
+/* 4. Chat-line Check-in Message Integration Style */
+.chat-line.checkin-message {
+    background: rgba(255, 215, 0, 0.05) !important;
+    border-left: 4px solid #ffd700 !important;
+    padding: 10px 14px !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+    margin: 8px 0 !important;
+    display: block !important;
+}
+
+.chat-line.checkin-message .chat-username {
+    font-weight: 800 !important;
+    letter-spacing: 0.5px !important;
 }

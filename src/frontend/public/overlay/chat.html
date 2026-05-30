@@ -8,35 +8,22 @@
     <!-- Import Google Fonts: Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <!-- Load classic purple-gold theme -->
-    <link rel="stylesheet" href="css/overlay-base.css?v=2">
-    <link rel="stylesheet" href="css/style-twitch.css?v=2">
+    <link rel="stylesheet" href="css/overlay-base.css?v=1.0.4">
+    <link rel="stylesheet" href="css/style-twitch.css?v=1.0.4">
+    <link rel="stylesheet" href="css/member-card.css?v=1.0.4">
 </head>
 
 <body>
-    <div id="app">
-        <transition-group name="ice-spring" tag="div" class="chat-container">
-            <div v-for="msg in messages" :key="msg.id" class="chat-line">
-                <!-- Badges in front of the display name -->
-                <img v-for="(badgeUrl, index) in msg.badges" :key="index" :src="badgeUrl" class="chat-badge" />
-                <!-- Display Name -->
-                <span class="chat-username" :style="{ color: msg.nameColorHex }">{{ msg.username }}</span>
-                <!-- Colon separator -->
-                <span class="chat-colon">:</span>
-                <!-- Message Content -->
-                <span class="chat-content" v-html="msg.message"></span>
-            </div>
-        </transition-group>
-    </div>
-    <!-- Load Vue 3 (Local) -->
-    <script src="libs/vue.global.js"></script>
+    <div id="chat-container" class="chat-container"></div>
+
     <!-- Load SignalR Client (Local) -->
-    <script src="libs/signalr.min.js"></script>
+    <script src="libs/signalr.min.js?v=1.0.4"></script>
 
     <!-- Load Overlay Common Utilities -->
-    <script src="js/overlay-common.js"></script>
+    <script src="js/overlay-common.js?v=1.0.4"></script>
 
     <!-- Initialize Vue app and SignalR connection -->
-    <script src="js/chat-overlay.js"></script>
+    <script src="js/chat-overlay.js?v=1.0.4"></script>
 </body>
 
 </html>
