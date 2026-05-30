@@ -76,10 +76,10 @@ function toggleRole(role: string): void {
 }
 
 .role-chip-selector__chip {
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 999px;
-  background: #ffffff;
-  color: #394756;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-secondary);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
@@ -87,8 +87,8 @@ function toggleRole(role: string): void {
 }
 
 .role-chip-selector__chip.is-selected {
-  border-color: #1f6f64;
-  background: #e7f1ef;
-  color: #164f48;
+  border-color: var(--vp-accent);
+  background: var(--vp-bg-selected);
+  color: var(--vp-text-accent);
 }
 </style>

@@ -231,9 +231,9 @@ function statusBadgeClass(status: ChatOutboxItemStatus): string {
   border: 1px solid transparent;
 }
 
-.chat-outbox-status--pending { background: #fef3c7; color: #92400e; border-color: #fcd9b6; }
-.chat-outbox-status--processing { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-.chat-outbox-status--sent { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-.chat-outbox-status--skipped { background: #e5e7eb; color: #374151; border-color: #d1d5db; }
-.chat-outbox-status--failed { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.chat-outbox-status--pending { background: var(--vp-bg-warning); color: var(--vp-text-warning); border-color: var(--vp-border-warning); }
+.chat-outbox-status--processing { background: var(--vp-bg-surface-muted); color: var(--vp-text-secondary); border-color: var(--vp-border-default); }
+.chat-outbox-status--sent { background: var(--vp-bg-success); color: var(--vp-text-success); border-color: var(--vp-border-success); }
+.chat-outbox-status--skipped { background: var(--vp-bg-surface-muted); color: var(--vp-text-muted); border-color: var(--vp-border-subtle); }
+.chat-outbox-status--failed { background: var(--vp-bg-danger); color: var(--vp-text-danger); border-color: var(--vp-border-danger); }
 </style>

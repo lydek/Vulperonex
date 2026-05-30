@@ -264,14 +264,14 @@ function normalizeTriggerVariable(value: string): string {
 
 .variable-picker__summary {
   cursor: pointer;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   font-size: 11px;
   font-weight: 600;
   list-style: none;
   padding: 4px 8px;
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--vp-bg-surface);
   user-select: none;
   white-space: nowrap;
 }
@@ -289,10 +289,10 @@ function normalizeTriggerVariable(value: string): string {
   max-height: 320px;
   overflow: auto;
   padding: 12px;
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 12px 32px rgba(15, 23, 32, 0.18);
+  background: var(--vp-bg-surface);
+  box-shadow: var(--vp-shadow-elevated);
 }
 
 .variable-picker__group + .variable-picker__group {
@@ -302,7 +302,7 @@ function normalizeTriggerVariable(value: string): string {
 .variable-picker__title {
   margin: 0 0 8px;
   font-size: 12px;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -318,15 +318,15 @@ function normalizeTriggerVariable(value: string): string {
   width: 100%;
   padding: 8px 10px;
   text-align: left;
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 8px;
-  background: #ffffff;
-  color: #18202a;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-primary);
 }
 
 .variable-picker__item:hover {
-  border-color: #1f6f64;
-  background: #f4f6f8;
+  border-color: var(--vp-accent);
+  background: var(--vp-bg-surface-muted);
 }
 
 .variable-picker__token {
@@ -335,7 +335,7 @@ function normalizeTriggerVariable(value: string): string {
 }
 
 .variable-picker__hint {
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   font-size: 11px;
 }
 
@@ -344,7 +344,7 @@ function normalizeTriggerVariable(value: string): string {
   align-items: center;
   gap: 4px;
   font-size: 11px;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   margin-top: 2px;
 }
 

@@ -182,19 +182,19 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: #e7f1ef;
-  color: #164f48;
+  background: var(--vp-bg-selected);
+  color: var(--vp-text-accent);
   font-weight: 700;
 }
 
 .workflow-builder__empty {
   margin: 4px 0 0;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   font-size: 13px;
 }
 
 .workflow-builder__card {
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 10px;
   padding: 14px;
   display: grid;
@@ -209,7 +209,7 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
 .workflow-builder__advanced summary {
   cursor: pointer;
   font-weight: 600;
-  color: #394756;
+  color: var(--vp-text-secondary);
   margin-bottom: 8px;
 }
 

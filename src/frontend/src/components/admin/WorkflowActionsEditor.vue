@@ -427,16 +427,16 @@ function previousStepsFor(index: number): JsonRecord[] {
 .workflow-builder__unknown,
 .workflow-builder__notice {
   margin: 4px 0 0;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   font-size: 13px;
 }
 
 .workflow-builder__notice {
   padding: 8px 12px;
-  background: #fff7ed;
-  border: 1px solid #fcd9b6;
+  background: var(--vp-bg-warning);
+  border: 1px solid var(--vp-border-warning);
   border-radius: 6px;
-  color: #92400e;
+  color: var(--vp-text-warning);
 }
 
 .workflow-builder__grid {
@@ -466,7 +466,7 @@ function previousStepsFor(index: number): JsonRecord[] {
 }
 
 textarea {
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 6px;
   padding: 10px 12px;
   resize: vertical;

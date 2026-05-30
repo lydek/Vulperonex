@@ -350,7 +350,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
 .workflow-builder__summary,
 .workflow-builder__unknown {
   margin: 4px 0 0;
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   font-size: 13px;
 }
 
@@ -376,10 +376,10 @@ function updateRole(index: number, role: string, checked: boolean): void {
 }
 
 .workflow-conditions__migration-chip {
-  border: 1px solid #d98324;
+  border: 1px solid var(--vp-border-warning);
   border-radius: 999px;
-  background: #fdf1e3;
-  color: #8a4b09;
+  background: var(--vp-bg-warning);
+  color: var(--vp-text-warning);
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
@@ -387,7 +387,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
 }
 
 .workflow-conditions__migration-chip:hover {
-  background: #fae3c8;
+  filter: brightness(0.97);
 }
 
 .workflow-conditions__dialog-backdrop {
@@ -395,17 +395,17 @@ function updateRole(index: number, role: string, checked: boolean): void {
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgba(15, 23, 32, 0.45);
+  background: var(--vp-bg-backdrop);
   z-index: 50;
 }
 
 .workflow-conditions__dialog-card {
-  background: #ffffff;
+  background: var(--vp-bg-surface);
   border-radius: 12px;
   padding: 20px;
   max-width: 560px;
   width: calc(100% - 32px);
-  box-shadow: 0 12px 40px rgba(15, 23, 32, 0.25);
+  box-shadow: var(--vp-shadow-elevated);
 }
 
 .workflow-conditions__dialog-title {
@@ -422,7 +422,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
 }
 
 .workflow-conditions__migration-source {
-  color: #5f6f80;
+  color: var(--vp-text-muted);
   margin: 0 6px;
 }
 

@@ -97,11 +97,12 @@ async function insertVariable(variable: string): Promise<void> {
 
 .variable-field :deep(textarea) {
   min-height: 88px;
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 6px;
   padding: 10px 44px 10px 12px;
   resize: vertical;
-  background: #ffffff;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-primary);
 }
 
 .variable-field :deep(textarea) + .variable-field__picker,

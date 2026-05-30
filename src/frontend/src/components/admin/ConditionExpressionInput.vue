@@ -193,18 +193,18 @@ function emitRaw(value: string): void {
 
 .condition-expression__mode-button {
   padding: 4px 10px;
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 999px;
-  background: #ffffff;
-  color: #5f6f80;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-muted);
   font-size: 11px;
   font-weight: 600;
 }
 
 .condition-expression__mode-button.is-active {
-  background: #e7f1ef;
-  color: #164f48;
-  border-color: #1f6f64;
+  background: var(--vp-bg-selected);
+  color: var(--vp-text-accent);
+  border-color: var(--vp-accent);
 }
 
 .condition-expression__builder {
@@ -223,16 +223,17 @@ function emitRaw(value: string): void {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  border: 1px solid #d6dde5;
+  border: 1px solid var(--vp-border-default);
   border-radius: 6px;
   padding: 8px 10px;
-  background: #ffffff;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-primary);
 }
 
 .condition-expression__field :deep(input[readonly]) {
   padding-right: 78px;
-  color: #394756;
-  background: #fdfefe;
+  color: var(--vp-text-secondary);
+  background: var(--vp-bg-surface-subtle);
 }
 
 .condition-expression__field :deep(.variable-picker) {

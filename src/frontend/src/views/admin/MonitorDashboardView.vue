@@ -475,7 +475,7 @@ watch(showDrawer, async (open) => {
 }
 
 .drawer-close:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--vp-bg-surface-muted);
   color: var(--monitor-text-primary);
 }
 
