@@ -65,7 +65,7 @@ public static class TwitchAuthEndpoints
             }
 
             var session = sessions.Create(callbackPort, customRedirectUri);
-            var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit";
+            var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit channel:read:redemptions channel:manage:redemptions channel:read:subscriptions moderation:read channel:read:vips moderator:read:followers bits:read";
             var authorizeUrl = BuildAuthorizeUrl(clientId, scopes, session);
             return Results.Ok(new TwitchAuthStartResponse(authorizeUrl, session.State, callbackPort));
         });
@@ -131,7 +131,7 @@ public static class TwitchAuthEndpoints
 
             try
             {
-                var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit";
+                var scopes = configuration["Twitch:Scopes"] ?? "chat:read chat:edit channel:read:redemptions channel:manage:redemptions channel:read:subscriptions moderation:read channel:read:vips moderator:read:followers bits:read";
                 var authorization = await tokenEndpoint.StartDeviceAuthorizationAsync(scopes, cancellationToken);
                 return Results.Ok(authorization);
             }

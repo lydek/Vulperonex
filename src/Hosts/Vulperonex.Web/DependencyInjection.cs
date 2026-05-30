@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
+using TwitchLib.EventSub.Websockets.Extensions;
 using Vulperonex.Adapters.Simulation;
 using Vulperonex.Adapters.Twitch;
 using Vulperonex.Adapters.Twitch.Auth;
@@ -106,6 +107,9 @@ public static class DependencyInjection
         services.AddScoped<TwitchAccessTokenProvider>();
         services.AddScoped<IHelixClient, TwitchHelixClient>();
         services.AddSingleton<TwitchAdapter>();
+        services.AddTwitchLibEventSubWebsockets();
+        services.AddSingleton<TwitchIrcChatSource>();
+        services.AddSingleton<TwitchEventSubSource>();
         services.AddSingleton<IPlatformBadgeCache, TwitchBadgeCache>();
         services.AddSingleton<TwitchBadgeSyncCoordinator>();
         services.AddSingleton<TwitchTokenEndpoint>();
@@ -185,7 +189,7 @@ public static class DependencyInjection
         services.AddHostedService<DefaultWorkflowRuleSeedService>();
         services.AddHostedService<SimulationAdapterStartupService>();
         services.AddHostedService<TwitchBadgeSyncHostedService>();
-        services.AddHostedService<TwitchEventSubHostedService>();
+        services.AddHostedService<TwitchConnectionOrchestrator>();
         services.AddHostedService<MemberModuleHostedService>();
         services.AddHostedService<WorkflowEngineDispatcher>();
         services.AddHostedService<OverlayEventForwarder>();

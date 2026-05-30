@@ -20,6 +20,7 @@ public static class ConfigEndpoints
         SystemSettingKey.OverlayAlertsPreset,
         SystemSettingKey.OverlayChatShowMemberCard,
         SystemSettingKey.TwitchClientId,
+        SystemSettingKey.TwitchChannelName,
         SystemSettingKey.OverlayMemberBackgroundUrl,
         SystemSettingKey.OverlayMemberStampUrl,
     }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
