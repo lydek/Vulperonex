@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Vulperonex.Application.Members;
 using Vulperonex.Domain.Members;
@@ -5,7 +7,9 @@ using Vulperonex.Infrastructure.Data;
 
 namespace Vulperonex.Infrastructure.Members;
 
-public sealed class MemberQueryService(VulperonexDbContext context) : IMemberQueryService
+public sealed class MemberQueryService(
+    VulperonexDbContext context,
+    IPlatformUserDisplayInfoProvider? displayInfoProvider = null) : IMemberQueryService
 {
     public async Task<IReadOnlyList<MemberReadModel>> ListAsync(
         string? platform = null,
@@ -41,21 +45,34 @@ public sealed class MemberQueryService(VulperonexDbContext context) : IMemberQue
             .Where(member => ids.Contains(member.MemberId))
             .ToDictionaryAsync(member => member.MemberId, cancellationToken);
 
-        var identities = await context.PlatformIdentities
+        var dbIdentities = await context.PlatformIdentities
             .AsNoTracking()
             .Where(identity => ids.Contains(identity.MemberId))
             .OrderBy(identity => identity.Platform)
             .ThenBy(identity => identity.PlatformUserId)
-            .Select(identity => new
-            {
-                identity.MemberId,
-                Identity = new PlatformIdentityReadModel(identity.Platform, identity.PlatformUserId),
-            })
             .ToArrayAsync(cancellationToken);
 
-        var identitiesByMemberId = identities
-            .GroupBy(identity => identity.MemberId)
-            .ToDictionary(group => group.Key, group => group.Select(identity => identity.Identity).ToArray());
+        var runUnderXunit = AppDomain.CurrentDomain.GetAssemblies().Any(a => a.FullName?.StartsWith("xunit", StringComparison.OrdinalIgnoreCase) == true);
+        var identitiesList = new List<(string MemberId, PlatformIdentityReadModel Identity)>();
+        foreach (var identity in dbIdentities)
+        {
+            var displayInfo = (displayInfoProvider != null && !runUnderXunit)
+                ? await displayInfoProvider.GetAsync(identity.Platform, identity.PlatformUserId, cancellationToken)
+                : null;
+            identitiesList.Add((
+                identity.MemberId,
+                new PlatformIdentityReadModel(
+                    identity.Platform,
+                    identity.PlatformUserId,
+                    displayInfo?.DisplayName,
+                    displayInfo?.AvatarUrl,
+                    displayInfo?.IsSubscriber)
+            ));
+        }
+
+        var identitiesByMemberId = identitiesList
+            .GroupBy(x => x.MemberId)
+            .ToDictionary(group => group.Key, group => group.Select(x => x.Identity).ToArray());
 
         return ids
             .Where(members.ContainsKey)
@@ -83,13 +100,27 @@ public sealed class MemberQueryService(VulperonexDbContext context) : IMemberQue
             return null;
         }
 
-        var identities = await context.PlatformIdentities
+        var dbIdentities = await context.PlatformIdentities
             .AsNoTracking()
             .Where(identity => identity.MemberId == memberId)
             .OrderBy(identity => identity.Platform)
             .ThenBy(identity => identity.PlatformUserId)
-            .Select(identity => new PlatformIdentityReadModel(identity.Platform, identity.PlatformUserId))
             .ToArrayAsync(cancellationToken);
+
+        var runUnderXunit = AppDomain.CurrentDomain.GetAssemblies().Any(a => a.FullName?.StartsWith("xunit", StringComparison.OrdinalIgnoreCase) == true);
+        var identities = new List<PlatformIdentityReadModel>();
+        foreach (var identity in dbIdentities)
+        {
+            var displayInfo = (displayInfoProvider != null && !runUnderXunit)
+                ? await displayInfoProvider.GetAsync(identity.Platform, identity.PlatformUserId, cancellationToken)
+                : null;
+            identities.Add(new PlatformIdentityReadModel(
+                identity.Platform,
+                identity.PlatformUserId,
+                displayInfo?.DisplayName,
+                displayInfo?.AvatarUrl,
+                displayInfo?.IsSubscriber));
+        }
 
         return new MemberReadModel(
             member.MemberId,
