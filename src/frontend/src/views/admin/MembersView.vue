@@ -99,6 +99,8 @@ async function openDetailModal(memberId: string) {
 function closeDetailModal() {
   showDetailModal.value = false;
   selected.value = null;
+  showModalDeletePop.value = false;
+  modalDeleteError.value = null;
 }
 
 async function executeInlineDelete(memberId: string) {
@@ -208,14 +210,10 @@ const resetReason = ref("");
 const resetError = ref<string | null>(null);
 const resetting = ref(false);
 
-// --- Safe Delete Modal State ---
-const showDeleteModal = ref(false);
-const deleteToken = ref("");
-const deleteReason = ref("");
-const deleteError = ref<string | null>(null);
-const deleting = ref(false);
-const deleteSecondsLeft = ref(30);
-let deleteTimerInterval: number | null = null;
+// --- Modal Delete State ---
+const showModalDeletePop = ref(false);
+const modalDeleteError = ref<string | null>(null);
+const modalDeleting = ref(false);
 
 // --- Audit Log Drawer State ---
 const showAuditDrawer = ref(false);
@@ -257,11 +255,6 @@ onMounted(() => {
   void loadCardSettings();
 });
 
-onBeforeUnmount(() => {
-  if (deleteTimerInterval) {
-    clearInterval(deleteTimerInterval);
-  }
-});
 
 async function loadList(): Promise<void> {
   loadingList.value = true;
@@ -387,69 +380,23 @@ async function submitReset() {
   }
 }
 
-// --- Safe Delete Actions (30s Token) ---
-async function startDelete() {
+// --- Modal Delete Action ---
+async function executeModalDelete() {
   if (!selected.value) return;
-  deleting.value = true;
-  deleteError.value = null;
-  deleteReason.value = "";
+  const memberId = selected.value.memberId;
+  modalDeleting.value = true;
+  modalDeleteError.value = null;
   try {
-    const token = await generateDeleteToken(selected.value.memberId);
-    deleteToken.value = token;
-    deleteSecondsLeft.value = 30;
-    showDeleteModal.value = true;
-
-    if (deleteTimerInterval) {
-      clearInterval(deleteTimerInterval);
-    }
-    deleteTimerInterval = window.setInterval(() => {
-      if (deleteSecondsLeft.value > 0) {
-        deleteSecondsLeft.value--;
-      } else {
-        if (deleteTimerInterval) {
-          clearInterval(deleteTimerInterval);
-          deleteTimerInterval = null;
-        }
-      }
-    }, 1000);
-  } catch (caught) {
-    deleteError.value = describeError(caught);
-  } finally {
-    deleting.value = false;
-  }
-}
-
-async function submitDelete() {
-  if (!selected.value) return;
-  if (deleteSecondsLeft.value <= 0) {
-    deleteError.value = t("members.delete.expired");
-    return;
-  }
-  const reasonStr = deleteReason.value.trim();
-  if (!reasonStr || reasonStr.length < 3 || reasonStr.length > 500) {
-    deleteError.value = t("members.error.deleteReasonRequired");
-    return;
-  }
-
-  deleting.value = true;
-  deleteError.value = null;
-  try {
-    await deleteMemberWithToken(
-      selected.value.memberId,
-      deleteToken.value,
-      reasonStr
-    );
-    showDeleteModal.value = false;
-    if (deleteTimerInterval) {
-      clearInterval(deleteTimerInterval);
-      deleteTimerInterval = null;
-    }
+    const token = await generateDeleteToken(memberId);
+    await deleteMemberWithToken(memberId, token, "管理員手動彈窗刪除");
+    showModalDeletePop.value = false;
+    showDetailModal.value = false;
     selected.value = null;
     await loadList();
   } catch (caught) {
-    deleteError.value = describeError(caught);
+    modalDeleteError.value = describeError(caught);
   } finally {
-    deleting.value = false;
+    modalDeleting.value = false;
   }
 }
 
@@ -830,60 +777,7 @@ function getIsSubscriber(member: MemberReadModel) {
       </div>
     </div>
 
-    <!-- 3. Safe Delete Dialog (Modal with 30s Countdown) -->
-    <div v-if="showDeleteModal" class="modal-overlay" @click.self="showDeleteModal = false">
-      <div class="modal-content glow-panel border-danger" role="dialog" aria-modal="true">
-        <h3 class="modal-title text-danger">{{ t("members.delete.title") }}</h3>
-        
-        <div class="danger-banner">
-          <p>{{ t("members.delete.warning") }}</p>
-          <!-- Countdown Timer Visual Bar and Seconds -->
-          <div class="timer-section">
-            <div class="timer-progress-bg">
-              <div
-                class="timer-progress-fill"
-                :style="{ width: `${(deleteSecondsLeft / 30) * 100}%` }"
-                :class="{ 'bg-danger-pulse': deleteSecondsLeft <= 10 }"
-              ></div>
-            </div>
-            <p class="timer-countdown-text">
-              {{ t("members.delete.timer", { seconds: deleteSecondsLeft }) }}
-            </p>
-          </div>
-        </div>
-
-        <div class="modal-fields">
-          <label class="form-field">
-            <span class="form-label">{{ t("members.delete.token") }}</span>
-            <input v-model="deleteToken" type="text" disabled class="token-input" />
-          </label>
-          <label class="form-field">
-            <span class="form-label">{{ t("members.dialog.reason") }}</span>
-            <textarea
-              v-model="deleteReason"
-              :placeholder="t('members.dialog.reasonPlaceholder')"
-              rows="3"
-              :disabled="deleteSecondsLeft <= 0"
-            ></textarea>
-          </label>
-        </div>
-
-        <p v-if="deleteError" class="modal-error-msg" role="alert">{{ deleteError }}</p>
-
-        <div class="modal-actions">
-          <button class="action-btn cancel-btn" :disabled="deleting" @click="showDeleteModal = false">
-            {{ t("members.dialog.cancel") }}
-          </button>
-          <button
-            class="action-btn confirm-danger-btn delete-confirm"
-            :disabled="deleting || deleteSecondsLeft <= 0"
-            @click="submitDelete"
-          >
-            {{ deleting ? t("members.loading") : t("members.dialog.submit") }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- 3. Safe Delete Dialog Removed (Unified with inline popconfirm) -->
 
     <!-- 4. Audit Log Drawer -->
     <div v-if="showAuditDrawer" class="drawer-overlay" @click.self="showAuditDrawer = false">
@@ -1129,9 +1023,25 @@ function getIsSubscriber(member: MemberReadModel) {
         <!-- Modal Footer -->
         <div class="detail-modal-footer">
           <div class="footer-left-buttons">
-            <button type="button" class="action-btn-line-danger" @click="closeDetailModal(); startDelete();">
-              🗑️ 刪除使用者
-            </button>
+            <div class="popconfirm-anchor">
+              <button type="button" class="action-btn-line-danger" @click="showModalDeletePop = !showModalDeletePop">
+                🗑️ 刪除使用者
+              </button>
+              <div v-if="showModalDeletePop" class="popconfirm-bubble shadow-lg modal-popconfirm-placement">
+                <div class="popconfirm-arrow modal-popconfirm-arrow-placement"></div>
+                <div class="popconfirm-content">
+                  <span class="popconfirm-icon">⚠️</span>
+                  <span class="popconfirm-text">確定要永久刪除 {{ getDisplayName(selected) }} 嗎？此操作不可逆。</span>
+                </div>
+                <p v-if="modalDeleteError" class="popconfirm-error-text">{{ modalDeleteError }}</p>
+                <div class="popconfirm-actions">
+                  <button type="button" class="popconfirm-btn cancel" @click="showModalDeletePop = false">取消</button>
+                  <button type="button" class="popconfirm-btn confirm-delete" @click="executeModalDelete" :disabled="modalDeleting">
+                    {{ modalDeleting ? "刪除中..." : "確認刪除" }}
+                  </button>
+                </div>
+              </div>
+            </div>
             <button type="button" class="action-btn-dark-primary" @click="refreshModalTwitch">
               🔄 刷新 Twitch 快取
             </button>
@@ -1199,7 +1109,7 @@ function getIsSubscriber(member: MemberReadModel) {
   background: rgba(30, 41, 59, 0.3);
   border: 1px solid rgba(189, 232, 232, 0.08);
   border-radius: 14px;
-  overflow: hidden;
+  overflow: visible !important;
 }
 .members-row {
   cursor: pointer;
@@ -1946,8 +1856,7 @@ function getIsSubscriber(member: MemberReadModel) {
 .popconfirm-bubble {
   position: absolute;
   bottom: 135%;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
   background: rgba(20, 24, 33, 0.96) !important;
   border: 1px solid rgba(189, 232, 232, 0.16) !important;
   border-radius: 12px;
@@ -1961,8 +1870,7 @@ function getIsSubscriber(member: MemberReadModel) {
 .popconfirm-arrow {
   position: absolute;
   top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
   border-width: 6px;
   border-style: solid;
   border-color: rgba(20, 24, 33, 0.96) transparent transparent transparent;
@@ -2061,7 +1969,7 @@ function getIsSubscriber(member: MemberReadModel) {
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6) !important;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible !important;
   animation: scaleIn 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .detail-modal-header {
@@ -2540,5 +2448,39 @@ function getIsSubscriber(member: MemberReadModel) {
 .slide-fade-leave-to {
   transform: translateY(-10px);
   opacity: 0;
+}
+
+/* Explicitly round corner cells to preserve border-radius when overflow is visible */
+:deep(.monitor-table) {
+  overflow: visible !important;
+}
+:deep(.monitor-table thead th:first-child) {
+  border-top-left-radius: 8px;
+}
+:deep(.monitor-table thead th:last-child) {
+  border-top-right-radius: 8px;
+}
+:deep(.monitor-table tbody tr:last-child td:first-child) {
+  border-bottom-left-radius: 8px;
+}
+:deep(.monitor-table tbody tr:last-child td:last-child) {
+  border-bottom-right-radius: 8px;
+}
+
+/* Modal popconfirm positioning */
+.modal-popconfirm-placement {
+  left: 0 !important;
+  right: auto !important;
+}
+.modal-popconfirm-arrow-placement {
+  left: 20px !important;
+  right: auto !important;
+}
+.popconfirm-error-text {
+  font-size: 11px;
+  color: #f87171;
+  margin-bottom: 8px;
+  text-align: left;
+  line-height: 1.4;
 }
 </style>
