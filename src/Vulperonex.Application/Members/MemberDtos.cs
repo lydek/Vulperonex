@@ -7,6 +7,11 @@ public sealed record MemberReadModel(
     long UpdatedAtTicks = 0L,
     string? ETag = null);
 
-public sealed record PlatformIdentityReadModel(string Platform, string PlatformUserId);
+public sealed record PlatformIdentityReadModel(
+    string Platform,
+    string PlatformUserId,
+    string? DisplayName = null,
+    string? AvatarUrl = null,
+    bool? IsSubscriber = null);
 
 public sealed record LoyaltyReadModel(int TotalLoyalty, int CheckInCount);

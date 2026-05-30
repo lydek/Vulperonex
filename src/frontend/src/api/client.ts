@@ -105,6 +105,9 @@ export async function getTwitchBadges(signal?: AbortSignal): Promise<TwitchBadge
 export interface PlatformIdentity {
   platform: string;
   platformUserId: string;
+  displayName?: string;
+  avatarUrl?: string;
+  isSubscriber?: boolean;
 }
 
 export interface MemberLoyalty {
