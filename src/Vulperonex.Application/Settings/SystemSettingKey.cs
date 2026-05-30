@@ -23,6 +23,7 @@ public static class SystemSettingKey
     public const string OverlayMemberBackgroundUrl = "overlay.member.background_url";
     public const string OverlayMemberStampUrl = "overlay.member.stamp_url";
     public const string MembersAuditRetentionDays = "members.audit_retention_days";
+    public const string OverlayLanAccessKey = "overlay.lan.access_key";
 
     public static string ModuleEnabled(string moduleName)
     {

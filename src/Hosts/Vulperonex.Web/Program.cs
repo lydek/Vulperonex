@@ -33,6 +33,7 @@ public static partial class VulperonexWebApplication
 
         builder.Services.AddVulperonexWeb();
         builder.Services.AddSingleton<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
+        builder.Services.AddSingleton<Vulperonex.Web.Security.OverlayLanAccessKeyProvider>();
         if (configureDefaultLoopbackPorts)
         {
             ConfigureDefaultLoopbackPorts(builder);
@@ -50,6 +51,8 @@ public static partial class VulperonexWebApplication
         var broker = app.Services.GetRequiredService<Vulperonex.Infrastructure.Settings.SystemSettingsBroker>();
         var hotReload = SerilogConfigurator.BindHotReload(levelSwitch, broker);
         app.Lifetime.ApplicationStopping.Register(hotReload.Dispose);
+
+        EnsureOverlayLanAccessKey(app);
 
         if (app.Environment.IsDevelopment())
         {
@@ -75,7 +78,7 @@ public static partial class VulperonexWebApplication
 
                     if ((isHtml || isOverlay) && !isDevException)
                     {
-                        context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(isOverlay);
+                        context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(isOverlay, context.Request.Host);
                         
                         // Disable HTTP Cache for all HTML and Overlay pages to enforce instant OBS updates
                         context.Response.Headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0";
@@ -131,6 +134,7 @@ public static partial class VulperonexWebApplication
         app.MapOverlayHistoryEndpoints();
         app.MapOverlayPresetEndpoints();
         app.MapChatOutboxEndpoints();
+        app.MapOverlayLanEndpoints();
         app.MapOverlayHubs();
         app.MapFallback(ServeSpaIndexAsync);
 
@@ -166,11 +170,18 @@ public static partial class VulperonexWebApplication
             || path.Equals("/health");
     }
 
-    private static string BuildContentSecurityPolicy(bool allowSameOriginFraming)
+    private static string BuildContentSecurityPolicy(bool allowSameOriginFraming, HostString host)
     {
         var frameAncestors = allowSameOriginFraming ? "'self'" : "'none'";
 
-        return $"default-src 'self'; connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:*; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://static-cdn.jtvnw.net; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors {frameAncestors}; object-src 'none'; base-uri 'self';";
+        // SignalR connects to the same host the page was loaded from. For cross-machine OBS that host
+        // is a LAN address, so derive the ws/wss source from the request Host rather than hard-coding
+        // localhost — otherwise the overlay's hub connection is blocked by CSP.
+        var hostWs = host.HasValue
+            ? $" ws://{host.Value} wss://{host.Value}"
+            : string.Empty;
+
+        return $"default-src 'self'; connect-src 'self' ws://localhost:* wss://localhost:* ws://127.0.0.1:* wss://127.0.0.1:*{hostWs}; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://static-cdn.jtvnw.net; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors {frameAncestors}; object-src 'none'; base-uri 'self';";
     }
 
     private static string ResolveWebRootPath()
@@ -199,18 +210,67 @@ public static partial class VulperonexWebApplication
         });
     }
 
+    private static void EnsureOverlayLanAccessKey(WebApplication app)
+    {
+        // Only seed/persist the key when cross-machine overlay access is enabled. When disabled the
+        // provider stays empty and the middleware rejects every non-loopback request regardless.
+        if (!app.Configuration.GetValue("Overlay:Lan:Enabled", false))
+        {
+            return;
+        }
+
+        using var scope = app.Services.CreateScope();
+        var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingsService>();
+        var provider = app.Services.GetRequiredService<Vulperonex.Web.Security.OverlayLanAccessKeyProvider>();
+
+        var key = settings.GetAsync<string?>(SystemSettingKey.OverlayLanAccessKey, null).GetAwaiter().GetResult();
+        if (string.IsNullOrWhiteSpace(key))
+        {
+            key = Vulperonex.Web.Security.OverlayLanAccessKeyProvider.GenerateKey();
+            settings.SetAsync(SystemSettingKey.OverlayLanAccessKey, key, "overlay-lan").GetAwaiter().GetResult();
+        }
+
+        provider.SetKey(key);
+    }
+
     private static void ConfigureDefaultLoopbackPorts(WebApplicationBuilder builder)
     {
         var options = new PortAllocationOptions();
         var ports = new PortPairAllocator(new SocketPortAvailabilityProbe(), options).TryAllocate()
             ?? throw new PortExhaustedException(options);
 
-        builder.WebHost.ConfigureKestrel(options =>
+        // Expose the allocated ports so the admin UI can render the OBS overlay URL.
+        builder.Services.AddSingleton(ports);
+
+        var lanEnabled = builder.Configuration.GetValue("Overlay:Lan:Enabled", false);
+        var lanBindAddress = builder.Configuration["Overlay:Lan:BindAddress"] ?? "0.0.0.0";
+
+        builder.WebHost.ConfigureKestrel(kestrel =>
         {
-            options.Listen(IPAddress.Loopback, ports.ApiPort);
-            options.Listen(IPAddress.IPv6Loopback, ports.ApiPort);
-            options.Listen(IPAddress.Loopback, ports.OverlayPort);
-            options.Listen(IPAddress.IPv6Loopback, ports.OverlayPort);
+            // API port is always loopback-only — admin/mutating/auth surface never reaches the LAN.
+            kestrel.Listen(IPAddress.Loopback, ports.ApiPort);
+            kestrel.Listen(IPAddress.IPv6Loopback, ports.ApiPort);
+
+            // Overlay port: always loopback (admin preview), plus optional LAN bind for cross-machine OBS.
+            kestrel.Listen(IPAddress.Loopback, ports.OverlayPort);
+            kestrel.Listen(IPAddress.IPv6Loopback, ports.OverlayPort);
+
+            if (lanEnabled && TryParseBindAddress(lanBindAddress, out var bindIp)
+                && !IPAddress.IsLoopback(bindIp))
+            {
+                kestrel.Listen(bindIp, ports.OverlayPort);
+            }
         });
+    }
+
+    private static bool TryParseBindAddress(string value, out IPAddress address)
+    {
+        if (string.Equals(value.Trim(), "0.0.0.0", StringComparison.Ordinal))
+        {
+            address = IPAddress.Any;
+            return true;
+        }
+
+        return IPAddress.TryParse(value.Trim(), out address!);
     }
 }
