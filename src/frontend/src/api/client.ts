@@ -19,6 +19,7 @@ export interface SimulateRequestBody {
   recipientDisplayName?: string;
   bits?: number;
   rewardId?: string;
+  rewardTitle?: string;
   userInput?: string;
   stampCount?: number;
   badges?: string[];
@@ -100,6 +101,36 @@ export async function getTwitchAuthStatus(signal?: AbortSignal): Promise<TwitchA
 
 export async function getTwitchBadges(signal?: AbortSignal): Promise<TwitchBadgesListResponse> {
   return getJson<TwitchBadgesListResponse>("/api/twitch/badges", signal);
+}
+
+export interface TwitchRewardDescriptor {
+  id: string;
+  title: string;
+  cost: number;
+  isEnabled: boolean;
+  imageUrl?: string | null;
+}
+
+export interface TwitchRewardsResponse {
+  ready: boolean;
+  lastRefreshedAt?: string | null;
+  rewards: TwitchRewardDescriptor[];
+}
+
+export async function getTwitchRewards(signal?: AbortSignal): Promise<TwitchRewardsResponse> {
+  return getJson<TwitchRewardsResponse>("/api/twitch/rewards", signal);
+}
+
+export async function refreshTwitchRewards(signal?: AbortSignal): Promise<TwitchRewardsResponse> {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/twitch/rewards/refresh`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+    signal
+  });
+  if (!response.ok) {
+    throw new ApiError(response.status, await safeReadBody(response));
+  }
+  return response.json() as Promise<TwitchRewardsResponse>;
 }
 
 export interface PlatformIdentity {
@@ -203,6 +234,7 @@ export interface TriggerFilterFieldMetadata {
   optionLabels?: string[] | null;
   help?: string | null;
   required: boolean;
+  optionsSource?: string | null;
 }
 
 export interface TriggerMetadataEntry {

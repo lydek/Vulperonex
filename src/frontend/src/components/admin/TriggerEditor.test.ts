@@ -164,6 +164,101 @@ describe("TriggerEditor", () => {
     expect(wrapper.emitted("update:filter")?.at(-1)?.[0]).toEqual({ MinAmount: "100" });
   });
 
+  it("should render an autocomplete + refresh button for the twitch.rewards options source", async () => {
+    const rewardsFirst = {
+      ready: true,
+      lastRefreshedAt: "2026-05-31T12:00:00Z",
+      rewards: [
+        { id: "r-1", title: "Hydrate", cost: 100, isEnabled: true, imageUrl: null }
+      ]
+    };
+    const rewardsAfterRefresh = {
+      ready: true,
+      lastRefreshedAt: "2026-05-31T12:05:00Z",
+      rewards: [
+        { id: "r-1", title: "Hydrate", cost: 100, isEnabled: true, imageUrl: null },
+        { id: "r-2", title: "Stretch", cost: 200, isEnabled: true, imageUrl: null }
+      ]
+    };
+
+    let rewardsCalls = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo) => {
+      const url = typeof input === "string" ? input : input.url;
+      if (url.includes("/api/twitch/rewards/refresh")) {
+        rewardsCalls++;
+        return new Response(JSON.stringify(rewardsAfterRefresh), {
+          headers: { "Content-Type": "application/json" },
+          status: 200
+        });
+      }
+      if (url.includes("/api/twitch/rewards")) {
+        return new Response(JSON.stringify(rewardsFirst), {
+          headers: { "Content-Type": "application/json" },
+          status: 200
+        });
+      }
+      const metadata = [
+        ...triggerMetadataResponse,
+        {
+          key: "reward.redeemed",
+          displayName: "Reward Redeemed",
+          description: "Reward",
+          filterFields: [
+            {
+              key: "RewardName",
+              label: "Reward Name",
+              type: "string",
+              options: null,
+              help: null,
+              required: false,
+              optionsSource: "twitch.rewards"
+            }
+          ],
+          validVariables: ["RewardId", "RewardTitle"]
+        }
+      ];
+      return new Response(JSON.stringify(metadata), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountTriggerEditor({
+      eventTypeKey: "reward.redeemed",
+      filter: {},
+      matchCondition: ""
+    });
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="trigger-filter-input-RewardName"]').exists()).toBe(true);
+    });
+
+    const select = wrapper.find('[data-testid="trigger-filter-input-RewardName"]');
+    expect(select.element.tagName).toBe("SELECT");
+
+    await vi.waitFor(() => {
+      const options = wrapper.findAll('[data-testid="trigger-filter-input-RewardName"] option');
+      expect(options.map(o => o.attributes("value"))).toContain("Hydrate");
+    });
+
+    await wrapper.find('[data-testid="trigger-filter-refresh-RewardName"]').trigger("click");
+
+    await vi.waitFor(() => {
+      expect(rewardsCalls).toBe(1);
+      const options = wrapper
+        .findAll('[data-testid="trigger-filter-input-RewardName"] option')
+        .map(o => o.attributes("value"));
+      // Empty "any" option + Hydrate + Stretch
+      expect(options).toEqual(["", "Hydrate", "Stretch"]);
+    });
+
+    await wrapper
+      .find('[data-testid="trigger-filter-input-RewardName"]')
+      .setValue("Stretch");
+    expect(wrapper.emitted("update:filter")?.at(-1)?.[0]).toEqual({ RewardName: "Stretch" });
+  });
+
   it("should update variable picker entries when the event type changes", async () => {
     const wrapper = mountTriggerEditor({
       eventTypeKey: "user.message",

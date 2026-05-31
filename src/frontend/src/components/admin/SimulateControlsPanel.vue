@@ -14,6 +14,7 @@ import {
   type PlatformBadgeDescriptor
 } from "@/api/client";
 import { useEventStore } from "@/stores/eventStore";
+import { useTwitchRewardsStore } from "@/stores/twitchRewards";
 
 const PLATFORM_CONNECTION_CHANGED = "platform.connection_changed";
 
@@ -45,7 +46,12 @@ const message = ref("");
 const tier = ref("1000");
 const recipientDisplayName = ref("");
 const bits = ref(100);
-const rewardId = ref("custom-reward");
+const rewardId = ref("");
+const twitchRewards = useTwitchRewardsStore();
+const selectedRewardTitle = computed(() => {
+  const match = twitchRewards.rewards.find(r => r.id === rewardId.value);
+  return match?.title ?? null;
+});
 const stampCount = ref(1);
 const rolesOptions = ["Broadcaster", "Subscriber", "Moderator", "VIP", "Follower"];
 const selectedRoles = ref<string[]>([]);
@@ -111,6 +117,10 @@ onMounted(() => {
   void loadBadges();
 });
 
+async function refreshRewards(): Promise<void> {
+  await twitchRewards.refresh();
+}
+
 const eventStore = useEventStore();
 const { events } = storeToRefs(eventStore);
 watch(
@@ -129,6 +139,11 @@ const showTierInput = computed(() => alias.value === "sub" || alias.value === "g
 const showRecipientInput = computed(() => alias.value === "giftsub");
 const showBitsInput = computed(() => alias.value === "bits");
 const showRewardInput = computed(() => alias.value === "redeem");
+watch(showRewardInput, (visible) => {
+  if (visible) {
+    void twitchRewards.load();
+  }
+}, { immediate: true });
 const showStampInput = computed(() => alias.value === "checkin");
 
 const batchProgressLabel = computed(() => {
@@ -166,7 +181,12 @@ async function onSubmit(event: Event): Promise<void> {
         body.recipientDisplayName = recipientDisplayName.value.trim();
       }
       if (showBitsInput.value) body.bits = bits.value;
-      if (showRewardInput.value && rewardId.value.trim()) body.rewardId = rewardId.value.trim();
+      if (showRewardInput.value && rewardId.value.trim()) {
+        body.rewardId = rewardId.value.trim();
+        if (selectedRewardTitle.value) {
+          body.rewardTitle = selectedRewardTitle.value;
+        }
+      }
       if (selectedRoles.value.length > 0) body.roles = [...selectedRoles.value];
       if (showIdentityInputs.value && selectedBadgeKeys.value.length > 0) {
         body.badges = [...selectedBadgeKeys.value];
@@ -463,7 +483,47 @@ async function startBatchCheckin(): Promise<void> {
 
           <label v-if="showRewardInput" class="form-field">
             <span class="form-label">{{ t("monitor.controls.fields.rewardId") }}</span>
-            <input v-model="rewardId" type="text" autocomplete="off" :disabled="batchRunning" />
+            <div class="reward-select-row">
+              <select
+                v-model="rewardId"
+                :disabled="batchRunning || twitchRewards.loading"
+                data-testid="simulate-reward-select"
+              >
+                <option value="">{{ t("monitor.controls.fields.rewardPlaceholder") }}</option>
+                <option
+                  v-for="reward in twitchRewards.rewards"
+                  :key="reward.id"
+                  :value="reward.id"
+                >
+                  {{ reward.title }}
+                </option>
+              </select>
+              <button
+                type="button"
+                class="icon-button"
+                :disabled="twitchRewards.loading"
+                :aria-label="t('ruleEditor.trigger.rewards.refresh')"
+                :title="t('ruleEditor.trigger.rewards.refresh')"
+                data-testid="simulate-reward-refresh"
+                @click="refreshRewards"
+              >
+                {{ twitchRewards.loading ? "…" : "↻" }}
+              </button>
+            </div>
+            <span
+              v-if="twitchRewards.error"
+              class="ack-error-code"
+              data-testid="simulate-reward-error"
+            >
+              {{ twitchRewards.error }}
+            </span>
+            <span
+              v-else-if="!twitchRewards.ready && !twitchRewards.loading"
+              class="monitor-help"
+              data-testid="simulate-reward-empty"
+            >
+              {{ t("ruleEditor.trigger.rewards.unauthorized") }}
+            </span>
           </label>
 
           <label v-if="showStampInput" class="form-field">
@@ -990,5 +1050,15 @@ async function startBatchCheckin(): Promise<void> {
   .batch-button {
     width: 100%;
   }
+}
+
+.reward-select-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.reward-select-row select {
+  flex: 1 1 auto;
 }
 </style>
