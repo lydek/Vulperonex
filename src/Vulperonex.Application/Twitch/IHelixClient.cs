@@ -29,7 +29,18 @@ public interface IHelixClient
         IReadOnlyDictionary<string, string> condition,
         string sessionId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<TwitchRewardDescriptor>> GetCustomRewardsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default);
 }
+
+public sealed record TwitchRewardDescriptor(
+    string Id,
+    string Title,
+    int Cost,
+    bool IsEnabled,
+    string? ImageUrl);
 
 public sealed record PlatformUserProfile(
     string UserId,

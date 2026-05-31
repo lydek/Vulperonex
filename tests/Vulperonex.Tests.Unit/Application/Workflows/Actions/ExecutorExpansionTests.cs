@@ -530,6 +530,13 @@ public sealed class ExecutorExpansionTests
         {
             return Task.CompletedTask;
         }
+
+        public Task<IReadOnlyList<TwitchRewardDescriptor>> GetCustomRewardsAsync(
+            string broadcasterId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<TwitchRewardDescriptor>>([]);
+        }
     }
 
     private sealed class FakeClock : IClock

@@ -112,6 +112,7 @@ public static class DependencyInjection
         services.AddSingleton<TwitchEventSubSource>();
         services.AddSingleton<IPlatformBadgeCache, TwitchBadgeCache>();
         services.AddSingleton<TwitchBadgeSyncCoordinator>();
+        services.AddSingleton<ITwitchRewardCache, TwitchRewardCache>();
         services.AddSingleton<TwitchTokenEndpoint>();
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();

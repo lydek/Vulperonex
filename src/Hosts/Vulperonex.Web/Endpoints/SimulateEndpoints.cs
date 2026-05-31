@@ -232,7 +232,11 @@ public static class SimulateEndpoints
             SimulationKind.Donated => SimulationRequest.Donated("simulation", user, request.Bits ?? 100),
             SimulationKind.GiftedSubscription => SimulationRequest.GiftedSubscription("simulation", user, request.Tier ?? "1000", 1),
             SimulationKind.Raided => SimulationRequest.Raided("simulation", user, 100),
-            SimulationKind.RewardRedeemed => SimulationRequest.RewardRedeemed("simulation", user, request.RewardId ?? "custom-reward", request.RewardId ?? "custom-reward"),
+            SimulationKind.RewardRedeemed => SimulationRequest.RewardRedeemed(
+                "simulation",
+                user,
+                request.RewardId ?? "custom-reward",
+                request.RewardTitle ?? request.RewardId ?? "custom-reward"),
             _ => throw new NotSupportedException($"Unsupported simulate alias kind: {kind}."),
         };
     }
@@ -306,6 +310,7 @@ public static class SimulateEndpoints
         string? RecipientDisplayName = null,
         int? Bits = null,
         string? RewardId = null,
+        string? RewardTitle = null,
         string? UserInput = null);
 
     private sealed record SimulateResponse(

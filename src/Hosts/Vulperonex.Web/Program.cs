@@ -130,6 +130,7 @@ public static partial class VulperonexWebApplication
         app.MapSimulateEndpoints();
         app.MapTwitchAuthEndpoints();
         app.MapTwitchBadgesEndpoints();
+        app.MapTwitchRewardsEndpoints();
         app.MapOAuthCallbackEndpoints();
         app.MapOverlayHistoryEndpoints();
         app.MapOverlayPresetEndpoints();

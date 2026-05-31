@@ -77,6 +77,7 @@ public static class TwitchAuthEndpoints
             IOAuthTokenStore tokenStore,
             PlatformConnectionNotifier notifier,
             TwitchBadgeSyncCoordinator badgeSync,
+            ITwitchRewardCache rewardCache,
             CancellationToken cancellationToken) =>
         {
             if (string.IsNullOrWhiteSpace(request.State)
@@ -113,6 +114,7 @@ public static class TwitchAuthEndpoints
 
             await tokenStore.StoreRefreshTokenAsync("twitch", token.RefreshToken, cancellationToken);
             badgeSync.QueueSync();
+            rewardCache.QueueRefresh();
             await notifier.NotifyAsync("twitch", connected: true, cancellationToken);
             return Results.NoContent();
         });
@@ -147,6 +149,7 @@ public static class TwitchAuthEndpoints
             IOAuthTokenStore tokenStore,
             PlatformConnectionNotifier notifier,
             TwitchBadgeSyncCoordinator badgeSync,
+            ITwitchRewardCache rewardCache,
             CancellationToken cancellationToken) =>
         {
             try
@@ -154,6 +157,7 @@ public static class TwitchAuthEndpoints
                 var token = await tokenEndpoint.CompleteDeviceAuthorizationAsync(request.DeviceCode, cancellationToken);
                 await tokenStore.StoreRefreshTokenAsync("twitch", token.RefreshToken, cancellationToken);
                 badgeSync.QueueSync();
+                rewardCache.QueueRefresh();
                 await notifier.NotifyAsync("twitch", connected: true, cancellationToken);
                 return Results.NoContent();
             }

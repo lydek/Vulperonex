@@ -149,6 +149,45 @@ public sealed class TwitchHelixClient(
         return true;
     }
 
+    public async Task<IReadOnlyList<TwitchRewardDescriptor>> GetCustomRewardsAsync(
+        string broadcasterId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(broadcasterId);
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"channel_points/custom_rewards?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<TwitchCustomRewardsResponse>(cancellationToken);
+        if (payload?.Data is null || payload.Data.Count == 0)
+        {
+            return [];
+        }
+
+        var result = new List<TwitchRewardDescriptor>(payload.Data.Count);
+        foreach (var reward in payload.Data)
+        {
+            var imageUrl = reward.Image?.Url4x
+                ?? reward.Image?.Url2x
+                ?? reward.Image?.Url1x
+                ?? reward.DefaultImage?.Url4x
+                ?? reward.DefaultImage?.Url2x
+                ?? reward.DefaultImage?.Url1x;
+            result.Add(new TwitchRewardDescriptor(
+                reward.Id,
+                reward.Title,
+                reward.Cost,
+                reward.IsEnabled,
+                imageUrl));
+        }
+
+        return result;
+    }
+
     public async Task CreateEventSubSubscriptionAsync(
         string type,
         string version,
@@ -231,6 +270,22 @@ public sealed class TwitchHelixClient(
     private sealed record TwitchBadgeSetJson(
         [property: JsonPropertyName("set_id")] string SetId,
         [property: JsonPropertyName("versions")] IReadOnlyList<TwitchBadgeVersionJson> Versions);
+
+    private sealed record TwitchCustomRewardsResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<TwitchCustomRewardJson> Data);
+
+    private sealed record TwitchCustomRewardJson(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("title")] string Title,
+        [property: JsonPropertyName("cost")] int Cost,
+        [property: JsonPropertyName("is_enabled")] bool IsEnabled,
+        [property: JsonPropertyName("image")] TwitchCustomRewardImage? Image,
+        [property: JsonPropertyName("default_image")] TwitchCustomRewardImage? DefaultImage);
+
+    private sealed record TwitchCustomRewardImage(
+        [property: JsonPropertyName("url_1x")] string? Url1x,
+        [property: JsonPropertyName("url_2x")] string? Url2x,
+        [property: JsonPropertyName("url_4x")] string? Url4x);
 
     private sealed record TwitchBadgeVersionJson(
         [property: JsonPropertyName("id")] string Id,

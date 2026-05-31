@@ -79,7 +79,7 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         {
             return new[]
             {
-                new FilterFieldDto("RewardName", "Reward Name", "string", Help: "Trigger only on specific channel point redemption, e.g. Lottery Ticket")
+                new FilterFieldDto("RewardName", "Reward Name", "string", Help: "Trigger only on specific channel point redemption, e.g. Lottery Ticket", OptionsSource: "twitch.rewards")
             };
         }
 
