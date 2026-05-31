@@ -419,7 +419,7 @@ function normalizeRole(value: string): string {
 .rule-drawer-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 32, 0.45);
+  background: var(--vp-bg-backdrop);
   z-index: 100;
 }
 
@@ -430,10 +430,10 @@ function normalizeRole(value: string): string {
   flex-direction: column;
   gap: 12px;
   width: min(720px, 100vw);
-  border-left: 1px solid #d6dde5;
-  background: #ffffff;
+  border-left: 1px solid var(--vp-border-default);
+  background: var(--vp-bg-surface);
   padding: 18px;
-  box-shadow: 0 10px 30px rgba(15, 23, 32, 0.18);
+  box-shadow: var(--vp-shadow-elevated);
   z-index: 101;
 }
 
@@ -465,22 +465,22 @@ function normalizeRole(value: string): string {
 .rule-drawer__tab-list {
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid #d6dde5;
+  border-bottom: 1px solid var(--vp-border-default);
 }
 
 .rule-drawer__tab {
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
-  color: #394756;
+  color: var(--vp-text-secondary);
   cursor: pointer;
   font-weight: 700;
   padding: 8px 10px;
 }
 
 .rule-drawer__tab[data-state="active"] {
-  border-color: #1f6f64;
-  color: #164f48;
+  border-color: var(--vp-accent);
+  color: var(--vp-text-accent);
 }
 
 .rule-drawer__form {
@@ -507,7 +507,7 @@ function normalizeRole(value: string): string {
 .rule-drawer__footer {
   align-items: center;
   justify-content: flex-end;
-  border-top: 1px solid #d6dde5;
+  border-top: 1px solid var(--vp-border-default);
   padding-top: 12px;
 }
 
@@ -559,19 +559,19 @@ function normalizeRole(value: string): string {
 .skeleton-tabs {
   display: flex;
   gap: 8px;
-  border-bottom: 1px solid #e6ebf0;
+  border-bottom: 1px solid var(--vp-border-subtle);
   padding-bottom: 8px;
 }
 
 .skeleton-tab {
   width: 72px;
   height: 28px;
-  background: #e2e8f0;
+  background: var(--vp-bg-surface-muted);
   border-radius: 4px;
 }
 
 .skeleton-tab.active {
-  background: #cbd5e1;
+  background: var(--vp-border-default);
 }
 
 .skeleton-body {
@@ -597,37 +597,37 @@ function normalizeRole(value: string): string {
 .skeleton-label {
   width: 80px;
   height: 14px;
-  background: #e2e8f0;
+  background: var(--vp-bg-surface-muted);
   border-radius: 3px;
 }
 
 .skeleton-label-short {
   width: 120px;
   height: 14px;
-  background: #e2e8f0;
+  background: var(--vp-bg-surface-muted);
   border-radius: 3px;
 }
 
 .skeleton-input {
   width: 100%;
   height: 38px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--vp-bg-surface-muted);
+  border: 1px solid var(--vp-border-subtle);
   border-radius: 6px;
 }
 
 .skeleton-input-large {
   width: 100%;
   height: 88px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: var(--vp-bg-surface-muted);
+  border: 1px solid var(--vp-border-subtle);
   border-radius: 6px;
 }
 
 .skeleton-checkbox {
   width: 16px;
   height: 16px;
-  background: #e2e8f0;
+  background: var(--vp-bg-surface-muted);
   border-radius: 4px;
 }
 
@@ -641,19 +641,19 @@ function normalizeRole(value: string): string {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  border-top: 1px solid #e6ebf0;
+  border-top: 1px solid var(--vp-border-subtle);
   padding-top: 16px;
 }
 
 .skeleton-button {
   width: 80px;
   height: 38px;
-  background: #f1f5f9;
+  background: var(--vp-bg-surface-muted);
   border-radius: 6px;
 }
 
 .skeleton-button.primary {
-  background: #cbd5e1;
+  background: var(--vp-border-default);
   width: 96px;
 }
 </style>

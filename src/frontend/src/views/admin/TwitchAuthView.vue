@@ -465,7 +465,7 @@ function describeError(caught: unknown): string {
 .twitch-section-description {
   margin-bottom: 1rem;
   font-size: 0.95rem;
-  color: #666;
+  color: var(--vp-text-muted);
 }
 
 .twitch-client-id-row {
@@ -478,7 +478,7 @@ function describeError(caught: unknown): string {
 .twitch-client-id-input {
   padding: 0.6rem;
   border-radius: 6px;
-  border: 1px solid #ccc;
+  border: 1px solid var(--vp-border-default);
   flex-grow: 1;
   height: 38px;
   box-sizing: border-box;
@@ -494,7 +494,7 @@ function describeError(caught: unknown): string {
 }
 
 .twitch-save-success {
-  color: #1b6a4f;
+  color: var(--vp-text-success);
   margin-top: 0.5rem;
   font-size: 0.9rem;
 }
@@ -530,7 +530,7 @@ function describeError(caught: unknown): string {
 }
 
 .twitch-device-code-box {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--vp-bg-surface-muted);
   border: 1px dashed #6441a5;
   padding: 0.8rem;
   border-radius: 6px;
@@ -547,6 +547,6 @@ function describeError(caught: unknown): string {
 
 .twitch-device-hint {
   margin-top: 1rem;
-  color: #666;
+  color: var(--vp-text-muted);
 }
 </style>
