@@ -741,8 +741,8 @@ async function startBatchCheckin(): Promise<void> {
 
 .form-field input:disabled,
 .form-field select:disabled {
-  background: #f5f8f6;
-  color: #7f958d;
+  background: var(--vp-bg-surface-muted);
+  color: var(--vp-text-muted);
   cursor: not-allowed;
 }
 
@@ -758,7 +758,7 @@ async function startBatchCheckin(): Promise<void> {
   height: 38px;
   border: 1px solid var(--monitor-border, #cfdcd6);
   border-radius: var(--monitor-radius-button, 8px);
-  background: #fff;
+  background: var(--vp-bg-surface);
   padding: 2px;
   cursor: pointer;
 }
@@ -775,7 +775,7 @@ async function startBatchCheckin(): Promise<void> {
   padding: 10px;
   border: 1px dashed var(--monitor-border-subtle, rgba(214, 221, 229, 0.6));
   border-radius: 10px;
-  background: rgba(244, 248, 246, 0.6);
+  background: var(--vp-bg-surface-muted);
   max-height: 200px;
   overflow-y: auto;
 }
@@ -787,7 +787,7 @@ async function startBatchCheckin(): Promise<void> {
   padding: 5px 9px;
   border-radius: var(--monitor-radius-pill, 999px);
   border: 1px solid var(--monitor-border, #cfdcd6);
-  background: #fff;
+  background: var(--vp-bg-surface);
   color: var(--monitor-text-primary, #213a34);
   font-size: 0.78rem;
   font-weight: 700;
@@ -801,7 +801,7 @@ async function startBatchCheckin(): Promise<void> {
 
 .badge-chip.selected {
   border-color: var(--monitor-accent, #2d9d78);
-  background: #e7f4ee;
+  background: var(--vp-bg-selected);
   color: var(--monitor-text-accent, #145a44);
 }
 
@@ -825,7 +825,7 @@ async function startBatchCheckin(): Promise<void> {
 }
 
 .field-help.error {
-  color: #b43a3a;
+  color: var(--vp-text-danger);
 }
 
 .field-help {
@@ -864,14 +864,14 @@ async function startBatchCheckin(): Promise<void> {
 :deep(.monitor-progress) {
   height: 8px;
   border-radius: var(--monitor-radius-pill, 999px);
-  background: #dbe8e1;
+  background: var(--vp-bg-surface-muted);
   overflow: hidden;
   position: relative;
 }
 
 :deep(.monitor-progress__fill) {
   height: 100%;
-  background: linear-gradient(90deg, var(--monitor-accent, #2d9d78), #68b596);
+  background: var(--monitor-accent-gradient, linear-gradient(90deg, #2d9d78, #68b596));
   transition: width 200ms ease;
 }
 
@@ -912,9 +912,9 @@ async function startBatchCheckin(): Promise<void> {
 }
 
 .batch-button {
-  background: linear-gradient(135deg, #eef7f3, #dbeee5);
+  background: var(--vp-bg-selected);
   color: var(--monitor-text-accent, #1d5d4f);
-  border: 1px solid #bfd8cc;
+  border: 1px solid var(--vp-border-default);
   padding: 0.65rem 1.1rem;
 }
 
@@ -922,8 +922,8 @@ async function startBatchCheckin(): Promise<void> {
   margin-top: 16px;
   padding: 12px 14px;
   border-radius: 12px;
-  border: 1px solid var(--monitor-border, #d7e3dc);
-  background: #f8fbf9;
+  border: 1px solid var(--monitor-success-border, #d7e3dc);
+  background: var(--monitor-success-subtle, #f8fbf9);
 }
 
 .ack-headline {
@@ -960,7 +960,7 @@ async function startBatchCheckin(): Promise<void> {
   margin-top: 16px;
   border-radius: 12px;
   border: 1px solid var(--monitor-danger-border, rgba(191, 88, 88, 0.22));
-  background: rgba(244, 218, 218, 0.62);
+  background: var(--monitor-danger-subtle, rgba(244, 218, 218, 0.62));
   padding: 12px 14px;
 }
 
@@ -972,7 +972,7 @@ async function startBatchCheckin(): Promise<void> {
 
 .ack-error-detail {
   margin: 0;
-  color: #8a3f3f;
+  color: var(--monitor-danger, #8a3f3f);
   font-size: 0.8rem;
   overflow-wrap: anywhere;
 }

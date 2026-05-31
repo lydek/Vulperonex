@@ -204,7 +204,7 @@ function reloadIframe(): void {
       <!-- Embedded Member Card integration toggle when CHAT is active -->
       <div v-if="activeHub === 'chat'" class="chat-integration-toggle" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
         <label class="bg-radio-label" style="font-weight: 700; color: var(--monitor-text-accent, #164f48);">
-          <input v-model="showMemberCard" type="checkbox" style="accent-color: #1f6f64;" />
+          <input v-model="showMemberCard" type="checkbox" style="accent-color: var(--vp-accent);" />
           <span>整合打卡彈窗 (Show Check-in)</span>
         </label>
       </div>
@@ -284,7 +284,7 @@ function reloadIframe(): void {
   padding: 3px 10px;
   border-radius: var(--monitor-radius-pill, 999px);
   border: 1px solid var(--monitor-accent, #2d9d78);
-  background: rgba(45, 157, 120, 0.08);
+  background: var(--vp-bg-selected);
   color: var(--monitor-text-accent, #145a44);
   font-size: 10px;
   font-weight: 800;
@@ -316,7 +316,7 @@ function reloadIframe(): void {
   padding: 3px;
   border-radius: var(--monitor-radius-button, 8px);
   border: 1px solid var(--monitor-border, #d6dde5);
-  background: #f4f6f8;
+  background: var(--vp-bg-surface-muted);
 }
 
 .hub-tab-btn,
@@ -341,7 +341,7 @@ function reloadIframe(): void {
 .env-btn.active {
   background: var(--monitor-bg-elevated, #ffffff);
   color: var(--monitor-text-accent, #164f48);
-  box-shadow: 0 1px 3px rgba(15, 23, 32, 0.12);
+  box-shadow: 0 1px 3px var(--vp-bg-backdrop);
 }
 
 .controls-right,
@@ -383,7 +383,7 @@ function reloadIframe(): void {
 }
 
 .reload-btn:hover {
-  background: #f4f6f8;
+  background: var(--vp-bg-surface-muted);
   transform: rotate(-15deg);
 }
 
@@ -407,11 +407,11 @@ function reloadIframe(): void {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #394756;
+  color: var(--vp-text-secondary);
 }
 
 .bg-radio-label input {
-  accent-color: #1f6f64;
+  accent-color: var(--vp-accent);
 }
 
 .dot {
@@ -450,7 +450,7 @@ function reloadIframe(): void {
 
 .iframe-container-outer {
   flex: 1;
-  background: #edf2f7;
+  background: var(--vp-bg-surface-muted);
   overflow: hidden;
   position: relative;
   padding: 12px;

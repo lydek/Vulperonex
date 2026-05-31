@@ -181,9 +181,7 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   overflow: hidden;
   border: 1px solid var(--monitor-border, #d8e2dc);
   border-radius: var(--monitor-radius-card, 12px);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(245, 248, 246, 0.98)),
-    radial-gradient(circle at top left, rgba(45, 157, 120, 0.12), transparent 40%);
+  background: var(--monitor-bg-elevated, #ffffff);
   box-shadow: var(--monitor-shadow-elevated, 0 18px 48px rgba(33, 58, 52, 0.12));
 }
 
@@ -217,7 +215,7 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 
 .reconnect-btn:hover {
   transform: translateY(-1px);
-  background: #ffe9c2;
+  filter: brightness(0.97);
 }
 
 .header-left {
@@ -237,7 +235,7 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 
 .panel-title {
   margin: 0;
-  color: #164f48;
+  color: var(--vp-text-accent);
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -245,16 +243,16 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 
 .panel-subtitle {
   margin: 4px 0 0;
-  color: #648077;
+  color: var(--vp-text-muted);
   font-size: 0.84rem;
 }
 
 .clear-btn {
   flex: 0 0 auto;
-  border: 1px solid #cad8d1;
+  border: 1px solid var(--vp-border-default);
   border-radius: 999px;
-  background: #ffffff;
-  color: #355e56;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-secondary);
   padding: 0.55rem 1rem;
   font-size: 0.84rem;
   font-weight: 700;
@@ -263,9 +261,9 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 }
 
 .clear-btn:hover {
-  background: #f4f8f6;
-  border-color: #9fc1b3;
-  color: #164f48;
+  background: var(--vp-bg-surface-muted);
+  border-color: var(--vp-accent-muted);
+  color: var(--vp-text-accent);
   transform: translateY(-1px);
 }
 
@@ -290,8 +288,8 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   gap: 10px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(45, 157, 120, 0.06);
+  background: var(--vp-bg-surface-muted);
+  border: 1px solid var(--vp-border-subtle);
   box-shadow: 0 1px 3px rgba(33, 58, 52, 0.02);
   transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
 }
@@ -299,13 +297,13 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 .chat-message-item:hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 10px rgba(33, 58, 52, 0.05);
-  background: #ffffff;
+  background: var(--vp-bg-surface);
 }
 
 .message-time {
   font-family: Consolas, "Courier New", monospace;
   font-size: 0.72rem;
-  color: #799086;
+  color: var(--vp-text-muted);
   margin-top: 1px;
   flex-shrink: 0;
   white-space: nowrap;
@@ -336,9 +334,9 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   align-items: center;
   border-radius: 999px;
   padding: 0.1rem 0.45rem;
-  border: 1px solid #d8e3dd;
-  background: #f4f8f6;
-  color: #49685f;
+  border: 1px solid var(--vp-border-default);
+  background: var(--vp-bg-surface-muted);
+  color: var(--vp-text-secondary);
   font-size: 0.62rem;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -351,9 +349,9 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   gap: 4px;
   border-radius: 999px;
   padding: 0.12rem 0.5rem;
-  background: rgba(242, 198, 63, 0.15);
-  border: 1px solid rgba(197, 151, 21, 0.2);
-  color: #7a5c08;
+  background: var(--vp-bg-warning);
+  border: 1px solid var(--vp-border-warning);
+  color: var(--vp-text-warning);
   font-size: 0.68rem;
   font-weight: 700;
 }
@@ -367,7 +365,7 @@ function getSegmentsText(ev: OverlayHubEvent): string {
 
 .message-text-body {
   margin: 0;
-  color: #213a34;
+  color: var(--vp-text-primary);
   font-size: 0.86rem;
   line-height: 1.45;
   word-break: break-word;
@@ -381,7 +379,7 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   min-height: 280px;
   padding: 32px;
   text-align: center;
-  color: #5f786f;
+  color: var(--vp-text-muted);
 }
 
 .empty-icon {
@@ -390,8 +388,8 @@ function getSegmentsText(ev: OverlayHubEvent): string {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(45, 157, 120, 0.12);
-  color: #2d9d78;
+  background: var(--vp-bg-selected);
+  color: var(--vp-text-accent);
   font-weight: 900;
   letter-spacing: 0.2em;
 }
