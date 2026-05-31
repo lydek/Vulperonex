@@ -12,6 +12,19 @@ export default defineConfig({
   },
   build: {
     outDir: "../Hosts/Vulperonex.Web/wwwroot",
-    emptyOutDir: true
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 5000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("monaco-editor")) {
+              return "monaco";
+            }
+            return "vendor";
+          }
+        }
+      }
+    }
   }
 });
