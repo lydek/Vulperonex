@@ -94,7 +94,39 @@ const OverlayCommon = {
         // Linear Congruential Generator
         hash = (hash * 9301 + 49297) % 233280;
         return hash / 233280.0;
+    },
+
+    /**
+     * Initializes a postMessage listener for preview-mode background colour changes.
+     * The admin panel sends { type: 'set-bg', style: { backgroundColor: '...' } }
+     * and this handler applies it to the document body so the iframe respects
+     * the chosen preview background.
+     */
+    initPreviewBridge: function () {
+        window.addEventListener('message', function (e) {
+            if (!e.data || e.data.type !== 'set-bg') return;
+            var style = e.data.style;
+            if (!style || typeof style !== 'object') return;
+
+            // Reset previous background properties before applying new ones
+            document.body.style.backgroundColor = '';
+            document.body.style.backgroundImage = '';
+            document.body.style.backgroundSize = '';
+            document.body.style.backgroundPosition = '';
+
+            for (var key in style) {
+                if (style.hasOwnProperty(key)) {
+                    document.body.style[key] = style[key];
+                }
+            }
+        });
     }
 };
 
+// Auto-init preview bridge when loaded inside an iframe with ?preview=1
+if (window.location.search.includes('preview=1')) {
+    OverlayCommon.initPreviewBridge();
+}
+
 window.OverlayCommon = OverlayCommon;
+

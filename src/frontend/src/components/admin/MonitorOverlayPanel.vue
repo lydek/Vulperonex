@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   getOverlayPresetCatalog,
@@ -119,6 +119,23 @@ function sanitizeUrl(val: string): string {
   return "";
 }
 
+const iframeRef = ref<HTMLIFrameElement | null>(null);
+
+function sendBgToIframe(): void {
+  const iframe = iframeRef.value;
+  if (iframe?.contentWindow) {
+    iframe.contentWindow.postMessage({ type: 'set-bg', style: containerStyle.value }, '*');
+  }
+}
+
+watch(containerStyle, () => {
+  nextTick(sendBgToIframe);
+});
+
+function onIframeLoad(): void {
+  sendBgToIframe();
+}
+
 function reloadIframe(): void {
   timestamp.value = Date.now();
 }
@@ -215,10 +232,12 @@ function reloadIframe(): void {
       <div class="iframe-canvas" :style="containerStyle">
         <iframe
           v-if="iframeSrc"
+          ref="iframeRef"
           :src="iframeSrc"
           sandbox="allow-scripts allow-same-origin"
           class="preview-iframe"
           :title="t('monitor.preview.iframeTitle')"
+          @load="onIframeLoad"
         ></iframe>
         <div v-else class="no-preview">
           <p>{{ t("monitor.preview.noPreset") }}</p>
