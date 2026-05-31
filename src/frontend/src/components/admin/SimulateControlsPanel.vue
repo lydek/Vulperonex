@@ -588,9 +588,7 @@ async function startBatchCheckin(): Promise<void> {
 .simulate-card {
   border: 1px solid var(--monitor-border, #d8e2dc);
   border-radius: var(--monitor-radius-card, 12px);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(246, 249, 247, 0.98)),
-    radial-gradient(circle at top left, rgba(45, 157, 120, 0.12), transparent 42%);
+  background: var(--monitor-bg-elevated, #ffffff);
   box-shadow: var(--monitor-shadow-elevated, 0 18px 48px rgba(33, 58, 52, 0.12));
   padding: 20px;
 }
