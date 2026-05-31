@@ -33,17 +33,68 @@ const actionMetadataResponse = [
       { key: "Choices", label: "Choices", type: "array", required: true, help: "List of choices" },
       { key: "Weights", label: "Weights", type: "array", required: false, help: "Relative weights" }
     ]
+  },
+  {
+    type: "triggerCheckIn",
+    displayName: "Trigger Check-In",
+    description: "Trigger check-in and activity tracking for a stream viewer",
+    parameters: [
+      { key: "UserId", label: "User ID", type: "string", required: false, help: "Default {Member.UserId}", advanced: true },
+      { key: "Platform", label: "Platform", type: "string", required: false, help: "Leave empty to use trigger platform.", advanced: true }
+    ]
+  },
+  {
+    type: "invokeSubWorkflow",
+    displayName: "Invoke Sub-Workflow",
+    description: "Invoke another sub-workflow rule",
+    parameters: [
+      { key: "WorkflowId", label: "Workflow ID", type: "string", required: true, help: "Select target sub-workflow by name." },
+      { key: "Args", label: "Arguments", type: "dictionary", required: false, help: "Arguments" }
+    ]
   }
 ];
 
 function stubActionMetadataFetch(status = 200): void {
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(
-    status === 200 ? JSON.stringify(actionMetadataResponse) : "metadata unavailable",
-    {
-      headers: { "Content-Type": "application/json" },
-      status
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/api/metadata/actions")) {
+      return new Response(
+        status === 200 ? JSON.stringify(actionMetadataResponse) : "metadata unavailable",
+        {
+          headers: { "Content-Type": "application/json" },
+          status
+        }
+      );
     }
-  )));
+
+    if (url.includes("/api/rules/")) {
+      return new Response(JSON.stringify([
+        {
+          id: "rule-main",
+          name: "Main Rule",
+          eventTypeKey: "user.message",
+          isEnabled: true,
+          priority: 1,
+          createdAt: "2026-06-01T00:00:00Z",
+          version: 1
+        },
+        {
+          id: "sub-1",
+          name: "Daily Check-In Child",
+          eventTypeKey: null,
+          isEnabled: true,
+          priority: 2,
+          createdAt: "2026-06-01T00:00:00Z",
+          version: 1
+        }
+      ]), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      });
+    }
+
+    return new Response("not found", { status: 404 });
+  }));
 }
 
 describe("WorkflowActionsEditor", () => {
@@ -122,5 +173,70 @@ describe("WorkflowActionsEditor", () => {
     expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe(JSON.stringify([
       { type: "sendChatMessage" }
     ], null, 2));
+  });
+
+  it("should treat trigger check-in target as implicit until advanced overrides are opened", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-type-0"]').html()).toContain("triggerCheckIn");
+    });
+    await wrapper.find('[data-testid="workflow-actions-type-0"]').setValue("triggerCheckIn");
+
+    expect(wrapper.get('[data-testid="workflow-actions-implicit-target-0"]').text())
+      .toContain("Checks in the user who triggered this event.");
+    expect(wrapper.text()).not.toContain("Default {Member.UserId}");
+
+    const advanced = wrapper.get('[data-testid="workflow-actions-advanced-0"]');
+    (advanced.element as HTMLDetailsElement).open = true;
+    await advanced.trigger("toggle");
+    expect(wrapper.text()).toContain("User ID");
+    expect(wrapper.text()).toContain("Platform");
+  });
+
+  it("should offer sub-workflow names instead of generic variable input for workflow id", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-type-0"]').html()).toContain("invokeSubWorkflow");
+    });
+    await wrapper.find('[data-testid="workflow-actions-type-0"]').setValue("invokeSubWorkflow");
+
+    const workflowSelect = wrapper.get('[data-testid="workflow-actions-field-workflowId-0"]');
+    expect(workflowSelect.element.tagName).toBe("SELECT");
+    expect(workflowSelect.text()).toContain("Daily Check-In Child");
+    expect(workflowSelect.text()).not.toContain("Main Rule");
+
+    await workflowSelect.setValue("sub-1");
+
+    const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
+    expect(emittedJson[0].workflowId).toBe("sub-1");
   });
 });

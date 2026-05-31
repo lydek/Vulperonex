@@ -190,6 +190,10 @@ export interface WorkflowRuleSummary {
   version: number;
 }
 
+export function isSubWorkflowSummary(rule: WorkflowRuleSummary): boolean {
+  return rule.eventTypeKey === null;
+}
+
 export interface WorkflowTrigger {
   eventTypeKey?: string | null;
   filter: Record<string, string>;
@@ -255,6 +259,7 @@ export interface ActionParameterMetadata {
   type: string;
   required: boolean;
   help?: string | null;
+  advanced?: boolean;
 }
 
 export interface ActionMetadataEntry {

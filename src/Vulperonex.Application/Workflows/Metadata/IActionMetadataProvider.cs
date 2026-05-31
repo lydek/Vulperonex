@@ -16,4 +16,5 @@ public sealed record ActionParamMetadataDto(
     string Label,
     string Type,
     bool Required,
-    string? Help);
+    string? Help,
+    bool Advanced = false);

@@ -81,7 +81,9 @@ public sealed class DefaultWorkflowRuleSeedService(
                     new TriggerCheckInAction
                     {
                         UserId = "{Member.UserId}",
-                        Platform = "{Trigger.Platform}",
+                        // Platform intentionally left null: executor falls back to
+                        // context.StreamEvent.Platform when blank. Avoids forcing
+                        // operators to fill a redundant field.
                         OutputVariable = "CheckIn"
                     },
                     new SendChatMessageAction

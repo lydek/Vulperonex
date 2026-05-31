@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+  getRules,
+  isSubWorkflowSummary,
+  type WorkflowRuleSummary
+} from "@/api/client";
 import ConditionExpressionInput from "@/components/admin/ConditionExpressionInput.vue";
 import StepListShell from "@/components/admin/StepListShell.vue";
 import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
@@ -39,6 +44,7 @@ const actionMetadata = useActionMetadataStore();
 
 const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
+const availableRules = ref<WorkflowRuleSummary[]>([]);
 
 defineExpose({ focus });
 
@@ -60,7 +66,16 @@ const metadataNotice = computed(() => {
 
 onMounted(() => {
   void actionMetadata.load();
+  void loadRules();
 });
+
+async function loadRules(): Promise<void> {
+  try {
+    availableRules.value = await getRules();
+  } catch {
+    availableRules.value = [];
+  }
+}
 
 function focus(): void {
   const firstInput = document.querySelector<HTMLInputElement>(`[data-testid="${prefix.value}-type-0"]`);
@@ -130,6 +145,62 @@ function moveItem(index: number, direction: -1 | 1): void {
 
 function definitionFor(item: JsonRecord): ActionDefinition | undefined {
   return actionMetadata.findDefinition(asString(item.type));
+}
+
+function basicFieldsOf(item: JsonRecord): FieldDefinition[] {
+  return definitionFor(item)?.fields.filter(f => !f.advanced) ?? [];
+}
+
+function advancedFieldsOf(item: JsonRecord): FieldDefinition[] {
+  return definitionFor(item)?.fields.filter(f => f.advanced) ?? [];
+}
+
+function usesImplicitTriggerUserTarget(item: JsonRecord): boolean {
+  if (asString(item.type) !== "triggerCheckIn") {
+    return false;
+  }
+
+  const userId = asString(item.userId).trim();
+  const platform = asString(item.platform).trim();
+  const usesDefaultUser = userId.length === 0 || userId === "{Member.UserId}";
+  return usesDefaultUser && platform.length === 0;
+}
+
+function implicitTargetMessage(item: JsonRecord): string | null {
+  if (!usesImplicitTriggerUserTarget(item)) {
+    return null;
+  }
+
+  return fallbackLabel(
+    "ruleEditor.actionMeta.triggerCheckIn.defaultTargetNotice",
+    "Checks in the user who triggered this event."
+  );
+}
+
+function isSubWorkflowIdField(item: JsonRecord, field: FieldDefinition): boolean {
+  return asString(item.type) === "invokeSubWorkflow" && field.key === "workflowId";
+}
+
+function subWorkflowOptions(item: JsonRecord): Array<{ label: string; value: string }> {
+  const options = availableRules.value
+    .filter(isSubWorkflowSummary)
+    .map(rule => ({
+      label: rule.name,
+      value: rule.id
+    }));
+
+  const currentValue = asString(item.workflowId).trim();
+  if (currentValue.length > 0 && !options.some(option => option.value === currentValue)) {
+    options.unshift({
+      label: fallbackLabel(
+        "ruleEditor.actionMeta.invokeSubWorkflow.params.workflowId.unknownOption",
+        "Unknown workflow"
+      ),
+      value: currentValue
+    });
+  }
+
+  return options;
 }
 
 function patchItem(index: number, patch: Partial<JsonRecord>): void {
@@ -313,11 +384,31 @@ function previousStepsFor(index: number): JsonRecord[] {
 
     <template #body="{ item, index }">
       <div v-if="definitionFor(item)" class="workflow-builder__grid">
-        <template v-for="field in definitionFor(item)?.fields" :key="field.key">
+        <p
+          v-if="implicitTargetMessage(item)"
+          class="workflow-builder__hint workflow-builder__wide"
+          :data-testid="`${prefix}-implicit-target-${index}`"
+        >
+          {{ implicitTargetMessage(item) }}
+        </p>
+        <template v-for="field in basicFieldsOf(item)" :key="field.key">
           <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
             <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
+            <select
+              v-if="isSubWorkflowIdField(item, field)"
+              :value="String(fieldValue(item, field))"
+              :data-testid="`${prefix}-field-${field.key}-${index}`"
+              @change="updateField(index, field, ($event.target as HTMLSelectElement).value)"
+            >
+              <option value="">
+                {{ fallbackLabel("ruleEditor.actionMeta.invokeSubWorkflow.params.workflowId.placeholder", "Select a sub-workflow") }}
+              </option>
+              <option v-for="option in subWorkflowOptions(item)" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
             <VariableFieldInput
-              v-if="field.kind === 'text' && field.key !== 'condition'"
+              v-else-if="field.kind === 'text' && field.key !== 'condition'"
               :model-value="String(fieldValue(item, field))"
               :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
@@ -385,6 +476,54 @@ function previousStepsFor(index: number): JsonRecord[] {
             />
           </label>
         </template>
+
+        <details
+          v-if="advancedFieldsOf(item).length > 0"
+          class="workflow-builder__advanced workflow-builder__wide"
+          :data-testid="`${prefix}-advanced-${index}`"
+        >
+          <summary>{{ fallbackLabel("ruleEditor.advancedOptions", "Advanced options") }}</summary>
+          <div class="workflow-builder__advanced-grid">
+            <template v-for="field in advancedFieldsOf(item)" :key="field.key">
+              <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
+                <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
+                <VariableFieldInput
+                  v-if="field.kind === 'text' && field.key !== 'condition'"
+                  :model-value="String(fieldValue(item, field))"
+                  :placeholder="fieldPlaceholder(asString(item.type), field)"
+                  :previous-steps="previousStepsFor(index)"
+                  :action-definitions="actionDefinitions"
+                  :filter-key="field.key"
+                  @update:model-value="updateField(index, field, $event)"
+                />
+                <input
+                  v-else-if="field.kind === 'number'"
+                  type="number"
+                  :value="String(fieldValue(item, field))"
+                  :placeholder="fieldPlaceholder(asString(item.type), field)"
+                  @input="updateField(index, field, ($event.target as HTMLInputElement).value)"
+                />
+                <select
+                  v-else
+                  :value="String(fieldValue(item, field))"
+                  @change="updateField(index, field, ($event.target as HTMLSelectElement).value)"
+                >
+                  <option v-for="option in field.options" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label v-else-if="field.kind === 'checkbox'" class="form-field form-field-inline">
+                <input
+                  type="checkbox"
+                  :checked="Boolean(fieldValue(item, field))"
+                  @change="updateField(index, field, ($event.target as HTMLInputElement).checked)"
+                />
+                <span>{{ fieldLabel(asString(item.type), field) }}</span>
+              </label>
+            </template>
+          </div>
+        </details>
 
         <div class="workflow-builder__meta workflow-builder__wide">
           <label class="form-field workflow-builder__meta-condition">
@@ -454,6 +593,31 @@ function previousStepsFor(index: number): JsonRecord[] {
   gap: 12px;
   grid-template-columns: 1fr;
   align-items: start;
+}
+
+.workflow-builder__advanced {
+  border: 1px dashed var(--vp-border-default);
+  border-radius: var(--vp-radius-card);
+  padding: 8px 12px;
+}
+
+.workflow-builder__advanced summary {
+  cursor: pointer;
+  color: var(--vp-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.workflow-builder__advanced[open] summary {
+  margin-bottom: 8px;
+  color: var(--vp-text-secondary);
+}
+
+.workflow-builder__advanced-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
 }
 
 .workflow-builder__meta-condition {

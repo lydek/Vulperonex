@@ -89,6 +89,35 @@ textarea {
   font: inherit;
 }
 
+/*
+ * Explicit dark-mode form-element colors. We already set `color-scheme: dark`
+ * on :root via --vp-color-scheme, which tells browsers to render native form
+ * controls in dark mode; but the cascade is unreliable for the open <select>
+ * dropdown panel (especially on Windows Chrome/Edge), which can render the
+ * highlighted option as light text on a light background. Setting concrete
+ * background/color/border on the controls + <option> guarantees readable
+ * contrast regardless of the UA's native picker theming.
+ */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+  background-color: var(--vp-bg-surface);
+  color: var(--vp-text-primary);
+  border: 1px solid var(--vp-border-default);
+}
+
+[data-theme="dark"] select option,
+[data-theme="dark"] datalist option {
+  background-color: var(--vp-bg-surface);
+  color: var(--vp-text-primary);
+}
+
+[data-theme="dark"] select option:checked,
+[data-theme="dark"] select option:hover {
+  background-color: var(--vp-bg-selected);
+  color: var(--vp-text-primary);
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 232px minmax(0, 1fr);

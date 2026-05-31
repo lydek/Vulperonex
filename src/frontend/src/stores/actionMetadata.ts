@@ -95,7 +95,8 @@ function toFieldDefinition(parameter: ActionParameterMetadata): FieldDefinition 
     key: lowerFirst(parameter.key),
     label: parameter.label,
     kind: fieldKindFor(parameter),
-    placeholder: parameter.help ?? undefined
+    placeholder: parameter.help ?? undefined,
+    advanced: parameter.advanced ?? false
   };
 }
 

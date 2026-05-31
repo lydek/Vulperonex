@@ -11,9 +11,9 @@ public sealed record TriggerCheckInAction : WorkflowAction
     [JsonIgnore]
     public override string Type => ActionType;
 
-    [ActionParam("User ID", "string", required: false, help: "The template expression for the user's ID")]
+    [ActionParam("User ID", "string", required: false, help: "Whose check-in to record. Default {Member.UserId} resolves the triggering user's platform id.", advanced: true)]
     public string UserId { get; init; } = "{Member.UserId}";
 
-    [ActionParam("Platform", "string", required: false, help: "The stream platform identifier")]
+    [ActionParam("Platform", "string", required: false, help: "Override stream platform (e.g. twitch). Empty = use the trigger event platform.", advanced: true)]
     public string? Platform { get; init; }
 }

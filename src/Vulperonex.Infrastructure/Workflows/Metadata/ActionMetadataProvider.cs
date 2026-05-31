@@ -39,7 +39,8 @@ public sealed class ActionMetadataProvider : IActionMetadataProvider
                         paramAttr.Label,
                         paramAttr.Type,
                         paramAttr.Required,
-                        paramAttr.Help));
+                        paramAttr.Help,
+                        paramAttr.Advanced));
                 }
             }
 

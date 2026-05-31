@@ -11,7 +11,7 @@ public sealed record AddLotteryTicketsAction : WorkflowAction
     [JsonIgnore]
     public override string Type => ActionType;
 
-    [ActionParam("User ID", "string", required: false, help: "The template expression for the user's ID")]
+    [ActionParam("User ID", "string", required: false, help: "Whose tickets to update. Default {Member.UserId} resolves the triggering user's platform id.")]
     public string UserId { get; init; } = "{Member.UserId}";
 
     [ActionParam("Amount", "number", required: false, help: "The amount of tickets to add")]
