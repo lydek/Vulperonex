@@ -20,10 +20,10 @@ describe("ConditionExpressionInput", () => {
     });
 
     await wrapper.find('[data-testid="variable-picker-toggle"]').trigger("click");
-    await wrapper.findAll("button").find((entry) => entry.text().includes("Trigger.IsTest"))!.trigger("click");
+    await wrapper.findAll("button").find((entry) => entry.text().includes("Member.IsSubscriber"))!.trigger("click");
     await wrapper.find('[data-testid="condition-right"]').setValue("true");
 
-    expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe("Trigger.IsTest == true");
+    expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe("Member.IsSubscriber == true");
   });
 
   it("should allow raw mode editing for complex expressions", async () => {

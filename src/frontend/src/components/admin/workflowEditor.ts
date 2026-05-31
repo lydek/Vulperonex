@@ -22,6 +22,7 @@ export interface FieldDefinition {
   kind: FieldKind;
   placeholder?: string;
   options?: SelectOption[];
+  advanced?: boolean;
 }
 
 export type VariableType = "string" | "number" | "boolean" | "enum";
@@ -94,27 +95,33 @@ const operatorDefinitions: OperatorDefinition[] = [
 
 const triggerVariableDefinitions: VariableDefinition[] = [
   { path: "Trigger.EventId", label: "Event id", type: "string" },
-  { path: "Trigger.Channel", label: "Channel", type: "string" },
-  { path: "Trigger.UserId", label: "User id", type: "string" },
-  { path: "Trigger.UserLogin", label: "User login", type: "string" },
-  { path: "Trigger.DisplayName", label: "Display name", type: "string" },
+  { path: "Trigger.EventTypeKey", label: "Event type key", type: "string" },
+  { path: "Trigger.Platform", label: "Event platform", type: "string" },
+  { path: "Trigger.OccurredAt", label: "Occurred at", type: "string" },
   { path: "Trigger.MessageText", label: "Message text", type: "string" },
-  { path: "Trigger.Arg0", label: "Arg0", type: "string" },
-  { path: "Trigger.Arg1", label: "Arg1", type: "string" },
   { path: "Trigger.RewardId", label: "Reward id", type: "string" },
+  { path: "Trigger.RewardTitle", label: "Reward title", type: "string" },
   { path: "Trigger.RedemptionId", label: "Redemption id", type: "string" },
+  { path: "Trigger.TotalBitsGiven", label: "Total bits given", type: "number" },
+  { path: "Trigger.Tier", label: "Subscription tier", type: "string" },
+  { path: "Trigger.GiftCount", label: "Gift count", type: "number" },
+  { path: "Trigger.ViewerCount", label: "Viewer count", type: "number" },
+  { path: "Trigger.Depth", label: "Workflow depth", type: "number" },
   { path: "Trigger.Payload.TimerId", label: "Timer id", type: "string" },
   { path: "Trigger.Payload.RuleId", label: "Timer rule id", type: "string" },
-  { path: "Trigger.Payload.IntervalSeconds", label: "Timer interval seconds", type: "number" },
-  { path: "Trigger.IsTest", label: "Is test", type: "boolean", options: ["true", "false"] }
+  { path: "Trigger.Payload.IntervalSeconds", label: "Timer interval seconds", type: "number" }
 ];
 
 const memberVariableDefinitions: VariableDefinition[] = [
-  { path: "Member.UserId", label: "Member user id", type: "string" },
-  { path: "Member.Platform", label: "Member platform", type: "string" },
-  { path: "Member.DisplayName", label: "Member display name", type: "string" },
-  { path: "Member.Roles", label: "Member roles", type: "string" },
-  { path: "Member.IsSubscriber", label: "Member is subscriber", type: "boolean", options: ["true", "false"] }
+  { path: "Member.UserId", label: "Trigger user id", type: "string" },
+  { path: "Member.Platform", label: "Trigger user platform", type: "string" },
+  { path: "Member.DisplayName", label: "Trigger user display name", type: "string" },
+  { path: "Member.Roles", label: "Trigger user roles", type: "string" },
+  { path: "Member.IsSubscriber", label: "Trigger user is subscriber", type: "boolean", options: ["true", "false"] },
+  { path: "Member.IsModerator", label: "Trigger user is moderator", type: "boolean", options: ["true", "false"] },
+  { path: "Member.IsVip", label: "Trigger user is VIP", type: "boolean", options: ["true", "false"] },
+  { path: "Member.IsFollower", label: "Trigger user is follower", type: "boolean", options: ["true", "false"] },
+  { path: "Member.IsBroadcaster", label: "Trigger user is broadcaster", type: "boolean", options: ["true", "false"] }
 ];
 
 const argsVariableDefinitions: VariableDefinition[] = [
@@ -124,9 +131,8 @@ const argsVariableDefinitions: VariableDefinition[] = [
 ];
 
 const failureVariableDefinitions: VariableDefinition[] = [
-  { path: "Failure.ErrorCode", label: "Failure error code", type: "string" },
-  { path: "Failure.ErrorMessage", label: "Failure message", type: "string" },
-  { path: "Failure.StepType", label: "Failure step type", type: "string" }
+  { path: "Failure.StepIndex", label: "Failure step index", type: "number" },
+  { path: "Failure.ErrorMessage", label: "Failure message", type: "string" }
 ];
 
 export const conditionDefinitions: ConditionDefinition[] = [
@@ -380,10 +386,10 @@ export function buildVariableGroups(
   });
 
   return [
-    buildGroup("trigger", "Trigger", triggerVariableDefinitions),
+    buildGroup("trigger", "Trigger Event", triggerVariableDefinitions),
     buildGroup("args", "Args", argsVariableDefinitions),
     buildGroup("steps", "Step Outputs", stepVariables),
-    buildGroup("member", "Member", memberVariableDefinitions),
+    buildGroup("member", "Trigger User", memberVariableDefinitions),
     buildGroup("failure", "Failure", failureVariableDefinitions)
   ].filter((group) => group.variables.length > 0);
 }

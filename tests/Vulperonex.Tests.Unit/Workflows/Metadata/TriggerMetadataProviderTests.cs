@@ -51,7 +51,11 @@ public sealed class TriggerMetadataProviderTests
 
         variables.Should().Contain("EventId");
         variables.Should().Contain("EventTypeKey");
+        variables.Should().Contain("Platform");
+        variables.Should().Contain("OccurredAt");
         variables.Should().Contain("MessageText");
+        variables.Should().NotContain("UserId");
+        variables.Should().NotContain("Channel");
     }
 
     [Fact]

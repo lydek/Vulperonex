@@ -59,8 +59,28 @@ const groups = computed<VariableGroup[]>(() => {
 function filterByFieldProperty(rawGroups: VariableGroup[], filterKey: string): VariableGroup[] {
   const key = filterKey.toLowerCase();
 
-  // 1. UserId / User / Member 相關欄位
-  if (key.includes("userid") || key.includes("user") || key.includes("member")) {
+  // 1. UserId field: only show paths ending in ".userid". Drop UserLogin /
+  //    DisplayName (human-facing fields) since matchers + check-in resolve by
+  //    platform numeric user id. Reduces variable picker noise.
+  if (key === "userid" || key.endsWith(".userid")) {
+    return rawGroups
+      .map(group => {
+        return {
+          ...group,
+          variables: group.variables.filter(v => {
+            const pathLower = v.path.toLowerCase().replace(/[{}]/g, "");
+            if (pathLower.includes(".status")) {
+              return false;
+            }
+            return pathLower.endsWith(".userid");
+          })
+        };
+      })
+      .filter(group => group.variables.length > 0);
+  }
+
+  // 1b. Generic user/member fields (DisplayName, etc.) keep wider picker.
+  if (key.includes("user") || key.includes("member")) {
     return rawGroups
       .map(group => {
         return {

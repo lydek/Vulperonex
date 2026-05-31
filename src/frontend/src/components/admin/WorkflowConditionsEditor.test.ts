@@ -33,14 +33,14 @@ describe("WorkflowConditionsEditor", () => {
 
     const inputs = wrapper.findAll("input");
     await inputs[0].setValue("90");
-    await inputs[1].setValue("{Trigger.UserId}");
+    await inputs[1].setValue("{Member.UserId}");
 
     expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe(JSON.stringify([
       {
         type: "cooldown",
         scope: "Global",
         durationSeconds: 90,
-        key: "{Trigger.UserId}"
+        key: "{Member.UserId}"
       }
     ], null, 2));
   });
