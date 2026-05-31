@@ -14,7 +14,7 @@
   "actions": [
     {
       "type": "lookupTwitchUser",
-      "login": "{Trigger.Arg0}",
+      "userId": "{Member.UserId}",
       "outputVariable": "Target"
     },
     {
@@ -23,7 +23,7 @@
     },
     {
       "type": "shoutout",
-      "targetLogin": "{Trigger.Arg0}"
+      "targetLogin": "{Step.Target.Login}"
     },
     {
       "type": "sendChatMessage",

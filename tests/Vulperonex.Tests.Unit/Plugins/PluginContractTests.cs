@@ -95,7 +95,7 @@ public sealed class PluginContractTests
             Args = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 ["target"] = "{Args.Target}",
-                ["message"] = "hello {Trigger.DisplayName}",
+                ["message"] = "hello {Member.DisplayName}",
             },
         };
         var streamEvent = new UserSentMessageEvent
@@ -109,15 +109,16 @@ public sealed class PluginContractTests
             ActionIndex: 2,
             ExpressionContext: new ExpressionContext(
                 new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
-                {
-                    ["DisplayName"] = "Alice",
-                },
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["Target"] = "Bob",
                 },
-                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)));
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["DisplayName"] = "Alice",
+                }));
 
         await executor.ExecuteAsync(action, context, TestContext.Current.CancellationToken);
 
