@@ -135,6 +135,8 @@ const failureVariableDefinitions: VariableDefinition[] = [
   { path: "Failure.ErrorMessage", label: "Failure message", type: "string" }
 ];
 
+const defaultStepStatusOptions = ["success", "repeat", "cooldown", "error"];
+
 export const conditionDefinitions: ConditionDefinition[] = [
   {
     type: "userRole",
@@ -179,6 +181,27 @@ export const fallbackActionDefinitions: ActionDefinition[] = [
       { key: "template", label: "Template", kind: "textarea", placeholder: "Hello {Member.DisplayName}" }
     ],
     create: () => ({ type: "sendChatMessage" })
+  },
+  {
+    type: "triggerCheckIn",
+    label: "Trigger Check-In",
+    description: "Fallback check-in action metadata.",
+    fields: [
+      { key: "userId", label: "User ID", kind: "text", placeholder: "{Member.UserId}", advanced: true },
+      { key: "platform", label: "Platform", kind: "text", placeholder: "{Trigger.Platform}", advanced: true }
+    ],
+    outputVariables: ["CheckInCount", "TotalLoyalty", "DisplayName", "RoundIndex", "StampSlotInRound"],
+    create: () => ({ type: "triggerCheckIn", userId: "{Member.UserId}" })
+  },
+  {
+    type: "randomPicker",
+    label: "Random Picker",
+    description: "Fallback random picker action metadata.",
+    fields: [
+      { key: "choices", label: "Choices", kind: "string-list" }
+    ],
+    outputVariables: ["Picked", "Index"],
+    create: () => ({ type: "randomPicker", choices: [] })
   }
 ];
 
@@ -338,7 +361,7 @@ export function getVariableInfo(path: string): VariableDefinition | undefined {
       path: cleanPath,
       label: cleanPath.replace(/^Step\./, ""),
       type: cleanPath.endsWith(".Status") ? "enum" : "string",
-      options: cleanPath.endsWith(".Status") ? ["success", "repeat", "cooldown", "error"] : undefined
+      options: cleanPath.endsWith(".Status") ? defaultStepStatusOptions : undefined
     };
   }
 
@@ -364,13 +387,13 @@ export function buildVariableGroups(
     }
 
     const definition = findActionDefinition(asString(item.type), actionDefinitions);
-    const outputFields = definition?.outputVariables ?? ["Status", "Value"];
+    const outputFields = Array.from(new Set(["Status", ...(definition?.outputVariables ?? ["Value"])]));
     for (const outputField of outputFields) {
       stepVariables.push({
         path: `Step.${outputVariable}.${outputField}`,
         label: `${outputVariable}.${outputField}`,
-        type: outputField === "Status" ? "enum" : "string",
-        options: outputField === "Status" ? ["success", "repeat", "cooldown", "error"] : undefined,
+        type: inferStepVariableType(asString(item.type), outputField),
+        options: outputField === "Status" ? defaultStepStatusOptions : undefined,
         hint: definition?.label
       });
     }
@@ -392,6 +415,56 @@ export function buildVariableGroups(
     buildGroup("member", "Trigger User", memberVariableDefinitions),
     buildGroup("failure", "Failure", failureVariableDefinitions)
   ].filter((group) => group.variables.length > 0);
+}
+
+function inferStepVariableType(actionType: string, outputField: string): VariableType {
+  if (outputField === "Status") {
+    return "enum";
+  }
+
+  if (
+    outputField === "CheckInCount" ||
+    outputField === "TotalLoyalty" ||
+    outputField === "RoundIndex" ||
+    outputField === "StampSlotInRound" ||
+    outputField === "Index" ||
+    outputField === "Value"
+  ) {
+    return "number";
+  }
+
+  if (actionType === "lookupTwitchUser" && outputField === "IsFound") {
+    return "boolean";
+  }
+
+  return "string";
+}
+
+export function getStepStatusOptions(path: string): string[] {
+  return getVariableInfo(path)?.options ?? [];
+}
+
+export function getStepStatusModeHint(
+  path: string,
+  previousSteps: JsonRecord[],
+  actionDefinitions: ActionDefinition[] = fallbackActionDefinitions
+): string | null {
+  const cleanPath = path.replace(/[{}]/g, "");
+  const match = cleanPath.match(/^Step\.([A-Za-z][A-Za-z0-9_]*)\.Status$/);
+  if (!match) {
+    return null;
+  }
+
+  const stepName = match[1];
+  const matchedStep = previousSteps.find(item => asString(item.outputVariable).trim() === stepName);
+  const actionType = asString(matchedStep?.type);
+  const definition = findActionDefinition(actionType, actionDefinitions);
+
+  if (actionType === "triggerCheckIn") {
+    return "Mode: Check-in status";
+  }
+
+  return definition ? `Mode: ${definition.label} status` : "Mode: Step status";
 }
 
 export function normalizeRoles(value: unknown): string {

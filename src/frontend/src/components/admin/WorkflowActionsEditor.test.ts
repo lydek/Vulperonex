@@ -129,6 +129,9 @@ describe("WorkflowActionsEditor", () => {
     });
     await wrapper.find('[data-testid="workflow-actions-type-0"]').setValue("randomPicker");
 
+    await vi.waitFor(() => {
+      expect(wrapper.findAll("textarea").length).toBeGreaterThanOrEqual(2);
+    });
     const textareas = wrapper.findAll("textarea");
     await textareas[0].setValue("alpha\nbeta");
     await textareas[1].setValue("2\n3");

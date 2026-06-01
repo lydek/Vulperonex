@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildVariableGroups, getVariableInfo } from "./workflowEditor";
+import { buildVariableGroups, getVariableInfo, getStepStatusModeHint } from "./workflowEditor";
 
 describe("workflowEditor variable contract", () => {
   it("matches the backend trigger context instead of exposing stale trigger user aliases", () => {
@@ -26,5 +26,17 @@ describe("workflowEditor variable contract", () => {
 
     expect(groups.find(group => group.key === "trigger")?.label).toBe("Trigger Event");
     expect(groups.find(group => group.key === "member")?.label).toBe("Trigger User");
+  });
+
+  it("exposes triggerCheckIn step outputs and contextual status hints", () => {
+    const groups = buildVariableGroups([
+      { type: "triggerCheckIn", outputVariable: "Res" }
+    ], false);
+
+    const stepGroup = groups.find(group => group.key === "steps");
+    expect(stepGroup?.variables.some(variable => variable.path === "{Step.Res.Status}")).toBe(true);
+    expect(stepGroup?.variables.some(variable => variable.path === "{Step.Res.CheckInCount}")).toBe(true);
+    expect(stepGroup?.variables.some(variable => variable.path === "{Step.Res.TotalLoyalty}")).toBe(true);
+    expect(getStepStatusModeHint("Step.Res.Status", [{ type: "triggerCheckIn", outputVariable: "Res" }])).toBe("Mode: Check-in status");
   });
 });

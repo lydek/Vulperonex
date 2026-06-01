@@ -39,4 +39,17 @@ describe("ConditionExpressionInput", () => {
 
     expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe("Trigger.MessageText == 'hi' && Member.IsSubscriber == true");
   });
+
+  it("should detect check-in status mode from previous step output", async () => {
+    const wrapper = mount(ConditionExpressionInput, {
+      props: {
+        modelValue: "Step.Res.Status == 'repeat'",
+        dataTestId: "condition",
+        previousSteps: [{ type: "triggerCheckIn", outputVariable: "Res" }]
+      }
+    });
+
+    expect(wrapper.find('[data-testid="condition-right"]').element.tagName).toBe("SELECT");
+    expect(wrapper.text()).toContain("Mode: Check-in status");
+  });
 });

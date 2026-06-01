@@ -14,6 +14,7 @@ import {
 } from "@/components/admin/workflowEditor";
 
 const outputVariableOverrides: Record<string, string[]> = {
+  triggerCheckIn: ["CheckInCount", "TotalLoyalty", "DisplayName", "RoundIndex", "StampSlotInRound"],
   randomPicker: ["Picked", "Index"],
   updateCounter: ["Value"],
   lookupTwitchUser: ["Login", "DisplayName", "UserId", "IsFound"],

@@ -4,6 +4,8 @@ import VariablePicker from "@/components/admin/VariablePicker.vue";
 import {
   asString,
   getOperatorOptions,
+  getStepStatusModeHint,
+  getStepStatusOptions,
   getVariableInfo,
   parseArrayModel,
   type ActionDefinition,
@@ -29,7 +31,13 @@ const rightValue = ref("");
 
 const previousSteps = computed(() => props.previousSteps ?? parseArrayModel(props.previousStepsJson ?? "[]"));
 const operatorOptions = computed(() => getOperatorOptions(leftVar.value));
-const valueOptions = computed(() => getVariableInfo(leftVar.value)?.options ?? []);
+const valueOptions = computed(() => {
+  const contextual = getStepStatusOptions(leftVar.value);
+  return contextual.length > 0 ? contextual : (getVariableInfo(leftVar.value)?.options ?? []);
+});
+const modeHint = computed(() =>
+  getStepStatusModeHint(leftVar.value, previousSteps.value, props.actionDefinitions)
+);
 
 watch(() => props.modelValue, (value) => {
   if (!tryParseExpression(value)) {
@@ -161,6 +169,7 @@ function emitRaw(value: string): void {
           type="text"
           :placeholder="placeholder ?? 'value'"
         />
+        <div v-if="modeHint" class="condition-expression__hint">{{ modeHint }}</div>
       </div>
     </div>
 
@@ -240,6 +249,12 @@ function emitRaw(value: string): void {
   position: absolute;
   top: 7px;
   right: 8px;
+}
+
+.condition-expression__hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--vp-text-muted);
 }
 
 @media (max-width: 720px) {
