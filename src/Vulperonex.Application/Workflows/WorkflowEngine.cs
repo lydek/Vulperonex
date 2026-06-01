@@ -530,12 +530,25 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         ActionExecutionResult result,
         IDictionary<string, IReadOnlyDictionary<string, object?>> stepOutputs)
     {
-        if (string.IsNullOrWhiteSpace(action.OutputVariable) || result.OutputValues is null)
+        if (string.IsNullOrWhiteSpace(action.OutputVariable))
         {
             return;
         }
 
-        stepOutputs[action.OutputVariable] = result.OutputValues;
+        var outputValues = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Status"] = "success",
+        };
+
+        if (result.OutputValues is not null)
+        {
+            foreach (var (key, value) in result.OutputValues)
+            {
+                outputValues[key] = value;
+            }
+        }
+
+        stepOutputs[action.OutputVariable] = outputValues;
     }
 
     private static ExpressionContext BuildExpressionContext(
@@ -558,6 +571,13 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
             trigger["MessageText"] = messageEvent.MessageText;
         }
 
+        if (streamEvent.User is not null)
+        {
+            // Legacy compatibility for previously-saved workflow templates.
+            trigger["UserId"] = streamEvent.User.UserId;
+            trigger["UserDisplayName"] = streamEvent.User.DisplayName;
+        }
+
         if (streamEvent is RewardRedeemedEvent rewardEvent)
         {
             trigger["RewardId"] = rewardEvent.RewardId;
@@ -568,6 +588,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         if (streamEvent is UserDonatedEvent donatedEvent)
         {
             trigger["TotalBitsGiven"] = donatedEvent.TotalBitsGiven;
+            trigger["Amount"] = donatedEvent.TotalBitsGiven;
         }
 
         if (streamEvent is UserSubscribedEvent subscribedEvent)

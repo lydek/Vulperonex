@@ -108,7 +108,6 @@ public sealed class PluginContractTests
             new WorkflowRule { Id = "rule-1", Name = "Rule", EventTypeKey = StreamEventKeys.UserSentMessage },
             ActionIndex: 2,
             ExpressionContext: new ExpressionContext(
-                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
                 new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, IReadOnlyDictionary<string, object?>>(StringComparer.OrdinalIgnoreCase),
                 new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
@@ -118,7 +117,8 @@ public sealed class PluginContractTests
                 new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["DisplayName"] = "Alice",
-                }));
+                },
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)));
 
         await executor.ExecuteAsync(action, context, TestContext.Current.CancellationToken);
 

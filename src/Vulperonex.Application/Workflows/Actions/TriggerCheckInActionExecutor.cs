@@ -140,7 +140,11 @@ public sealed class TriggerCheckInActionExecutor(
             {
                 ["Platform"] = platform,
                 ["UserId"] = userId,
+                ["DisplayName"] = displayName,
                 ["CheckInCount"] = count,
+                ["TotalLoyalty"] = memberAfter.Loyalty.TotalLoyalty,
+                ["RoundIndex"] = roundIndex,
+                ["StampSlotInRound"] = stampSlotInRound,
             });
     }
 }

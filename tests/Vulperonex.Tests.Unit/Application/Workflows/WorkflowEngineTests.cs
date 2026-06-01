@@ -25,7 +25,7 @@ public sealed class WorkflowEngineTests
         await using var bus = new InMemoryStreamEventBus();
         var sender = new RecordingChatSender("twitch");
         var rule = NewRule(actions: [new SendChatMessageAction { Template = "Hello {user.displayName}" }]);
-        await using var engine = NewEngine(bus, [rule], [new SendChatMessageActionExecutor([sender], new TemplateRenderer())]);
+        await using var engine = NewEngine(bus, [rule], [new SendChatMessageActionExecutor([sender], new TemplateResolver(), new TemplateRenderer())]);
         await engine.StartAsync(TestContext.Current.CancellationToken);
 
         await bus.PublishAsync(NewMessageEvent(), TestContext.Current.CancellationToken);
@@ -40,7 +40,7 @@ public sealed class WorkflowEngineTests
         await using var bus = new InMemoryStreamEventBus();
         var sender = new RecordingChatSender("twitch");
         var rule = NewRule(actions: [new SendChatMessageAction { Template = "Echo {event.message}" }]);
-        await using var engine = NewEngine(bus, [rule], [new SendChatMessageActionExecutor([sender], new TemplateRenderer())]);
+        await using var engine = NewEngine(bus, [rule], [new SendChatMessageActionExecutor([sender], new TemplateResolver(), new TemplateRenderer())]);
         var simulation = new SimulationAdapter(bus, new Vulperonex.Infrastructure.EventTypes.InMemoryStreamEventTypeRegistry());
         await engine.StartAsync(TestContext.Current.CancellationToken);
 
@@ -63,7 +63,7 @@ public sealed class WorkflowEngineTests
         var rule = NewRule(
             isEnabled: false,
             actions: [new SendChatMessageAction { Template = "Hello" }]);
-        await using var engine = NewEngine(bus, [rule], [new SendChatMessageActionExecutor([sender], new TemplateRenderer())]);
+        await using var engine = NewEngine(bus, [rule], [new SendChatMessageActionExecutor([sender], new TemplateResolver(), new TemplateRenderer())]);
         await engine.StartAsync(TestContext.Current.CancellationToken);
 
         await bus.PublishAsync(NewMessageEvent(), TestContext.Current.CancellationToken);
@@ -289,6 +289,24 @@ public sealed class WorkflowEngineTests
 
         executor.Executions.Should().HaveCount(2);
         executor.Contexts[1].ExpressionContext.Steps["Lookup"]["DisplayName"].Should().Be("Alice Prime");
+    }
+
+    [Fact]
+    public async Task Given_ActionOutputVariableWithoutExplicitOutput_When_ExecutingNextAction_Then_StatusIsAvailableInStepContext()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule(actions:
+        [
+            new TestAction { OutputVariable = "Res" },
+            new TestAction { ExecutionCondition = "Step.Res.Status == 'success'" },
+        ]);
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(rule, NewMessageEvent(), TestContext.Current.CancellationToken);
+
+        executor.Executions.Should().HaveCount(2);
+        executor.Contexts[1].ExpressionContext.Steps["Res"]["Status"].Should().Be("success");
     }
 
     [Fact]

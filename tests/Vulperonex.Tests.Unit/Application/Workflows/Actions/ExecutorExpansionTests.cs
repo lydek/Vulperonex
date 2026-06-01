@@ -92,7 +92,11 @@ public sealed class ExecutorExpansionTests
         result.OutputValues.Should().NotBeNull();
         result.OutputValues!["Platform"].Should().Be("twitch");
         result.OutputValues!["UserId"].Should().Be("alice");
+        result.OutputValues!["DisplayName"].Should().Be("Alice");
         result.OutputValues!["CheckInCount"].Should().Be(1);
+        result.OutputValues!["TotalLoyalty"].Should().Be(7);
+        result.OutputValues!["RoundIndex"].Should().Be(1);
+        result.OutputValues!["StampSlotInRound"].Should().Be(1);
 
         var checkInEvent = bus.Published.Should().ContainSingle().Subject.Should().BeOfType<MemberCheckedInEvent>().Subject;
         checkInEvent.Platform.Should().Be("twitch");

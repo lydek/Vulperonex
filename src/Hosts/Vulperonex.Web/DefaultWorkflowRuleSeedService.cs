@@ -88,7 +88,7 @@ public sealed class DefaultWorkflowRuleSeedService(
                     },
                     new SendChatMessageAction
                     {
-                        Template = "@{Trigger.UserDisplayName} 成功簽到！已簽到 {CheckIn.CheckInCount} 次，累積 Loyalty: {CheckIn.TotalLoyalty}"
+                        Template = "@{Member.DisplayName} 成功簽到！已簽到 {Step.CheckIn.CheckInCount} 次，累積 Loyalty: {Step.CheckIn.TotalLoyalty}"
                     }
                 ],
                 Throttle = new WorkflowThrottlePolicy

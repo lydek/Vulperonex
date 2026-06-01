@@ -45,7 +45,7 @@ public sealed class PluginWorkflowTests
             bus,
             new InMemoryRuleSnapshotCache(new FakeWorkflowRuleQueryService([rule])),
             new WorkflowConditionEvaluator(new FakeClock()),
-            [new SendChatMessageActionExecutor([sender], new TemplateRenderer())],
+            [new SendChatMessageActionExecutor([sender], new TemplateResolver(), new TemplateRenderer())],
             new InMemoryWorkflowActionExecutionStore(),
             new NCalcExpressionEvaluator(Microsoft.Extensions.Logging.Abstractions.NullLogger<NCalcExpressionEvaluator>.Instance),
             new InMemoryWorkflowThrottleService(new FakeClock()),

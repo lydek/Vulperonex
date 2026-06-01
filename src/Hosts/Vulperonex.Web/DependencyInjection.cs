@@ -155,6 +155,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor>(serviceProvider =>
             new SendChatMessageActionExecutor(
                 serviceProvider.GetRequiredService<IChatOutbox>(),
+                serviceProvider.GetRequiredService<ITemplateResolver>(),
                 serviceProvider.GetRequiredService<TemplateRenderer>()));
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, DelayActionExecutor>();

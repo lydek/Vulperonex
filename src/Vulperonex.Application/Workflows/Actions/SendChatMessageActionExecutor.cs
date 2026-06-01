@@ -1,3 +1,4 @@
+using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain.Events;
 
@@ -6,16 +7,24 @@ namespace Vulperonex.Application.Workflows.Actions;
 public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
 {
     private readonly IChatOutbox _chatOutbox;
-    private readonly TemplateRenderer _templateRenderer;
+    private readonly ITemplateResolver _templateResolver;
+    private readonly TemplateRenderer? _legacyTemplateRenderer;
 
-    public SendChatMessageActionExecutor(IChatOutbox chatOutbox, TemplateRenderer templateRenderer)
+    public SendChatMessageActionExecutor(
+        IChatOutbox chatOutbox,
+        ITemplateResolver templateResolver,
+        TemplateRenderer? legacyTemplateRenderer = null)
     {
         _chatOutbox = chatOutbox;
-        _templateRenderer = templateRenderer;
+        _templateResolver = templateResolver;
+        _legacyTemplateRenderer = legacyTemplateRenderer;
     }
 
-    public SendChatMessageActionExecutor(IEnumerable<IPlatformChatSender> chatSenders, TemplateRenderer templateRenderer)
-        : this(new DirectSendingChatOutbox(chatSenders), templateRenderer)
+    public SendChatMessageActionExecutor(
+        IEnumerable<IPlatformChatSender> chatSenders,
+        ITemplateResolver templateResolver,
+        TemplateRenderer? legacyTemplateRenderer = null)
+        : this(new DirectSendingChatOutbox(chatSenders), templateResolver, legacyTemplateRenderer)
     {
     }
 
@@ -31,20 +40,30 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
             return ActionExecutionResult.Completed;
         }
 
-        var platform = sendChatMessage.TargetPlatform ?? context.StreamEvent.Platform;
-        var message = _templateRenderer.Render(sendChatMessage.Template, context.StreamEvent);
-        var channel = RenderOptional(sendChatMessage.Channel, context.StreamEvent);
+        var platform = string.IsNullOrWhiteSpace(sendChatMessage.TargetPlatform)
+            ? context.StreamEvent.Platform
+            : Render(sendChatMessage.TargetPlatform, context);
+        var message = Render(sendChatMessage.Template, context);
+        var channel = RenderOptional(sendChatMessage.Channel, context);
         var dedupKey = string.IsNullOrWhiteSpace(sendChatMessage.DedupKey)
             ? $"action:{context.StreamEvent.EventId}:{context.WorkflowRule.Id}:{context.ActionIndex}"
-            : _templateRenderer.Render(sendChatMessage.DedupKey, context.StreamEvent);
+            : Render(sendChatMessage.DedupKey, context);
 
         await _chatOutbox.EnqueueAsync(platform, channel, message, dedupKey, cancellationToken).ConfigureAwait(false);
         return ActionExecutionResult.Completed;
     }
 
-    private string? RenderOptional(string? template, IStreamEvent streamEvent)
+    private string Render(string template, ActionExecutionContext context)
     {
-        return string.IsNullOrWhiteSpace(template) ? null : _templateRenderer.Render(template, streamEvent);
+        var rendered = _legacyTemplateRenderer is null
+            ? template
+            : _legacyTemplateRenderer.Render(template, context.StreamEvent);
+        return _templateResolver.Resolve(rendered, context.ExpressionContext);
+    }
+
+    private string? RenderOptional(string? template, ActionExecutionContext context)
+    {
+        return string.IsNullOrWhiteSpace(template) ? null : Render(template, context);
     }
 
     private sealed class DirectSendingChatOutbox(IEnumerable<IPlatformChatSender> chatSenders) : IChatOutbox

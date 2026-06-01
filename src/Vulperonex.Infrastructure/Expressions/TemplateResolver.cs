@@ -63,6 +63,11 @@ public sealed partial class TemplateResolver : ITemplateResolver
             _ => null,
         };
 
+        if (value is null && context.Steps.TryGetValue(parts[0], out var legacyStep))
+        {
+            value = legacyStep;
+        }
+
         if (value is null)
         {
             return false;
