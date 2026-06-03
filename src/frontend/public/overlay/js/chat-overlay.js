@@ -50,28 +50,23 @@
             console.log("[OverlayChat] History sync complete. Live overlay rendering active.");
         }, 1500);
 
-        // Dedup collection and renderer helper for member stamp cards
-        const renderedCheckIns = new Map();
-        const CHECKIN_DUPLICATE_WINDOW_MS = 2000;
-        function buildCheckInKey(displayName, count) {
-            return `${displayName}_${count}`;
-        }
-        function resolveCheckInTimestamp(eventLike) {
-            const raw = eventLike?.occurredAt || eventLike?.OccurredAt || null;
-            const parsed = raw ? Date.parse(raw) : NaN;
-            return Number.isFinite(parsed) ? parsed : Date.now();
-        }
-        function markCheckInRendered(displayName, count, timestampMs) {
-            renderedCheckIns.set(buildCheckInKey(displayName, count), timestampMs);
-            if (renderedCheckIns.size > 100) {
-                const firstKey = renderedCheckIns.keys().next().value;
-                renderedCheckIns.delete(firstKey);
+        // Track already-rendered dedicated check-in card events. Older builds
+        // deduped by "displayName + count", which incorrectly dropped valid
+        // rapid repeats when cooldown/test-mode kept the count unchanged.
+        const renderedCheckInEventIds = new Set();
+        function markCheckInRendered(eventId) {
+            if (!eventId) {
+                return;
+            }
+
+            renderedCheckInEventIds.add(eventId);
+            if (renderedCheckInEventIds.size > 200) {
+                const firstKey = renderedCheckInEventIds.values().next().value;
+                renderedCheckInEventIds.delete(firstKey);
             }
         }
-        function isCheckInAlreadyRendered(displayName, count, timestampMs) {
-            const existingTimestampMs = renderedCheckIns.get(buildCheckInKey(displayName, count));
-            return typeof existingTimestampMs === 'number'
-                && Math.abs(timestampMs - existingTimestampMs) <= CHECKIN_DUPLICATE_WINDOW_MS;
+        function isCheckInAlreadyRendered(eventId) {
+            return !!eventId && renderedCheckInEventIds.has(eventId);
         }
 
         // Shared Member Stamp Card HTML generator
@@ -155,12 +150,11 @@
             const displayName = snap.displayName || data.displayName || "Unknown User";
             const total = snap.checkInCount || 1;
             const avatarUrl = snap.avatarUrl || "";
-            const timestampMs = resolveCheckInTimestamp(data);
-            if (isCheckInAlreadyRendered(displayName, total, timestampMs)) {
+            if (isCheckInAlreadyRendered(data.eventId)) {
                 return;
             }
 
-            markCheckInRendered(displayName, total, timestampMs);
+            markCheckInRendered(data.eventId);
 
             const stamps = (total % 10 === 0) ? 10 : (total % 10);
             const chatLine = document.createElement('div');
@@ -284,53 +278,6 @@
                 chip.appendChild(chipCount);
 
                 chatLine.appendChild(chip);
-            }
-
-            // Embed check-in card directly inside the normal chat line if it is a "!checkin" command message
-            if (showMemberCard && data.memberSnapshot) {
-                let messageText = "";
-                if (data.segments && Array.isArray(data.segments)) {
-                    messageText = data.segments.map(seg => seg.value || seg.text || '').join('');
-                } else {
-                    messageText = data.htmlMessage || data.HtmlMessage || "";
-                }
-
-                if (messageText.trim().toLowerCase().startsWith("!checkin")) {
-                    const snap = data.memberSnapshot;
-                    const snapName = snap.displayName || data.displayName;
-                    const snapCount = snap.checkInCount || 1;
-                    const snapAvatar = snap.avatarUrl || "";
-
-                    const timestampMs = resolveCheckInTimestamp(data);
-                    if (!isCheckInAlreadyRendered(snapName, snapCount, timestampMs)) {
-                        markCheckInRendered(snapName, snapCount, timestampMs);
-
-                        const cardHtml = buildMemberCardHtml(snapName, snapCount, snapAvatar, isSyncingHistory);
-                        const cardContainer = document.createElement('div');
-                        cardContainer.innerHTML = cardHtml;
-                        chatLine.appendChild(cardContainer);
-
-                        // Only animate dynamic stamp flying and shaking for live overlay updates (non-history)
-                        if (!isSyncingHistory) {
-                            setTimeout(() => {
-                                const stamps = (snapCount % 10 === 0) ? 10 : (snapCount % 10);
-                                const stampsGrid = cardContainer.querySelector('.stamps-grid');
-                                if (stampsGrid) {
-                                    const targetSlot = stampsGrid.children[stamps - 1];
-                                    if (targetSlot) {
-                                        targetSlot.classList.add('stamped', 'animate-stamp');
-                                        targetSlot.textContent = '';
-                                        const wrapper = cardContainer.querySelector('.chat-checkin-wrapper');
-                                        if (wrapper) {
-                                            wrapper.classList.add('shake');
-                                            setTimeout(() => wrapper.classList.remove('shake'), 400);
-                                        }
-                                    }
-                                }
-                            }, 800);
-                        }
-                    }
-                }
             }
 
             // 7. Append to container and handle max messages limit with animation
