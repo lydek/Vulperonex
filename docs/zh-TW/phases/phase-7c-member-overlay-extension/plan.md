@@ -55,7 +55,7 @@ Phase 7C 處理 (1)(2)(3) + (4) 的 contract 部分。實際 OneComme bridge plu
 **描述：** `/overlay/member` 預設視覺從骨架升級為 first-class 集點卡 preset，視覺啟發自 Rotan checkin overlay 但完全重寫（無原始檔案複用）。10 格集章 grid、紫金燙金邊框、爪印 SVG（內聯）、頭像 + 名稱 + VIP 徽章。
 
 **驗收標準：**
-- [x] `MemberOverlayView.vue` 渲染完整集點卡，含進場動畫、滿章金光特效
+- [x] static `member-card.html` runtime 渲染完整集點卡，含進場動畫、滿章金光特效
 - [x] 卡片在 SignalR `member` hub 收到 event 時觸發顯示，7s 後自動收起
 - [x] 集章數依 `checkInCount % stampsPerRound` 決定本輪格數，自動進位下一輪
 - [x] CSS base + theme token 架構：`member-card.css` 結構層、`member-card-twitch.css` 純 :root override

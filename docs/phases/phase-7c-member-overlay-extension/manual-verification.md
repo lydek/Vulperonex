@@ -4,13 +4,13 @@
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| Member card overlay preset | PARTIAL | `MemberOverlayView.vue` rebuilt and `vite build` passed |
+| Member card overlay preset | PARTIAL | static `member-card.html` / shared member-card assets rebuilt and `vite build` passed |
 | Member admin settings | PARTIAL | config endpoints + admin panel landed |
 | URL sanitize helper | PASS | `src/utils/overlayAssetUrl.test.ts` |
 | Custom HTML upload backend | PASS | `Phase7cOverlayPresetTests` |
 | Preset resolver backend | PASS | `Phase7cOverlayPresetTests` |
 | Member snapshot in chat payload | PASS | `SignalRHubTests` + `OverlayDtoWhitelistTests` |
-| Chat member chip presets | PASS | `ChatOverlayView.test.ts` |
+| Chat member chip presets | PASS | static `chat.html` member chip path + `overlayAssetUrl.test.ts` verification |
 | OneComme bridge contract | PASS | plugin csproj + contract + docs |
 
 ## Commands Run
@@ -20,7 +20,7 @@ Frontend:
 ```powershell
 cd src/frontend
 corepack pnpm vue-tsc --noEmit
-.\node_modules\.bin\vitest.cmd run src/views/overlay/ChatOverlayView.test.ts src/utils/overlayAssetUrl.test.ts
+.\node_modules\.bin\vitest.cmd run src/components/admin/MonitorOverlayPanel.test.ts src/utils/overlayAssetUrl.test.ts
 .\node_modules\.bin\vite.cmd build
 ```
 
@@ -37,7 +37,7 @@ dotnet test tests/Vulperonex.Tests.Integration/Vulperonex.Tests.Integration.cspr
 
 | Flow | Expected result | Status |
 | --- | --- | --- |
-| Visit `/overlay/member` with no events | card hidden, no runtime error | PENDING |
+| Visit `/overlay/member-card.html` with no events | card hidden, no runtime error | PENDING |
 | Simulate member check-in burst | queue animates sequentially | PENDING |
 | Upload custom preset through admin page | slug appears in list and custom URL opens | PENDING |
 | Set `overlay.chat.preset=custom:{slug}` | `/overlay/chat` redirects to custom HTML | PENDING |

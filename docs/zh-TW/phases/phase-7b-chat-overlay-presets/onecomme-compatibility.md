@@ -7,21 +7,22 @@
 - **Goal:** Reduce migration friction for existing OneComme users by exposing a stable, documented preset contract that an extension can target.
 - **Goal:** Keep OneComme integration on an extension / plugin path so the core runtime stays free of OneComme-specific code.
 - **Non-goal:** Embedding OneComme runtime, OneComme renderer code, or the OneComme admin UI into Vulperonex.
-- **Non-goal:** Executing third-party template scripts. Templates are Vue components shipped with Vulperonex or a signed extension; arbitrary HTML strings are never bound through `v-html`.
+- **Non-goal:** Executing unreviewed third-party renderer code inside the SPA. Chat/member overlays are static HTML entrypoints; arbitrary HTML is only loaded through the custom preset pipeline and must stay within the overlay sandbox.
 
 ## Contract Surface
 
 The chat overlay preset contract is defined by:
 
-1. `ChatOverlayPreset` metadata in `src/frontend/src/views/overlay/chatPresets.ts`:
-   - `id` (kebab-case, stable across releases)
+1. Built-in/static preset metadata exposed by `OverlayPresetStore`:
+   - `key` (kebab-case, stable across releases)
    - `label` (display name)
-   - `description` (1-line summary)
-   - `component` (Vue component reference)
-2. The renderer component prop shape:
-   - `events: readonly OverlayHubEvent[]`
-   - `emptyLabel: string`
-3. `OverlayHubEvent` payload contract from `src/frontend/src/composables/useOverlayHub.ts`:
+   - `kind` (`builtin` / `custom`)
+   - `relativeUrl` (served static HTML entrypoint)
+2. Static HTML renderer contract under `src/frontend/public/overlay/`:
+   - `chat.html` bootstraps the overlay shell
+   - `js/chat-overlay.js` binds payloads from `/hubs/overlay/chat`
+   - `css/*.css` provides per-preset styling selected by `?preset=<id>`
+3. `OverlayChatPayload` / `OverlayHubEvent` payload contract:
    - `eventId`, `sentAt`, `displayName`, `eventType`, `segments[]`, `replayed`
    - All values are text or enum-like keys. No HTML, no raw payload.
 4. Settings selector: `overlay.chat.preset` (canonical, lower-case) read via `GET /api/config/overlay.chat.preset` and written via `PUT /api/config/overlay.chat.preset`.
@@ -30,12 +31,12 @@ The chat overlay preset contract is defined by:
 
 | OneComme capability | Vulperonex Phase 7B result | Strategy |
 | --- | --- | --- |
-| Single-page chat overlay served from a known URL | Supported | `/overlay/chat` returns the active preset; URL query `?preset=<id>` overrides settings. |
+| Single-page chat overlay served from a known URL | Supported | Canonical OBS URL is `/overlay/chat.html`; compatibility alias `/overlay/chat` redirects there. Query `?preset=<id>` overrides settings. |
 | Multiple selectable templates per overlay | Supported | Preset list + settings key + dropdown. |
-| Per-template HTML/CSS | Mapped through Vue components | Each preset is a sandboxed Vue component bundled with the core or extension; styles are scoped. |
-| Per-template JS hooks executed on render | Supported only through code-reviewed components | We do not execute arbitrary template scripts. Extensions must ship Vue SFCs that pass the same security review as built-in presets. |
-| Template `package.json` metadata | Mapped | Extensions can ship metadata that resolves into `ChatOverlayPreset` entries; importer scans a presets directory and registers entries that match the contract. |
-| Template assets (images, fonts) | Mapped | Extension static assets must be co-located with the SFC and referenced through component imports, not raw `<img src>` to filesystem paths. |
+| Per-template HTML/CSS | Supported | Each preset resolves to a static HTML/CSS/JS bundle under the overlay sandbox. |
+| Per-template JS hooks executed on render | Supported only through reviewed overlay bundles | We do not execute arbitrary SPA plugin code; renderer logic lives in static overlay assets or validated custom preset bundles. |
+| Template `package.json` metadata | Mapped | Extensions/importers can map package metadata into `OverlayPresetDescriptor` entries and generated static bundles. |
+| Template assets (images, fonts) | Mapped | Static assets ship beside the HTML bundle and are referenced relatively from the overlay root. |
 | Subscription / follower / cheer rendering | Out of scope for Phase 7B | Other overlays (alerts, member) keep their own preset slice for future phases. |
 | Real-time chat / IRC bridges | Two ingestion paths | **Primary:** the native Twitch adapter feeds `IStreamEventBus` directly via EventSub WebSocket (requires Vulperonex OAuth). **Fallback (planned):** when the operator has not authorized Vulperonex, OneComme can perform platform ingestion + auth itself and relay comments into the bus through a OneComme bridge source. See [Dual Ingestion Strategy](#dual-ingestion-strategy). |
 | Per-template hot reload via filesystem watcher | Deferred | The first extension path is build-time registration; filesystem hot reload is tracked under a future polish phase. |
@@ -68,29 +69,20 @@ The migration-oriented path for a OneComme user is:
 
 1. Inspect the existing OneComme template's HTML structure and CSS, and identify the display fields it relies on (`displayName`, message text, badges).
 2. Translate that template into a Vue SFC that consumes `events: OverlayHubEvent[]`. The DTO whitelist guarantees the same data is available.
-3. Package the SFC plus optional CSS into an extension under `src/frontend/src/views/overlay/presets/<extension>/` (built-in path) or, for out-of-tree extensions, under an `extensions/<name>/chat-presets/` directory whose contents are statically imported into `chatPresets.ts` at build time.
-4. Register the preset entry in `chatPresets.ts`:
-   ```ts
-   {
-     id: "onecomme-style-board",
-     label: "OneComme style board",
-     description: "OneComme-inspired chat board ported to Vulperonex.",
-     component: ImportedOneCommePreset
-   }
-   ```
-5. Flip the active preset by setting `overlay.chat.preset` via the existing config endpoint or by appending `?preset=onecomme-style-board` to the overlay URL.
+3. Package the converted HTML/CSS/JS as a static overlay bundle rooted at `index.html`.
+4. Import the bundle through the custom preset pipeline (`POST /api/overlay/custom-presets`) or ship it as a built-in asset under `src/frontend/public/overlay/`.
+5. Register or select the preset through `overlay.chat.preset`, then open `/overlay/chat.html?preset=<id>`.
 
 ## Manual Verification Steps
 
-1. With Vulperonex running, navigate to `/overlay/chat`. Confirm the default preset (`vulperonex-default`) renders.
-2. Switch the dropdown to `compact-line`. Confirm the layout swaps without reloading the page.
-3. Reload the page with `?preset=compact-line`. Confirm the query parameter wins regardless of the stored setting.
-4. Issue `PUT /api/config/overlay.chat.preset` with `{ "value": "compact-line" }` and reload `/overlay/chat` without the query string. Confirm the setting persists.
-5. (Migration smoke) Drop a third preset SFC under `src/frontend/src/views/overlay/presets/` that reads only `events` and `emptyLabel`, register it in `chatPresets.ts`, rebuild the frontend, and confirm it appears in the dropdown alongside the two built-ins.
+1. With Vulperonex running, navigate to `/overlay/chat.html`. Confirm the default preset (`vulperonex-default`) renders.
+2. Reload the page with `?preset=compact-line`. Confirm the compact preset loads from the same static entrypoint.
+3. Issue `PUT /api/config/overlay.chat.preset` with `{ "value": "compact-line" }` and reload `/overlay/chat.html` without the query string. Confirm the setting persists.
+4. Upload a custom preset bundle, set `overlay.chat.preset=custom:<slug>`, and confirm `/overlay/chat` redirects to the generated custom HTML.
 
 ## Security Boundaries
 
-- Presets are Vue components shipped with the application bundle. They are subject to the same review as any other UI code.
-- Presets must use template interpolation for text. `v-html` is forbidden.
+- Built-in chat/member presets are static overlay assets shipped with the application. They are subject to the same review as any other frontend asset.
+- Presets must render text from the DTO contract only. Raw HTML from event payloads is forbidden.
 - Preset metadata cannot expand the DTO whitelist; new fields require a backend change reviewed for DTO leakage.
 - Settings keys are routed through `ConfigEndpoints`. `security.*` and `oauth.*` namespaces remain blocked.

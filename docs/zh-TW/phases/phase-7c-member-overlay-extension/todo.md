@@ -2,7 +2,7 @@
 
 ## Task 44 - Member Card Overlay
 
-- [x] `MemberOverlayView.vue` default preset works as the member overlay surface
+- [x] static `member-card.html` default preset works as the member overlay surface
 - [x] Member hub event queue drives the card animation flow
 - [x] Deterministic stamp randomizer extracted into `utils/deterministicRandom.ts`
 - [x] CSS base/theme split for member card assets
@@ -70,7 +70,7 @@
 - [x] `dotnet test tests/Vulperonex.Tests.Unit/Vulperonex.Tests.Unit.csproj --no-restore --filter "FullyQualifiedName~OverlayDtoWhitelistTests|FullyQualifiedName~SystemSettingKeyTests"`
 - [x] `dotnet test tests/Vulperonex.Tests.Integration/Vulperonex.Tests.Integration.csproj --no-restore --filter "FullyQualifiedName~Phase7cOverlayPresetTests|FullyQualifiedName~SignalRHubTests"`
 - [x] `corepack pnpm vue-tsc --noEmit`
-- [x] targeted vitest: `ChatOverlayView.test.ts`, `overlayAssetUrl.test.ts`
+- [x] targeted verification: `MonitorOverlayPanel.test.ts`, `overlayAssetUrl.test.ts`
 - [x] `vite build`
 - [ ] full `dotnet build Vulperonex.sln`
 - [ ] full `dotnet test Vulperonex.sln --no-build`

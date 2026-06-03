@@ -27,7 +27,7 @@ Phase 7C addresses (1), (2), (3) + the contract part of (4). The actual implemen
 
 ### In-Scope
 
-- Member card overlay Vue default preset (Rotan-checkin style rewrite, without reusing original copyrighted assets)
+- Member card overlay static default preset (Rotan-checkin style rewrite, without reusing original copyrighted assets)
 - Member card admin controller: check-in count display, card background URL, stamp URL settings
 - Member card theme token mechanism (base CSS + theme override completed in prerequisite work)
 - Custom HTML overlay upload mechanism: multipart endpoint + zip extraction + path traversal prevention
@@ -52,10 +52,10 @@ Phase 7C addresses (1), (2), (3) + the contract part of (4). The actual implemen
 
 ## Task 44 - Member Card Overlay Default Preset (Rotan-Checkin)
 
-**Description:** Upgrade the default visual of `/overlay/member` from a skeleton to a first-class stamp card preset, visually inspired by Rotan checkin overlay but completely rewritten (no original files reused). 10-stamp grid, gold/purple embossed borders, inline paw-print SVG, avatar + name + VIP badge.
+**Description:** Upgrade the default visual of `/overlay/member-card.html` (with `/overlay/member` as a compatibility alias) from a skeleton to a first-class stamp card preset, visually inspired by Rotan checkin overlay but completely rewritten (no original files reused). 10-stamp grid, gold/purple embossed borders, inline paw-print SVG, avatar + name + VIP badge.
 
 **Acceptance Criteria:**
-- [x] `MemberOverlayView.vue` renders the complete stamp card, including entrance animations and full-stamp gold flash effects.
+- [x] Static `member-card.html` runtime renders the complete stamp card, including entrance animations and full-stamp gold flash effects.
 - [x] The card is triggered when a `member` event is received via SignalR, automatically collapsing after 7s.
 - [x] The number of stamps is determined by `checkInCount % stampsPerRound` for the current round, automatically rolling over to the next round.
 - [x] CSS base + theme token architecture: `member-card.css` for structure, `member-card-twitch.css` for pure :root overrides.
@@ -63,7 +63,7 @@ Phase 7C addresses (1), (2), (3) + the contract part of (4). The actual implemen
 - [x] Stamp positions, rotations, and scales are deterministically generated using a hash seeded by (member, round, slot).
 
 **Implementation Hints:**
-- Vue presets and standalone HTML share the same CSS.
+- Built-in static overlay assets share the same CSS and payload contract.
 - Do not reference any original files from menber_byRotan (to avoid copyright issues).
 - Red-gold theme is default, purple-gold theme serves as the token override example.
 
@@ -137,8 +137,8 @@ Phase 7C addresses (1), (2), (3) + the contract part of (4). The actual implemen
 - [ ] `MemberSnapshotDto` fields exactly match the member hub whitelist (excluding `memberId`/`totalLoyalty`/`linkedPlatforms`).
 - [ ] Reflection tests assert that chat hub payload contains exactly and only the expected fields.
 - [ ] `OverlayModule` queries the member cache and appends the snapshot in the chat event processing path.
-- [ ] ChatPresetDefault (KapChat) does not render the chip (minimalist style).
-- [ ] New built-in preset `ChatPresetMemberCardEmbed` (or adding flags to existing presets) renders the inline chip: avatar + check-in count.
+- [ ] The default static chat preset does not render the chip (minimalist style).
+- [ ] The built-in `member-card-inline` preset path renders the inline chip: avatar + check-in count.
 - [ ] Standalone HTML chat.html also supports this (sharing the contract via `OverlayCommon`).
 - [ ] Vitest covers chip rendering + hiding when show_member_card=false.
 
@@ -193,7 +193,7 @@ Phase 7C addresses (1), (2), (3) + the contract part of (4). The actual implemen
 | Adding `memberSnapshot` to chat hub DTO breaks existing Phase 6 reflection whitelist | Medium | Extend reflection tests to cover new fields, enforce whitelist in CI gate |
 | Member snapshot DB queries for every chat message hit hot path performance | Medium | Extend existing `PlatformUserDisplayCache` cache mechanism to cover snapshots |
 | OneComme contract gets locked too early, proving unusable during plugin implementation | Medium | Contract only defines stream + result + warning list, actual mapping is decided by the plugin |
-| Maintaining both custom HTML preset and Vue preset paths incurs high sync cost | Medium | SignalR DTO serves as the single source of truth; preset rendering only reads whitelisted fields |
+| Maintaining multiple preset bundles incurs high sync cost | Medium | SignalR DTO serves as the single source of truth; preset rendering only reads whitelisted fields |
 
 ---
 
@@ -212,7 +212,7 @@ Phase 7C addresses (1), (2), (3) + the contract part of (4). The actual implemen
 
 | SPEC Element | Landed Task |
 | --- | --- |
-| Dual-track rendering pipeline (Vue + static HTML) | Task 44 + Task 46 |
+| Static HTML rendering pipeline + custom preset hosting | Task 44 + Task 46 |
 | Preset selection precedence | Task 47 |
 | HTML upload mechanism | Task 46 |
 | Static HTML SignalR data contract | Task 44 (existing in overlay-common.js) + Task 48 |

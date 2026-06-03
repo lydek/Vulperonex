@@ -920,9 +920,9 @@ Only alias values are accepted; raw EventTypeKey strings are rejected to maintai
 
 **Browser Source URLs:**
 ```
-http://localhost:5001/overlay/chat      — Scrolling Chat
+http://localhost:5001/overlay/chat.html — Scrolling Chat
 http://localhost:5001/overlay/alerts    — Follow / Subscription / Raid Alerts
-http://localhost:5001/overlay/member    — Member Card Display
+http://localhost:5001/overlay/member-card.html — Member Card Display
 ```
 
 Each URL is an independent Vue route that connects to its SignalR group upon mounting. No authentication is required (OBS must connect directly).
@@ -955,6 +955,8 @@ Each URL is an independent Vue route that connects to its SignalR group upon mou
    - For `alerts` → load corresponding Vue preset component (or redirect to `/overlay/alerts`).
 4. Default fallback → static `vulperonex-default` preset via `/overlay/chat.html` (chat), static `rotan-checkin` preset via `/overlay/member-card.html` (member), Vulperonex default alert Vue page (alerts).
 
+`/overlay/chat` and `/overlay/member` remain as compatibility aliases only. They redirect to the canonical static HTML entrypoints and must not contain separate renderer implementations.
+
 **Custom HTML Upload (Phase 7C — Post-this-PR):**
 
 - The admin UI provides an HTML/CSS/JS bundle upload interface on the "Overlay Settings" page.
@@ -986,8 +988,9 @@ Control flag: `overlay.chat.show_member_card` (bool, default `false`, toggled in
 
 | Preset | Hub | Visual Characteristics | Source Inspiration |
 |---|---|---|---|
-| `kapchat` (Default) | chat | Transparent borderless, single-line compact, `text-shadow` outline ensuring game screen readability. Badges → Name → Colon → Content | nightdev.com/kapchat |
-| `compact` | chat | Two-line condensed, latest 10 messages | Vulperonex Custom |
+| `vulperonex-default` (Default) | chat | Static HTML scrolling chat with OBS-first layout, badge/name/content line, optional member chip, and dedicated check-in card rendering | Vulperonex |
+| `compact-line` | chat | Dense static HTML chat layout for more lines on screen | Vulperonex |
+| `member-card-inline` | chat | Static HTML chat layout that emphasizes inline member-card chips | Vulperonex |
 | `rotan-checkin` (Default) | member | Purple-gold foil streaming border + SVG paw stamp + halftone grid background; left: avatar/name, right: 10-grid collection stamp board | menber_byRotan (rewritten, no direct reference to original assets) |
 
 **Member Stamp Board Controller (Admin Settings):**
@@ -1022,7 +1025,7 @@ The overlay page reads `DisplayHints` directly from the event payload to retriev
 
 #### 4.14.2 CheckIn → Member Overlay Binding (Phase 7D)
 
-**Background:** Phase 7C established the `MemberOverlayView` + member-card preset + `OverlayMemberHub`, but `TriggerCheckInActionExecutor` only wrote to SQLite `MemberStreamState` and never published events to `OverlayEventForwarder`, leaving `/overlay/member` with no push updates in practice. Phase 7C cross-hub chat embeds (`memberSnapshot`) also only queried the DB on chat event paths, lacking linkage with check-in actions.
+**Background:** Phase 7C established the member-card preset + `OverlayMemberHub`, but `TriggerCheckInActionExecutor` only wrote to SQLite `MemberStreamState` and never published events to `OverlayEventForwarder`, leaving `/overlay/member-card.html` / `/overlay/member` with no push updates in practice. Phase 7C cross-hub chat embeds (`memberSnapshot`) also only queried the DB on chat event paths, lacking linkage with check-in actions.
 
 **Phase 7D Design:**
 
@@ -1201,7 +1204,7 @@ appsettings.json:
 ```
 ApiPort     5000 → Loopback only (127.0.0.1 and ::1), no authentication required
 OverlayPort 5001 → Loopback only (127.0.0.1 and ::1), no authentication required
-OBS Browser Source: http://localhost:5001/overlay/chat  (Clean URL, no token)
+OBS Browser Source: http://localhost:5001/overlay/chat.html  (Canonical static URL, no token)
 ```
 
 Kestrel binds both ports to `IPAddress.Loopback` (IPv4) + `IPAddress.IPv6Loopback` (IPv6). The security boundary is the bind address itself; no ApiKeyMiddleware or X-Vulperonex-Key headers are required.
@@ -1218,9 +1221,9 @@ Kestrel binds both ports to `IPAddress.Loopback` (IPv4) + `IPAddress.IPv6Loopbac
 
 **OBS Browser Source URLs:**
 ```
-http://localhost:5001/overlay/chat
+http://localhost:5001/overlay/chat.html
 http://localhost:5001/overlay/alerts
-http://localhost:5001/overlay/member
+http://localhost:5001/overlay/member-card.html
 ```
 
 **DB Path Resolution Rules (Shared by CLI and Web Host):** DB path resolution: `appsettings.json → Database:Path` (if present), falling back to OS app-data default path (see §4.11). **`Database:Path` does not allow overrides via `appsettings.{Environment}.json` or environment variables** — both Web Host and CLI only read the primary `appsettings.json` to guarantee they access the same database. If custom paths are needed in development, modify `appsettings.json` directly (avoiding Development overrides).
@@ -1283,7 +1286,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 **Route Retention:**
 - Standalone `/simulate` page is not deleted (used for CLI E2E and automated testing).
-- Standing `/overlay/chat`, `/overlay/member`, and `/overlay/alerts` routes are not deleted (OBS browser sources point directly to these URLs).
+- Standing `/overlay/chat` and `/overlay/member` routes are retained as redirect aliases to the static HTML pages; `/overlay/alerts` remains the live Vue route.
 - `/monitor` becomes the **new default landing** (replacing `/` default); the existing admin entry remains in the sidebar.
 
 **Real-Time Reaction to Events:** When SignalR is connected, simulated actions trigger immediate, real-time updates in both the preview iframe (notified reversely via the hub) and the chat stream, removing the need for manual reloads.
@@ -1531,7 +1534,7 @@ References: `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChanne
 **Scope split:**
 
 - Admin app scope: `/monitor`, `/settings`, `/simulate`, `/events`, `/members`, `/overlay-presets`, `/rules`, `/timers`, `/chat-outbox`, `/twitch`, shared components under `src/frontend/src/components/admin`, and admin preview chrome.
-- Preset scope: `/overlay/chat`, `/overlay/alerts`, `/overlay/member`, Vue preset components under `src/frontend/src/views/overlay`, and static assets under `src/frontend/public/overlay/**`. Preset scope may use its own brand or OBS-specific tokens and does not have to follow the app theme unless an explicit preset setting is added later.
+- Preset scope: static assets under `src/frontend/public/overlay/**` for chat/member, plus `/overlay/alerts` and its Vue components under `src/frontend/src/views/overlay` for alerts. Preset scope may use its own brand or OBS-specific tokens and does not have to follow the app theme unless an explicit preset setting is added later.
 
 **Acceptance criteria:**
 
@@ -1900,7 +1903,7 @@ The Vue UI maps error codes to localized strings via vue-i18n. The backend has n
 Resolved in §4.17 (G15). Summary:
 - Both ports (5000 API + 5001 Overlay) strictly run loopback-only (IPv4 127.0.0.1 + IPv6 ::1), forbidding remote access.
 - No authentication — Kestrel bind addresses inherently act as the security boundary.
-- Overlays run on a dedicated port 5001. OBS uses `http://localhost:5001/overlay/*` — clean URLs, zero tokens.
+- Overlays run on a dedicated port 5001. OBS should use `http://localhost:5001/overlay/chat.html` and `http://localhost:5001/overlay/member-card.html` for chat/member; `/overlay/chat` and `/overlay/member` remain compatibility redirects only.
 
 ---
 
