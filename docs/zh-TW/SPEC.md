@@ -1,7 +1,8 @@
 # 規格書：Vulperonex — 多平台直播自動化平台
 
-> **狀態：** 已批准 v0.3 (MVP 範圍 — 多輪審查完成，準備進行第一階段實作)
-> **最後更新：** 2026-05-13
+> **狀態：** 已批准 v0.4（MVP 已交付；後續功能依各 Phase 文件追蹤）。v0.4 收斂 2026-06-01 spec-vs-impl 審查報告所揭露的英文版 → 程式碼漂移（詳見 `docs/spec-vs-impl-2026-06-01.md`）。
+> **最後更新：** 2026-06-01
+> ⚠️ **翻譯落後英文版：** 本檔頭、§4.25、§6.1 已同步至 v0.4；§2 / §4.4 / §4.6 / §4.7 / §4.13.1 / §4.22 的 v0.4 細節更新請以英文版 `docs/SPEC.md` 為準，zh-TW 全面同步排在後續維護任務。
 > **儲存庫：** 全新綠地專案儲存庫。本規格書描述了**目標架構**。無現有程式碼需遷移。
 > **前身參考：** Omni-Commander (獨立繼任者 — 借鑑領域邏輯概念，而非程式碼)
 
@@ -1416,6 +1417,29 @@ MemberAuditLogs:
 - 不整合 BTTV / 7TV / FFZ 徽章與表情。
 - 不做徽章變更 audit log。
 - Cache 無背景定期 refresh（自訂徽章新增後需重啟；後續 phase 可加 24h refresh hosted service）。
+
+---
+
+### 4.25 Twitch 頻道點數獎勵快取 + 獎勵選單 UI (Phase 7G)
+
+> 完整內容請見英文版 `docs/SPEC.md` §4.25。以下為中文摘要。
+
+**動機：** `reward.redeemed` 觸發器的 `RewardName` 篩選原本是純文字輸入，操作者得自己背獎勵名稱，常打錯也無從查起；模擬面板的 `Reward ID` 文字輸入同樣難用。
+
+**設計重點：**
+
+1. **Helix 查詢** — `IHelixClient.GetCustomRewardsAsync(broadcasterId, ct)` 取 `channel_points/custom_rewards`，回傳 `TwitchRewardDescriptor { Id, Title, Cost, IsEnabled, ImageUrl? }`。所需 scope `channel:read:redemptions` 已含於 Phase 7G 後的預設 scope 集。
+2. **`ITwitchRewardCache` 單例**（`Vulperonex.Web.TwitchAuth`）— 純記憶體快取；refresh 流程：UI `/refresh` 端點 + OAuth `/complete` 完成後自動 `QueueRefresh()`。broadcaster 解析鏈與 §4.7 一致（`Twitch:BroadcasterId` → `SystemSettingKey.TwitchChannelName` → `Twitch:ChannelName` → `LookupUserAsync`）。401/403 直接吃掉並以 `ready=false` 表示。
+3. **HTTP 端點**：
+   - `GET /api/twitch/rewards` — 回傳 `{ ready, lastRefreshedAt, rewards }` 快取快照，不打網路。
+   - `POST /api/twitch/rewards/refresh` — 強制重整。未授權狀態回 `200 { ready:false }`，讓 UI 顯示「請先授權」而非錯誤橫幅。
+4. **觸發器篩選 dynamic options source** — `FilterFieldDto.OptionsSource` 新欄位；`RewardName` 宣告 `OptionsSource: "twitch.rewards"`。前端 `TriggerEditor.vue` 改用嚴格 `<select>`，含「任何」選項 + 獎勵清單 + 對於資料庫已存但目前快取沒有的舊選擇加上「（已失效）」尾綴選項。
+5. **模擬面板共用同一快取** — `SimulateControlsPanel.vue` 將原本的 `rewardId` 文字輸入換成同樣的 `<select>`（value=id, label=title）。送出時同時帶 `rewardId` 與 `rewardTitle`；後端 `SimulateRequest` 新增可選 `RewardTitle`，缺則回退到 `rewardId`。此舉修正了一個潛在 bug：先前 `SimulateEndpoints.ToSimulationRequest` 把 `RewardTitle` 直接複製自 `rewardId`，導致 `MatchRewardRedeemed`（以 `RewardTitle` 比對）在模擬路徑上幾乎不可能正確觸發。
+
+**邊界：**
+- 圖示尚未渲染（DTO 帶 `ImageUrl` 但 UI 仍純文字）。
+- 無自動排程 refresh（僅手動 + OAuth 完成）。
+- Refund action 不在範圍內。
 
 ---
 

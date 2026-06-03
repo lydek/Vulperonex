@@ -3,18 +3,18 @@ using Vulperonex.Application.Twitch;
 
 namespace Vulperonex.Application.Workflows.Actions;
 
-public sealed class RefundTwitchRedemptionActionExecutor(
+public sealed class RefundRewardRedemptionActionExecutor(
     IHelixClient helixClient,
     ITemplateResolver templateResolver) : IWorkflowActionExecutor
 {
-    public string ActionType => RefundTwitchRedemptionAction.ActionType;
+    public string ActionType => RefundRewardRedemptionAction.ActionType;
 
     public async Task<ActionExecutionResult> ExecuteAsync(
         WorkflowAction action,
         ActionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        if (action is not RefundTwitchRedemptionAction refundAction)
+        if (action is not RefundRewardRedemptionAction refundAction)
         {
             return ActionExecutionResult.Completed;
         }

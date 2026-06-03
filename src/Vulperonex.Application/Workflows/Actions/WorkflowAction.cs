@@ -15,9 +15,9 @@ namespace Vulperonex.Application.Workflows.Actions;
 [JsonDerivedType(typeof(EmitSystemEventAction), EmitSystemEventAction.ActionType)]
 [JsonDerivedType(typeof(TriggerEffectAction), TriggerEffectAction.ActionType)]
 [JsonDerivedType(typeof(EmitOverlayWidgetAction), EmitOverlayWidgetAction.ActionType)]
-[JsonDerivedType(typeof(LookupTwitchUserAction), LookupTwitchUserAction.ActionType)]
+[JsonDerivedType(typeof(LookupPlatformUserAction), LookupPlatformUserAction.ActionType)]
 [JsonDerivedType(typeof(ShoutoutAction), ShoutoutAction.ActionType)]
-[JsonDerivedType(typeof(RefundTwitchRedemptionAction), RefundTwitchRedemptionAction.ActionType)]
+[JsonDerivedType(typeof(RefundRewardRedemptionAction), RefundRewardRedemptionAction.ActionType)]
 public abstract record WorkflowAction
 {
     [JsonIgnore]

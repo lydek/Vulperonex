@@ -14,7 +14,7 @@ public interface ITwitchRewardCache
 {
     bool IsReady { get; }
     DateTimeOffset? LastRefreshedAt { get; }
-    IReadOnlyList<TwitchRewardDescriptor> List();
+    IReadOnlyList<PlatformRewardDescriptor> List();
     Task RefreshAsync(CancellationToken cancellationToken = default);
     void QueueRefresh();
 }
@@ -26,7 +26,7 @@ public sealed class TwitchRewardCache(
     ILogger<TwitchRewardCache> logger) : ITwitchRewardCache
 {
     private readonly SemaphoreSlim _gate = new(1, 1);
-    private IReadOnlyList<TwitchRewardDescriptor> _rewards = [];
+    private IReadOnlyList<PlatformRewardDescriptor> _rewards = [];
     private DateTimeOffset? _lastRefreshedAt;
     private int _refreshQueuedOrRunning;
 
@@ -34,7 +34,7 @@ public sealed class TwitchRewardCache(
 
     public DateTimeOffset? LastRefreshedAt => _lastRefreshedAt;
 
-    public IReadOnlyList<TwitchRewardDescriptor> List() => _rewards;
+    public IReadOnlyList<PlatformRewardDescriptor> List() => _rewards;
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
     {

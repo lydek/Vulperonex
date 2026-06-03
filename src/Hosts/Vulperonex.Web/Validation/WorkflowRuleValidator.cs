@@ -188,9 +188,9 @@ public sealed class WorkflowRuleValidator(
                 and not EmitSystemEventAction.ActionType
                 and not TriggerEffectAction.ActionType
                 and not EmitOverlayWidgetAction.ActionType
-                and not LookupTwitchUserAction.ActionType
+                and not LookupPlatformUserAction.ActionType
                 and not ShoutoutAction.ActionType
-                and not RefundTwitchRedemptionAction.ActionType)
+                and not RefundRewardRedemptionAction.ActionType)
             {
                 return ErrorCodes.UnknownActionType;
             }
@@ -330,12 +330,12 @@ public sealed class WorkflowRuleValidator(
             }
         }
 
-        if (type == LookupTwitchUserAction.ActionType)
+        if (type == LookupPlatformUserAction.ActionType)
         {
-            var lookupTwitchUserAction = element.Deserialize<LookupTwitchUserAction>(JsonOptions);
-            if (lookupTwitchUserAction is null
-                || (string.IsNullOrWhiteSpace(lookupTwitchUserAction.Login)
-                    && string.IsNullOrWhiteSpace(lookupTwitchUserAction.UserId)))
+            var lookupAction = element.Deserialize<LookupPlatformUserAction>(JsonOptions);
+            if (lookupAction is null
+                || (string.IsNullOrWhiteSpace(lookupAction.Login)
+                    && string.IsNullOrWhiteSpace(lookupAction.UserId)))
             {
                 return ErrorCodes.ActionMissingRequiredParam;
             }
@@ -350,9 +350,9 @@ public sealed class WorkflowRuleValidator(
             }
         }
 
-        if (type == RefundTwitchRedemptionAction.ActionType)
+        if (type == RefundRewardRedemptionAction.ActionType)
         {
-            var refundAction = element.Deserialize<RefundTwitchRedemptionAction>(JsonOptions);
+            var refundAction = element.Deserialize<RefundRewardRedemptionAction>(JsonOptions);
             if (refundAction is null
                 || string.IsNullOrWhiteSpace(refundAction.RewardId)
                 || string.IsNullOrWhiteSpace(refundAction.RedemptionId))

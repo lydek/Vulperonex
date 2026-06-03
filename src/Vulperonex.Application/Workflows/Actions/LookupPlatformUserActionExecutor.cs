@@ -3,18 +3,18 @@ using Vulperonex.Application.Twitch;
 
 namespace Vulperonex.Application.Workflows.Actions;
 
-public sealed class LookupTwitchUserActionExecutor(
+public sealed class LookupPlatformUserActionExecutor(
     IHelixClient helixClient,
     ITemplateResolver templateResolver) : IWorkflowActionExecutor
 {
-    public string ActionType => LookupTwitchUserAction.ActionType;
+    public string ActionType => LookupPlatformUserAction.ActionType;
 
     public async Task<ActionExecutionResult> ExecuteAsync(
         WorkflowAction action,
         ActionExecutionContext context,
         CancellationToken cancellationToken = default)
     {
-        if (action is not LookupTwitchUserAction lookupAction)
+        if (action is not LookupPlatformUserAction lookupAction)
         {
             return ActionExecutionResult.Completed;
         }

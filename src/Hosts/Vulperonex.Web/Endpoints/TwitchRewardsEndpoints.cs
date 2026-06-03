@@ -33,5 +33,5 @@ public static class TwitchRewardsEndpoints
     private sealed record TwitchRewardsResponse(
         bool Ready,
         DateTimeOffset? LastRefreshedAt,
-        IReadOnlyList<TwitchRewardDescriptor> Rewards);
+        IReadOnlyList<PlatformRewardDescriptor> Rewards);
 }

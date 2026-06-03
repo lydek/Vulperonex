@@ -1,7 +1,7 @@
 # Specification: Vulperonex — Multi-Platform Live Stream Automation Platform
 
-> **Status:** Approved v0.3 (MVP Scope — Multi-round review completed, ready for Phase 1 implementation)
-> **Last Updated:** 2026-05-13
+> **Status:** Approved v0.4 (MVP shipped; post-MVP feature backlog tracked per phase). v0.4 closes drift uncovered by the 2026-06-01 spec-vs-impl review (see `docs/spec-vs-impl-2026-06-01.md`).
+> **Last Updated:** 2026-06-01
 > **Repository:** Brand-new greenfield project repository. This specification describes the **target architecture**. No existing code to migrate.
 > **Predecessor Reference:** Omni-Commander (Independent successor — borrowing domain logic concepts, not code)
 
@@ -41,6 +41,7 @@
 | ORM | EF Core 10 (SQLite provider) |
 | Desktop Shell | Photino.NET 3.x |
 | Plugin System | `IVulperonexPlugin` (Custom contract, statically referenced at startup in MVP) |
+| Twitch transport (host-only) | `TwitchLib.Client 4.0.1` (IRC chat) + `TwitchLib.EventSub.Websockets 0.8.0` (EventSub WebSocket + typed event handlers). Referenced **only** from `Vulperonex.Web` (host) — `Vulperonex.Adapters.Twitch` stays free of third-party SDKs so the bus boundary remains testable without TwitchLib types. |
 | Unit Testing | xUnit 3 / NSubstitute / FluentAssertions 7 |
 | Testing Methodology | BDD Scenario Definition + TDD Red/Green/Refactor Implementation |
 
@@ -336,6 +337,8 @@ The overlay reads `DisplayHints` directly from events — zero additional databa
 
 ### 4.4 Domain Events (MVP Collection)
 
+**Workflow-visible events** (operators can build rules against these; `IsKnownForWorkflow = true`):
+
 | Event | EventTypeKey | Trigger Condition |
 |---|---|---|
 | `UserSentMessageEvent` | `user.message` | Chat message |
@@ -346,7 +349,15 @@ The overlay reads `DisplayHints` directly from events — zero additional databa
 | `ChannelRaidedEvent` | `channel.raided` | Raid (currently Twitch-specific concept) |
 | `RewardRedeemedEvent` | `reward.redeemed` | Channel points redemption / equivalent |
 
-All events are **immutable `record` types** implementing `IStreamEvent`. Events **are not persisted** — only written to log files (with a configurable retention period).
+**System events** (excluded from `GetAll()`; `IsKnownForWorkflow = false`; used for internal routing / UI status / cross-module fan-out):
+
+| Event | EventTypeKey | Purpose |
+|---|---|---|
+| `PlatformConnectionChangedEvent` | `platform.connection_changed` | Adapter connect / disconnect (§4.7). Reason ∈ `null` / `"reconnecting"` / `"auth_failed"` / `"irc_disconnected"` / `"eventsub_disconnected"`. |
+| `MemberCheckedInEvent` | `system.member.checked_in` | Emitted by `TriggerCheckInAction` after incrementing check-in count. Drives `/overlay/member` stamp board + member UI live updates. |
+| `WorkflowSystemEvent` | `workflow.timer` (currently the only published key) | Workflow-internal scheduling. Published by `WorkflowTimerHostedService` so timer-driven rules ride the same bus + filter matchers as platform events. Registered by `WorkflowInternalEventTypeBootstrapper`. |
+
+All events are **immutable `record` types** implementing `IStreamEvent`. Events **are not persisted** — only written to log files (with a configurable retention period). System events are excluded from `IStreamEventTypeRegistry.GetAll()` (so they cannot accidentally appear in the rule-builder dropdown) but are still routed through the bus.
 
 ### 4.5 Outgoing (Reply Routing)
 
@@ -400,8 +411,31 @@ WorkflowRule
     └── InvokePluginAction (Invoke Plugin Action)      // Covers: trigger effects, add points, play sound, etc.
         ├── PluginId: string
         ├── ActionId: string
-        └── Params: IReadOnlyDictionary<string, JsonElement>
+        ├── Params: IReadOnlyDictionary<string, JsonElement>   // structured JSON params
+        └── Args: IReadOnlyDictionary<string, string>          // flat string-keyed args; convenience for plugins that don't need JsonElement
 ```
+
+**Full built-in action catalog** (post-Phase-7D reality; the three above are the canonical examples — many domain-specific actions ship as built-ins instead of pure plugin extensions for ergonomics):
+
+| Action | Type discriminator | Layer | Summary |
+|---|---|---|---|
+| `SendChatMessageAction` | `sendChatMessage` | core | Render template + dedup + outbox. |
+| `InvokeSubWorkflowAction` | `invokeSubWorkflow` | core | Fan into another rule with `Args`. |
+| `InvokePluginAction` | `invokePlugin` | core | Plugin-routed catch-all. |
+| `TriggerCheckInAction` | `triggerCheckIn` | core (depends on `CheckInModule`) | Increments check-in + publishes `MemberCheckedInEvent`. Platform field optional (auto-derives from trigger event). |
+| `TriggerEffectAction` | `triggerEffect` | core | Pushes effect to overlay hub. |
+| `UpdateCounterAction` | `updateCounter` | core | Increments / sets a named counter. |
+| `AddLotteryTicketsAction` | `addLotteryTickets` | core (depends on `LotteryModule`) | Adds tickets to a member's lottery pool. |
+| `RandomPickerAction` | `randomPicker` | core | Weighted random pick → output variable. |
+| `EmitOverlayWidgetAction` | `emitOverlayWidget` | core | Pushes ad-hoc widget payload to `/hubs/overlay/widgets`. |
+| `EmitSystemEventAction` | `emitSystemEvent` | core | Republishes a `WorkflowSystemEvent` for cross-rule fan-out. |
+| `DelayAction` | `delay` | core | Pauses the step graph for N ms. |
+| `StopIfAction` | `stopIf` | core | Conditional short-circuit on an NCalc expression. |
+| `LookupPlatformUserAction` | `lookupTwitchUser` | core (uses `IHelixClient`) | Resolves a username via the platform API. Discriminator preserved for back-compat. |
+| `RefundRewardRedemptionAction` | `refundTwitchRedemption` | core (uses `IHelixClient`) | Cancels a channel-point redemption. Discriminator preserved for back-compat. |
+| `ShoutoutAction` | `shoutout` | core (uses `IHelixClient`) | Issues a platform shoutout. |
+
+All actions in this catalog live in `Vulperonex.Application.Workflows.Actions` and are now SPEC §6.1-compliant after the Phase 7G rename (see §6.1 for the resolution log). NetArchTest gates in `tests/Vulperonex.Tests.Architecture/` enforce the rule going forward — adding a new `Twitch*`-prefixed type to Application or Domain will fail CI.
 
 **Priority Resolution:** By `Priority ASC`, then `CreatedAt ASC`, and finally `Id ASC` (ULID lexicographical order, ensuring no DB unstable sorting issues).
 
@@ -418,20 +452,49 @@ WorkflowRule
 
 ## 4.7 Platform Adapter Resilience (G5)
 
-**Reconnection Strategy (Handled entirely within the adapter — Application/Domain layers are unaware):**
+**Twitch live ingestion topology (post-Phase-7G):**
+
+```
+TwitchConnectionOrchestrator (BackgroundService, in Vulperonex.Web)
+  ├─ Resolves broadcaster:
+  │   • SystemSettingKey.TwitchChannelName   (preferred)
+  │   • Twitch:ChannelName        config     (fallback)
+  │   • Twitch:BroadcasterId      config     (legacy override)
+  │   → IHelixClient.LookupUserAsync(channelName)  resolves the numeric id
+  │
+  ├─ TwitchIrcChatSource (wraps TwitchLib.Client.TwitchClient)
+  │   • Chat → builds Vulperonex's TwitchIrcMessage shape
+  │   • OnConnected / OnDisconnected → PlatformConnectionChangedEvent
+  │
+  └─ TwitchEventSubSource (wraps TwitchLib.EventSub.Websockets.EventSubWebsocketClient)
+      • Subscriptions created on WebsocketConnected via IHelixClient.CreateEventSubSubscriptionAsync(sessionId)
+      • Session-id deduplication for subscription re-creation
+      • Typed handlers map to existing TwitchMockPayload shapes via TwitchAlertPayloadFactory
+      • WebsocketConnected / WebsocketDisconnected → PlatformConnectionChangedEvent
+
+TwitchAdapter (Vulperonex.Adapters.Twitch, third-party-SDK free) exposes:
+  • IngestChatAsync(TwitchIrcMessage, displayCacheOverride?)   ← IRC source
+  • IngestAlertAsync(TwitchMockPayload, displayCacheOverride?) ← EventSub source
+```
+
+**Reconnection Strategy (Handled entirely within the host orchestrator / TwitchLib clients — Application/Domain layers are unaware):**
 
 ```
 IRC WebSocket Disconnection:
-  → Immediately publish PlatformConnectionChangedEvent { IsConnected: false, Reason: "reconnecting" }
-  → Exponential backoff: 1s → 2s → 4s → 8s → ... max 60s
+  → Immediately publish PlatformConnectionChangedEvent { IsConnected: false, Reason: "irc_disconnected" }
+  → TwitchLib.Client auto-reconnect with exponential backoff: 1s → 2s → 4s → 8s → ... max 60s
   → Messages during downtime: Silently lost (IRC is best-effort service)
   → On successful reconnection: publish PlatformConnectionChangedEvent { IsConnected: true }
+  → On token rejection observed during connect/auth: publish { IsConnected: false, Reason: "auth_failed" }
 
 EventSub WebSocket Disconnection:
-  → Immediately publish PlatformConnectionChangedEvent { IsConnected: false, Reason: "reconnecting" }
-  → Same backoff strategy with ±20% jitter applied
+  → Immediately publish PlatformConnectionChangedEvent { IsConnected: false, Reason: "eventsub_disconnected" }
+  → TwitchLib.EventSub.Websockets manages keepalive + seamless-reconnect URL handoff (session continues across the reconnect)
+  → Vulperonex orchestrator handles cold-restart backoff via ReconnectBackoffPolicy.GetDelay(attempt): exponential with ±20% jitter, capped at 60s
   → Twitch guarantees event replay within a 10-minute reconnection window
-  → Adapter receives replayed events and publishes them normally; skips duplicate deliveries in dedup cache matching the same (platform, sourceEventId); dedup cache capped at 1000 entries or 10-minute TTL
+  → Adapter receives replayed events and publishes them normally; skips duplicate deliveries in EventSubDedupCache matching the same (platform, sourceEventId); dedup cache capped at 1000 entries or 10-minute TTL
+  → Subscription Helix POST returning HTTP 409 (already exists) is treated as success
+  → On Helix 401/403 during subscription creation: publish { IsConnected: false, Reason: "auth_failed" }
   → Exceeding 10 minutes: Events permanently lost — no custom replay mechanism constructed
 ```
 
@@ -787,23 +850,59 @@ All UI and CLI access the Web host exclusively via REST; neither client has dire
 | WorkflowRule | GET | `/api/rules` | `IWorkflowRuleQueryService` — **MVP has no pagination**, returns all rules; sorting: `Priority ASC, CreatedAt ASC, Id ASC` |
 | WorkflowRule | GET | `/api/rules/{id}` | `IWorkflowRuleQueryService` |
 | WorkflowRule | POST | `/api/rules` | `IWorkflowRuleRepository` — **201 Created** + `Location: /api/rules/{newId}` header; body contains the newly created rule |
-| WorkflowRule | PUT | `/api/rules/{id}` | `IWorkflowRuleRepository` — 200 OK; mismatch between body ID and route ID → **400 `INVALID_RULE_ID_MISMATCH`** (does not silently ignore body ID to prevent accidental overwrites of wrong rules) |
-| WorkflowRule | DELETE | `/api/rules/{id}` | `IWorkflowRuleRepository` — **204 No Content** (no body) |
-| WorkflowRule | POST | `/api/rules/{id}/enable` | `IWorkflowRuleRepository` — 200 OK; updates `IsEnabled=true` + `UpdatedAt` |
-| WorkflowRule | POST | `/api/rules/{id}/disable` | `IWorkflowRuleRepository` — 200 OK; updates `IsEnabled=false` + `UpdatedAt` |
-| Event Types | GET | `/api/event-types` | `IStreamEventTypeRegistry` |
-| Simulation | POST | `/api/simulate/{eventType}` | `ISimulationAdapter` — `{eventType}` limited to short aliases: `chat` / `follow` / `sub` |
-| Config | GET | `/api/config/{key}` | `ISystemSettingsService` |
-| Config | PUT | `/api/config/{key}` | `ISystemSettingsService` |
+| WorkflowRule | PUT | `/api/rules/{id}` | `IWorkflowRuleRepository` — 200 OK; mismatch between body ID and route ID → **400 `INVALID_RULE_ID_MISMATCH`** |
+| WorkflowRule | DELETE | `/api/rules/{id}` | `IWorkflowRuleRepository` — **204 No Content** |
+| WorkflowRule | POST | `/api/rules/{id}/enable` | `IWorkflowRuleRepository` — 200 OK |
+| WorkflowRule | POST | `/api/rules/{id}/disable` | `IWorkflowRuleRepository` — 200 OK |
+| Workflow Timers | GET / POST / PUT / DELETE | `/api/timers[/{id}]` | `IWorkflowTimerRepository` — schedule of `WorkflowSystemEvent` (`workflow.timer`) emissions |
+| Event Types | GET | `/api/event-types` | `IStreamEventTypeRegistry.GetAll()` projected to `EventTypeDescriptor` (excludes system events) |
+| Metadata | GET | `/api/metadata/triggers` | `ITriggerMetadataProvider` — typed trigger filter fields per `EventTypeKey` |
+| Metadata | GET | `/api/metadata/actions` | `IActionMetadataProvider` — `ActionParameterMetadata[]` per action type (drives §4.22 form) |
+| Simulation | POST | `/api/simulate/{alias}` | `ISimulationAdapter` — alias set: `chat`, `follow`, `sub`, `giftsub`, `raid`, `bits`, `redeem` |
+| Simulation | POST | `/api/simulate/checkin` | `IMemberStreamStateRepository` + bus — direct check-in (§4.21) |
+| Config | GET / PUT | `/api/config/{key}` | `ISystemSettingsService` |
 | Member | GET | `/api/members` | `IMemberQueryService` |
 | Member | GET | `/api/members/{id}` | `IMemberQueryService` |
+| Member | GET | `/api/members/{id}/audit` | `IMemberAuditLogRepository` (§4.19) |
+| Member | PATCH | `/api/members/{id}/loyalty` | `IMemberAdminService` — requires `If-Match` etag + body `reason` |
+| Member | POST | `/api/members/{id}/reset` | `IMemberAdminService` |
+| Member | POST | `/api/members/{id}/delete-token` | Issues a 30s confirmation token |
+| Member | DELETE | `/api/members/{id}` | Two-stage delete; body must carry the token + reason |
+| Twitch OAuth | GET | `/api/twitch/auth/status` | ClientId / ClientSecret / RefreshToken presence flags |
+| Twitch OAuth | POST | `/api/twitch/auth/start` | PKCE flow — returns authorize URL |
+| Twitch OAuth | POST | `/api/twitch/auth/complete` | PKCE flow — exchanges code |
+| Twitch OAuth | POST | `/api/twitch/auth/device/start` | **Device flow** — returns `user_code` + verification URI (for users without a callback-capable browser) |
+| Twitch OAuth | POST | `/api/twitch/auth/device/complete` | Device flow — polls token endpoint |
+| Twitch OAuth | DELETE | `/api/twitch/auth/token` | Clears the stored refresh token |
+| Twitch OAuth | GET | `/api/auth/twitch/callback` | OAuth callback landing (PKCE redirect target) |
+| Twitch | GET | `/api/twitch/badges` | `IPlatformBadgeCache` — global + channel badges (§4.23) |
+| Twitch | GET | `/api/twitch/rewards` | `ITwitchRewardCache` — broadcaster's channel-point rewards (§4.25) |
+| Twitch | POST | `/api/twitch/rewards/refresh` | Force-refresh reward cache; treats unauth as `200 { ready:false }` |
+| Chat Outbox | GET | `/api/chat-outbox` | `IChatOutbox` — rendered SendChatMessage history (§4.5) |
+| Plugins/Modules | GET | `/api/plugins-modules` | `IModuleStateService` — module + plugin enabled state + dependencies (§4.20) |
+| Plugins/Modules | POST | `/api/plugins-modules/{name}/toggle` | Topological toggle with cascade |
+| Overlay Presets | GET | `/api/overlay/presets` | `OverlayPresetStore` — list of built-in preset metadata |
+| Custom Overlay Presets | GET / POST | `/api/overlay/custom-presets` | List existing custom slugs / create a new slug (`OverlayPresetEndpoints.cs`) |
+| Custom Overlay Presets | DELETE | `/api/overlay/custom-presets/{slug}` | Remove a custom preset bundle |
+| Custom Overlay Presets | GET / PUT / DELETE | `/api/overlay/custom-presets/{slug}/files[/{*path}]` | Browse / upload / delete individual files inside the bundle |
+| Custom Overlay Presets | POST | `/api/overlay/custom-presets/{slug}/deploy` | Snapshot the working draft as a versioned deployment |
+| Custom Overlay Presets | POST | `/api/overlay/custom-presets/{slug}/validate` | Static validation pass before deploy |
+| Custom Overlay Presets | GET | `/api/overlay/custom-presets/{slug}/history` | Deployment history (version stamps) |
+| Custom Overlay Presets | POST | `/api/overlay/custom-presets/{slug}/rollback/{versionStamp}` | Roll back to a previous deployment |
+| Overlay History | DELETE | `/api/overlay/{chat\|alerts\|member}/messages` | Clears the in-memory replay buffer for that hub. **Replay for late-joining OBS sources is delivered via SignalR connection setup, not REST.** |
+| Overlay LAN | GET | `/api/overlay/lan-info` | LAN-reachable URL for OBS on a separate box |
+| Health | GET | `/health` | Liveness |
 
-**Simulation Alias → EventTypeKey Mapping** (Enforced by endpoint, not caller; uses canonical keys from §4.4):
+**Simulation Alias → EventTypeKey Mapping** (Enforced by `SimulationAliasRegistry`; uses canonical keys from §4.4):
 - `chat` → `user.message`
 - `follow` → `user.followed`
 - `sub` → `user.subscribed`
+- `giftsub` → `user.gifted_sub`
+- `raid` → `channel.raided`
+- `bits` → `user.donated`
+- `redeem` → `reward.redeemed`
 
-Only alias values are accepted; raw EventTypeKey strings are rejected to maintain naming clarity across CLI/REST/WorkflowRules.
+Only alias values are accepted; raw EventTypeKey strings are rejected to maintain naming clarity across CLI/REST/WorkflowRules. `POST /api/simulate/checkin` is a separate endpoint (not an alias) because it talks to the member repository directly (§4.21).
 
 **Config Key Registry:** `ISystemSettingsService` operates on typed constants defined in `SystemSettingKey` (rather than arbitrary strings). Any key missing from the registry returns `UNKNOWN_CONFIG_KEY`. New settings require adding constants — free-text keys are not allowed.
 
@@ -1325,6 +1424,14 @@ The existing workflow rule configuration interface required users to write speci
    - Dynamically generates strong-typed input controls for each Action type (e.g., `TriggerCheckIn`, `RefundTwitchRedemption`, `TriggerEffect`, etc.) based on `ActionParameterMetadata` (types including string, number, boolean, select, text) registered by the backend.
    - Integrates a floating variable selector panel. When focusing on input fields or typing `{`, a list of available variables pops up, allowing users to click and insert variable template strings (such as `{user.displayName}`), preventing typos.
 
+3. **`ActionParameterMetadata.Advanced` flag (post-Phase-7D refinement):**
+   - The backend `ActionParamAttribute` exposes an `advanced: bool` flag (default `false`); the API surfaces it as `ActionParameterMetadataDto.Advanced`.
+   - Frontend `WorkflowActionsEditor.vue` partitions a definition's fields into **basic** (rendered inline by default) and **advanced** (wrapped in a `<details>` "Advanced options" disclosure, collapsed by default).
+   - Intent: fields whose default value works in ≥99% of cases — but the executor still honors when set — stay out of the default form. Example: `TriggerCheckInAction.Platform` is marked advanced because the executor auto-derives platform from the trigger event when blank.
+   - The advanced flag is metadata only: it does **not** change save-time validation or the JSON shape sent to the API. JSON-edit power-users still see and edit advanced fields directly.
+
+4. **Filter-aware variable picker:** the `{x}` picker in each field narrows its variable suggestions by the field's `key`. `UserId`-typed keys show only `*.UserId` paths (`Trigger.UserId`, `Args.UserId`, `Member.UserId`). Platform-typed keys show only platform-bearing paths. Channel-typed keys show channel paths. This is a UI-only filter — no backend contract change.
+
 ---
 
 ### 4.23 Twitch Badge Cache & Simulator Badge UI (Phase 7E)
@@ -1437,6 +1544,62 @@ References: `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChanne
 
 ---
 
+### 4.25 Twitch Channel-Point Reward Cache + Reward Picker UI (Phase 7G)
+
+**Background & Motivation:**
+
+Workflow rules with the `reward.redeemed` trigger expose a `RewardName` filter (`MatchRewardRedeemed`) that exact-matches `RewardTitle` on the published `RewardRedeemedEvent`. Pre-Phase-7G the UI rendered the field as a free-text input — operators had to retype the exact reward title themselves, which was error-prone and offered no discovery of available rewards. The simulate panel had the same problem with its `Reward ID` text input.
+
+**Design & Specifications:**
+
+1. **Helix listing on `IHelixClient`:**
+   - `GET helix/channel_points/custom_rewards?broadcaster_id={id}` → `TwitchRewardDescriptor { Id, Title, Cost, IsEnabled, ImageUrl? }`.
+   - Image URL fallback: `image.url_4x → 2x → 1x → default_image.url_4x → 2x → 1x`.
+   - Required scope: `channel:read:redemptions` (already in the post-Phase-7G scope set; re-grant required on upgrade).
+
+2. **`ITwitchRewardCache` singleton (`Vulperonex.Web.TwitchAuth`):**
+   - Surface: `bool IsReady`, `DateTimeOffset? LastRefreshedAt`, `IReadOnlyList<TwitchRewardDescriptor> List()`, `Task RefreshAsync(CancellationToken)`, `void QueueRefresh()`.
+   - In-memory only (no persistence); replaced wholesale on each successful refresh.
+   - Broadcaster id resolution chain mirrors §4.7: `Twitch:BroadcasterId` → `SystemSettingKey.TwitchChannelName` (DB) → `Twitch:ChannelName` (config) → `IHelixClient.LookupUserAsync(channelName)`.
+   - Swallow 401/403/`HttpRequestException` → leave snapshot untouched, log warning, surface `ready=false` via the endpoint. UI distinguishes "no rewards" from "not authed".
+
+3. **OAuth integration:**
+   - `TwitchAuthEndpoints.MapPost("/complete")` and `MapPost("/device/complete")` call `rewardCache.QueueRefresh()` after `badgeSync.QueueSync()` so the reward list is warmed before the operator opens the rule editor.
+
+4. **HTTP surface (also listed in §4.13.1):**
+   | Method + Path | Behavior |
+   |---|---|
+   | `GET /api/twitch/rewards` | Returns `{ ready, lastRefreshedAt, rewards: TwitchRewardDescriptor[] }` from the cache snapshot; no network call. |
+   | `POST /api/twitch/rewards/refresh` | `await cache.RefreshAsync(ct)` then returns the same payload. Missing auth → `200 { ready:false }` rather than an error so the UI can show "authorize first" without an alert banner. |
+
+5. **Trigger filter — dynamic options source:**
+   - `FilterFieldDto` gains an optional `OptionsSource: string?` field (free-text identifier, e.g. `"twitch.rewards"`).
+   - The `RewardName` field on the `reward.redeemed` trigger is declared with `OptionsSource: "twitch.rewards"`.
+   - Frontend `TriggerEditor.vue` renders that field as a strict `<select>` driven by the reward cache store, with:
+     - "Any" option at top (clears the filter)
+     - One option per fetched reward (`value=title, label=title`)
+     - A synthetic "{stored} (no longer available)" option prepended when the saved filter value is not in the current snapshot, so rules with stale titles don't lose their selection
+     - A refresh button + status line ("{count} rewards · updated {time}" / "Authorize Twitch to load rewards." / error code)
+
+6. **Simulate panel — same picker:**
+   - `SimulateControlsPanel.vue` replaces the `rewardId` text input with the same `<select>` of fetched rewards (label = title, value = id).
+   - On submit, the request body sends **both** `rewardId` and `rewardTitle` (resolved from the picked reward). The backend `SimulateRequest` adds an optional `RewardTitle` field; `ToSimulationRequest` falls back to `rewardId` if `rewardTitle` is absent (back-compat).
+   - This fixes a latent bug: pre-Phase-7G `SimulateRequest` set both `RewardId` and `RewardTitle` to the operator's `rewardId` text input, so `MatchRewardRedeemed` (which matches by `RewardTitle`) never fired correctly on simulated events unless the operator happened to type the title into the id field.
+
+**Acceptance Criteria:**
+- Pre-OAuth: trigger filter shows "Any" + the "Authorize Twitch to load rewards." hint.
+- Post-OAuth: trigger filter dropdown populates within one round-trip.
+- Adding a new reward on Twitch + clicking ↻ shows it without restart.
+- Saving a rule with a chosen reward then redeeming on Twitch fires the rule (existing `MatchRewardRedeemed` semantics, unchanged).
+- Simulating a redemption with a chosen reward fires rules filtered by `RewardName`.
+
+**Boundaries:**
+- No icon rendering yet (Image URL is in the DTO but UI shows text only).
+- No automatic refresh schedule (manual + OAuth-complete only).
+- Refund action is untouched (still requires `rewardId` + `redemptionId`).
+
+---
+
 ## 5. Commands
 
 ```bash
@@ -1474,6 +1637,14 @@ vulperonex db status
 - **C#:** PascalCase for types and methods, camelCase for local variables, `_camelCase` for private fields. File-scoped namespaces and Primary Constructors where appropriate.
 - **TypeScript:** camelCase for identifiers, PascalCase for components, kebab-case for view filenames.
 - **Key Naming Rules:** The `Domain` and `Application` projects must not contain any `Twitch*` (or other platform-specific) prefixes. Platform vocabularies are strictly restricted to their corresponding `Adapters.<Platform>` projects.
+- **Enforcement:** `tests/Vulperonex.Tests.Architecture/` runs two complementary NetArchTest gates:
+  - `PlatformLeakageTests.Given_DomainAndApplicationAssemblies_When_TypesAreInspected_Then_PlatformSpecificTypeNamesAreAbsent` — rejects any type whose name starts with `Twitch` in the Domain or Application assemblies.
+  - `PlatformPrefixIsolationTests` — extends the same rule to `YouTube`, `Kick`, and `OneComme` prefixes, plus an explicit comment whitelisting the platform-neutral `Vulperonex.Application.Twitch` *namespace* (whose types — `IHelixClient`, `PlatformUserProfile`, `PlatformRewardDescriptor` — are intentionally platform-agnostic by name).
+- **Resolution log (Phase 7G refactor):** The three previously violating action types were renamed platform-neutral while preserving their JSON type discriminator strings so saved rules continue to load:
+  - `LookupTwitchUserAction` → `LookupPlatformUserAction` (discriminator stays `"lookupTwitchUser"`)
+  - `RefundTwitchRedemptionAction` → `RefundRewardRedemptionAction` (discriminator stays `"refundTwitchRedemption"`)
+  - `TwitchRewardDescriptor` → `PlatformRewardDescriptor`
+  - `ShoutoutAction` was already platform-neutral, kept as-is.
 
 ---
 

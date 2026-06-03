@@ -20,8 +20,8 @@ public sealed class TwitchRewardCacheTests
         helix.GetCustomRewardsAsync("broadcaster-1", Arg.Any<CancellationToken>())
             .Returns(new[]
             {
-                new TwitchRewardDescriptor("r-1", "Hydrate", 100, true, null),
-                new TwitchRewardDescriptor("r-2", "Stretch", 200, true, null),
+                new PlatformRewardDescriptor("r-1", "Hydrate", 100, true, null),
+                new PlatformRewardDescriptor("r-2", "Stretch", 200, true, null),
             });
 
         var cache = BuildCache(helix, configuredBroadcasterId: "broadcaster-1");
@@ -43,7 +43,7 @@ public sealed class TwitchRewardCacheTests
         helix.LookupUserAsync("mychannel", null, Arg.Any<CancellationToken>())
             .Returns(new PlatformUserProfile("broadcaster-77", "mychannel", "MyChannel", null, null, false));
         helix.GetCustomRewardsAsync("broadcaster-77", Arg.Any<CancellationToken>())
-            .Returns(new[] { new TwitchRewardDescriptor("r-1", "Hydrate", 100, true, null) });
+            .Returns(new[] { new PlatformRewardDescriptor("r-1", "Hydrate", 100, true, null) });
 
         var settings = Substitute.For<ISystemSettingsService>();
         settings.GetAsync<string?>(SystemSettingKey.TwitchChannelName, null, Arg.Any<CancellationToken>())
@@ -75,11 +75,11 @@ public sealed class TwitchRewardCacheTests
         var helix = Substitute.For<IHelixClient>();
         helix.GetCustomRewardsAsync("broadcaster-1", Arg.Any<CancellationToken>())
             .Returns(
-                new[] { new TwitchRewardDescriptor("r-1", "Hydrate", 100, true, null) },
+                new[] { new PlatformRewardDescriptor("r-1", "Hydrate", 100, true, null) },
                 new[]
                 {
-                    new TwitchRewardDescriptor("r-1", "Hydrate", 100, true, null),
-                    new TwitchRewardDescriptor("r-2", "Stretch", 200, true, null),
+                    new PlatformRewardDescriptor("r-1", "Hydrate", 100, true, null),
+                    new PlatformRewardDescriptor("r-2", "Stretch", 200, true, null),
                 });
 
         var cache = BuildCache(helix, configuredBroadcasterId: "broadcaster-1");

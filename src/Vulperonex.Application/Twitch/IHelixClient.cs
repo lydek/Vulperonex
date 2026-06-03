@@ -30,12 +30,12 @@ public interface IHelixClient
         string sessionId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<TwitchRewardDescriptor>> GetCustomRewardsAsync(
+    Task<IReadOnlyList<PlatformRewardDescriptor>> GetCustomRewardsAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default);
 }
 
-public sealed record TwitchRewardDescriptor(
+public sealed record PlatformRewardDescriptor(
     string Id,
     string Title,
     int Cost,

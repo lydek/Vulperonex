@@ -149,7 +149,7 @@ public sealed class TwitchHelixClient(
         return true;
     }
 
-    public async Task<IReadOnlyList<TwitchRewardDescriptor>> GetCustomRewardsAsync(
+    public async Task<IReadOnlyList<PlatformRewardDescriptor>> GetCustomRewardsAsync(
         string broadcasterId,
         CancellationToken cancellationToken = default)
     {
@@ -168,7 +168,7 @@ public sealed class TwitchHelixClient(
             return [];
         }
 
-        var result = new List<TwitchRewardDescriptor>(payload.Data.Count);
+        var result = new List<PlatformRewardDescriptor>(payload.Data.Count);
         foreach (var reward in payload.Data)
         {
             var imageUrl = reward.Image?.Url4x
@@ -177,7 +177,7 @@ public sealed class TwitchHelixClient(
                 ?? reward.DefaultImage?.Url4x
                 ?? reward.DefaultImage?.Url2x
                 ?? reward.DefaultImage?.Url1x;
-            result.Add(new TwitchRewardDescriptor(
+            result.Add(new PlatformRewardDescriptor(
                 reward.Id,
                 reward.Title,
                 reward.Cost,

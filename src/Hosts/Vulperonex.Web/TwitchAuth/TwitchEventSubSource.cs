@@ -1,3 +1,4 @@
+using System.Net;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets;
 using TwitchLib.EventSub.Websockets.Core.EventArgs;
@@ -87,12 +88,19 @@ public sealed class TwitchEventSubSource(
         await using var scope = scopeFactory.CreateAsyncScope();
         var helix = scope.ServiceProvider.GetRequiredService<IHelixClient>();
 
+        var authFailed = false;
+
         foreach (var (type, version, condition) in BuildSubscriptions(broadcasterId))
         {
             try
             {
                 await helix.CreateEventSubSubscriptionAsync(type, version, condition, sessionId);
                 logger.LogInformation("Twitch EventSub subscription registered: {Type}.", type);
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            {
+                authFailed = true;
+                logger.LogWarning(ex, "Twitch EventSub subscription {Type} rejected ({Status}); operator likely needs to re-grant scopes.", type, ex.StatusCode);
             }
             catch (Exception ex)
             {
@@ -101,6 +109,13 @@ public sealed class TwitchEventSubSource(
         }
 
         _lastSubscribedSessionId = sessionId;
+
+        if (authFailed)
+        {
+            // Surface to the UI as a distinct connection state so the operator
+            // sees "authorize again" rather than a generic "reconnecting" chip.
+            await PublishConnectionAsync(connected: false, reason: "auth_failed");
+        }
     }
 
     private static IEnumerable<(string Type, string Version, IReadOnlyDictionary<string, string> Condition)> BuildSubscriptions(
