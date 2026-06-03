@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   getRules,
@@ -45,6 +45,7 @@ const actionMetadata = useActionMetadataStore();
 const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
 const availableRules = ref<WorkflowRuleSummary[]>([]);
+const addMenuEl = ref<HTMLDetailsElement | null>(null);
 
 defineExpose({ focus });
 
@@ -120,9 +121,28 @@ function fieldPlaceholder(actionType: string, field: FieldDefinition): string | 
   return localized.length > 0 ? localized : undefined;
 }
 
-function addItem(): void {
-  items.value = [...items.value, actionDefinitions.value[0].create()];
+function createActionItem(type?: string): JsonRecord {
+  const definition = type
+    ? actionMetadata.findDefinition(type)
+    : actionDefinitions.value[0];
+  return definition?.create() ?? actionDefinitions.value[0].create();
+}
+
+async function addItem(type?: string): Promise<void> {
+  const nextIndex = items.value.length;
+  items.value = [...items.value, createActionItem(type)];
   emitItems();
+  if (addMenuEl.value) {
+    addMenuEl.value.open = false;
+  }
+
+  await nextTick();
+  const card = document.querySelector<HTMLElement>(`[data-testid="${prefix.value}-card-${nextIndex}"]`);
+  card?.scrollIntoView({ block: "nearest" });
+  const focusTarget = card?.querySelector<HTMLElement>(
+    `[data-testid="${prefix.value}-type-${nextIndex}"], input, textarea, select`
+  );
+  focusTarget?.focus();
 }
 
 function removeItem(index: number): void {
@@ -351,6 +371,30 @@ function previousStepsFor(index: number): JsonRecord[] {
       <p class="workflow-builder__notice" role="note">{{ metadataNotice }}</p>
     </template>
 
+    <template #add-control>
+      <details ref="addMenuEl" class="workflow-builder__add-menu">
+        <summary
+          class="secondary-button workflow-builder__add-trigger"
+          :data-testid="`${prefix}-add`"
+        >
+          {{ fallbackLabel("common.add", "Add") }}
+        </summary>
+        <div class="workflow-builder__add-panel">
+          <button
+            v-for="definition in actionDefinitions"
+            :key="definition.type"
+            type="button"
+            class="workflow-builder__add-option"
+            :data-testid="`${prefix}-add-option-${definition.type}`"
+            @click="void addItem(definition.type)"
+          >
+            <strong>{{ actionLabel(definition) }}</strong>
+            <span>{{ actionDescription(definition) }}</span>
+          </button>
+        </div>
+      </details>
+    </template>
+
     <template #identity="{ item, index }">
       <label class="workflow-builder__identity-field form-field-inline">
         <span class="form-label">{{ fallbackLabel("ruleEditor.steps.type", "Type") }}</span>
@@ -576,6 +620,56 @@ function previousStepsFor(index: number): JsonRecord[] {
   border: 1px solid var(--vp-border-warning);
   border-radius: 6px;
   color: var(--vp-text-warning);
+}
+
+.workflow-builder__add-menu {
+  position: relative;
+}
+
+.workflow-builder__add-trigger {
+  list-style: none;
+}
+
+.workflow-builder__add-trigger::-webkit-details-marker {
+  display: none;
+}
+
+.workflow-builder__add-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: min(320px, 70vw);
+  max-height: 360px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: 10px;
+  background: var(--vp-bg-surface);
+  box-shadow: var(--vp-shadow-elevated);
+}
+
+.workflow-builder__add-option {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  text-align: left;
+  border: 1px solid var(--vp-border-default);
+  border-radius: 8px;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-primary);
+}
+
+.workflow-builder__add-option span {
+  color: var(--vp-text-muted);
+  font-size: 12px;
+}
+
+.workflow-builder__add-option:hover {
+  border-color: var(--vp-accent);
+  background: var(--vp-bg-surface-muted);
 }
 
 .workflow-builder__grid {

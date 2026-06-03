@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   buildVariableGroups,
@@ -42,6 +42,7 @@ const emit = defineEmits<{ (event: "select", value: string): void }>();
 const detailsEl = ref<HTMLDetailsElement | null>(null);
 const summaryEl = ref<HTMLElement | null>(null);
 const panelStyle = ref<Record<string, string>>({});
+const activeGroupKey = ref<string>("");
 
 const groups = computed<VariableGroup[]>(() => {
   const previousSteps = props.previousSteps
@@ -55,6 +56,26 @@ const groups = computed<VariableGroup[]>(() => {
   }
   return filterByFieldProperty(rawGroups, props.filterKey);
 });
+
+const activeGroups = computed<VariableGroup[]>(() => {
+  if (groups.value.length === 0) {
+    return [];
+  }
+
+  const active = groups.value.find(group => group.key === activeGroupKey.value);
+  return active ? [active] : [groups.value[0]];
+});
+
+watch(groups, (nextGroups) => {
+  if (nextGroups.length === 0) {
+    activeGroupKey.value = "";
+    return;
+  }
+
+  if (!nextGroups.some(group => group.key === activeGroupKey.value)) {
+    activeGroupKey.value = nextGroups[0].key;
+  }
+}, { immediate: true });
 
 function filterByFieldProperty(rawGroups: VariableGroup[], filterKey: string): VariableGroup[] {
   const key = filterKey.toLowerCase();
@@ -253,7 +274,21 @@ function normalizeTriggerVariable(value: string): string {
       title="Insert variable"
     >{x}</summary>
     <div class="variable-picker__panel" :style="panelStyle">
-      <section v-for="group in groups" :key="group.key" class="variable-picker__group">
+      <div v-if="groups.length > 1" class="variable-picker__tabs" role="tablist" aria-label="Variable groups">
+        <button
+          v-for="group in groups"
+          :key="group.key"
+          type="button"
+          class="variable-picker__tab"
+          :class="{ 'is-active': group.key === activeGroupKey }"
+          :aria-pressed="group.key === activeGroupKey"
+          @click="activeGroupKey = group.key"
+        >
+          {{ getGroupLabel(group) }}
+        </button>
+      </div>
+
+      <section v-for="group in activeGroups" :key="group.key" class="variable-picker__group">
         <h3 class="variable-picker__title">{{ getGroupLabel(group) }}</h3>
         <div class="variable-picker__list">
           <button
@@ -313,6 +348,29 @@ function normalizeTriggerVariable(value: string): string {
   border-radius: 12px;
   background: var(--vp-bg-surface);
   box-shadow: var(--vp-shadow-elevated);
+}
+
+.variable-picker__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.variable-picker__tab {
+  padding: 4px 10px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: 999px;
+  background: var(--vp-bg-surface-subtle);
+  color: var(--vp-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.variable-picker__tab.is-active {
+  border-color: var(--vp-accent);
+  background: var(--vp-bg-selected);
+  color: var(--vp-text-accent);
 }
 
 .variable-picker__group + .variable-picker__group {

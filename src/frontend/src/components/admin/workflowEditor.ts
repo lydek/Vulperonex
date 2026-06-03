@@ -135,7 +135,7 @@ const failureVariableDefinitions: VariableDefinition[] = [
   { path: "Failure.ErrorMessage", label: "Failure message", type: "string" }
 ];
 
-const defaultStepStatusOptions = ["success", "repeat", "cooldown", "error"];
+const defaultStepStatusOptions = ["success", "repeat", "error"];
 
 export const conditionDefinitions: ConditionDefinition[] = [
   {

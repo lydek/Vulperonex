@@ -11,6 +11,14 @@ vi.mock("vue-i18n", () => ({
 
 
 describe("VariablePicker", () => {
+  it("shows group tabs instead of one long mixed list", () => {
+    const wrapper = mount(VariablePicker);
+
+    expect(wrapper.text()).toContain("Trigger Event");
+    expect(wrapper.text()).toContain("Args");
+    expect(wrapper.text()).toContain("Trigger User");
+  });
+
   it("filters trigger variables when an allowed list is provided", () => {
     const wrapper = mount(VariablePicker, {
       props: {

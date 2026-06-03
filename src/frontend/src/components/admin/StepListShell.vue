@@ -48,14 +48,16 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
   <section class="status-card workflow-builder" :aria-labelledby="`${prefix}-title`">
     <div class="workflow-builder__header">
       <h2 :id="`${prefix}-title`" class="section-title">{{ title }}</h2>
-      <button
-        type="button"
-        class="secondary-button"
-        :data-testid="`${prefix}-add`"
-        @click="emit('add')"
-      >
-        {{ fallbackLabel("common.add", "Add") }}
-      </button>
+      <slot name="add-control">
+        <button
+          type="button"
+          class="secondary-button"
+          :data-testid="`${prefix}-add`"
+          @click="emit('add')"
+        >
+          {{ fallbackLabel("common.add", "Add") }}
+        </button>
+      </slot>
     </div>
 
     <slot name="notice" />
@@ -68,9 +70,26 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
       v-for="(item, index) in items"
       :key="`${prefix}-${index}`"
       class="workflow-builder__card"
+      :data-testid="`${prefix}-card-${index}`"
     >
       <div class="workflow-builder__card-header">
         <div class="workflow-builder__identity">
+          <button
+            type="button"
+            class="workflow-builder__collapse-toggle"
+            :data-testid="`${prefix}-toggle-${index}`"
+            :aria-expanded="!isCollapsed(index)"
+            @click="toggleCollapsed(index)"
+          >
+            <span aria-hidden="true">{{ isCollapsed(index) ? "▸" : "▾" }}</span>
+            <span class="visually-hidden">
+              {{
+                isCollapsed(index)
+                  ? fallbackLabel("ruleEditor.builder.expand", "Expand")
+                  : fallbackLabel("ruleEditor.builder.collapse", "Collapse")
+              }}
+            </span>
+          </button>
           <span class="workflow-builder__badge">{{ index + 1 }}</span>
           <div class="workflow-builder__identity-body">
             <slot name="identity" :item="item" :index="index" />
@@ -78,19 +97,6 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
         </div>
 
         <div class="workflow-builder__controls">
-          <button
-            type="button"
-            class="icon-button"
-            :data-testid="`${prefix}-toggle-${index}`"
-            :aria-expanded="!isCollapsed(index)"
-            @click="toggleCollapsed(index)"
-          >
-            {{
-              isCollapsed(index)
-                ? fallbackLabel("ruleEditor.builder.expand", "Expand")
-                : fallbackLabel("ruleEditor.builder.collapse", "Collapse")
-            }}
-          </button>
           <button
             type="button"
             class="icon-button"
@@ -185,6 +191,18 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
   background: var(--vp-bg-selected);
   color: var(--vp-text-accent);
   font-weight: 700;
+}
+
+.workflow-builder__collapse-toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: 999px;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-secondary);
+  flex: 0 0 auto;
 }
 
 .workflow-builder__empty {

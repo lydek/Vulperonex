@@ -125,9 +125,12 @@ describe("WorkflowActionsEditor", () => {
 
     await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
     await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-randomPicker"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-randomPicker"]').trigger("click");
+    await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="workflow-actions-type-0"]').text()).toContain("Random Picker");
     });
-    await wrapper.find('[data-testid="workflow-actions-type-0"]').setValue("randomPicker");
 
     await vi.waitFor(() => {
       expect(wrapper.findAll("textarea").length).toBeGreaterThanOrEqual(2);
@@ -172,6 +175,10 @@ describe("WorkflowActionsEditor", () => {
     });
 
     await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-sendChatMessage"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-sendChatMessage"]').trigger("click");
 
     expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe(JSON.stringify([
       { type: "sendChatMessage" }
@@ -195,9 +202,12 @@ describe("WorkflowActionsEditor", () => {
     });
     await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
     await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-triggerCheckIn"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-triggerCheckIn"]').trigger("click");
+    await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="workflow-actions-type-0"]').html()).toContain("triggerCheckIn");
     });
-    await wrapper.find('[data-testid="workflow-actions-type-0"]').setValue("triggerCheckIn");
 
     expect(wrapper.get('[data-testid="workflow-actions-implicit-target-0"]').text())
       .toContain("Checks in the user who triggered this event.");
@@ -228,9 +238,12 @@ describe("WorkflowActionsEditor", () => {
 
     await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
     await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-invokeSubWorkflow"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-invokeSubWorkflow"]').trigger("click");
+    await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="workflow-actions-type-0"]').html()).toContain("invokeSubWorkflow");
     });
-    await wrapper.find('[data-testid="workflow-actions-type-0"]').setValue("invokeSubWorkflow");
 
     const workflowSelect = wrapper.get('[data-testid="workflow-actions-field-workflowId-0"]');
     expect(workflowSelect.element.tagName).toBe("SELECT");
@@ -241,5 +254,28 @@ describe("WorkflowActionsEditor", () => {
 
     const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
     expect(emittedJson[0].workflowId).toBe("sub-1");
+  });
+
+  it("should open an action menu before inserting a new step", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+
+    expect(wrapper.text()).toContain("Send Chat Message");
+    expect(wrapper.text()).toContain("Trigger Check-In");
+    expect(wrapper.findAll('[data-testid^="workflow-actions-card-"]').length).toBe(0);
   });
 });
