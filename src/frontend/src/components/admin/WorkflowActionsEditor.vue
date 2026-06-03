@@ -11,8 +11,10 @@ import StepListShell from "@/components/admin/StepListShell.vue";
 import VariableFieldInput from "@/components/admin/VariableFieldInput.vue";
 import {
   asBoolean,
+  asNumberList,
   asNumber,
   asString,
+  asStringList,
   fromJsonObjectText,
   fromNumberListText,
   fromStringListText,
@@ -46,6 +48,7 @@ const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
 const availableRules = ref<WorkflowRuleSummary[]>([]);
 const addMenuEl = ref<HTMLDetailsElement | null>(null);
+const randomPickerRowCounts = ref<Record<number, number>>({});
 
 defineExpose({ focus });
 
@@ -88,6 +91,7 @@ function syncFromModel(modelValue: string): void {
     return;
   }
   items.value = parseArrayModel(modelValue);
+  randomPickerRowCounts.value = {};
 }
 
 function emitItems(): void {
@@ -147,6 +151,16 @@ async function addItem(type?: string): Promise<void> {
 
 function removeItem(index: number): void {
   items.value = items.value.filter((_, itemIndex) => itemIndex !== index);
+  const nextRowCounts: Record<number, number> = {};
+  for (const [key, value] of Object.entries(randomPickerRowCounts.value)) {
+    const currentIndex = Number(key);
+    if (!Number.isInteger(currentIndex) || currentIndex === index) {
+      continue;
+    }
+
+    nextRowCounts[currentIndex > index ? currentIndex - 1 : currentIndex] = value;
+  }
+  randomPickerRowCounts.value = nextRowCounts;
   emitItems();
 }
 
@@ -160,6 +174,22 @@ function moveItem(index: number, direction: -1 | 1): void {
   const [current] = next.splice(index, 1);
   next.splice(targetIndex, 0, current);
   items.value = next;
+  const currentRowCount = randomPickerRowCounts.value[index];
+  const targetRowCount = randomPickerRowCounts.value[targetIndex];
+  const nextRowCounts = { ...randomPickerRowCounts.value };
+  if (targetRowCount === undefined) {
+    delete nextRowCounts[index];
+  } else {
+    nextRowCounts[index] = targetRowCount;
+  }
+
+  if (currentRowCount === undefined) {
+    delete nextRowCounts[targetIndex];
+  } else {
+    nextRowCounts[targetIndex] = currentRowCount;
+  }
+
+  randomPickerRowCounts.value = nextRowCounts;
   emitItems();
 }
 
@@ -195,6 +225,81 @@ function implicitTargetMessage(item: JsonRecord): string | null {
     "ruleEditor.actionMeta.triggerCheckIn.defaultTargetNotice",
     "Checks in the user who triggered this event."
   );
+}
+
+function isRandomPicker(item: JsonRecord): boolean {
+  return asString(item.type) === "randomPicker";
+}
+
+function randomPickerFieldsOf(item: JsonRecord): FieldDefinition[] {
+  if (!isRandomPicker(item)) {
+    return basicFieldsOf(item);
+  }
+
+  return basicFieldsOf(item).filter(field => field.key !== "choices" && field.key !== "weights");
+}
+
+function randomPickerRows(index: number, item: JsonRecord): Array<{ choice: string; weight: string }> {
+  const choices = asStringList(item.choices);
+  const weights = asNumberList(item.weights);
+  const draftRowCount = randomPickerRowCounts.value[index] ?? 0;
+  const rowCount = Math.max(choices.length, draftRowCount, 1);
+
+  return Array.from({ length: rowCount }, (_, rowIndex) => ({
+    choice: choices[rowIndex] ?? "",
+    weight: weights[rowIndex] === undefined ? "" : String(weights[rowIndex])
+  }));
+}
+
+function patchRandomPickerRows(index: number, rows: Array<{ choice: string; weight: string }>): void {
+  const normalizedRows = rows
+    .map(row => {
+      const choice = row.choice.trim();
+      const rawWeight = row.weight.trim();
+      const parsedWeight = rawWeight.length === 0 ? null : Number(rawWeight);
+      return {
+        choice,
+        weight: Number.isFinite(parsedWeight) ? Math.max(0, Math.trunc(parsedWeight as number)) : null
+      };
+    })
+    .filter(row => row.choice.length > 0);
+
+  const choices = normalizedRows.map(row => row.choice);
+  const hasExplicitWeight = normalizedRows.some(row => row.weight !== null);
+  const weights = hasExplicitWeight
+    ? normalizedRows.map(row => row.weight ?? 1)
+    : [];
+
+  patchItem(index, {
+    choices,
+    weights: weights.length > 0 ? weights : undefined
+  });
+}
+
+function updateRandomPickerChoice(index: number, rowIndex: number, value: string): void {
+  const rows = randomPickerRows(index, items.value[index] ?? {});
+  rows[rowIndex] = { ...rows[rowIndex], choice: value };
+  randomPickerRowCounts.value = { ...randomPickerRowCounts.value, [index]: rows.length };
+  patchRandomPickerRows(index, rows);
+}
+
+function updateRandomPickerWeight(index: number, rowIndex: number, value: string): void {
+  const rows = randomPickerRows(index, items.value[index] ?? {});
+  rows[rowIndex] = { ...rows[rowIndex], weight: value };
+  randomPickerRowCounts.value = { ...randomPickerRowCounts.value, [index]: rows.length };
+  patchRandomPickerRows(index, rows);
+}
+
+function addRandomPickerRow(index: number): void {
+  const rows = randomPickerRows(index, items.value[index] ?? {});
+  randomPickerRowCounts.value = { ...randomPickerRowCounts.value, [index]: rows.length + 1 };
+}
+
+function removeRandomPickerRow(index: number, rowIndex: number): void {
+  const rows = randomPickerRows(index, items.value[index] ?? {});
+  const nextRows = rows.filter((_, currentRowIndex) => currentRowIndex !== rowIndex);
+  randomPickerRowCounts.value = { ...randomPickerRowCounts.value, [index]: Math.max(nextRows.length, 1) };
+  patchRandomPickerRows(index, nextRows.length > 0 ? nextRows : [{ choice: "", weight: "" }]);
 }
 
 function isSubWorkflowIdField(item: JsonRecord, field: FieldDefinition): boolean {
@@ -435,7 +540,63 @@ function previousStepsFor(index: number): JsonRecord[] {
         >
           {{ implicitTargetMessage(item) }}
         </p>
-        <template v-for="field in basicFieldsOf(item)" :key="field.key">
+        <div
+          v-if="isRandomPicker(item)"
+          class="random-picker-editor workflow-builder__wide"
+          :data-testid="`${prefix}-random-picker-${index}`"
+        >
+          <div class="random-picker-editor__head">
+            <span class="form-label">{{ fallbackLabel("ruleEditor.randomPicker.items", "Items") }}</span>
+            <span class="form-label">{{ fallbackLabel("ruleEditor.randomPicker.weight", "Weight") }}</span>
+          </div>
+          <div
+            v-for="(row, rowIndex) in randomPickerRows(index, item)"
+            :key="rowIndex"
+            class="random-picker-editor__row"
+          >
+            <input
+              type="text"
+              :value="row.choice"
+              :placeholder="fallbackLabel('ruleEditor.randomPicker.choicePlaceholder', 'Choice text')"
+              :data-testid="`${prefix}-random-choice-${index}-${rowIndex}`"
+              @input="updateRandomPickerChoice(index, rowIndex, ($event.target as HTMLInputElement).value)"
+            />
+            <input
+              type="number"
+              min="0"
+              step="1"
+              :value="row.weight"
+              :placeholder="fallbackLabel('ruleEditor.randomPicker.weightPlaceholder', '1')"
+              :aria-label="fallbackLabel('ruleEditor.randomPicker.weight', 'Weight')"
+              :data-testid="`${prefix}-random-weight-${index}-${rowIndex}`"
+              @input="updateRandomPickerWeight(index, rowIndex, ($event.target as HTMLInputElement).value)"
+            />
+            <button
+              type="button"
+              class="icon-button random-picker-editor__remove"
+              :aria-label="fallbackLabel('ruleEditor.randomPicker.removeItem', 'Remove item')"
+              :data-testid="`${prefix}-random-remove-${index}-${rowIndex}`"
+              @click="removeRandomPickerRow(index, rowIndex)"
+            >
+              ×
+            </button>
+          </div>
+          <div class="random-picker-editor__footer">
+            <button
+              type="button"
+              class="secondary-button"
+              :data-testid="`${prefix}-random-add-${index}`"
+              @click="addRandomPickerRow(index)"
+            >
+              {{ fallbackLabel("ruleEditor.randomPicker.addItem", "Add item") }}
+            </button>
+            <p class="workflow-builder__hint">
+              {{ fallbackLabel("ruleEditor.randomPicker.help", "Leave weights empty for equal probability.") }}
+            </p>
+          </div>
+        </div>
+
+        <template v-for="field in randomPickerFieldsOf(item)" :key="field.key">
           <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
             <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
             <select
@@ -723,6 +884,43 @@ function previousStepsFor(index: number): JsonRecord[] {
   max-width: 320px;
 }
 
+.random-picker-editor {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: var(--vp-radius-card);
+  background: var(--vp-bg-surface-muted);
+}
+
+.random-picker-editor__head,
+.random-picker-editor__row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 120px 36px;
+  align-items: center;
+}
+
+.random-picker-editor__head {
+  padding: 0 44px 0 0;
+}
+
+.random-picker-editor__row input {
+  min-width: 0;
+}
+
+.random-picker-editor__remove {
+  width: 36px;
+  height: 36px;
+}
+
+.random-picker-editor__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 textarea {
   border: 1px solid var(--vp-border-default);
   border-radius: 6px;
@@ -743,6 +941,14 @@ textarea {
 @media (max-width: 720px) {
   .workflow-builder__meta {
     grid-template-columns: 1fr;
+  }
+
+  .random-picker-editor__head {
+    display: none;
+  }
+
+  .random-picker-editor__row {
+    grid-template-columns: 1fr 86px 36px;
   }
 }
 </style>

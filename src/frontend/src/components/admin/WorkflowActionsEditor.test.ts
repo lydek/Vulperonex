@@ -133,11 +133,13 @@ describe("WorkflowActionsEditor", () => {
     });
 
     await vi.waitFor(() => {
-      expect(wrapper.findAll("textarea").length).toBeGreaterThanOrEqual(2);
+      expect(wrapper.find('[data-testid="workflow-actions-random-picker-0"]').exists()).toBe(true);
     });
-    const textareas = wrapper.findAll("textarea");
-    await textareas[0].setValue("alpha\nbeta");
-    await textareas[1].setValue("2\n3");
+    await wrapper.find('[data-testid="workflow-actions-random-choice-0-0"]').setValue("alpha");
+    await wrapper.find('[data-testid="workflow-actions-random-weight-0-0"]').setValue("2");
+    await wrapper.find('[data-testid="workflow-actions-random-add-0"]').trigger("click");
+    await wrapper.find('[data-testid="workflow-actions-random-choice-0-1"]').setValue("beta");
+    await wrapper.find('[data-testid="workflow-actions-random-weight-0-1"]').setValue("3");
     await wrapper.find('[data-testid="workflow-actions-execution-0-raw-toggle"]').trigger("click");
     await wrapper.find('[data-testid="workflow-actions-execution-0"]').setValue("Trigger.IsModerator");
     await wrapper.find('.workflow-builder__meta-output input').setValue("Pick");
@@ -153,6 +155,39 @@ describe("WorkflowActionsEditor", () => {
       }
     ]);
 
+  });
+
+  it("should keep random picker weights optional when left blank", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: JSON.stringify([
+          {
+            type: "randomPicker",
+            choices: ["alpha"],
+            outputVariable: "Pick"
+          }
+        ], null, 2),
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-random-picker-0"]').exists()).toBe(true);
+    });
+
+    await wrapper.find('[data-testid="workflow-actions-random-add-0"]').trigger("click");
+    await wrapper.find('[data-testid="workflow-actions-random-choice-0-1"]').setValue("beta");
+
+    const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
+    expect(emittedJson[0]).toEqual({
+      type: "randomPicker",
+      choices: ["alpha", "beta"],
+      outputVariable: "Pick"
+    });
   });
 
   it("should remain openable with a fallback warning when metadata fails", async () => {
