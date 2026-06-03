@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConfirmDialog from "@/components/admin/ConfirmDialog.vue";
 import { useTheme, type ThemePreference } from "@/composables/useTheme";
 import {
   ApiError,
+  getConfigValue,
   getPluginModules,
+  setConfigValue,
   togglePluginModule,
   type PluginModule
 } from "@/api/client";
@@ -23,12 +25,26 @@ const pendingTarget = ref<PluginModule | null>(null);
 const pendingEnabled = ref(false);
 const affectedModules = ref<PluginModule[]>([]);
 const themeOptions: ThemePreference[] = ["system", "light", "dark"];
+const assistantDisplayName = ref("");
+const assistantAvatarUrl = ref("");
+const checkInDisplayName = ref("");
+const workflowChatOutputDestination = ref("dual");
+const savingWorkflowChat = ref(false);
+const workflowChatSaveSuccess = ref(false);
+const checkInResetTimeLocal = ref("05:00");
+const checkInRepeatCardEnabled = ref(true);
+const savingCheckInSettings = ref(false);
+const checkInSaveSuccess = ref(false);
+const activeTab = ref<"general" | "workflow-chat" | "checkin" | "modules">("general");
+
+const workflowChatOutputOptions = ["dual", "overlay_only", "platform_only"] as const;
 
 onMounted(async () => {
-  await loadModules();
+  await Promise.all([loadModules(), loadWorkflowChatSettings()]);
 });
 
 const modulesByName = computed(() => new Map(modules.value.map((item) => [item.name, item])));
+const isCheckInModuleEnabled = computed(() => modulesByName.value.get("checkin")?.enabled ?? false);
 const confirmMessage = computed(() => {
   const names = affectedModules.value.map((item) => item.displayName).join(", ");
   const base = pendingEnabled.value
@@ -47,6 +63,27 @@ async function loadModules(): Promise<void> {
     applyError(caught);
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadWorkflowChatSettings(): Promise<void> {
+  try {
+    const [displayName, avatarUrl, checkInName, outputDestination, resetTime, repeatCardEnabled] = await Promise.all([
+      getConfigValue("overlay.chat.assistant_display_name"),
+      getConfigValue("overlay.chat.assistant_avatar_url"),
+      getConfigValue("overlay.chat.checkin_display_name"),
+      getConfigValue("workflow.chat.output_destination"),
+      getConfigValue("checkin.reset_time_local"),
+      getConfigValue("checkin.repeat_card_enabled")
+    ]);
+    assistantDisplayName.value = displayName.value || "";
+    assistantAvatarUrl.value = avatarUrl.value || "";
+    checkInDisplayName.value = checkInName.value || "";
+    workflowChatOutputDestination.value = outputDestination.value || "dual";
+    checkInResetTimeLocal.value = resetTime.value || "05:00";
+    checkInRepeatCardEnabled.value = repeatCardEnabled.value !== "false";
+  } catch (caught) {
+    applyError(caught);
   }
 }
 
@@ -124,6 +161,56 @@ function updateTheme(event: Event): void {
   const nextPreference = (event.target as HTMLSelectElement).value as ThemePreference;
   setThemePreference(nextPreference);
 }
+
+async function saveWorkflowChatSettings(): Promise<void> {
+  savingWorkflowChat.value = true;
+  workflowChatSaveSuccess.value = false;
+  errorCode.value = null;
+  errorDetail.value = null;
+  try {
+    await Promise.all([
+      setConfigValue("overlay.chat.assistant_display_name", assistantDisplayName.value.trim()),
+      setConfigValue("overlay.chat.assistant_avatar_url", assistantAvatarUrl.value.trim()),
+      setConfigValue("overlay.chat.checkin_display_name", checkInDisplayName.value.trim()),
+      setConfigValue("workflow.chat.output_destination", workflowChatOutputDestination.value)
+    ]);
+    workflowChatSaveSuccess.value = true;
+    setTimeout(() => {
+      workflowChatSaveSuccess.value = false;
+    }, 3000);
+  } catch (caught) {
+    applyError(caught);
+  } finally {
+    savingWorkflowChat.value = false;
+  }
+}
+
+async function saveCheckInSettings(): Promise<void> {
+  savingCheckInSettings.value = true;
+  checkInSaveSuccess.value = false;
+  errorCode.value = null;
+  errorDetail.value = null;
+  try {
+    await Promise.all([
+      setConfigValue("checkin.reset_time_local", checkInResetTimeLocal.value || "05:00"),
+      setConfigValue("checkin.repeat_card_enabled", checkInRepeatCardEnabled.value ? "true" : "false")
+    ]);
+    checkInSaveSuccess.value = true;
+    setTimeout(() => {
+      checkInSaveSuccess.value = false;
+    }, 3000);
+  } catch (caught) {
+    applyError(caught);
+  } finally {
+    savingCheckInSettings.value = false;
+  }
+}
+
+watch(isCheckInModuleEnabled, (enabled) => {
+  if (!enabled && activeTab.value === "checkin") {
+    activeTab.value = "general";
+  }
+});
 </script>
 
 <template>
@@ -133,7 +220,47 @@ function updateTheme(event: Event): void {
       <p class="page-subtitle">{{ t("settings.modules.subtitle") }}</p>
     </header>
 
-    <section class="settings-section" aria-labelledby="theme-settings-title">
+    <nav class="settings-tabs" aria-label="Settings tabs">
+      <button
+        type="button"
+        class="settings-tab"
+        :class="{ 'is-active': activeTab === 'general' }"
+        data-testid="settings-tab-general"
+        @click="activeTab = 'general'"
+      >
+        {{ t("settings.tabs.general") }}
+      </button>
+      <button
+        type="button"
+        class="settings-tab"
+        :class="{ 'is-active': activeTab === 'workflow-chat' }"
+        data-testid="settings-tab-workflow-chat"
+        @click="activeTab = 'workflow-chat'"
+      >
+        {{ t("settings.tabs.workflowChat") }}
+      </button>
+      <button
+        v-if="isCheckInModuleEnabled"
+        type="button"
+        class="settings-tab"
+        :class="{ 'is-active': activeTab === 'checkin' }"
+        data-testid="settings-tab-checkin"
+        @click="activeTab = 'checkin'"
+      >
+        {{ t("settings.tabs.checkIn") }}
+      </button>
+      <button
+        type="button"
+        class="settings-tab"
+        :class="{ 'is-active': activeTab === 'modules' }"
+        data-testid="settings-tab-modules"
+        @click="activeTab = 'modules'"
+      >
+        {{ t("settings.tabs.modules") }}
+      </button>
+    </nav>
+
+    <section v-if="activeTab === 'general'" class="settings-section" aria-labelledby="theme-settings-title">
       <div>
         <h2 id="theme-settings-title" class="section-title">{{ t("settings.theme.title") }}</h2>
         <p class="settings-section__copy">{{ t("settings.theme.subtitle") }}</p>
@@ -151,7 +278,136 @@ function updateTheme(event: Event): void {
       </p>
     </section>
 
-    <section aria-labelledby="module-settings-title">
+    <section v-if="activeTab === 'workflow-chat'" class="settings-section" aria-labelledby="workflow-chat-settings-title">
+      <div class="settings-section__header">
+        <div>
+          <h2 id="workflow-chat-settings-title" class="section-title">{{ t("settings.workflowChat.title") }}</h2>
+          <p class="settings-section__copy">{{ t("settings.workflowChat.subtitle") }}</p>
+        </div>
+        <div class="settings-preview-stack">
+        <div class="assistant-preview" data-testid="assistant-preview">
+          <img
+            v-if="assistantAvatarUrl"
+            :src="assistantAvatarUrl"
+            class="assistant-preview__avatar"
+            alt=""
+          />
+          <span v-else class="assistant-preview__fallback">🧷</span>
+          <strong>{{ assistantDisplayName || t("overlay.chat.systemAssistant") }}</strong>
+        </div>
+        <div class="assistant-preview" data-testid="checkin-preview">
+          <span class="assistant-preview__fallback assistant-preview__fallback--checkin">🟥</span>
+          <strong>{{ checkInDisplayName || t("overlay.chat.checkInSystem") }}</strong>
+        </div>
+        </div>
+      </div>
+
+      <div class="settings-form-grid">
+        <label class="form-field">
+          <span class="form-label">{{ t("settings.workflowChat.displayName") }}</span>
+          <input
+            v-model="assistantDisplayName"
+            type="text"
+            :placeholder="t('settings.workflowChat.displayNamePlaceholder')"
+            data-testid="workflow-chat-display-name"
+          />
+        </label>
+
+        <label class="form-field">
+          <span class="form-label">{{ t("settings.workflowChat.avatarUrl") }}</span>
+          <input
+            v-model="assistantAvatarUrl"
+            type="url"
+            :placeholder="t('settings.workflowChat.avatarUrlPlaceholder')"
+            data-testid="workflow-chat-avatar-url"
+          />
+        </label>
+
+        <label class="form-field">
+          <span class="form-label">{{ t("settings.workflowChat.checkInDisplayName") }}</span>
+          <input
+            v-model="checkInDisplayName"
+            type="text"
+            :placeholder="t('settings.workflowChat.checkInDisplayNamePlaceholder')"
+            data-testid="workflow-chat-checkin-display-name"
+          />
+        </label>
+
+        <label class="form-field settings-form-grid__wide">
+          <span class="form-label">{{ t("settings.workflowChat.outputDestination") }}</span>
+          <select
+            v-model="workflowChatOutputDestination"
+            data-testid="workflow-chat-output-destination"
+          >
+            <option v-for="option in workflowChatOutputOptions" :key="option" :value="option">
+              {{ t(`settings.workflowChat.destinations.${option}`) }}
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <p class="settings-section__meta">{{ t("settings.workflowChat.hint") }}</p>
+      <p v-if="workflowChatSaveSuccess" class="settings-success-msg" role="status">
+        {{ t("settings.workflowChat.saveSuccess") }}
+      </p>
+      <button
+        type="button"
+        class="primary-button settings-section__action"
+        :disabled="savingWorkflowChat"
+        @click="saveWorkflowChatSettings"
+      >
+        {{ savingWorkflowChat ? t("settings.workflowChat.saving") : t("settings.workflowChat.save") }}
+      </button>
+    </section>
+
+    <section
+      v-if="activeTab === 'checkin' && isCheckInModuleEnabled"
+      class="settings-section"
+      aria-labelledby="checkin-settings-title"
+    >
+      <div>
+        <h2 id="checkin-settings-title" class="section-title">{{ t("settings.checkIn.title") }}</h2>
+        <p class="settings-section__copy">{{ t("settings.checkIn.subtitle") }}</p>
+      </div>
+
+      <div class="settings-form-grid">
+        <label class="form-field">
+          <span class="form-label">{{ t("settings.checkIn.resetTime") }}</span>
+          <input
+            v-model="checkInResetTimeLocal"
+            type="time"
+            step="60"
+            data-testid="checkin-reset-time"
+          />
+        </label>
+
+        <label class="form-field form-field-toggle">
+          <span class="form-label">{{ t("settings.checkIn.repeatCardEnabled") }}</span>
+          <input
+            v-model="checkInRepeatCardEnabled"
+            type="checkbox"
+            data-testid="checkin-repeat-card-enabled"
+          />
+        </label>
+      </div>
+
+      <p class="settings-section__meta">{{ t("settings.checkIn.repeatPolicy") }}</p>
+      <p class="settings-section__meta">{{ t("settings.checkIn.repeatCardHint") }}</p>
+      <p class="settings-section__meta">{{ t("settings.checkIn.systemTimezone") }}</p>
+      <p v-if="checkInSaveSuccess" class="settings-success-msg" role="status">
+        {{ t("settings.checkIn.saveSuccess") }}
+      </p>
+      <button
+        type="button"
+        class="primary-button settings-section__action"
+        :disabled="savingCheckInSettings"
+        @click="saveCheckInSettings"
+      >
+        {{ savingCheckInSettings ? t("settings.checkIn.saving") : t("settings.checkIn.save") }}
+      </button>
+    </section>
+
+    <section v-if="activeTab === 'modules'" aria-labelledby="module-settings-title">
       <div class="settings-toolbar">
         <div>
           <h2 id="module-settings-title" class="section-title">{{ t("settings.modules.sectionTitle") }}</h2>
@@ -219,6 +475,28 @@ function updateTheme(event: Event): void {
 </template>
 
 <style scoped>
+.settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.settings-tab {
+  border: 1px solid var(--vp-border-default);
+  border-radius: var(--vp-radius-pill);
+  padding: 8px 14px;
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-secondary);
+  font-weight: 600;
+}
+
+.settings-tab.is-active {
+  background: var(--vp-bg-elevated);
+  color: var(--vp-text-primary);
+  border-color: var(--vp-border-accent, var(--vp-border-default));
+}
+
 .settings-toolbar {
   display: flex;
   align-items: flex-start;
@@ -244,8 +522,73 @@ function updateTheme(event: Event): void {
   font-size: 13px;
 }
 
+.settings-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.settings-preview-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.settings-form-grid__wide {
+  grid-column: 1 / -1;
+}
+
+.settings-section__action {
+  justify-self: flex-start;
+}
+
 .theme-select-field {
   max-width: 280px;
+}
+
+.form-field-toggle {
+  align-self: end;
+}
+
+.assistant-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: var(--vp-radius-card);
+  background: var(--vp-bg-elevated);
+}
+
+.assistant-preview__avatar,
+.assistant-preview__fallback {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.assistant-preview__avatar {
+  object-fit: cover;
+}
+
+.assistant-preview__fallback {
+  background: var(--vp-bg-soft);
+  border: 1px solid var(--vp-border-default);
+  font-size: 20px;
+}
+
+.assistant-preview__fallback--checkin {
+  color: #d44949;
 }
 
 .module-grid {

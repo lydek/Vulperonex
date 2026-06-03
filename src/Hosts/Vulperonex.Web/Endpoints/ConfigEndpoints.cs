@@ -19,10 +19,16 @@ public static class ConfigEndpoints
         SystemSettingKey.OverlayMemberPreset,
         SystemSettingKey.OverlayAlertsPreset,
         SystemSettingKey.OverlayChatShowMemberCard,
+        SystemSettingKey.OverlayChatAssistantDisplayName,
+        SystemSettingKey.OverlayChatAssistantAvatarUrl,
+        SystemSettingKey.OverlayChatCheckInDisplayName,
+        SystemSettingKey.CheckInResetTimeLocal,
+        SystemSettingKey.CheckInRepeatCardEnabled,
         SystemSettingKey.TwitchClientId,
         SystemSettingKey.TwitchChannelName,
         SystemSettingKey.OverlayMemberBackgroundUrl,
         SystemSettingKey.OverlayMemberStampUrl,
+        SystemSettingKey.WorkflowChatOutputDestination,
     }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
 
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder endpoints)

@@ -5,6 +5,7 @@ using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Members;
 using Vulperonex.Application.Modules;
 using Vulperonex.Application.Settings;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -18,6 +19,7 @@ public sealed class TriggerCheckInActionExecutor(
     IModuleStateService moduleStateService,
     ISystemSettingsService systemSettingsService,
     IPlatformUserDisplayInfoProvider userInfoProvider,
+    IWorkflowChatOverlaySink workflowChatOverlaySink,
     IMemberQueryService memberQueryService,
     IMemberAuditLogRepository auditLogRepository,
     ITransactionProvider transactionProvider) : IWorkflowActionExecutor
@@ -48,6 +50,75 @@ public sealed class TriggerCheckInActionExecutor(
 
         var memberBefore = await memberQueryService.FindByIdentityAsync(identity, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Member '{platform}:{userId}' was not found before check-in.");
+        var resetTimeLocal = await systemSettingsService
+            .GetAsync(SystemSettingKey.CheckInResetTimeLocal, "05:00", cancellationToken)
+            .ConfigureAwait(false);
+        var currentWindowStartedAt = ResolveWindowStartUtc(context.StreamEvent.OccurredAt, resetTimeLocal);
+        var recentLogs = await auditLogRepository
+            .QueryAsync(memberBefore.MemberId, limit: 20, offset: 0, cancellationToken)
+            .ConfigureAwait(false);
+        var latestCheckInLog = recentLogs
+            .Where(log => string.Equals(log.Operation, "checkin", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(log => log.OccurredAt)
+            .FirstOrDefault();
+        var shouldEmitRepeatCard = await systemSettingsService
+            .GetAsync(SystemSettingKey.CheckInRepeatCardEnabled, true, cancellationToken)
+            .ConfigureAwait(false);
+
+        var stampsPerRound = await systemSettingsService.GetAsync<int>("overlay.member.stamps_per_round", 10, cancellationToken);
+        if (stampsPerRound <= 0)
+        {
+            stampsPerRound = 10;
+        }
+
+        // Short-circuit BEFORE incrementing the check-in count when the member
+        // has already checked in within the current reset window. Without this
+        // gate, repeat triggers would keep advancing the stamp board.
+        var isRepeat = latestCheckInLog is not null && latestCheckInLog.OccurredAt >= currentWindowStartedAt;
+        if (isRepeat)
+        {
+            var repeatedRoundIndex = (int)Math.Ceiling((double)Math.Max(1, memberBefore.Loyalty.CheckInCount) / stampsPerRound);
+            var repeatedStampSlot = memberBefore.Loyalty.CheckInCount <= 0
+                ? 0
+                : ((memberBefore.Loyalty.CheckInCount - 1) % stampsPerRound) + 1;
+            var repeatedDisplayName = context.StreamEvent?.User?.UserId == userId
+                ? context.StreamEvent.User.DisplayName
+                : memberBefore.Identities
+                    .FirstOrDefault(existingIdentity => existingIdentity.Platform == platform && existingIdentity.PlatformUserId == userId)?
+                    .DisplayName ?? userId;
+
+            string? repeatedAvatarUrl = null;
+            var repeatedDisplayInfo = await userInfoProvider.GetAsync(platform, userId, cancellationToken).ConfigureAwait(false);
+            if (repeatedDisplayInfo != null)
+            {
+                repeatedDisplayName = repeatedDisplayInfo.DisplayName ?? repeatedDisplayName;
+                repeatedAvatarUrl = repeatedDisplayInfo.AvatarUrl;
+            }
+
+            if (shouldEmitRepeatCard)
+            {
+                await workflowChatOverlaySink.PublishCheckInCardAsync(
+                    new WorkflowCheckInCardOverlayMessage(
+                        repeatedDisplayName,
+                        repeatedAvatarUrl,
+                        memberBefore.Loyalty.CheckInCount),
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            return ActionExecutionResult.FromOutput(
+                new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+                {
+                    ["Status"] = "repeat",
+                    ["Platform"] = platform,
+                    ["UserId"] = userId,
+                    ["DisplayName"] = repeatedDisplayName,
+                    ["CheckInCount"] = memberBefore.Loyalty.CheckInCount,
+                    ["TotalLoyalty"] = memberBefore.Loyalty.TotalLoyalty,
+                    ["RoundIndex"] = repeatedRoundIndex,
+                    ["StampSlotInRound"] = repeatedStampSlot,
+                    ["WindowStartedAt"] = currentWindowStartedAt,
+                });
+        }
 
         var beforeSnapshot = JsonSerializer.Serialize(new
         {
@@ -80,7 +151,7 @@ public sealed class TriggerCheckInActionExecutor(
                 BeforeJson = beforeSnapshot,
                 AfterJson = afterSnapshot,
                 Reason = $"Workflow rule '{context.WorkflowRule.Id}' automatically incremented check-in count.",
-                OccurredAt = DateTimeOffset.UtcNow,
+                OccurredAt = context.StreamEvent.OccurredAt,
             }, cancellationToken).ConfigureAwait(false);
 
             await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
@@ -89,12 +160,6 @@ public sealed class TriggerCheckInActionExecutor(
         {
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             throw;
-        }
-
-        var stampsPerRound = await systemSettingsService.GetAsync<int>("overlay.member.stamps_per_round", 10, cancellationToken);
-        if (stampsPerRound <= 0)
-        {
-            stampsPerRound = 10;
         }
 
         var roundIndex = (int)Math.Ceiling((double)count / stampsPerRound);
@@ -145,6 +210,35 @@ public sealed class TriggerCheckInActionExecutor(
                 ["TotalLoyalty"] = memberAfter.Loyalty.TotalLoyalty,
                 ["RoundIndex"] = roundIndex,
                 ["StampSlotInRound"] = stampSlotInRound,
+                ["WindowStartedAt"] = currentWindowStartedAt,
             });
+    }
+
+    private static DateTimeOffset ResolveWindowStartUtc(DateTimeOffset occurredAtUtc, string? resetTimeLocal)
+    {
+        var timeOfDay = TryParseResetTimeLocal(resetTimeLocal, out var parsed)
+            ? parsed
+            : new TimeSpan(5, 0, 0);
+
+        var localNow = TimeZoneInfo.ConvertTime(occurredAtUtc, TimeZoneInfo.Local);
+        var localDate = localNow.Date;
+        var resetBoundary = localDate + timeOfDay;
+        if (localNow < resetBoundary)
+        {
+            resetBoundary = resetBoundary.AddDays(-1);
+        }
+
+        return TimeZoneInfo.ConvertTimeToUtc(resetBoundary, TimeZoneInfo.Local);
+    }
+
+    private static bool TryParseResetTimeLocal(string? raw, out TimeSpan value)
+    {
+        if (TimeSpan.TryParse(raw, out value))
+        {
+            return true;
+        }
+
+        value = default;
+        return false;
     }
 }

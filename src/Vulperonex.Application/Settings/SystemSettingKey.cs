@@ -19,12 +19,18 @@ public static class SystemSettingKey
     public const string OverlayMemberPreset = "overlay.member.preset";
     public const string OverlayAlertsPreset = "overlay.alerts.preset";
     public const string OverlayChatShowMemberCard = "overlay.chat.show_member_card";
+    public const string OverlayChatAssistantDisplayName = "overlay.chat.assistant_display_name";
+    public const string OverlayChatAssistantAvatarUrl = "overlay.chat.assistant_avatar_url";
+    public const string OverlayChatCheckInDisplayName = "overlay.chat.checkin_display_name";
     public const string TwitchClientId = "twitch.client_id";
     public const string TwitchChannelName = "twitch.channel_name";
     public const string OverlayMemberBackgroundUrl = "overlay.member.background_url";
     public const string OverlayMemberStampUrl = "overlay.member.stamp_url";
+    public const string CheckInResetTimeLocal = "checkin.reset_time_local";
+    public const string CheckInRepeatCardEnabled = "checkin.repeat_card_enabled";
     public const string MembersAuditRetentionDays = "members.audit_retention_days";
     public const string OverlayLanAccessKey = "overlay.lan.access_key";
+    public const string WorkflowChatOutputDestination = "workflow.chat.output_destination";
 
     public static string ModuleEnabled(string moduleName)
     {

@@ -5,8 +5,10 @@ using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Members;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
+using Vulperonex.Application.Settings;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Twitch;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -24,9 +26,12 @@ public sealed class OverlayEventForwarder(
     IOverlayHistoryService<OverlayMemberPayload> memberHistory,
     IServiceScopeFactory scopeFactory,
     IPlatformBadgeCache badgeCache,
+    WorkflowChatEchoTracker echoTracker,
     IClock clock,
     ILogger<OverlayEventForwarder> logger) : IHostedService
 {
+    private const string DefaultCheckInDisplayName = "打卡系統";
+    private static readonly TimeSpan CheckInChatOverlayDelay = TimeSpan.FromMilliseconds(120);
     private readonly List<IDisposable> _subscriptions = [];
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -79,6 +84,11 @@ public sealed class OverlayEventForwarder(
 
     private async Task ForwardChatEventAsync(UserSentMessageEvent streamEvent, CancellationToken cancellationToken)
     {
+        if (echoTracker.TryConsume(streamEvent.Platform, streamEvent.MessageText))
+        {
+            return;
+        }
+
         var memberSnapshot = await TryResolveMemberSnapshotAsync(streamEvent, cancellationToken);
         var badgeUrls = ResolveBadgeUrls(memberSnapshot?.Badges);
         var payload = new OverlayChatPayload(
@@ -90,7 +100,8 @@ public sealed class OverlayEventForwarder(
             [new OverlayTextSegment("text", streamEvent.MessageText)],
             badgeUrls,
             ExtractRoles(streamEvent.User.Roles),
-            memberSnapshot?.Snapshot);
+            AvatarUrl: memberSnapshot?.Snapshot?.AvatarUrl,
+            MemberSnapshot: memberSnapshot?.Snapshot);
 
         await TryPersistAsync(chatHistory, payload, cancellationToken);
         await SafeSendAsync(() => chatHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
@@ -165,6 +176,26 @@ public sealed class OverlayEventForwarder(
 
         await TryPersistAsync(memberHistory, payload, cancellationToken);
         await SafeSendAsync(() => memberHub.Clients.All.SendAsync("event", payload, cancellationToken), cancellationToken);
+
+        var checkInDisplayName = await ResolveCheckInDisplayNameAsync(cancellationToken).ConfigureAwait(false);
+
+        await Task.Delay(CheckInChatOverlayDelay, cancellationToken).ConfigureAwait(false);
+        var chatPayload = new OverlayChatPayload(
+            1,
+            $"{streamEvent.EventId}:checkin-card",
+            clock.UtcNow,
+            string.IsNullOrWhiteSpace(checkInDisplayName) ? DefaultCheckInDisplayName : checkInDisplayName.Trim(),
+            "#ffd700",
+            [],
+            [],
+            AvatarUrl: streamEvent.AvatarUrl,
+            MemberSnapshot: new OverlayMemberSnapshot(
+                streamEvent.User.DisplayName,
+                streamEvent.AvatarUrl,
+                streamEvent.CheckInCount),
+            Variant: "checkin-card");
+        await TryPersistAsync(chatHistory, chatPayload, cancellationToken);
+        await SafeSendAsync(() => chatHub.Clients.All.SendAsync("event", chatPayload, cancellationToken), cancellationToken);
     }
 
     private async Task TryPersistAsync<TPayload>(
@@ -185,6 +216,24 @@ public sealed class OverlayEventForwarder(
                 ex,
                 "Failed to persist overlay history payload for hub {HubName}; broadcast will continue.",
                 history.HubName);
+        }
+    }
+
+    private async Task<string> ResolveCheckInDisplayNameAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingsService>();
+            var configured = await settings
+                .GetAsync(SystemSettingKey.OverlayChatCheckInDisplayName, DefaultCheckInDisplayName, cancellationToken)
+                .ConfigureAwait(false);
+            return string.IsNullOrWhiteSpace(configured) ? DefaultCheckInDisplayName : configured.Trim();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to resolve check-in overlay display name; falling back to default.");
+            return DefaultCheckInDisplayName;
         }
     }
 

@@ -12,6 +12,7 @@ using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Time;
 using Vulperonex.Application.Twitch;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -36,6 +37,7 @@ public sealed class OverlayEventForwarderTests
 
     private readonly IServiceScopeFactory _mockScopeFactory = Substitute.For<IServiceScopeFactory>();
     private readonly IPlatformBadgeCache _mockBadgeCache = Substitute.For<IPlatformBadgeCache>();
+    private readonly WorkflowChatEchoTracker _echoTracker = new(TimeProvider.System);
     private readonly IClock _mockClock = Substitute.For<IClock>();
 
     public OverlayEventForwarderTests()
@@ -73,6 +75,7 @@ public sealed class OverlayEventForwarderTests
             _mockMemberHistory,
             _mockScopeFactory,
             _mockBadgeCache,
+            _echoTracker,
             _mockClock,
             NullLogger<OverlayEventForwarder>.Instance);
 
@@ -92,6 +95,7 @@ public sealed class OverlayEventForwarderTests
 
         // Act
         _eventStream.OnNext(checkInEvent);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
 
         // Assert
         // Verify history persistence
@@ -104,6 +108,14 @@ public sealed class OverlayEventForwarderTests
                 p.CheckInCount == 5 &&
                 p.RoundIndex == 1 &&
                 p.StampSlotInRound == 5),
+            Arg.Any<CancellationToken>());
+
+        await _mockChatHistory.Received(1).AddAsync(
+            Arg.Is<OverlayChatPayload>(p =>
+                p.Variant == "checkin-card" &&
+                p.MemberSnapshot != null &&
+                p.MemberSnapshot.DisplayName == "Alice" &&
+                p.MemberSnapshot.CheckInCount == 5),
             Arg.Any<CancellationToken>());
 
         // Clean up

@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { OverlayHubEvent } from "@/composables/useOverlayHub";
 import ChatMemberChip from "./ChatMemberChip.vue";
+import ChatCheckInCard from "./ChatCheckInCard.vue";
 
 const props = defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean; isPreview?: boolean }>();
+const { t } = useI18n();
 
 const orderedEvents = computed(() => [...props.events].reverse());
 
@@ -13,6 +16,26 @@ function getSegmentText(segment: { text?: string; value?: string }): string {
 
 function getSegmentType(segment: { kind?: string; type?: string }): string {
   return segment.kind || segment.type || "text";
+}
+
+function getText(event: OverlayHubEvent): string {
+  return (event.segments ?? []).map(segment => getSegmentText(segment)).join("");
+}
+
+function getTitle(event: OverlayHubEvent): string {
+  if (event.variant === "assistant") {
+    return event.displayName && event.displayName !== "system-assistant"
+      ? event.displayName
+      : t("overlay.chat.systemAssistant");
+  }
+
+  if (event.variant === "checkin-card") {
+    return event.displayName && event.displayName !== "checkin-system"
+      ? event.displayName
+      : t("overlay.chat.checkInSystem");
+  }
+
+  return event.displayName || "Unknown user";
 }
 </script>
 
@@ -31,8 +54,43 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
       v-for="(event, eventIndex) in orderedEvents"
       :key="event.eventId ?? `chat-${eventIndex}`"
       class="chat-line"
+      :class="{
+        'chat-line--assistant': event.variant === 'assistant',
+        'chat-line--checkin-card': event.variant === 'checkin-card'
+      }"
       role="listitem"
     >
+      <template v-if="event.variant === 'checkin-card' && event.memberSnapshot">
+        <div class="system-card">
+          <div class="system-card__header">
+            <span class="system-card__icon">🟥</span>
+            <strong>{{ getTitle(event) }}</strong>
+          </div>
+          <ChatCheckInCard
+            :display-name="event.memberSnapshot.displayName"
+            :avatar-url="event.memberSnapshot.avatarUrl"
+            :check-in-count="event.memberSnapshot.checkInCount"
+          />
+        </div>
+      </template>
+
+      <template v-else-if="event.variant === 'assistant'">
+        <article class="assistant-card">
+          <header class="assistant-card__header">
+            <img
+              v-if="event.avatarUrl"
+              :src="event.avatarUrl"
+              class="assistant-card__avatar"
+              alt=""
+            />
+            <span v-else class="assistant-card__icon">🧷</span>
+            <strong>{{ getTitle(event) }}</strong>
+          </header>
+          <p class="assistant-card__body">{{ getText(event) }}</p>
+        </article>
+      </template>
+
+      <template v-else>
       <img
         v-for="(badgeUrl, badgeIndex) in event.badges"
         :key="`badge-${badgeIndex}`"
@@ -66,6 +124,7 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
         :avatar-url="event.memberSnapshot.avatarUrl"
         :check-in-count="event.memberSnapshot.checkInCount"
       />
+      </template>
     </div>
   </transition-group>
 </template>
@@ -108,6 +167,55 @@ function getSegmentType(segment: { kind?: string; type?: string }): string {
   box-sizing: border-box;
   transition: transform 0.3s ease;
   line-height: 1.4;
+}
+
+.chat-line--assistant,
+.chat-line--checkin-card {
+  padding: 0;
+}
+
+.assistant-card,
+.system-card {
+  display: grid;
+  gap: 12px;
+  max-width: min(720px, 100%);
+  padding: 18px 22px;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(240, 247, 255, 0.98), rgba(226, 239, 252, 0.96));
+  color: #1a2533;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
+}
+
+.assistant-card__header,
+.system-card__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #18345a;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.assistant-card__icon,
+.system-card__icon {
+  font-size: 28px;
+}
+
+.assistant-card__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  object-fit: cover;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.88);
+}
+
+.assistant-card__body {
+  margin: 0;
+  color: #24374d;
+  font-size: 1.55rem;
+  line-height: 1.6;
+  font-weight: 800;
+  white-space: pre-wrap;
 }
 
 .chat-badge {

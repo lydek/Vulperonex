@@ -19,9 +19,11 @@ public sealed class OverlayDtoWhitelistTests
             [new("text", "hello")],
             ["subscriber/1"],
             Roles: ["Subscriber"],
-            MemberSnapshot: new OverlayMemberSnapshot("Alice", "https://cdn/avatar.png", 3));
+            AvatarUrl: "https://cdn/avatar.png",
+            MemberSnapshot: new OverlayMemberSnapshot("Alice", "https://cdn/avatar.png", 3),
+            Variant: "assistant");
 
-        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "displayName", "colorHex", "segments", "badges", "roles", "memberSnapshot");
+        SerializeKeys(payload).Should().BeEquivalentTo("schemaVersion", "eventId", "timestamp", "displayName", "colorHex", "segments", "badges", "roles", "avatarUrl", "memberSnapshot", "variant");
     }
 
     [Fact]

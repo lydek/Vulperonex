@@ -94,6 +94,7 @@ public static class DependencyInjection
         services.AddOverlayHistory<OverlayWidgetPayload>("widgets", defaultCapacity: 20);
         services.AddSingleton<IOverlayWidgetEmitter, SignalROverlayWidgetEmitter>();
         services.AddSingleton<IOverlayEffectEmitter, SignalROverlayEffectEmitter>();
+        services.AddSingleton<IWorkflowChatOverlaySink, OverlayWorkflowChatSink>();
         services.AddSingleton<TwitchOAuthSessionStore>();
         services.AddSingleton<PlatformConnectionNotifier>();
         services.AddSingleton<OverlayPresetStore>();
@@ -109,6 +110,7 @@ public static class DependencyInjection
         services.AddSingleton<TwitchAdapter>();
         services.AddTwitchLibEventSubWebsockets();
         services.AddSingleton<TwitchIrcChatSource>();
+        services.AddSingleton<IPlatformChatSender>(serviceProvider => serviceProvider.GetRequiredService<TwitchIrcChatSource>());
         services.AddSingleton<TwitchEventSubSource>();
         services.AddSingleton<IPlatformBadgeCache, TwitchBadgeCache>();
         services.AddSingleton<TwitchBadgeSyncCoordinator>();
@@ -135,12 +137,14 @@ public static class DependencyInjection
             new PlatformUserDisplayCache(serviceProvider.GetRequiredService<VulperonexDbContext>()));
         services.AddScoped<ICounterRepository, CounterRepository>();
         services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
+        services.AddSingleton<IPlatformChatSender, SimulationPlatformChatSender>();
         services.AddScoped<WorkflowConditionEvaluator>();
         services.AddScoped<ITemplateResolver, TemplateResolver>();
         services.AddScoped<IExpressionEvaluator, NCalcExpressionEvaluator>();
         services.AddScoped<TemplateRenderer>();
         services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
         services.AddSingleton<IWorkflowThrottleService, InMemoryWorkflowThrottleService>();
+        services.AddSingleton<WorkflowChatEchoTracker>();
         services.AddSingleton<ITriggerMetadataProvider, TriggerMetadataProvider>();
         services.AddSingleton<IActionMetadataProvider, ActionMetadataProvider>();
         services.AddSingleton<ITriggerFilterMatcher, MatchChatMessage>();
@@ -156,7 +160,9 @@ public static class DependencyInjection
             new SendChatMessageActionExecutor(
                 serviceProvider.GetRequiredService<IChatOutbox>(),
                 serviceProvider.GetRequiredService<ITemplateResolver>(),
-                serviceProvider.GetRequiredService<TemplateRenderer>()));
+                serviceProvider.GetRequiredService<TemplateRenderer>(),
+                serviceProvider.GetRequiredService<IWorkflowChatOverlaySink>(),
+                serviceProvider.GetRequiredService<ISystemSettingsService>()));
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, DelayActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, StopIfActionExecutor>();
@@ -167,14 +173,9 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, EmitSystemEventActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, TriggerEffectActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, EmitOverlayWidgetActionExecutor>();
-        services.AddScoped<IWorkflowActionExecutor, LookupTwitchUserActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, LookupPlatformUserActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, ShoutoutActionExecutor>();
-        services.AddScoped<IWorkflowActionExecutor, RefundTwitchRedemptionActionExecutor>();
-        // Default sender is only a fallback. Real platform registrations must happen before this method.
-        if (!services.Any(service => service.ServiceType == typeof(IPlatformChatSender)))
-        {
-            services.AddSingleton<IPlatformChatSender, NoOpPlatformChatSender>();
-        }
+        services.AddScoped<IWorkflowActionExecutor, RefundRewardRedemptionActionExecutor>();
         services.AddScoped<WorkflowEngine>();
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
         services.AddScoped<Func<IWorkflowRuleInvoker>>(serviceProvider =>
@@ -229,16 +230,5 @@ internal static class OverlayHistoryServiceCollectionExtensions
         });
         services.AddSingleton<IOverlayHistoryService<TPayload>, OverlayHistoryService<TPayload>>();
         return services;
-    }
-}
-
-internal sealed class NoOpPlatformChatSender : IPlatformChatSender
-{
-    public string Platform => "simulation";
-
-    public Task SendAsync(string message, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        return Task.CompletedTask;
     }
 }

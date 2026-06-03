@@ -18,9 +18,12 @@ public sealed class ChatOutboxDispatcher : BackgroundService
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<ChatOutboxDispatcher> _logger;
     private readonly IObservable<SettingChangedEvent> _settingChanges;
+    private readonly IWorkflowChatOverlaySink? _overlaySink;
+    private readonly WorkflowChatEchoTracker? _echoTracker;
 
     private IDisposable? _subscription;
     private int _perSecond = DefaultPerSecond;
+    private string _outputDestination = WorkflowChatOutputDestination.Dual;
     private bool _initialised;
 
     public ChatOutboxDispatcher(
@@ -28,13 +31,17 @@ public sealed class ChatOutboxDispatcher : BackgroundService
         IEnumerable<IPlatformChatSender> chatSenders,
         IServiceScopeFactory scopeFactory,
         ILogger<ChatOutboxDispatcher> logger,
-        IObservable<SettingChangedEvent> settingChanges)
+        IObservable<SettingChangedEvent> settingChanges,
+        IWorkflowChatOverlaySink? overlaySink = null,
+        WorkflowChatEchoTracker? echoTracker = null)
     {
         _chatOutbox = chatOutbox;
         _chatSenders = chatSenders.ToArray();
         _scopeFactory = scopeFactory;
         _logger = logger;
         _settingChanges = settingChanges;
+        _overlaySink = overlaySink;
+        _echoTracker = echoTracker;
     }
 
     public async Task<int> DispatchOnceAsync(CancellationToken cancellationToken = default)
@@ -49,9 +56,15 @@ public sealed class ChatOutboxDispatcher : BackgroundService
 
         foreach (var item in items)
         {
-            var sender = _chatSenders.FirstOrDefault(candidate =>
-                string.Equals(candidate.Platform, item.Platform, StringComparison.OrdinalIgnoreCase));
-            if (sender is null)
+            var shouldSendToPlatform = WorkflowChatOutputDestination.IncludesPlatform(_outputDestination);
+            var shouldSendToOverlay = WorkflowChatOutputDestination.IncludesOverlay(_outputDestination);
+
+            var sender = shouldSendToPlatform
+                ? _chatSenders.FirstOrDefault(candidate =>
+                    string.Equals(candidate.Platform, item.Platform, StringComparison.OrdinalIgnoreCase))
+                : null;
+
+            if (shouldSendToPlatform && sender is null)
             {
                 var reason = $"No chat sender registered for platform '{item.Platform}'.";
                 _logger.LogWarning("Chat outbox item {ChatOutboxItemId} skipped: {Reason}", item.Id, reason);
@@ -61,7 +74,12 @@ public sealed class ChatOutboxDispatcher : BackgroundService
 
             try
             {
-                await sender.SendAsync(item.Message, cancellationToken).ConfigureAwait(false);
+                if (sender is not null)
+                {
+                    await sender.SendAsync(item.Message, cancellationToken).ConfigureAwait(false);
+                    _echoTracker?.Track(item.Platform, item.Message);
+                }
+
                 await _chatOutbox.MarkSentAsync(item.Id, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -97,6 +115,10 @@ public sealed class ChatOutboxDispatcher : BackgroundService
             .GetAsync(SystemSettingKey.ChatOutboxPerSecond, DefaultPerSecond, cancellationToken)
             .ConfigureAwait(false);
         ApplyPerSecond(value);
+        var outputDestination = await settings
+            .GetAsync(SystemSettingKey.WorkflowChatOutputDestination, WorkflowChatOutputDestination.Dual, cancellationToken)
+            .ConfigureAwait(false);
+        ApplyOutputDestination(outputDestination);
         _subscription = _settingChanges.Subscribe(new SettingObserver(this));
     }
 
@@ -128,6 +150,34 @@ public sealed class ChatOutboxDispatcher : BackgroundService
         }
     }
 
+    private void ApplyOutputDestination(string? value)
+    {
+        _outputDestination = WorkflowChatOutputDestination.Normalize(value);
+    }
+
+    private void ApplyOutputDestinationFromJson(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            ApplyOutputDestination(WorkflowChatOutputDestination.Dual);
+            return;
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<string>(rawJson);
+            ApplyOutputDestination(parsed);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Failed to parse {Key} value {Raw}; falling back to current chat destination.",
+                SystemSettingKey.WorkflowChatOutputDestination,
+                rawJson);
+        }
+    }
+
     private sealed class SettingObserver(ChatOutboxDispatcher dispatcher) : IObserver<SettingChangedEvent>
     {
         public void OnCompleted() { }
@@ -136,12 +186,18 @@ public sealed class ChatOutboxDispatcher : BackgroundService
 
         public void OnNext(SettingChangedEvent value)
         {
-            if (!string.Equals(value.Key, SystemSettingKey.ChatOutboxPerSecond, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(value.Key, SystemSettingKey.ChatOutboxPerSecond, StringComparison.OrdinalIgnoreCase))
+            {
+                dispatcher.ApplyPerSecond(value.NewValue);
+                return;
+            }
+
+            if (!string.Equals(value.Key, SystemSettingKey.WorkflowChatOutputDestination, StringComparison.OrdinalIgnoreCase))
             {
                 return;
             }
 
-            dispatcher.ApplyPerSecond(value.NewValue);
+            dispatcher.ApplyOutputDestinationFromJson(value.NewValue);
         }
     }
 }

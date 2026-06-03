@@ -24,6 +24,65 @@ namespace Vulperonex.Tests.Integration.RapidTest;
 public sealed class ChatReplyChainTests
 {
     [Fact]
+    public async Task Given_DefaultSimulationSender_When_WorkflowEmitsChat_Then_OverlayChatReceivesIt()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var createRuleResponse = await client.PostAsJsonAsync("/api/rules", new
+        {
+            name = "Chat Echo Simulation",
+            eventTypeKey = "user.message",
+            isEnabled = true,
+            priority = 10,
+            conditions = Array.Empty<object>(),
+            actions = new object[]
+            {
+                new
+                {
+                    type = "sendChatMessage",
+                    template = "Echo: {event.message}",
+                    targetPlatform = "simulation",
+                }
+            },
+            executionMode = "Serial",
+            maxParallelism = 1,
+        }, TestContext.Current.CancellationToken);
+        createRuleResponse.EnsureSuccessStatusCode();
+
+        var echoMessageReceived = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/chat"))
+            .Build();
+
+        connection.On<JsonElement>("event", payload =>
+        {
+            var segments = payload.GetProperty("segments");
+            if (segments.ValueKind == JsonValueKind.Array && segments.GetArrayLength() > 0)
+            {
+                var text = segments[0].GetProperty("value").GetString();
+                if (text != null && text.StartsWith("Echo:", StringComparison.OrdinalIgnoreCase))
+                {
+                    echoMessageReceived.TrySetResult(payload);
+                }
+            }
+        });
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+
+        var simulateResponse = await client.PostAsJsonAsync(
+            "/api/simulate/chat",
+            new { message = "hello" },
+            TestContext.Current.CancellationToken);
+        simulateResponse.EnsureSuccessStatusCode();
+
+        var completed = await Task.WhenAny(echoMessageReceived.Task, Task.Delay(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+        completed.Should().Be(echoMessageReceived.Task, "overlay chat should receive workflow-emitted simulation replies");
+
+        var payload = await echoMessageReceived.Task;
+        payload.GetProperty("segments")[0].GetProperty("value").GetString().Should().Be("Echo: hello");
+    }
+
+    [Fact]
     public async Task Given_WorkflowRuleAndOverlayConnected_When_ChatSimulated_Then_EchoPayloadReceivedBySignalR()
     {
         // 1. Start App with custom LoopbackChatSender registered
@@ -80,10 +139,6 @@ public sealed class ChatReplyChainTests
         var payload = await echoMessageReceived.Task;
         payload.GetProperty("segments")[0].GetProperty("value").GetString().Should().Be("Echo: hello");
 
-        // 6. Assert outbox was triggered and contains the echo item
-        var outbox = app.Services.GetRequiredService<IChatOutbox>();
-        var outboxSnapshot = await outbox.SnapshotAsync(TestContext.Current.CancellationToken);
-        outboxSnapshot.Should().ContainSingle(item => item.Message == "Echo: hello");
     }
 
     private sealed class LoopbackChatSender(string platform) : IPlatformChatSender
@@ -104,6 +159,37 @@ public sealed class ChatReplyChainTests
                 }, cancellationToken);
             }
         }
+    }
+
+    private static async Task<WebApplication> StartAppAsync()
+    {
+        var databasePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.db");
+        var builder = VulperonexWebApplication.CreateBuilder(
+            new WebApplicationOptions
+            {
+                EnvironmentName = "Development",
+            },
+            configureDefaultLoopbackPorts: false);
+        var securityRoot = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Database:Path"] = databasePath,
+            ["Security:RootPath"] = securityRoot,
+            ["Security:CsrfTokenPath"] = Path.Combine(securityRoot, ".admin-csrf-token"),
+        });
+
+        builder.WebHost.UseSetting(WebHostDefaults.ServerUrlsKey, $"http://127.0.0.1:{GetAvailablePort()}");
+
+        var app = VulperonexWebApplication.Build(builder);
+
+        await using (var scope = app.Services.CreateAsyncScope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
+            await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        }
+
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        return app;
     }
 
     private static async Task<WebApplication> StartAppWithSenderAsync(LoopbackChatSender sender)

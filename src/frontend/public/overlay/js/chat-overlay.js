@@ -24,6 +24,24 @@
         chatContainer.classList.add(`preset-${preset}`);
 
         const MAX_MESSAGES = 15;
+        const showMemberCard = urlParams.get('showMemberCard') !== 'false';
+        let cardBgUrl = '';
+        let cardStampUrl = '';
+
+        async function fetchGlobalCardSettings() {
+            try {
+                const bgResponse = await fetch('/api/config/overlay.member.background_url');
+                const stampResponse = await fetch('/api/config/overlay.member.stamp_url');
+                if (bgResponse.ok) {
+                    const bgData = await bgResponse.json();
+                    if (bgData.value) cardBgUrl = bgData.value;
+                }
+                if (stampResponse.ok) {
+                    const stampData = await stampResponse.json();
+                    if (stampData.value) cardStampUrl = stampData.value;
+                }
+            } catch (error) {}
+        }
 
         // Shared history syncing flag
         let isSyncingHistory = true;
@@ -101,6 +119,74 @@
                     </div>
                 </div>
             </div>`;
+        }
+
+        function appendChatLine(chatLine) {
+            chatContainer.appendChild(chatLine);
+
+            setTimeout(() => {
+                chatLine.classList.remove('enter');
+            }, 300);
+
+            if (chatContainer.children.length > MAX_MESSAGES) {
+                const oldestLine = chatContainer.firstElementChild;
+                if (oldestLine) {
+                    oldestLine.classList.add('exit');
+                    setTimeout(() => {
+                        oldestLine.remove();
+                    }, 300);
+                }
+            }
+        }
+
+        function renderCheckInCardMessage(data) {
+            const snap = data.memberSnapshot;
+            if (!snap) return;
+
+            const displayName = snap.displayName || data.displayName || "Unknown User";
+            const total = snap.checkInCount || 1;
+            const avatarUrl = snap.avatarUrl || "";
+            if (isCheckInAlreadyRendered(displayName, total)) {
+                return;
+            }
+
+            markCheckInRendered(displayName, total);
+
+            const stamps = (total % 10 === 0) ? 10 : (total % 10);
+            const chatLine = document.createElement('div');
+            chatLine.className = 'chat-line enter checkin-message';
+            chatLine.setAttribute('role', 'listitem');
+
+            const title = document.createElement('div');
+            title.className = 'chat-username';
+            title.style.color = data.colorHex || '#ffd700';
+            title.style.display = 'block';
+            title.style.marginBottom = '8px';
+            title.textContent = data.displayName || '打卡系統';
+            chatLine.appendChild(title);
+
+            const cardContainer = document.createElement('div');
+            cardContainer.innerHTML = buildMemberCardHtml(displayName, total, avatarUrl, isSyncingHistory);
+            chatLine.appendChild(cardContainer);
+            appendChatLine(chatLine);
+
+            if (!isSyncingHistory) {
+                setTimeout(() => {
+                    const stampsGrid = cardContainer.querySelector('.stamps-grid');
+                    if (stampsGrid) {
+                        const targetSlot = stampsGrid.children[stamps - 1];
+                        if (targetSlot) {
+                            targetSlot.classList.add('stamped', 'animate-stamp');
+                            targetSlot.textContent = '';
+                            const wrapper = cardContainer.querySelector('.chat-checkin-wrapper');
+                            if (wrapper) {
+                                wrapper.classList.add('shake');
+                                setTimeout(() => wrapper.classList.remove('shake'), 400);
+                            }
+                        }
+                    }
+                }, 800);
+            }
         }
 
         // Unified Chat Line Renderer (Vanilla JS)
@@ -237,28 +323,17 @@
             }
 
             // 7. Append to container and handle max messages limit with animation
-            chatContainer.appendChild(chatLine);
-
-            // Clean 'enter' class after animation ends to allow other transitions
-            setTimeout(() => {
-                chatLine.classList.remove('enter');
-            }, 300);
-
-            if (chatContainer.children.length > MAX_MESSAGES) {
-                const oldestLine = chatContainer.firstElementChild;
-                if (oldestLine) {
-                    oldestLine.classList.add('exit');
-                    setTimeout(() => {
-                        oldestLine.remove();
-                    }, 300);
-                }
-            }
+            appendChatLine(chatLine);
         }
 
         // Connect to SignalR /hubs/overlay/chat for normal messages
         OverlayCommon.initSignalRConnection('/hubs/overlay/chat', {
             event: (data) => {
                 console.log("[DEBUG] SignalR chat event payload received: ", data);
+                if (data.variant === 'checkin-card') {
+                    renderCheckInCardMessage(data);
+                    return;
+                }
                 renderChatMessage(data, false);
             },
             cleared: () => {
@@ -267,91 +342,9 @@
             }
         });
 
-        // Connect to SignalR /hubs/overlay/member for check-in messages (Toggleable)
-        const showMemberCard = urlParams.get('showMemberCard') !== 'false';
-        
-        let cardBgUrl = '';
-        let cardStampUrl = '';
-        async function fetchGlobalCardSettings() {
-            try {
-                const bgResponse = await fetch('/api/config/overlay.member.background_url');
-                const stampResponse = await fetch('/api/config/overlay.member.stamp_url');
-                if (bgResponse.ok) {
-                    const bgData = await bgResponse.json();
-                    if (bgData.value) cardBgUrl = bgData.value;
-                }
-                if (stampResponse.ok) {
-                    const stampData = await stampResponse.json();
-                    if (stampData.value) cardStampUrl = stampData.value;
-                }
-            } catch (error) {}
-        }
-
         if (showMemberCard) {
             fetchGlobalCardSettings();
             setInterval(fetchGlobalCardSettings, 20000);
-
-            let isSyncingHistory = true;
-            setTimeout(() => {
-                isSyncingHistory = false;
-                console.log("[OverlayChat] History sync complete. Live member check-in rendering is now active.");
-            }, 1500);
-
-            OverlayCommon.initSignalRConnection('/hubs/overlay/member', {
-                event: function (userData) {
-                    if (isSyncingHistory) {
-                        console.log("[OverlayChat] Ignored history member check-in to prevent clashing: ", userData.displayName);
-                        return;
-                    }
-                    console.log("[OverlayChat] Member check-in event received: ", userData);
-
-                    const total = userData.checkInCount || 1;
-                    const displayName = userData.displayName || "Unknown User";
-                    const avatarUrl = userData.avatarUrl || "";
-
-                    if (isCheckInAlreadyRendered(displayName, total)) {
-                        console.log("[OverlayChat] Card already rendered via ChatHub: ", displayName, total);
-                        return;
-                    }
-                    markCheckInRendered(displayName, total);
-
-                    const stamps = (total % 10 === 0) ? 10 : (total % 10);
-                    const html = buildMemberCardHtml(displayName, total, avatarUrl, isSyncingHistory);
-
-                    // Send system-style chat payload containing the local stamp card
-                    const checkInPayload = {
-                        displayName: "打卡系統",
-                        colorHex: "#ffd700", // Gold highlight
-                        badges: [],
-                        htmlMessage: html,
-                        memberSnapshot: null
-                    };
-
-                    renderChatMessage(checkInPayload, true);
-
-                    // Grab the newly added chat line and trigger stamp animation natively at 800ms
-                    setTimeout(() => {
-                        const chatLines = chatContainer.querySelectorAll('.chat-line.checkin-message');
-                        const lastLine = chatLines[chatLines.length - 1];
-                        if (lastLine) {
-                            const stampsGrid = lastLine.querySelector('.stamps-grid');
-                            if (stampsGrid) {
-                                const targetSlot = stampsGrid.children[stamps - 1];
-                                if (targetSlot) {
-                                    targetSlot.classList.add('stamped', 'animate-stamp');
-                                    targetSlot.textContent = '';
-                                    // Apply shake animation to outer wrapper to prevent scale(0.7) override bug
-                                    const wrapper = lastLine.querySelector('.chat-checkin-wrapper');
-                                    if (wrapper) {
-                                        wrapper.classList.add('shake');
-                                        setTimeout(() => wrapper.classList.remove('shake'), 400);
-                                    }
-                                }
-                            }
-                        }
-                    }, 800);
-                }
-            });
         }
     });
 })();

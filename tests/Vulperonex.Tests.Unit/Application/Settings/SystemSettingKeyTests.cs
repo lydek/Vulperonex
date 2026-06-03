@@ -44,11 +44,17 @@ public sealed class SystemSettingKeyTests
             "overlay.member.preset",
             "overlay.alerts.preset",
             "overlay.chat.show_member_card",
+            "overlay.chat.assistant_display_name",
+            "overlay.chat.assistant_avatar_url",
+            "overlay.chat.checkin_display_name",
+            "checkin.reset_time_local",
+            "checkin.repeat_card_enabled",
             "twitch.client_id",
             "twitch.channel_name",
             "overlay.member.background_url",
             "overlay.member.stamp_url",
             "members.audit_retention_days",
-            "overlay.lan.access_key");
+            "overlay.lan.access_key",
+            "workflow.chat.output_destination");
     }
 }

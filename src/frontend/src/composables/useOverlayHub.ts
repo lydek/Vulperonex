@@ -11,6 +11,7 @@ export interface OverlayHubEvent {
   sentAt?: string;
   timestamp?: string;
   displayName?: string;
+  variant?: string | null;
   eventType?: string;
   segments?: Array<{ kind?: string; text?: string; type?: string; value?: string }>;
   replayed?: boolean;

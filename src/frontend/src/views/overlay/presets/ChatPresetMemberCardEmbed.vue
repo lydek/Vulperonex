@@ -1,14 +1,29 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { OverlayHubEvent } from "@/composables/useOverlayHub";
 import ChatMemberChip from "./ChatMemberChip.vue";
+import ChatCheckInCard from "./ChatCheckInCard.vue";
 
 const props = defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; showMemberCard?: boolean; isPreview?: boolean }>();
+const { t } = useI18n();
 
 const orderedEvents = computed(() => [...props.events].reverse());
 
 function combinedText(event: OverlayHubEvent): string {
   return (event.segments ?? []).map((segment) => segment.text || segment.value || "").join(" ");
+}
+
+function getTitle(event: OverlayHubEvent): string {
+  if (event.variant === "assistant") {
+    return event.displayName || t("overlay.chat.systemAssistant");
+  }
+
+  if (event.variant === "checkin-card") {
+    return event.displayName || t("overlay.chat.checkInSystem");
+  }
+
+  return event.displayName || "Unknown user";
 }
 </script>
 
@@ -20,23 +35,35 @@ function combinedText(event: OverlayHubEvent): string {
       :key="event.eventId ?? `chat-member-card-${eventIndex}`"
       class="member-inline-row"
     >
-      <header class="member-inline-row__header">
-        <strong class="member-inline-row__name">{{ event.displayName }}</strong>
-        <span
-          v-for="(role, roleIndex) in event.roles"
-          :key="`member-role-${roleIndex}`"
-          class="member-inline-row__role"
-        >
-          {{ role }}
-        </span>
-        <ChatMemberChip
-          v-if="showMemberCard && event.memberSnapshot"
+      <template v-if="event.variant === 'checkin-card' && event.memberSnapshot">
+        <header class="member-inline-row__header">
+          <strong class="member-inline-row__name">{{ getTitle(event) }}</strong>
+        </header>
+        <ChatCheckInCard
           :display-name="event.memberSnapshot.displayName"
           :avatar-url="event.memberSnapshot.avatarUrl"
           :check-in-count="event.memberSnapshot.checkInCount"
         />
-      </header>
-      <p class="member-inline-row__message">{{ combinedText(event) }}</p>
+      </template>
+      <template v-else>
+        <header class="member-inline-row__header">
+          <strong class="member-inline-row__name">{{ getTitle(event) }}</strong>
+          <span
+            v-for="(role, roleIndex) in event.roles"
+            :key="`member-role-${roleIndex}`"
+            class="member-inline-row__role"
+          >
+            {{ role }}
+          </span>
+          <ChatMemberChip
+            v-if="showMemberCard && event.memberSnapshot"
+            :display-name="event.memberSnapshot.displayName"
+            :avatar-url="event.memberSnapshot.avatarUrl"
+            :check-in-count="event.memberSnapshot.checkInCount"
+          />
+        </header>
+        <p class="member-inline-row__message">{{ combinedText(event) }}</p>
+      </template>
     </article>
   </div>
 </template>

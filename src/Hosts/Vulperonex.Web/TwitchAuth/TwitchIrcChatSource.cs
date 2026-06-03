@@ -6,6 +6,7 @@ using Vulperonex.Adapters.Twitch;
 using Vulperonex.Adapters.Twitch.Display;
 using Vulperonex.Adapters.Twitch.Irc;
 using Vulperonex.Application.EventBus;
+using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Domain.Events;
 
 namespace Vulperonex.Web.TwitchAuth;
@@ -20,10 +21,13 @@ public sealed class TwitchIrcChatSource(
     TwitchAdapter adapter,
     IStreamEventBus eventBus,
     IServiceScopeFactory scopeFactory,
-    ILogger<TwitchIrcChatSource> logger)
+    ILogger<TwitchIrcChatSource> logger) : IPlatformChatSender
 {
     private readonly TwitchClient _client = new();
     private int _wired;
+    private string? _channelLogin;
+
+    public string Platform => "twitch";
 
     public Task ConnectAsync(string channelLogin, string accessToken, CancellationToken cancellationToken)
     {
@@ -32,8 +36,10 @@ public sealed class TwitchIrcChatSource(
             _client.OnMessageReceived += OnMessageReceivedAsync;
             _client.OnConnected += OnConnectedAsync;
             _client.OnDisconnected += OnDisconnectedAsync;
+            _client.OnIncorrectLogin += OnIncorrectLoginAsync;
         }
 
+        _channelLogin = channelLogin;
         _client.Initialize(new ConnectionCredentials(channelLogin, accessToken), channelLogin);
         return _client.ConnectAsync();
     }
@@ -41,6 +47,18 @@ public sealed class TwitchIrcChatSource(
     public Task DisconnectAsync()
     {
         return _client.IsConnected ? _client.DisconnectAsync() : Task.CompletedTask;
+    }
+
+    public Task SendAsync(string message, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_client.IsConnected || string.IsNullOrWhiteSpace(_channelLogin))
+        {
+            throw new InvalidOperationException("Twitch IRC is not connected.");
+        }
+
+        return _client.SendMessageAsync(_channelLogin, message);
     }
 
     private async Task OnMessageReceivedAsync(object? sender, OnMessageReceivedArgs e)
@@ -100,6 +118,16 @@ public sealed class TwitchIrcChatSource(
     {
         logger.LogWarning("Twitch IRC disconnected.");
         await PublishConnectionAsync(connected: false, reason: "irc_disconnected");
+    }
+
+    private async Task OnIncorrectLoginAsync(object? sender, OnIncorrectLoginArgs e)
+    {
+        // TwitchLib fires OnIncorrectLogin when the IRC AUTHFAIL handshake
+        // rejects the bot account's access token (expired/missing chat scope).
+        // Surface as auth_failed so the UI prompts re-grant rather than
+        // showing a generic "disconnected" state.
+        logger.LogWarning("Twitch IRC rejected the access token; operator likely needs to re-grant chat:read/chat:edit scopes.");
+        await PublishConnectionAsync(connected: false, reason: "auth_failed");
     }
 
     private async Task PublishConnectionAsync(bool connected, string? reason)

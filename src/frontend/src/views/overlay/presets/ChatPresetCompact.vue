@@ -1,14 +1,26 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 import type { OverlayHubEvent } from "@/composables/useOverlayHub";
+import ChatCheckInCard from "./ChatCheckInCard.vue";
 
 const props = defineProps<{ events: readonly OverlayHubEvent[]; emptyLabel: string; isPreview?: boolean }>();
+const { t } = useI18n();
 
 function combinedText(event: OverlayHubEvent): string {
-  if (!event.segments) {
-    return "";
+  return (event.segments ?? []).map((segment) => segment.text || segment.value || "").join(" ");
+}
+
+function getTitle(event: OverlayHubEvent): string {
+  if (event.variant === "assistant") {
+    return event.displayName || t("overlay.chat.systemAssistant");
   }
-  return event.segments.map((segment) => segment.text || segment.value || "").join(" ");
+
+  if (event.variant === "checkin-card") {
+    return event.displayName || t("overlay.chat.checkInSystem");
+  }
+
+  return event.displayName || "Unknown user";
 }
 
 const recent = computed(() => [...props.events.slice(0, 10)].reverse());
@@ -22,9 +34,21 @@ const recent = computed(() => [...props.events.slice(0, 10)].reverse());
       :key="event.eventId ?? `chat-compact-${eventIndex}`"
       class="chat-preset-compact__row"
     >
-      <span class="chat-preset-compact__name">{{ event.displayName }}</span>
-      <span class="chat-preset-compact__divider">›</span>
-      <span class="chat-preset-compact__message">{{ combinedText(event) }}</span>
+      <template v-if="event.variant === 'checkin-card' && event.memberSnapshot">
+        <div class="chat-preset-compact__system-card">
+          <strong class="chat-preset-compact__name">{{ getTitle(event) }}</strong>
+          <ChatCheckInCard
+            :display-name="event.memberSnapshot.displayName"
+            :avatar-url="event.memberSnapshot.avatarUrl"
+            :check-in-count="event.memberSnapshot.checkInCount"
+          />
+        </div>
+      </template>
+      <template v-else>
+        <span class="chat-preset-compact__name">{{ getTitle(event) }}</span>
+        <span class="chat-preset-compact__divider">›</span>
+        <span class="chat-preset-compact__message">{{ combinedText(event) }}</span>
+      </template>
     </li>
   </ol>
 </template>
@@ -60,5 +84,11 @@ const recent = computed(() => [...props.events.slice(0, 10)].reverse());
 .chat-preset-compact__message {
   color: #1f2937;
   word-break: break-word;
+}
+
+.chat-preset-compact__system-card {
+  display: grid;
+  gap: 8px;
+  width: 100%;
 }
 </style>

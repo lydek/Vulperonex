@@ -72,13 +72,57 @@ public sealed class ChatOutboxDispatcherTests
         item.ErrorMessage.Should().Be("send failed");
     }
 
+    [Fact]
+    public async Task Given_OutputDestinationIsOverlayOnly_When_Dispatched_Then_MessageDoesNotRequirePlatformSender()
+    {
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var dispatcher = NewDispatcher(
+            outbox,
+            [],
+            perSecond: 5,
+            outputDestination: WorkflowChatOutputDestination.OverlayOnly);
+        await outbox.EnqueueAsync(
+            "twitch",
+            channel: null,
+            "overlay only",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        await dispatcher.DispatchOnceAsync(TestContext.Current.CancellationToken);
+
+        var item = (await outbox.SnapshotAsync(TestContext.Current.CancellationToken))
+            .Should().ContainSingle().Subject;
+        item.Status.Should().Be(ChatOutboxItemStatus.Sent);
+    }
+
+    [Fact]
+    public async Task Given_OutputDestinationIsPlatformOnly_When_Dispatched_Then_OverlayMessageIsSuppressed()
+    {
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var sender = new RecordingChatSender("simulation");
+        var dispatcher = NewDispatcher(
+            outbox,
+            [sender],
+            perSecond: 5,
+            outputDestination: WorkflowChatOutputDestination.PlatformOnly);
+        await outbox.EnqueueAsync(
+            "simulation",
+            channel: null,
+            "platform only",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        await dispatcher.DispatchOnceAsync(TestContext.Current.CancellationToken);
+
+        sender.Messages.Should().ContainSingle().Which.Should().Be("platform only");
+    }
+
     private static ChatOutboxDispatcher NewDispatcher(
         IChatOutbox outbox,
         IEnumerable<IPlatformChatSender> senders,
-        int perSecond)
+        int perSecond,
+        string outputDestination = WorkflowChatOutputDestination.Dual)
     {
         var provider = new ServiceCollection()
-            .AddSingleton<ISystemSettingsService>(new FakeSettingsService(perSecond))
+            .AddSingleton<ISystemSettingsService>(new FakeSettingsService(perSecond, outputDestination))
             .BuildServiceProvider();
 
         return new ChatOutboxDispatcher(
@@ -111,7 +155,7 @@ public sealed class ChatOutboxDispatcherTests
         }
     }
 
-    private sealed class FakeSettingsService(int perSecond) : ISystemSettingsService
+    private sealed class FakeSettingsService(int perSecond, string outputDestination) : ISystemSettingsService
     {
         public IObservable<SettingChangedEvent> Changes { get; } = new NoopObservable();
 
@@ -120,6 +164,11 @@ public sealed class ChatOutboxDispatcherTests
             if (key == SystemSettingKey.ChatOutboxPerSecond && typeof(T) == typeof(int))
             {
                 return Task.FromResult((T)(object)perSecond);
+            }
+
+            if (key == SystemSettingKey.WorkflowChatOutputDestination && typeof(T) == typeof(string))
+            {
+                return Task.FromResult((T)(object)outputDestination);
             }
 
             return Task.FromResult(defaultValue);

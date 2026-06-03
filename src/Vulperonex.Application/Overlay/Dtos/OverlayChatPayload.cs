@@ -9,7 +9,9 @@ public sealed record OverlayChatPayload(
     IReadOnlyCollection<OverlayTextSegment> Segments,
     IReadOnlyCollection<string> Badges,
     IReadOnlyCollection<string>? Roles = null,
-    OverlayMemberSnapshot? MemberSnapshot = null);
+    string? AvatarUrl = null,
+    OverlayMemberSnapshot? MemberSnapshot = null,
+    string? Variant = null);
 
 public sealed record OverlayMemberSnapshot(
     string DisplayName,

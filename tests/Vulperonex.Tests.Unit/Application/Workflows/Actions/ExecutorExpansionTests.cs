@@ -10,6 +10,7 @@ using Vulperonex.Application.Time;
 using Vulperonex.Application.Twitch;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -78,10 +79,11 @@ public sealed class ExecutorExpansionTests
         var settings = new FakeSystemSettingsService();
         var modules = new AlwaysEnabledModuleStateService();
         var cache = new FakePlatformUserDisplayInfoProvider();
+        var overlaySink = new RecordingWorkflowChatOverlaySink();
         var queryService = new FakeMemberQueryService();
         var auditLogRepository = new RecordingMemberAuditLogRepository();
         var transactionProvider = new FakeTransactionProvider();
-        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, queryService, auditLogRepository, transactionProvider);
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
 
         var result = await executor.ExecuteAsync(
             new TriggerCheckInAction { UserId = "{Member.UserId}" },
@@ -108,6 +110,116 @@ public sealed class ExecutorExpansionTests
         auditLogRepository.Logs.Should().ContainSingle();
         auditLogRepository.Logs[0].ActorKind.Should().Be("workflow");
         auditLogRepository.Logs[0].ActorId.Should().Be("rule-1");
+    }
+
+    [Fact]
+    public async Task Given_CheckInAlreadyExistsInCurrentWindow_When_Executed_Then_ResultIsRepeatAndNoEventIsPublished()
+    {
+        var occurredAt = new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
+        var repository = new RecordingMemberStreamStateRepository();
+        var bus = new RecordingStreamEventBus();
+        var settings = new FakeSystemSettingsService();
+        var modules = new AlwaysEnabledModuleStateService();
+        var cache = new FakePlatformUserDisplayInfoProvider();
+        var overlaySink = new RecordingWorkflowChatOverlaySink();
+        var queryService = new FakeMemberQueryService();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        auditLogRepository.Logs.Add(new MemberAuditLog
+        {
+            MemberId = "member-1",
+            SubjectKind = "member",
+            Operation = "checkin",
+            OccurredAt = occurredAt,
+        });
+        var transactionProvider = new FakeTransactionProvider();
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+
+        var result = await executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(occurredAt),
+            TestContext.Current.CancellationToken);
+
+        repository.CheckIns.Should().BeEmpty();
+        bus.Published.Should().BeEmpty();
+        overlaySink.CheckInCards.Should().ContainSingle().Which.Should().BeEquivalentTo(
+            new WorkflowCheckInCardOverlayMessage("Alice", null, 1));
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["Status"].Should().Be("repeat");
+        result.OutputValues!["CheckInCount"].Should().Be(1);
+        result.OutputValues!["TotalLoyalty"].Should().Be(7);
+    }
+
+    [Fact]
+    public async Task Given_CheckInOnlyExistsBeforeCurrentWindow_When_Executed_Then_NewCheckInStillSucceeds()
+    {
+        var occurredAt = new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
+        var repository = new RecordingMemberStreamStateRepository();
+        var bus = new RecordingStreamEventBus();
+        var settings = new FakeSystemSettingsService();
+        var modules = new AlwaysEnabledModuleStateService();
+        var cache = new FakePlatformUserDisplayInfoProvider();
+        var overlaySink = new RecordingWorkflowChatOverlaySink();
+        var queryService = new FakeMemberQueryService();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        auditLogRepository.Logs.Add(new MemberAuditLog
+        {
+            MemberId = "member-1",
+            SubjectKind = "member",
+            Operation = "checkin",
+            OccurredAt = occurredAt.AddDays(-2),
+        });
+        var transactionProvider = new FakeTransactionProvider();
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+
+        var result = await executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(occurredAt),
+            TestContext.Current.CancellationToken);
+
+        repository.CheckIns.Should().ContainSingle().Which.Should().Be(PlatformIdentity.Create("twitch", "alice"));
+        bus.Published.Should().ContainSingle().Which.Should().BeOfType<MemberCheckedInEvent>();
+        overlaySink.CheckInCards.Should().BeEmpty();
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues.Should().NotContainKey("Status");
+        auditLogRepository.Logs.Should().HaveCount(2);
+        auditLogRepository.Logs[^1].OccurredAt.Should().Be(occurredAt);
+    }
+
+    [Fact]
+    public async Task Given_RepeatCardSettingDisabled_When_CheckInRepeats_Then_CheckInCardIsNotPublished()
+    {
+        var occurredAt = new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
+        var repository = new RecordingMemberStreamStateRepository();
+        var bus = new RecordingStreamEventBus();
+        var settings = new FakeSystemSettingsService
+        {
+            RepeatCardEnabled = false,
+        };
+        var modules = new AlwaysEnabledModuleStateService();
+        var cache = new FakePlatformUserDisplayInfoProvider();
+        var overlaySink = new RecordingWorkflowChatOverlaySink();
+        var queryService = new FakeMemberQueryService();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        auditLogRepository.Logs.Add(new MemberAuditLog
+        {
+            MemberId = "member-1",
+            SubjectKind = "member",
+            Operation = "checkin",
+            OccurredAt = occurredAt,
+        });
+        var transactionProvider = new FakeTransactionProvider();
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+
+        var result = await executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(occurredAt),
+            TestContext.Current.CancellationToken);
+
+        repository.CheckIns.Should().BeEmpty();
+        bus.Published.Should().BeEmpty();
+        overlaySink.CheckInCards.Should().BeEmpty();
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["Status"].Should().Be("repeat");
     }
 
     [Fact]
@@ -143,6 +255,7 @@ public sealed class ExecutorExpansionTests
             new DisabledModuleStateService("checkin"),
             new FakeSystemSettingsService(),
             new FakePlatformUserDisplayInfoProvider(),
+            new RecordingWorkflowChatOverlaySink(),
             new FakeMemberQueryService(),
             new RecordingMemberAuditLogRepository(),
             new FakeTransactionProvider());
@@ -274,10 +387,10 @@ public sealed class ExecutorExpansionTests
                 "description",
                 IsAffiliate: true),
         };
-        var executor = new LookupTwitchUserActionExecutor(client, new TemplateResolver());
+        var executor = new LookupPlatformUserActionExecutor(client, new TemplateResolver());
 
         var result = await executor.ExecuteAsync(
-            new LookupTwitchUserAction { Login = "{Member.DisplayName}" },
+            new LookupPlatformUserAction { Login = "{Member.DisplayName}" },
             NewContext(),
             TestContext.Current.CancellationToken);
 
@@ -318,10 +431,10 @@ public sealed class ExecutorExpansionTests
     public async Task Given_RefundTwitchRedemptionAction_When_Executed_Then_RewardAndRedemptionAreResolved()
     {
         var client = new RecordingTwitchHelixClient { RefundResult = true };
-        var executor = new RefundTwitchRedemptionActionExecutor(client, new TemplateResolver());
+        var executor = new RefundRewardRedemptionActionExecutor(client, new TemplateResolver());
 
         var result = await executor.ExecuteAsync(
-            new RefundTwitchRedemptionAction
+            new RefundRewardRedemptionAction
             {
                 RewardId = "{Trigger.RewardId}",
                 RedemptionId = "{Trigger.RedemptionId}",
@@ -336,13 +449,14 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["RedemptionId"].Should().Be("redemption-1");
     }
 
-    private static ActionExecutionContext NewContext()
+    private static ActionExecutionContext NewContext(DateTimeOffset? occurredAt = null)
     {
         var streamEvent = new UserSentMessageEvent
         {
             EventId = "event-1",
             Platform = "twitch",
             User = new StreamUser("twitch", "alice", "Alice"),
+            OccurredAt = occurredAt ?? new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero),
         };
 
         return new ActionExecutionContext(
@@ -535,11 +649,11 @@ public sealed class ExecutorExpansionTests
             return Task.CompletedTask;
         }
 
-        public Task<IReadOnlyList<TwitchRewardDescriptor>> GetCustomRewardsAsync(
+        public Task<IReadOnlyList<PlatformRewardDescriptor>> GetCustomRewardsAsync(
             string broadcasterId,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<TwitchRewardDescriptor>>([]);
+            return Task.FromResult<IReadOnlyList<PlatformRewardDescriptor>>([]);
         }
     }
 
@@ -550,6 +664,8 @@ public sealed class ExecutorExpansionTests
 
     private sealed class FakeSystemSettingsService : Vulperonex.Application.Settings.ISystemSettingsService
     {
+        public bool RepeatCardEnabled { get; init; } = true;
+
         public IObservable<Vulperonex.Application.Settings.SettingChangedEvent> Changes => 
             new System.Reactive.Subjects.Subject<Vulperonex.Application.Settings.SettingChangedEvent>();
 
@@ -558,6 +674,14 @@ public sealed class ExecutorExpansionTests
             if (key == "overlay.member.stamps_per_round" && typeof(T) == typeof(int))
             {
                 return Task.FromResult((T)(object)10);
+            }
+            if (key == "checkin.reset_time_local" && typeof(T) == typeof(string))
+            {
+                return Task.FromResult((T)(object)"05:00");
+            }
+            if (key == "checkin.repeat_card_enabled" && typeof(T) == typeof(bool))
+            {
+                return Task.FromResult((T)(object)RepeatCardEnabled);
             }
             return Task.FromResult(defaultValue);
         }
@@ -574,6 +698,26 @@ public sealed class ExecutorExpansionTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<PlatformUserDisplayInfo?>(null);
+        }
+    }
+
+    private sealed class RecordingWorkflowChatOverlaySink : IWorkflowChatOverlaySink
+    {
+        public List<string> AssistantMessages { get; } = [];
+        public List<WorkflowCheckInCardOverlayMessage> CheckInCards { get; } = [];
+
+        public Task PublishAssistantMessageAsync(string message, CancellationToken cancellationToken = default)
+        {
+            AssistantMessages.Add(message);
+            return Task.CompletedTask;
+        }
+
+        public Task PublishCheckInCardAsync(
+            WorkflowCheckInCardOverlayMessage message,
+            CancellationToken cancellationToken = default)
+        {
+            CheckInCards.Add(message);
+            return Task.CompletedTask;
         }
     }
 
@@ -606,7 +750,12 @@ public sealed class ExecutorExpansionTests
         }
 
         public Task<IReadOnlyList<MemberAuditLog>> QueryAsync(string memberId, int limit = 50, int offset = 0, CancellationToken cancellationToken = default)
-            => Task.FromResult<IReadOnlyList<MemberAuditLog>>([]);
+            => Task.FromResult<IReadOnlyList<MemberAuditLog>>(Logs
+                .Where(log => log.MemberId == memberId)
+                .OrderByDescending(log => log.OccurredAt)
+                .Skip(offset)
+                .Take(limit)
+                .ToList());
     }
 
     private sealed class AlwaysEnabledModuleStateService : IModuleStateService

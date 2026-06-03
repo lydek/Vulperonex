@@ -14,8 +14,10 @@ vi.mock("@/composables/useOverlayHub", () => ({
   useOverlayHub: () => ({
     events: ref([{
       eventId: "e1",
-      displayName: "Streamer",
+      displayName: "Helper Core",
+      variant: "assistant",
       segments: [{ kind: "text", text: "hi" }],
+      avatarUrl: "https://cdn/helper.png",
       memberSnapshot: { displayName: "Streamer", avatarUrl: "https://cdn/avatar.png", checkInCount: 5 }
     }]),
     start: vi.fn(async () => undefined),
@@ -119,5 +121,17 @@ describe("ChatOverlayView preset switching", () => {
 
     expect(wrapper.find('[data-testid="chat-preset-member-card"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="chat-member-chip"]').exists()).toBe(true);
+  });
+
+  it("renders assistant-style overlay content for workflow chat messages", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () =>
+      new Response(JSON.stringify({ key: "k", value: "vulperonex-default" }), { status: 200 })));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    expect(wrapper.text()).toContain("Helper Core");
+    expect(wrapper.text()).toContain("hi");
+    expect(wrapper.find('img[src="https://cdn/helper.png"]').exists()).toBe(true);
   });
 });

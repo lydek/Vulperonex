@@ -137,6 +137,37 @@ public sealed class SignalRHubTests
     }
 
     [Fact]
+    public async Task Given_CheckInIsSimulated_When_OverlayChatHubConnected_Then_SystemCheckInCardArrives()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+        var message = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var connection = new HubConnectionBuilder()
+            .WithUrl(new Uri(client.BaseAddress!, "/hubs/overlay/chat"))
+            .Build();
+
+        connection.On<JsonElement>("event", payload =>
+        {
+            if (payload.TryGetProperty("variant", out var variant) && variant.GetString() == "checkin-card")
+            {
+                message.TrySetResult(payload);
+            }
+        });
+        await connection.StartAsync(TestContext.Current.CancellationToken);
+
+        var response = await client.PostAsJsonAsync(
+            "/api/simulate/checkin",
+            new { displayName = "Overlay User", stampCount = 1 },
+            TestContext.Current.CancellationToken);
+
+        response.EnsureSuccessStatusCode();
+        var payload = await message.Task.WaitAsync(TestContext.Current.CancellationToken);
+        payload.GetProperty("variant").GetString().Should().Be("checkin-card");
+        payload.GetProperty("memberSnapshot").GetProperty("displayName").GetString().Should().Be("Overlay User");
+        payload.GetProperty("memberSnapshot").GetProperty("checkInCount").GetInt32().Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public async Task Given_ConfigEndpointWritesSetting_When_EventsHubConnected_Then_SystemConfigChangedIsBroadcast()
     {
         await using var app = await StartAppAsync();

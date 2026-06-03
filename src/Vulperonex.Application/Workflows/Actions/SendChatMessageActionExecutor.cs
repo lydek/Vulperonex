@@ -1,4 +1,5 @@
 using Vulperonex.Application.Expressions;
+using Vulperonex.Application.Settings;
 using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain.Events;
 
@@ -9,15 +10,21 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
     private readonly IChatOutbox _chatOutbox;
     private readonly ITemplateResolver _templateResolver;
     private readonly TemplateRenderer? _legacyTemplateRenderer;
+    private readonly IWorkflowChatOverlaySink? _overlaySink;
+    private readonly ISystemSettingsService? _systemSettingsService;
 
     public SendChatMessageActionExecutor(
         IChatOutbox chatOutbox,
         ITemplateResolver templateResolver,
-        TemplateRenderer? legacyTemplateRenderer = null)
+        TemplateRenderer? legacyTemplateRenderer = null,
+        IWorkflowChatOverlaySink? overlaySink = null,
+        ISystemSettingsService? systemSettingsService = null)
     {
         _chatOutbox = chatOutbox;
         _templateResolver = templateResolver;
         _legacyTemplateRenderer = legacyTemplateRenderer;
+        _overlaySink = overlaySink;
+        _systemSettingsService = systemSettingsService;
     }
 
     public SendChatMessageActionExecutor(
@@ -49,6 +56,11 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
             ? $"action:{context.StreamEvent.EventId}:{context.WorkflowRule.Id}:{context.ActionIndex}"
             : Render(sendChatMessage.DedupKey, context);
 
+        if (_overlaySink is not null && await ShouldPublishOverlayAsync(cancellationToken).ConfigureAwait(false))
+        {
+            await _overlaySink.PublishAssistantMessageAsync(message, cancellationToken).ConfigureAwait(false);
+        }
+
         await _chatOutbox.EnqueueAsync(platform, channel, message, dedupKey, cancellationToken).ConfigureAwait(false);
         return ActionExecutionResult.Completed;
     }
@@ -64,6 +76,19 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
     private string? RenderOptional(string? template, ActionExecutionContext context)
     {
         return string.IsNullOrWhiteSpace(template) ? null : Render(template, context);
+    }
+
+    private async Task<bool> ShouldPublishOverlayAsync(CancellationToken cancellationToken)
+    {
+        if (_systemSettingsService is null)
+        {
+            return true;
+        }
+
+        var destination = await _systemSettingsService
+            .GetAsync(SystemSettingKey.WorkflowChatOutputDestination, WorkflowChatOutputDestination.Dual, cancellationToken)
+            .ConfigureAwait(false);
+        return WorkflowChatOutputDestination.IncludesOverlay(destination);
     }
 
     private sealed class DirectSendingChatOutbox(IEnumerable<IPlatformChatSender> chatSenders) : IChatOutbox

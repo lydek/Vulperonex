@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Vulperonex.Application.Settings;
 using Vulperonex.Application.Workflows;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Application.Workflows.Chat;
@@ -127,6 +128,46 @@ public sealed class SendChatMessageActionExecutorTests
         item.Message.Should().Be("@Alice checked in 4 / 28");
     }
 
+    [Fact]
+    public async Task Given_OutputDestinationIncludesOverlay_When_Executed_Then_AssistantOverlayMessageIsPublishedImmediately()
+    {
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var overlaySink = new RecordingOverlaySink();
+        var executor = new SendChatMessageActionExecutor(
+            outbox,
+            new TemplateResolver(),
+            new TemplateRenderer(),
+            overlaySink,
+            new FakeSettingsService(WorkflowChatOutputDestination.Dual));
+
+        await executor.ExecuteAsync(
+            new SendChatMessageAction { Template = "Hello now" },
+            NewContext("twitch"),
+            TestContext.Current.CancellationToken);
+
+        overlaySink.Messages.Should().ContainSingle().Which.Should().Be("Hello now");
+    }
+
+    [Fact]
+    public async Task Given_OutputDestinationExcludesOverlay_When_Executed_Then_AssistantOverlayMessageIsNotPublished()
+    {
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var overlaySink = new RecordingOverlaySink();
+        var executor = new SendChatMessageActionExecutor(
+            outbox,
+            new TemplateResolver(),
+            new TemplateRenderer(),
+            overlaySink,
+            new FakeSettingsService(WorkflowChatOutputDestination.PlatformOnly));
+
+        await executor.ExecuteAsync(
+            new SendChatMessageAction { Template = "Hello platform" },
+            NewContext("twitch"),
+            TestContext.Current.CancellationToken);
+
+        overlaySink.Messages.Should().BeEmpty();
+    }
+
     private static ActionExecutionContext NewContext(
         string platform,
         Vulperonex.Application.Expressions.ExpressionContext? expressionContext = null)
@@ -156,6 +197,66 @@ public sealed class SendChatMessageActionExecutorTests
         {
             Messages.Add(message);
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOverlaySink : IWorkflowChatOverlaySink
+    {
+        public List<string> Messages { get; } = [];
+        public List<WorkflowCheckInCardOverlayMessage> CheckInCards { get; } = [];
+
+        public Task PublishAssistantMessageAsync(string message, CancellationToken cancellationToken = default)
+        {
+            Messages.Add(message);
+            return Task.CompletedTask;
+        }
+
+        public Task PublishCheckInCardAsync(
+            WorkflowCheckInCardOverlayMessage message,
+            CancellationToken cancellationToken = default)
+        {
+            CheckInCards.Add(message);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeSettingsService(string outputDestination) : ISystemSettingsService
+    {
+        public IObservable<SettingChangedEvent> Changes { get; } = new NoopObservable();
+
+        public Task<T> GetAsync<T>(string key, T defaultValue, CancellationToken cancellationToken = default)
+        {
+            if (key == SystemSettingKey.WorkflowChatOutputDestination && typeof(T) == typeof(string))
+            {
+                return Task.FromResult((T)(object)outputDestination);
+            }
+
+            return Task.FromResult(defaultValue);
+        }
+
+        public Task SetAsync<T>(string key, T value, string category, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class NoopObservable : IObservable<SettingChangedEvent>
+    {
+        public IDisposable Subscribe(IObserver<SettingChangedEvent> observer)
+        {
+            return new NoopDisposable();
+        }
+    }
+
+    private sealed class NoopDisposable : IDisposable
+    {
+        public void Dispose()
+        {
         }
     }
 }
