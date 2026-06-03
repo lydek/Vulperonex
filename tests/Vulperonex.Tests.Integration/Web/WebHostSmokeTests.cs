@@ -143,7 +143,7 @@ public sealed class WebHostSmokeTests
     }
 
     [Fact]
-    public async Task Given_WebHostWithStaticIndex_When_OverlayRouteIsCalled_Then_CspAllowsSameOriginFraming()
+    public async Task Given_WebHostWithStaticIndex_When_OverlayAliasRouteIsCalled_Then_StaticOverlayRedirectIsReturned()
     {
         using var contentRoot = TestContentRoot.Create();
         await contentRoot.WriteWebRootFileAsync(
@@ -151,14 +151,16 @@ public sealed class WebHostSmokeTests
             "<!doctype html><html><body><div id=\"app\">phase7d-monitor</div></body></html>");
         await using var app = await StartAppAsync(contentRoot.Path);
 
-        using var client = CreateClient(app);
+        using var client = CreateClient(app, allowAutoRedirect: false);
         var overlayResponse = await client.GetAsync("/overlay/chat", TestContext.Current.CancellationToken);
+        var memberResponse = await client.GetAsync("/overlay/member", TestContext.Current.CancellationToken);
         var rootResponse = await client.GetAsync("/", TestContext.Current.CancellationToken);
 
-        overlayResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        overlayResponse.Headers.TryGetValues("Content-Security-Policy", out var overlayCspValues).Should().BeTrue();
-        overlayCspValues.Should().ContainSingle()
-            .Which.Should().Contain("frame-ancestors 'self'");
+        overlayResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        overlayResponse.Headers.Location?.ToString().Should().Be("/overlay/chat.html");
+
+        memberResponse.StatusCode.Should().Be(HttpStatusCode.Redirect);
+        memberResponse.Headers.Location?.ToString().Should().Be("/overlay/member-card.html");
 
         rootResponse.StatusCode.Should().Be(HttpStatusCode.OK);
         rootResponse.Headers.TryGetValues("Content-Security-Policy", out var rootCspValues).Should().BeTrue();
@@ -199,7 +201,7 @@ public sealed class WebHostSmokeTests
         return builder;
     }
 
-    private static HttpClient CreateClient(WebApplication app)
+    private static HttpClient CreateClient(WebApplication app, bool allowAutoRedirect = true)
     {
         var addresses = app.Services
             .GetRequiredService<IServer>()
@@ -212,7 +214,10 @@ public sealed class WebHostSmokeTests
 
         var tokenProvider = app.Services.GetRequiredService<Vulperonex.Web.Security.AdminCsrfTokenProvider>();
 
-        var client = new HttpClient
+        var client = new HttpClient(new HttpClientHandler
+        {
+            AllowAutoRedirect = allowAutoRedirect,
+        })
         {
             BaseAddress = new Uri(address),
         };

@@ -20,8 +20,9 @@ function stubFetch() {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     if (url.includes("/api/overlay/presets")) {
       return new Response(JSON.stringify([
-        { key: "rotan-chat", label: "Rotan Chat", hubName: "chat", kind: "builtin", relativeUrl: "/overlay/chat" },
-        { key: "rotan-member", label: "Rotan Member", hubName: "member", kind: "builtin", relativeUrl: "/overlay/member" }
+        { key: "rotan-chat", label: "Rotan Chat", hubName: "chat", kind: "builtin", relativeUrl: "/overlay/chat.html" },
+        { key: "rotan-member", label: "Rotan Member", hubName: "member", kind: "builtin", relativeUrl: "/overlay/member-card.html" },
+        { key: "vulperonex-alerts", label: "Vulperonex Alerts", hubName: "alerts", kind: "builtin", relativeUrl: "/overlay/alerts" }
       ]), { status: 200 });
     }
     return new Response("{}", { status: 200 });

@@ -296,7 +296,25 @@ public static class OverlayPresetEndpoints
             }
         }
 
+        if (TryResolveDefaultStaticRelativePath(hub, out var defaultRelativePath))
+        {
+            var queryString = context.Request.QueryString.HasValue ? context.Request.QueryString.Value : string.Empty;
+            return Results.Redirect($"{defaultRelativePath}{queryString}");
+        }
+
         return ServeSpaIndex(context);
+    }
+
+    private static bool TryResolveDefaultStaticRelativePath(string hub, out string? relativePath)
+    {
+        relativePath = hub switch
+        {
+            "chat" => "/overlay/chat.html",
+            "member" => "/overlay/member-card.html",
+            _ => null,
+        };
+
+        return relativePath is not null;
     }
 
     private static bool TryResolvePresetRelativePath(string? configuredPreset, string hub, OverlayPresetStore store, out string? relativePath)

@@ -11,8 +11,6 @@ import TimersView from "@/views/admin/TimersView.vue";
 import TwitchAuthView from "@/views/admin/TwitchAuthView.vue";
 import MonitorDashboardView from "@/views/admin/MonitorDashboardView.vue";
 import AlertOverlayView from "@/views/overlay/AlertOverlayView.vue";
-import ChatOverlayView from "@/views/overlay/ChatOverlayView.vue";
-import MemberOverlayView from "@/views/overlay/MemberOverlayView.vue";
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -29,8 +27,6 @@ export const router = createRouter({
     { path: "/timers", name: "timers", component: TimersView },
     { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },
     { path: "/twitch", name: "twitch-auth", component: TwitchAuthView },
-    { path: "/overlay/chat", name: "overlay-chat", component: ChatOverlayView },
     { path: "/overlay/alerts", name: "overlay-alerts", component: AlertOverlayView },
-    { path: "/overlay/member", name: "overlay-member", component: MemberOverlayView }
   ]
 });
