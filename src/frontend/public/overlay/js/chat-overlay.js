@@ -51,18 +51,27 @@
         }, 1500);
 
         // Dedup collection and renderer helper for member stamp cards
-        const renderedCheckIns = new Set();
-        function markCheckInRendered(displayName, count) {
-            const key = `${displayName}_${count}`;
-            renderedCheckIns.add(key);
+        const renderedCheckIns = new Map();
+        const CHECKIN_DUPLICATE_WINDOW_MS = 2000;
+        function buildCheckInKey(displayName, count) {
+            return `${displayName}_${count}`;
+        }
+        function resolveCheckInTimestamp(eventLike) {
+            const raw = eventLike?.occurredAt || eventLike?.OccurredAt || null;
+            const parsed = raw ? Date.parse(raw) : NaN;
+            return Number.isFinite(parsed) ? parsed : Date.now();
+        }
+        function markCheckInRendered(displayName, count, timestampMs) {
+            renderedCheckIns.set(buildCheckInKey(displayName, count), timestampMs);
             if (renderedCheckIns.size > 100) {
-                const firstKey = renderedCheckIns.values().next().value;
+                const firstKey = renderedCheckIns.keys().next().value;
                 renderedCheckIns.delete(firstKey);
             }
         }
-        function isCheckInAlreadyRendered(displayName, count) {
-            const key = `${displayName}_${count}`;
-            return renderedCheckIns.has(key);
+        function isCheckInAlreadyRendered(displayName, count, timestampMs) {
+            const existingTimestampMs = renderedCheckIns.get(buildCheckInKey(displayName, count));
+            return typeof existingTimestampMs === 'number'
+                && Math.abs(timestampMs - existingTimestampMs) <= CHECKIN_DUPLICATE_WINDOW_MS;
         }
 
         // Shared Member Stamp Card HTML generator
@@ -146,11 +155,12 @@
             const displayName = snap.displayName || data.displayName || "Unknown User";
             const total = snap.checkInCount || 1;
             const avatarUrl = snap.avatarUrl || "";
-            if (isCheckInAlreadyRendered(displayName, total)) {
+            const timestampMs = resolveCheckInTimestamp(data);
+            if (isCheckInAlreadyRendered(displayName, total, timestampMs)) {
                 return;
             }
 
-            markCheckInRendered(displayName, total);
+            markCheckInRendered(displayName, total, timestampMs);
 
             const stamps = (total % 10 === 0) ? 10 : (total % 10);
             const chatLine = document.createElement('div');
@@ -291,8 +301,9 @@
                     const snapCount = snap.checkInCount || 1;
                     const snapAvatar = snap.avatarUrl || "";
 
-                    if (!isCheckInAlreadyRendered(snapName, snapCount)) {
-                        markCheckInRendered(snapName, snapCount);
+                    const timestampMs = resolveCheckInTimestamp(data);
+                    if (!isCheckInAlreadyRendered(snapName, snapCount, timestampMs)) {
+                        markCheckInRendered(snapName, snapCount, timestampMs);
 
                         const cardHtml = buildMemberCardHtml(snapName, snapCount, snapAvatar, isSyncingHistory);
                         const cardContainer = document.createElement('div');
