@@ -49,7 +49,15 @@ public sealed class WorkflowEngineDispatcher(
         return Task.CompletedTask;
     }
 
-    private async Task DispatchAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
+    private Task DispatchAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
+    {
+        _ = Task.Run(
+            () => DispatchInBackgroundAsync(streamEvent, cancellationToken),
+            CancellationToken.None);
+        return Task.CompletedTask;
+    }
+
+    private async Task DispatchInBackgroundAsync(IStreamEvent streamEvent, CancellationToken cancellationToken)
     {
         try
         {
