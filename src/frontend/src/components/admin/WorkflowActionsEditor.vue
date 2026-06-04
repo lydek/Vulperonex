@@ -434,7 +434,7 @@ function updateField(index: number, field: FieldDefinition, rawValue: string | b
       return;
     case "number": {
       const parsed = Number(rawValue);
-      patchItem(index, { [field.key]: Number.isFinite(parsed) ? parsed : 0 });
+      patchItem(index, { [field.key]: normalizeNumberField(items.value[index] ?? {}, field, parsed) });
       return;
     }
     case "string-list":
@@ -452,6 +452,19 @@ function updateField(index: number, field: FieldDefinition, rawValue: string | b
     default:
       patchItem(index, { [field.key]: String(rawValue) });
   }
+}
+
+function normalizeNumberField(item: JsonRecord, field: FieldDefinition, value: number): number {
+  const nextValue = Number.isFinite(value) ? value : 0;
+  if (asString(item.type) === "delay" && field.key === "delayMs") {
+    return Math.max(0, Math.trunc(nextValue));
+  }
+
+  return nextValue;
+}
+
+function numberFieldMin(item: JsonRecord, field: FieldDefinition): string | undefined {
+  return asString(item.type) === "delay" && field.key === "delayMs" ? "0" : undefined;
 }
 
 function previousStepsFor(index: number): JsonRecord[] {
@@ -633,8 +646,10 @@ function previousStepsFor(index: number): JsonRecord[] {
             <input
               v-else-if="field.kind === 'number'"
               :type="field.kind === 'number' ? 'number' : 'text'"
+              :min="numberFieldMin(item, field)"
               :value="String(fieldValue(item, field))"
               :placeholder="fieldPlaceholder(asString(item.type), field)"
+              :data-testid="`${prefix}-field-${field.key}-${index}`"
               @input="updateField(index, field, ($event.target as HTMLInputElement).value)"
             />
             <select
@@ -704,8 +719,10 @@ function previousStepsFor(index: number): JsonRecord[] {
                 <input
                   v-else-if="field.kind === 'number'"
                   type="number"
+                  :min="numberFieldMin(item, field)"
                   :value="String(fieldValue(item, field))"
                   :placeholder="fieldPlaceholder(asString(item.type), field)"
+                  :data-testid="`${prefix}-field-${field.key}-${index}`"
                   @input="updateField(index, field, ($event.target as HTMLInputElement).value)"
                 />
                 <select

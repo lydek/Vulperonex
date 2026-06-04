@@ -11,7 +11,11 @@ public sealed class DelayActionExecutor : IWorkflowActionExecutor
     {
         if (action is DelayAction delayAction)
         {
-            await Task.Delay(delayAction.DelayMs, cancellationToken);
+            var delayMs = Math.Max(0, delayAction.DelayMs);
+            if (delayMs > 0)
+            {
+                await Task.Delay(delayMs, cancellationToken);
+            }
         }
 
         return ActionExecutionResult.Completed;

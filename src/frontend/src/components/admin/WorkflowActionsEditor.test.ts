@@ -26,6 +26,14 @@ const actionMetadataResponse = [
     ]
   },
   {
+    type: "delay",
+    displayName: "Delay",
+    description: "Delay workflow execution",
+    parameters: [
+      { key: "DelayMs", label: "Delay (ms)", type: "number", required: false, help: "Duration in milliseconds" }
+    ]
+  },
+  {
     type: "randomPicker",
     displayName: "Random Picker",
     description: "Pick one value from a list",
@@ -312,5 +320,34 @@ describe("WorkflowActionsEditor", () => {
     expect(wrapper.text()).toContain("Send Chat Message");
     expect(wrapper.text()).toContain("Trigger Check-In");
     expect(wrapper.findAll('[data-testid^="workflow-actions-card-"]').length).toBe(0);
+  });
+
+  it("should clamp delay milliseconds to zero in the visual editor", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-delay"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-delay"]').trigger("click");
+
+    const delayInput = wrapper.get('[data-testid="workflow-actions-field-delayMs-0"]');
+    expect(delayInput.attributes("min")).toBe("0");
+    await delayInput.setValue("-4");
+
+    const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
+    expect(emittedJson[0].delayMs).toBe(0);
   });
 });

@@ -37,6 +37,19 @@ public sealed class ExecutorExpansionTests
     }
 
     [Fact]
+    public async Task Given_DelayActionWithNegativeDelay_When_Executed_Then_CompletesWithoutThrowing()
+    {
+        var executor = new DelayActionExecutor();
+
+        var result = await executor.ExecuteAsync(
+            new DelayAction { DelayMs = -4 },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        result.Should().Be(ActionExecutionResult.Completed);
+    }
+
+    [Fact]
     public async Task Given_RandomPickerWithSingleChoice_When_Executed_Then_OutputContainsPicked()
     {
         var executor = new RandomPickerActionExecutor();
