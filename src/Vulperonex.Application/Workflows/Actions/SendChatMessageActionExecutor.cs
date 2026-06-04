@@ -12,19 +12,22 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
     private readonly TemplateRenderer? _legacyTemplateRenderer;
     private readonly IWorkflowChatOverlaySink? _overlaySink;
     private readonly ISystemSettingsService? _systemSettingsService;
+    private readonly IChatOutboxDispatcher? _chatOutboxDispatcher;
 
     public SendChatMessageActionExecutor(
         IChatOutbox chatOutbox,
         ITemplateResolver templateResolver,
         TemplateRenderer? legacyTemplateRenderer = null,
         IWorkflowChatOverlaySink? overlaySink = null,
-        ISystemSettingsService? systemSettingsService = null)
+        ISystemSettingsService? systemSettingsService = null,
+        IChatOutboxDispatcher? chatOutboxDispatcher = null)
     {
         _chatOutbox = chatOutbox;
         _templateResolver = templateResolver;
         _legacyTemplateRenderer = legacyTemplateRenderer;
         _overlaySink = overlaySink;
         _systemSettingsService = systemSettingsService;
+        _chatOutboxDispatcher = chatOutboxDispatcher;
     }
 
     public SendChatMessageActionExecutor(
@@ -61,7 +64,12 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
             await _overlaySink.PublishAssistantMessageAsync(message, cancellationToken).ConfigureAwait(false);
         }
 
-        await _chatOutbox.EnqueueAsync(platform, channel, message, dedupKey, cancellationToken).ConfigureAwait(false);
+        var enqueueResult = await _chatOutbox.EnqueueAsync(platform, channel, message, dedupKey, cancellationToken).ConfigureAwait(false);
+        if (!enqueueResult.IsDuplicate && _chatOutboxDispatcher is not null)
+        {
+            await _chatOutboxDispatcher.DispatchItemAsync(enqueueResult.Item.Id, cancellationToken).ConfigureAwait(false);
+        }
+
         return ActionExecutionResult.Completed;
     }
 
@@ -132,6 +140,11 @@ public sealed class SendChatMessageActionExecutor : IWorkflowActionExecutor
         public Task<IReadOnlyList<ChatOutboxItem>> DequeuePendingAsync(int maxItems, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<ChatOutboxItem>>([]);
+        }
+
+        public Task<ChatOutboxItem?> TryDequeuePendingAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<ChatOutboxItem?>(null);
         }
 
         public Task MarkSentAsync(Guid id, CancellationToken cancellationToken = default)

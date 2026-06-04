@@ -7,7 +7,7 @@ using Vulperonex.Application.Workflows.Actions;
 
 namespace Vulperonex.Application.Workflows.Chat;
 
-public sealed class ChatOutboxDispatcher : BackgroundService
+public sealed class ChatOutboxDispatcher : BackgroundService, IChatOutboxDispatcher
 {
     public const int DefaultPerSecond = 5;
 
@@ -56,40 +56,27 @@ public sealed class ChatOutboxDispatcher : BackgroundService
 
         foreach (var item in items)
         {
-            var shouldSendToPlatform = WorkflowChatOutputDestination.IncludesPlatform(_outputDestination);
-            var shouldSendToOverlay = WorkflowChatOutputDestination.IncludesOverlay(_outputDestination);
-
-            var sender = shouldSendToPlatform
-                ? _chatSenders.FirstOrDefault(candidate =>
-                    string.Equals(candidate.Platform, item.Platform, StringComparison.OrdinalIgnoreCase))
-                : null;
-
-            if (shouldSendToPlatform && sender is null)
-            {
-                var reason = $"No chat sender registered for platform '{item.Platform}'.";
-                _logger.LogWarning("Chat outbox item {ChatOutboxItemId} skipped: {Reason}", item.Id, reason);
-                await _chatOutbox.MarkSkippedAsync(item.Id, reason, cancellationToken).ConfigureAwait(false);
-                continue;
-            }
-
-            try
-            {
-                if (sender is not null)
-                {
-                    await sender.SendAsync(item.Message, cancellationToken).ConfigureAwait(false);
-                    _echoTracker?.Track(item.Platform, item.Message);
-                }
-
-                await _chatOutbox.MarkSentAsync(item.Id, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                _logger.LogWarning(ex, "Chat outbox item {ChatOutboxItemId} failed.", item.Id);
-                await _chatOutbox.MarkFailedAsync(item.Id, ex.Message, cancellationToken).ConfigureAwait(false);
-            }
+            await DispatchDequeuedItemAsync(item, cancellationToken).ConfigureAwait(false);
         }
 
         return items.Count;
+    }
+
+    public async Task DispatchItemAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        if (!_initialised)
+        {
+            await InitialiseAsync(cancellationToken).ConfigureAwait(false);
+            _initialised = true;
+        }
+
+        var item = await _chatOutbox.TryDequeuePendingAsync(id, cancellationToken).ConfigureAwait(false);
+        if (item is null)
+        {
+            return;
+        }
+
+        await DispatchDequeuedItemAsync(item, cancellationToken).ConfigureAwait(false);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -105,6 +92,40 @@ public sealed class ChatOutboxDispatcher : BackgroundService
     {
         _subscription?.Dispose();
         base.Dispose();
+    }
+
+    private async Task DispatchDequeuedItemAsync(ChatOutboxItem item, CancellationToken cancellationToken)
+    {
+        var shouldSendToPlatform = WorkflowChatOutputDestination.IncludesPlatform(_outputDestination);
+
+        var sender = shouldSendToPlatform
+            ? _chatSenders.FirstOrDefault(candidate =>
+                string.Equals(candidate.Platform, item.Platform, StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        if (shouldSendToPlatform && sender is null)
+        {
+            var reason = $"No chat sender registered for platform '{item.Platform}'.";
+            _logger.LogWarning("Chat outbox item {ChatOutboxItemId} skipped: {Reason}", item.Id, reason);
+            await _chatOutbox.MarkSkippedAsync(item.Id, reason, cancellationToken).ConfigureAwait(false);
+            return;
+        }
+
+        try
+        {
+            if (sender is not null)
+            {
+                await sender.SendAsync(item.Message, cancellationToken).ConfigureAwait(false);
+                _echoTracker?.Track(item.Platform, item.Message);
+            }
+
+            await _chatOutbox.MarkSentAsync(item.Id, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogWarning(ex, "Chat outbox item {ChatOutboxItemId} failed.", item.Id);
+            await _chatOutbox.MarkFailedAsync(item.Id, ex.Message, cancellationToken).ConfigureAwait(false);
+        }
     }
 
     private async Task InitialiseAsync(CancellationToken cancellationToken)

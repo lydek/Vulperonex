@@ -13,6 +13,8 @@ public interface IChatOutbox
 
     Task<IReadOnlyList<ChatOutboxItem>> DequeuePendingAsync(int maxItems, CancellationToken cancellationToken = default);
 
+    Task<ChatOutboxItem?> TryDequeuePendingAsync(Guid id, CancellationToken cancellationToken = default);
+
     Task MarkSentAsync(Guid id, CancellationToken cancellationToken = default);
 
     Task MarkSkippedAsync(Guid id, string reason, CancellationToken cancellationToken = default);

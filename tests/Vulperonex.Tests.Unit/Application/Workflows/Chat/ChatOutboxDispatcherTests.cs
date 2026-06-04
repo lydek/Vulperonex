@@ -115,6 +115,31 @@ public sealed class ChatOutboxDispatcherTests
         sender.Messages.Should().ContainSingle().Which.Should().Be("platform only");
     }
 
+    [Fact]
+    public async Task Given_SpecificOutboxItem_When_Dispatched_Then_OlderPendingItemsAreNotSentFirst()
+    {
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var sender = new RecordingChatSender("twitch");
+        var dispatcher = NewDispatcher(outbox, [sender], perSecond: 5);
+        await outbox.EnqueueAsync(
+            "twitch",
+            channel: null,
+            "older",
+            cancellationToken: TestContext.Current.CancellationToken);
+        var target = await outbox.EnqueueAsync(
+            "twitch",
+            channel: null,
+            "target",
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        await dispatcher.DispatchItemAsync(target.Item.Id, TestContext.Current.CancellationToken);
+
+        sender.Messages.Should().ContainSingle().Which.Should().Be("target");
+        var items = await outbox.SnapshotAsync(TestContext.Current.CancellationToken);
+        items.Single(item => item.Message == "older").Status.Should().Be(ChatOutboxItemStatus.Pending);
+        items.Single(item => item.Message == "target").Status.Should().Be(ChatOutboxItemStatus.Sent);
+    }
+
     private static ChatOutboxDispatcher NewDispatcher(
         IChatOutbox outbox,
         IEnumerable<IPlatformChatSender> senders,

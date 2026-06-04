@@ -168,6 +168,25 @@ public sealed class SendChatMessageActionExecutorTests
         overlaySink.Messages.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Given_OutboxDispatcher_When_Executed_Then_MessageIsFlushedBeforeActionCompletes()
+    {
+        var outbox = new InMemoryChatOutbox(TimeProvider.System);
+        var dispatcher = new RecordingOutboxDispatcher();
+        var executor = new SendChatMessageActionExecutor(
+            outbox,
+            new TemplateResolver(),
+            new TemplateRenderer(),
+            chatOutboxDispatcher: dispatcher);
+
+        await executor.ExecuteAsync(
+            new SendChatMessageAction { Template = "Hello ordered" },
+            NewContext("twitch"),
+            TestContext.Current.CancellationToken);
+
+        dispatcher.DispatchedItems.Should().ContainSingle();
+    }
+
     private static ActionExecutionContext NewContext(
         string platform,
         Vulperonex.Application.Expressions.ExpressionContext? expressionContext = null)
@@ -216,6 +235,22 @@ public sealed class SendChatMessageActionExecutorTests
             CancellationToken cancellationToken = default)
         {
             CheckInCards.Add(message);
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class RecordingOutboxDispatcher : IChatOutboxDispatcher
+    {
+        public List<Guid> DispatchedItems { get; } = [];
+
+        public Task<int> DispatchOnceAsync(CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task DispatchItemAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            DispatchedItems.Add(id);
             return Task.CompletedTask;
         }
     }

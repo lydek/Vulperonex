@@ -107,6 +107,24 @@ public sealed class InMemoryChatOutbox : IChatOutbox
         }
     }
 
+    public Task<ChatOutboxItem?> TryDequeuePendingAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_sync)
+        {
+            var pending = _items.FirstOrDefault(item =>
+                item.Id == id && item.Status == ChatOutboxItemStatus.Pending);
+            if (pending is null)
+            {
+                return Task.FromResult<ChatOutboxItem?>(null);
+            }
+
+            var processing = pending with { Status = ChatOutboxItemStatus.Processing };
+            UpdateItem(id, processing);
+            return Task.FromResult<ChatOutboxItem?>(processing);
+        }
+    }
+
     public Task MarkSentAsync(Guid id, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();

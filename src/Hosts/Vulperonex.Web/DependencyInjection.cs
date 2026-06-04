@@ -162,7 +162,8 @@ public static class DependencyInjection
                 serviceProvider.GetRequiredService<ITemplateResolver>(),
                 serviceProvider.GetRequiredService<TemplateRenderer>(),
                 serviceProvider.GetRequiredService<IWorkflowChatOverlaySink>(),
-                serviceProvider.GetRequiredService<ISystemSettingsService>()));
+                serviceProvider.GetRequiredService<ISystemSettingsService>(),
+                serviceProvider.GetRequiredService<IChatOutboxDispatcher>()));
         services.AddScoped<IWorkflowActionExecutor, InvokeSubWorkflowActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, DelayActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, StopIfActionExecutor>();
@@ -197,7 +198,9 @@ public static class DependencyInjection
         services.AddHostedService<WorkflowEngineDispatcher>();
         services.AddHostedService<OverlayEventForwarder>();
         services.AddHostedService<SystemConfigChangedForwarder>();
-        services.AddHostedService<ChatOutboxDispatcher>();
+        services.AddSingleton<ChatOutboxDispatcher>();
+        services.AddSingleton<IChatOutboxDispatcher>(serviceProvider => serviceProvider.GetRequiredService<ChatOutboxDispatcher>());
+        services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<ChatOutboxDispatcher>());
         services.AddHostedService<WorkflowInternalEventTypeBootstrapper>();
         services.AddHostedService<WorkflowTimerHostedService>();
         services.AddSingleton<AppLogsSink>(provider =>
