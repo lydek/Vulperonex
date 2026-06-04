@@ -47,6 +47,7 @@
         let isSyncingHistory = true;
         setTimeout(() => {
             isSyncingHistory = false;
+            scrollToLatestMessage();
             console.log("[OverlayChat] History sync complete. Live overlay rendering active.");
         }, 1500);
 
@@ -127,9 +128,12 @@
 
         function appendChatLine(chatLine) {
             chatContainer.appendChild(chatLine);
+            bindMediaScrollRefresh(chatLine);
+            scrollToLatestMessage();
 
             setTimeout(() => {
                 chatLine.classList.remove('enter');
+                scrollToLatestMessage();
             }, 300);
 
             if (chatContainer.children.length > MAX_MESSAGES) {
@@ -138,9 +142,33 @@
                     oldestLine.classList.add('exit');
                     setTimeout(() => {
                         oldestLine.remove();
+                        scrollToLatestMessage();
                     }, 300);
                 }
             }
+        }
+
+        function scrollToLatestMessage() {
+            const updateScroll = () => {
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            };
+
+            if (typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(updateScroll);
+            } else {
+                setTimeout(updateScroll, 0);
+            }
+        }
+
+        function bindMediaScrollRefresh(chatLine) {
+            chatLine.querySelectorAll('img').forEach(img => {
+                if (img.complete) {
+                    return;
+                }
+
+                img.addEventListener('load', scrollToLatestMessage, { once: true });
+                img.addEventListener('error', scrollToLatestMessage, { once: true });
+            });
         }
 
         function renderCheckInCardMessage(data) {

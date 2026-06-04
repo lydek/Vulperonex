@@ -121,6 +121,7 @@
 /* 1. Compact Line Preset */
 .chat-container.preset-compact-line {
     display: grid;
+    align-content: end;
     gap: 4px;
     font-size: 14px;
     line-height: 1.4;
