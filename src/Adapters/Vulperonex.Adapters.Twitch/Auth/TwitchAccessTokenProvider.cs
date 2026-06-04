@@ -19,6 +19,11 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
 
     public async Task RefreshOnStartupAsync(CancellationToken cancellationToken = default)
     {
+        await RefreshAsync(cancellationToken);
+    }
+
+    public async Task RefreshAsync(CancellationToken cancellationToken = default)
+    {
         string? refreshToken;
         try
         {

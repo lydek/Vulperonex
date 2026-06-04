@@ -74,9 +74,9 @@ public sealed class TwitchHelixClient(
     public async Task<IReadOnlyList<PlatformBadgeDescriptor>> GetGlobalBadgesAsync(
         CancellationToken cancellationToken = default)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, "chat/badges/global");
-        await AddHelixHeadersAsync(request, cancellationToken);
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(HttpMethod.Get, "chat/badges/global"),
+            cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var payload = await response.Content.ReadFromJsonAsync<TwitchBadgesResponse>(cancellationToken);
@@ -92,11 +92,11 @@ public sealed class TwitchHelixClient(
             throw new ArgumentException("Broadcaster id is required.", nameof(broadcasterId));
         }
 
-        using var request = new HttpRequestMessage(
-            HttpMethod.Get,
-            $"chat/badges?broadcaster_id={Uri.EscapeDataString(broadcasterId)}");
-        await AddHelixHeadersAsync(request, cancellationToken);
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        using var response = await SendHelixAsync(
+            () => new HttpRequestMessage(
+                HttpMethod.Get,
+                $"chat/badges?broadcaster_id={Uri.EscapeDataString(broadcasterId)}"),
+            cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var payload = await response.Content.ReadFromJsonAsync<TwitchBadgesResponse>(cancellationToken);
@@ -240,6 +240,27 @@ public sealed class TwitchHelixClient(
             throw new InvalidOperationException("Twitch:ClientId is required.");
         }
         request.Headers.Add("Client-Id", clientId);
+    }
+
+    private async Task<HttpResponseMessage> SendHelixAsync(
+        Func<HttpRequestMessage> requestFactory,
+        CancellationToken cancellationToken)
+    {
+        var request = requestFactory();
+        await AddHelixHeadersAsync(request, cancellationToken);
+        var response = await _httpClient.SendAsync(request, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.Unauthorized)
+        {
+            return response;
+        }
+
+        response.Dispose();
+        request.Dispose();
+        await accessTokenProvider.RefreshAsync(cancellationToken);
+
+        request = requestFactory();
+        await AddHelixHeadersAsync(request, cancellationToken);
+        return await _httpClient.SendAsync(request, cancellationToken);
     }
 
     private static string? BuildUserQuery(string? login, string? userId)

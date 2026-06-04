@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Net;
 using Microsoft.Extensions.Logging;
 using Vulperonex.Application.Twitch;
 
@@ -51,6 +52,14 @@ public sealed class TwitchBadgeCache(
         {
             throw;
         }
+        catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            logger.LogWarning("Twitch global badge sync skipped: authorization required ({Status}).", ex.StatusCode);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning("Twitch global badge sync skipped: {Message}", ex.Message);
+        }
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Failed to sync Twitch global badges.");
@@ -76,6 +85,14 @@ public sealed class TwitchBadgeCache(
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             throw;
+        }
+        catch (HttpRequestException ex) when (ex.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            logger.LogWarning("Twitch channel badge sync skipped for {BroadcasterId}: authorization required ({Status}).", broadcasterId, ex.StatusCode);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning("Twitch channel badge sync skipped for {BroadcasterId}: {Message}", broadcasterId, ex.Message);
         }
         catch (Exception ex)
         {

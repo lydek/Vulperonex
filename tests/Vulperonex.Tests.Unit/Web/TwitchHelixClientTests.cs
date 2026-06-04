@@ -155,6 +155,50 @@ public sealed class TwitchHelixClientTests
         capturedBody.Should().Contain("\"status\":\"CANCELED\"");
     }
 
+    [Fact]
+    public async Task Given_GlobalBadgesUnauthorizedOnce_When_Called_Then_RefreshesTokenAndRetries()
+    {
+        var calls = 0;
+        var tokenEndpoint = new RecordingTokenEndpoint();
+        using var httpClient = new HttpClient(new StubHandler(_ =>
+        {
+            calls++;
+            return calls == 1
+                ? new HttpResponseMessage(HttpStatusCode.Unauthorized)
+                : JsonResponse("""
+                    {
+                      "data": [
+                        {
+                          "set_id": "vip",
+                          "versions": [
+                            {
+                              "id": "1",
+                              "image_url_1x": "https://cdn/vip.png",
+                              "title": "VIP",
+                              "description": null
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """);
+        }))
+        {
+            BaseAddress = new Uri("https://api.twitch.tv/helix/"),
+        };
+        var client = new TwitchHelixClient(
+            NewConfiguration(),
+            NewTokenProvider(tokenEndpoint),
+            new FakeSettingsService(),
+            httpClient);
+
+        var badges = await client.GetGlobalBadgesAsync(TestContext.Current.CancellationToken);
+
+        calls.Should().Be(2);
+        tokenEndpoint.RefreshCount.Should().Be(2);
+        badges.Should().ContainSingle().Which.Key.Should().Be("vip_1");
+    }
+
     private static IConfiguration NewConfiguration()
     {
         return new ConfigurationBuilder()
@@ -167,11 +211,11 @@ public sealed class TwitchHelixClientTests
             .Build();
     }
 
-    private static TwitchAccessTokenProvider NewTokenProvider()
+    private static TwitchAccessTokenProvider NewTokenProvider(RecordingTokenEndpoint? tokenEndpoint = null)
     {
         return new TwitchAccessTokenProvider(
             new RecordingTokenStore { RefreshToken = "refresh-1" },
-            new RecordingTokenEndpoint());
+            tokenEndpoint ?? new RecordingTokenEndpoint());
     }
 
     private static HttpResponseMessage JsonResponse(string json)
@@ -209,6 +253,8 @@ public sealed class TwitchHelixClientTests
 
     private sealed class RecordingTokenEndpoint : ITwitchTokenEndpoint
     {
+        public int RefreshCount { get; private set; }
+
         public Task<TwitchTokenResponse> ExchangeCodeAsync(
             string code,
             string codeVerifier,
@@ -219,6 +265,7 @@ public sealed class TwitchHelixClientTests
 
         public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
         {
+            RefreshCount++;
             return Task.FromResult(new TwitchTokenResponse("access-1", "refresh-2"));
         }
     }
