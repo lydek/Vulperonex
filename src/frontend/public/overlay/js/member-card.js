@@ -303,6 +303,11 @@
                             cardElement.classList.add('full-stamps');
                         }
 
+                        const cardContainer = document.getElementById('card-container');
+                        if (cardContainer) {
+                            cardContainer.classList.add('show');
+                        }
+
                         logDebug("Statically updated member-card with replayed history.");
                         return;
                     }

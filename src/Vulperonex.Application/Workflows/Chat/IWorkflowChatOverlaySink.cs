@@ -12,4 +12,5 @@ public interface IWorkflowChatOverlaySink
 public sealed record WorkflowCheckInCardOverlayMessage(
     string DisplayName,
     string? AvatarUrl,
-    int CheckInCount);
+    int CheckInCount,
+    TimeSpan? DelayBeforePublish = null);

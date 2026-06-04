@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Vulperonex.Application.Overlay;
 using Vulperonex.Application.Overlay.Dtos;
 using Vulperonex.Application.Settings;
@@ -13,7 +14,8 @@ public sealed class OverlayWorkflowChatSink(
     IHubContext<OverlayChatHub> chatHub,
     IOverlayHistoryService<OverlayChatPayload> chatHistory,
     IServiceScopeFactory scopeFactory,
-    IClock clock) : IWorkflowChatOverlaySink
+    IClock clock,
+    ILogger<OverlayWorkflowChatSink> logger) : IWorkflowChatOverlaySink
 {
     private const string DefaultAssistantDisplayName = "系統小精靈";
     private const string DefaultCheckInDisplayName = "打卡系統";
@@ -47,6 +49,34 @@ public sealed class OverlayWorkflowChatSink(
     public async Task PublishCheckInCardAsync(
         WorkflowCheckInCardOverlayMessage message,
         CancellationToken cancellationToken = default)
+    {
+        if (message.DelayBeforePublish is { } delay && delay > TimeSpan.Zero)
+        {
+            _ = PublishCheckInCardAfterDelayAsync(message with { DelayBeforePublish = null }, delay);
+            return;
+        }
+
+        await PublishCheckInCardNowAsync(message, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task PublishCheckInCardAfterDelayAsync(
+        WorkflowCheckInCardOverlayMessage message,
+        TimeSpan delay)
+    {
+        try
+        {
+            await Task.Delay(delay).ConfigureAwait(false);
+            await PublishCheckInCardNowAsync(message, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Failed to publish delayed workflow check-in card.");
+        }
+    }
+
+    private async Task PublishCheckInCardNowAsync(
+        WorkflowCheckInCardOverlayMessage message,
+        CancellationToken cancellationToken)
     {
         await using var scope = scopeFactory.CreateAsyncScope();
         var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingsService>();

@@ -79,11 +79,10 @@ public sealed class ExecutorExpansionTests
         var settings = new FakeSystemSettingsService();
         var modules = new AlwaysEnabledModuleStateService();
         var cache = new FakePlatformUserDisplayInfoProvider();
-        var overlaySink = new RecordingWorkflowChatOverlaySink();
         var queryService = new FakeMemberQueryService();
         var auditLogRepository = new RecordingMemberAuditLogRepository();
         var transactionProvider = new FakeTransactionProvider();
-        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, queryService, auditLogRepository, transactionProvider);
 
         var result = await executor.ExecuteAsync(
             new TriggerCheckInAction { UserId = "{Member.UserId}" },
@@ -113,7 +112,7 @@ public sealed class ExecutorExpansionTests
     }
 
     [Fact]
-    public async Task Given_CheckInAlreadyExistsInCurrentWindow_When_Executed_Then_ResultIsRepeatAndNoEventIsPublished()
+    public async Task Given_CheckInAlreadyExistsInCurrentWindow_When_Executed_Then_ResultIsRepeatAndOverlayEventIsPublished()
     {
         var occurredAt = new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
         var repository = new RecordingMemberStreamStateRepository();
@@ -121,7 +120,6 @@ public sealed class ExecutorExpansionTests
         var settings = new FakeSystemSettingsService();
         var modules = new AlwaysEnabledModuleStateService();
         var cache = new FakePlatformUserDisplayInfoProvider();
-        var overlaySink = new RecordingWorkflowChatOverlaySink();
         var queryService = new FakeMemberQueryService();
         var auditLogRepository = new RecordingMemberAuditLogRepository();
         auditLogRepository.Logs.Add(new MemberAuditLog
@@ -132,7 +130,7 @@ public sealed class ExecutorExpansionTests
             OccurredAt = occurredAt,
         });
         var transactionProvider = new FakeTransactionProvider();
-        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, queryService, auditLogRepository, transactionProvider);
 
         var result = await executor.ExecuteAsync(
             new TriggerCheckInAction { UserId = "{Member.UserId}" },
@@ -140,9 +138,14 @@ public sealed class ExecutorExpansionTests
             TestContext.Current.CancellationToken);
 
         repository.CheckIns.Should().BeEmpty();
-        bus.Published.Should().BeEmpty();
-        overlaySink.CheckInCards.Should().ContainSingle().Which.Should().BeEquivalentTo(
-            new WorkflowCheckInCardOverlayMessage("Alice", null, 1));
+        var checkInEvent = bus.Published.Should().ContainSingle().Subject.Should().BeOfType<MemberCheckedInEvent>().Subject;
+        checkInEvent.Platform.Should().Be("twitch");
+        checkInEvent.User.UserId.Should().Be("alice");
+        checkInEvent.User.DisplayName.Should().Be("Alice");
+        checkInEvent.CheckInCount.Should().Be(1);
+        checkInEvent.TotalLoyalty.Should().Be(7);
+        checkInEvent.RoundIndex.Should().Be(1);
+        checkInEvent.StampSlotInRound.Should().Be(1);
         result.OutputValues.Should().NotBeNull();
         result.OutputValues!["Status"].Should().Be("repeat");
         result.OutputValues!["CheckInCount"].Should().Be(1);
@@ -158,7 +161,6 @@ public sealed class ExecutorExpansionTests
         var settings = new FakeSystemSettingsService();
         var modules = new AlwaysEnabledModuleStateService();
         var cache = new FakePlatformUserDisplayInfoProvider();
-        var overlaySink = new RecordingWorkflowChatOverlaySink();
         var queryService = new FakeMemberQueryService();
         var auditLogRepository = new RecordingMemberAuditLogRepository();
         auditLogRepository.Logs.Add(new MemberAuditLog
@@ -169,7 +171,7 @@ public sealed class ExecutorExpansionTests
             OccurredAt = occurredAt.AddDays(-2),
         });
         var transactionProvider = new FakeTransactionProvider();
-        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, queryService, auditLogRepository, transactionProvider);
 
         var result = await executor.ExecuteAsync(
             new TriggerCheckInAction { UserId = "{Member.UserId}" },
@@ -178,7 +180,6 @@ public sealed class ExecutorExpansionTests
 
         repository.CheckIns.Should().ContainSingle().Which.Should().Be(PlatformIdentity.Create("twitch", "alice"));
         bus.Published.Should().ContainSingle().Which.Should().BeOfType<MemberCheckedInEvent>();
-        overlaySink.CheckInCards.Should().BeEmpty();
         result.OutputValues.Should().NotBeNull();
         result.OutputValues.Should().NotContainKey("Status");
         auditLogRepository.Logs.Should().HaveCount(2);
@@ -197,7 +198,6 @@ public sealed class ExecutorExpansionTests
         };
         var modules = new AlwaysEnabledModuleStateService();
         var cache = new FakePlatformUserDisplayInfoProvider();
-        var overlaySink = new RecordingWorkflowChatOverlaySink();
         var queryService = new FakeMemberQueryService();
         var auditLogRepository = new RecordingMemberAuditLogRepository();
         auditLogRepository.Logs.Add(new MemberAuditLog
@@ -208,7 +208,7 @@ public sealed class ExecutorExpansionTests
             OccurredAt = occurredAt,
         });
         var transactionProvider = new FakeTransactionProvider();
-        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, overlaySink, queryService, auditLogRepository, transactionProvider);
+        var executor = new TriggerCheckInActionExecutor(repository, new TemplateResolver(), bus, modules, settings, cache, queryService, auditLogRepository, transactionProvider);
 
         var result = await executor.ExecuteAsync(
             new TriggerCheckInAction { UserId = "{Member.UserId}" },
@@ -217,7 +217,6 @@ public sealed class ExecutorExpansionTests
 
         repository.CheckIns.Should().BeEmpty();
         bus.Published.Should().BeEmpty();
-        overlaySink.CheckInCards.Should().BeEmpty();
         result.OutputValues.Should().NotBeNull();
         result.OutputValues!["Status"].Should().Be("repeat");
     }
@@ -255,7 +254,6 @@ public sealed class ExecutorExpansionTests
             new DisabledModuleStateService("checkin"),
             new FakeSystemSettingsService(),
             new FakePlatformUserDisplayInfoProvider(),
-            new RecordingWorkflowChatOverlaySink(),
             new FakeMemberQueryService(),
             new RecordingMemberAuditLogRepository(),
             new FakeTransactionProvider());

@@ -5,7 +5,6 @@ using Vulperonex.Application.Expressions;
 using Vulperonex.Application.Members;
 using Vulperonex.Application.Modules;
 using Vulperonex.Application.Settings;
-using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Domain;
 using Vulperonex.Domain.Events;
 using Vulperonex.Domain.Members;
@@ -19,7 +18,6 @@ public sealed class TriggerCheckInActionExecutor(
     IModuleStateService moduleStateService,
     ISystemSettingsService systemSettingsService,
     IPlatformUserDisplayInfoProvider userInfoProvider,
-    IWorkflowChatOverlaySink workflowChatOverlaySink,
     IMemberQueryService memberQueryService,
     IMemberAuditLogRepository auditLogRepository,
     ITransactionProvider transactionProvider) : IWorkflowActionExecutor
@@ -97,12 +95,16 @@ public sealed class TriggerCheckInActionExecutor(
 
             if (shouldEmitRepeatCard)
             {
-                await workflowChatOverlaySink.PublishCheckInCardAsync(
-                    new WorkflowCheckInCardOverlayMessage(
-                        repeatedDisplayName,
-                        repeatedAvatarUrl,
-                        memberBefore.Loyalty.CheckInCount),
-                    cancellationToken).ConfigureAwait(false);
+                await eventBus.PublishAsync(new MemberCheckedInEvent
+                {
+                    Platform = platform,
+                    User = new StreamUser(platform, userId, repeatedDisplayName, context.StreamEvent.User?.Roles ?? StreamRole.None),
+                    AvatarUrl = repeatedAvatarUrl,
+                    CheckInCount = memberBefore.Loyalty.CheckInCount,
+                    TotalLoyalty = memberBefore.Loyalty.TotalLoyalty,
+                    RoundIndex = repeatedRoundIndex,
+                    StampSlotInRound = repeatedStampSlot
+                }, cancellationToken).ConfigureAwait(false);
             }
 
             return ActionExecutionResult.FromOutput(
