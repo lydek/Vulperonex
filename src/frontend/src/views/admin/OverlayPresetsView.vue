@@ -34,7 +34,6 @@ const showMemberCard = ref(false);
 const uploadSlug = ref("");
 const uploadFile = ref<File | null>(null);
 const lanInfo = ref<OverlayLanInfo | null>(null);
-const lanHost = ref("");
 const loading = ref(false);
 const saving = ref(false);
 const uploading = ref(false);
@@ -45,25 +44,44 @@ const chatOptions = computed(() => catalog.value.filter((entry) => entry.hubName
 const memberOptions = computed(() => catalog.value.filter((entry) => entry.hubName === "member"));
 const alertsOptions = computed(() => catalog.value.filter((entry) => entry.hubName === "alerts"));
 
-const obsUrls = computed<{ label: string; url: string }[]>(() => {
-  const info = lanInfo.value;
-  if (!info?.enabled || !info.accessKey) {
-    return [];
-  }
-  const host = (lanHost.value || window.location.hostname).trim();
-  const base = `http://${host}:${info.overlayPort}/overlay`;
-  const key = encodeURIComponent(info.accessKey);
-  return [
-    { label: "chat", url: `${base}/chat?k=${key}` },
-    { label: "member", url: `${base}/member?k=${key}` },
-    { label: "alerts", url: `${base}/alerts?k=${key}` }
-  ];
-});
+type ObsOverlayKey = "chat" | "member" | "alerts";
 
-async function copyUrl(url: string): Promise<void> {
+const obsOverlays = computed<{ key: ObsOverlayKey; label: string }[]>(() => [
+  { key: "chat", label: t("overlayPresets.lan.chatOverlay") },
+  { key: "member", label: t("overlayPresets.lan.memberOverlay") },
+  { key: "alerts", label: t("overlayPresets.lan.alertsOverlay") }
+]);
+
+function buildObsUrl(key: ObsOverlayKey, info: OverlayLanInfo | null, mode: "local" | "lan"): string | null {
+  if (mode === "local") {
+    return `${window.location.origin}/overlay/${key}`;
+  }
+
+  const hasLanAccess = Boolean(info?.enabled && info.accessKey);
+  const host = info?.suggestedHosts[0]?.trim();
+  if (!hasLanAccess || !host) {
+    return null;
+  }
+
+  return `http://${host}:${info!.overlayPort}/overlay/${key}?k=${encodeURIComponent(info!.accessKey!)}`;
+}
+
+async function copyObsUrl(key: ObsOverlayKey, mode: "local" | "lan"): Promise<void> {
   try {
+    const latestInfo = mode === "lan" ? await getOverlayLanInfo() : lanInfo.value;
+    if (latestInfo) {
+      lanInfo.value = latestInfo;
+    }
+
+    const url = buildObsUrl(key, latestInfo, mode);
+    if (!url) {
+      error.value = t("overlayPresets.lan.unavailable");
+      return;
+    }
+
     await navigator.clipboard.writeText(url);
     message.value = t("overlayPresets.lan.copied");
+    error.value = null;
   } catch {
     // Clipboard may be unavailable; user can select manually.
   }
@@ -179,19 +197,39 @@ async function removePreset(slug: string): Promise<void> {
       </button>
     </section>
 
-    <section v-if="lanInfo?.enabled" class="status-card overlay-preset-panel">
+    <section class="status-card overlay-preset-panel">
       <h2 class="section-title">{{ t("overlayPresets.lan.title") }}</h2>
       <p class="page-subtitle">{{ t("overlayPresets.lan.hint") }}</p>
-      <label class="form-field">
-        <span class="form-label">{{ t("overlayPresets.lan.host") }}</span>
-        <input v-model="lanHost" type="text" :placeholder="$t('overlayPresets.lan.hostPlaceholder')" />
-      </label>
-      <ul class="event-list">
-        <li v-for="entry in obsUrls" :key="entry.label" class="event-item overlay-preset-list-item">
-          <code class="monitor-mono">{{ entry.url }}</code>
-          <button type="button" class="icon-button" @click="copyUrl(entry.url)">
-            {{ t("overlayPresets.lan.copy") }}
-          </button>
+      <ul class="event-list" data-testid="overlay-obs-url-list">
+        <li
+          v-for="entry in obsOverlays"
+          :key="entry.key"
+          class="event-item overlay-preset-list-item overlay-obs-url-row"
+          :data-testid="`overlay-obs-url-${entry.key}`"
+        >
+          <div class="overlay-obs-url-row__content">
+            <strong>{{ entry.label }}</strong>
+            <span>{{ t("overlayPresets.lan.copyHint") }}</span>
+          </div>
+          <div class="overlay-obs-url-row__actions">
+            <button
+              type="button"
+              class="icon-button"
+              :data-testid="`overlay-obs-copy-local-${entry.key}`"
+              @click="copyObsUrl(entry.key, 'local')"
+            >
+              {{ t("overlayPresets.lan.copyLocal") }}
+            </button>
+            <button
+              type="button"
+              class="icon-button"
+              :disabled="!lanInfo?.enabled"
+              :data-testid="`overlay-obs-copy-lan-${entry.key}`"
+              @click="copyObsUrl(entry.key, 'lan')"
+            >
+              {{ t("overlayPresets.lan.copyLan") }}
+            </button>
+          </div>
         </li>
       </ul>
     </section>
@@ -265,5 +303,33 @@ async function removePreset(slug: string): Promise<void> {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.overlay-obs-url-row__content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.overlay-obs-url-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  .overlay-obs-url-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .overlay-obs-url-row__actions {
+    justify-content: stretch;
+  }
+
+  .overlay-obs-url-row__actions button {
+    flex: 1;
+  }
 }
 </style>

@@ -37,10 +37,10 @@ vi.mock("@/api/client", () => ({
   togglePluginModule: apiMocks.togglePluginModule
 }));
 
-function buildI18n() {
+function buildI18n(locale = "en-US") {
   return createI18n({
     legacy: false,
-    locale: "en-US",
+    locale,
     fallbackLocale: "en-US",
     missing: (_locale, key) => key,
     messages: { "en-US": enUS, "zh-TW": zhTW }
@@ -255,6 +255,38 @@ describe("SettingsView", () => {
     await wrapper.get('[data-testid="settings-tab-checkin"]').trigger("click");
     expect((wrapper.get('[data-testid="checkin-reset-time"]').element as HTMLInputElement).value).toBe("05:00");
     expect((wrapper.get('[data-testid="checkin-repeat-card-enabled"]').element as HTMLInputElement).checked).toBe(true);
+    expect(wrapper.get('[data-testid="checkin-repeat-display-targets"]').text()).toContain("Member Overlay check-in card");
+    expect(wrapper.get('[data-testid="checkin-repeat-display-targets"]').text()).toContain("Chat Overlay check-in card");
+  });
+
+  it("renders zh-TW check-in copy without placeholder question marks", async () => {
+    apiMocks.getPluginModules.mockResolvedValue([
+      {
+        name: "checkin",
+        displayName: "Check-In Module",
+        kind: "core",
+        enabled: true,
+        dependencies: ["member"],
+        dependents: []
+      }
+    ]);
+
+    const wrapper = mount(SettingsView, {
+      global: {
+        plugins: [buildI18n("zh-TW")]
+      }
+    });
+
+    await flushPromises();
+    await wrapper.get('[data-testid="settings-tab-checkin"]').trigger("click");
+
+    const text = wrapper.text();
+    expect(text).toContain("報到規則");
+    expect(text).toContain("每日重置時間");
+    expect(text).toContain("重複報到時同步重播打卡顯示");
+    expect(text).toContain("Member Overlay 打卡畫面");
+    expect(text).toContain("Chat Overlay 打卡卡片");
+    expect(text).not.toContain("????");
   });
 
   it("saves check-in reset settings", async () => {

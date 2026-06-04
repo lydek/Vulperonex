@@ -1,3 +1,6 @@
+using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Vulperonex.Web.Ports;
@@ -26,11 +29,41 @@ public static class OverlayLanEndpoints
                 enabled,
                 bindAddress,
                 ports.OverlayPort,
-                enabled ? keyProvider.Key : null));
+                enabled ? keyProvider.Key : null,
+                enabled ? GetSuggestedLanHosts(bindAddress) : Array.Empty<string>()));
         });
 
         return endpoints;
     }
+
+    private static IReadOnlyList<string> GetSuggestedLanHosts(string bindAddress)
+    {
+        var trimmed = bindAddress.Trim();
+        if (IPAddress.TryParse(trimmed, out var configuredAddress)
+            && !IPAddress.IsLoopback(configuredAddress)
+            && configuredAddress.AddressFamily == AddressFamily.InterNetwork)
+        {
+            if (!configuredAddress.Equals(IPAddress.Any))
+            {
+                return [configuredAddress.ToString()];
+            }
+        }
+
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(adapter => adapter.OperationalStatus == OperationalStatus.Up)
+            .SelectMany(adapter => adapter.GetIPProperties().UnicastAddresses)
+            .Select(address => address.Address)
+            .Where(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address))
+            .Select(address => address.ToString())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(address => address, StringComparer.Ordinal)
+            .ToArray();
+    }
 }
 
-public sealed record OverlayLanInfoResponse(bool Enabled, string BindAddress, int OverlayPort, string? AccessKey);
+public sealed record OverlayLanInfoResponse(
+    bool Enabled,
+    string BindAddress,
+    int OverlayPort,
+    string? AccessKey,
+    IReadOnlyList<string> SuggestedHosts);

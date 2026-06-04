@@ -381,18 +381,32 @@ watch(isCheckInModuleEnabled, (enabled) => {
           />
         </label>
 
-        <label class="form-field form-field-toggle">
-          <span class="form-label">{{ t("settings.checkIn.repeatCardEnabled") }}</span>
-          <input
-            v-model="checkInRepeatCardEnabled"
-            type="checkbox"
-            data-testid="checkin-repeat-card-enabled"
-          />
-        </label>
+        <div class="form-field checkin-repeat-display settings-form-grid__wide">
+          <label class="checkin-repeat-display__toggle">
+            <span>
+              <span class="form-label">{{ t("settings.checkIn.repeatCardEnabled") }}</span>
+              <span class="checkin-repeat-display__hint">{{ t("settings.checkIn.repeatCardHint") }}</span>
+            </span>
+            <input
+              v-model="checkInRepeatCardEnabled"
+              type="checkbox"
+              data-testid="checkin-repeat-card-enabled"
+            />
+          </label>
+          <div class="checkin-repeat-display__targets" data-testid="checkin-repeat-display-targets">
+            <div class="checkin-repeat-display__target">
+              <span class="checkin-repeat-display__target-icon" aria-hidden="true">▣</span>
+              <span>{{ t("settings.checkIn.repeatMemberOverlay") }}</span>
+            </div>
+            <div class="checkin-repeat-display__target">
+              <span class="checkin-repeat-display__target-icon" aria-hidden="true">☰</span>
+              <span>{{ t("settings.checkIn.repeatChatOverlay") }}</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <p class="settings-section__meta">{{ t("settings.checkIn.repeatPolicy") }}</p>
-      <p class="settings-section__meta">{{ t("settings.checkIn.repeatCardHint") }}</p>
       <p class="settings-section__meta">{{ t("settings.checkIn.systemTimezone") }}</p>
       <p v-if="checkInSaveSuccess" class="settings-success-msg" role="status">
         {{ t("settings.checkIn.saveSuccess") }}
@@ -554,6 +568,67 @@ watch(isCheckInModuleEnabled, (enabled) => {
 
 .form-field-toggle {
   align-self: end;
+}
+
+.checkin-repeat-display {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.checkin-repeat-display__toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: var(--vp-radius-card);
+  background: var(--vp-bg-elevated);
+}
+
+.checkin-repeat-display__toggle input {
+  margin-top: 4px;
+  accent-color: var(--vp-accent);
+}
+
+.checkin-repeat-display__hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--vp-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.checkin-repeat-display__targets {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.checkin-repeat-display__target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--vp-border-subtle, var(--vp-border-default));
+  border-radius: var(--vp-radius-card);
+  background: var(--vp-bg-surface);
+  color: var(--vp-text-secondary);
+  font-size: 13px;
+}
+
+.checkin-repeat-display__target-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--vp-radius-pill);
+  background: var(--vp-bg-soft);
+  color: var(--vp-text-primary);
+  font-size: 12px;
 }
 
 .assistant-preview {

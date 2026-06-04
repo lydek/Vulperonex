@@ -84,6 +84,7 @@ export interface OverlayLanInfo {
   bindAddress: string;
   overlayPort: number;
   accessKey: string | null;
+  suggestedHosts: string[];
 }
 
 /** Admin-only: cross-machine overlay LAN settings, for rendering the OBS browser-source URL. */
