@@ -222,10 +222,7 @@ public sealed class TwitchHelixClient(
 
     private async Task AddHelixHeadersAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(accessTokenProvider.AccessToken))
-        {
-            await accessTokenProvider.RefreshOnStartupAsync(cancellationToken);
-        }
+        await accessTokenProvider.EnsureValidAccessTokenAsync(cancellationToken);
 
         if (string.IsNullOrWhiteSpace(accessTokenProvider.AccessToken))
         {

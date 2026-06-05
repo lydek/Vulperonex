@@ -130,7 +130,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceSc
         }
 
         var token = await response.Content.ReadFromJsonAsync<TwitchTokenJson>(cancellationToken);
-        return new TwitchTokenResponse(token!.AccessToken, token.RefreshToken);
+        return new TwitchTokenResponse(token!.AccessToken, token.RefreshToken, token.ExpiresIn);
     }
 
     private async Task<string> GetClientIdAsync(CancellationToken cancellationToken)
@@ -155,7 +155,8 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceSc
 
     private sealed record TwitchTokenJson(
         [property: JsonPropertyName("access_token")] string AccessToken,
-        [property: JsonPropertyName("refresh_token")] string RefreshToken);
+        [property: JsonPropertyName("refresh_token")] string RefreshToken,
+        [property: JsonPropertyName("expires_in")] int ExpiresIn);
 
     private sealed record TwitchDeviceAuthorizationJson(
         [property: JsonPropertyName("device_code")] string DeviceCode,

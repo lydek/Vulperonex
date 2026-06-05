@@ -2,9 +2,16 @@ using Vulperonex.Application.Auth;
 
 namespace Vulperonex.Adapters.Twitch.Auth;
 
-public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwitchTokenEndpoint tokenEndpoint)
+public sealed class TwitchAccessTokenProvider(
+    IOAuthTokenStore tokenStore,
+    ITwitchTokenEndpoint tokenEndpoint,
+    TimeProvider? timeProvider = null)
 {
+    private static readonly TimeSpan RefreshSkew = TimeSpan.FromMinutes(2);
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
+    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
     private string? _accessToken;
+    private DateTimeOffset _accessTokenExpiresAt = DateTimeOffset.MinValue;
 
     public string? AccessToken => Volatile.Read(ref _accessToken);
 
@@ -13,13 +20,34 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
     public async Task ExchangeCodeAsync(string code, string codeVerifier, CancellationToken cancellationToken = default)
     {
         var response = await tokenEndpoint.ExchangeCodeAsync(code, codeVerifier, cancellationToken);
-        Interlocked.Exchange(ref _accessToken, response.AccessToken);
+        StoreAccessToken(response);
         await tokenStore.StoreRefreshTokenAsync("twitch", response.RefreshToken, cancellationToken);
     }
 
     public async Task RefreshOnStartupAsync(CancellationToken cancellationToken = default)
     {
         await RefreshAsync(cancellationToken);
+    }
+
+    public async Task EnsureValidAccessTokenAsync(CancellationToken cancellationToken = default)
+    {
+        if (HasUsableAccessToken())
+        {
+            return;
+        }
+
+        await _refreshLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (!HasUsableAccessToken())
+            {
+                await RefreshAsync(cancellationToken);
+            }
+        }
+        finally
+        {
+            _refreshLock.Release();
+        }
     }
 
     public async Task RefreshAsync(CancellationToken cancellationToken = default)
@@ -43,8 +71,13 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
         try
         {
             var response = await tokenEndpoint.RefreshAsync(refreshToken, cancellationToken);
-            Interlocked.Exchange(ref _accessToken, response.AccessToken);
+            StoreAccessToken(response);
+            AuthorizationRequired = false;
             await tokenStore.StoreRefreshTokenAsync("twitch", response.RefreshToken, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception)
         {
@@ -52,6 +85,7 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
             // and gracefully set accessToken to null so orchestrators can wait quietly.
             AuthorizationRequired = true;
             Interlocked.Exchange(ref _accessToken, null);
+            _accessTokenExpiresAt = DateTimeOffset.MinValue;
             try
             {
                 // Clear the invalid token to prevent repeated failed calls to id.twitch.tv
@@ -63,6 +97,19 @@ public sealed class TwitchAccessTokenProvider(IOAuthTokenStore tokenStore, ITwit
             }
         }
     }
+
+    private bool HasUsableAccessToken()
+    {
+        return !string.IsNullOrWhiteSpace(AccessToken)
+            && _accessTokenExpiresAt > _timeProvider.GetUtcNow().Add(RefreshSkew);
+    }
+
+    private void StoreAccessToken(TwitchTokenResponse response)
+    {
+        Interlocked.Exchange(ref _accessToken, response.AccessToken);
+        var expiresIn = Math.Max(0, response.ExpiresIn);
+        _accessTokenExpiresAt = _timeProvider.GetUtcNow().AddSeconds(expiresIn);
+    }
 }
 
 public interface ITwitchTokenEndpoint
@@ -72,4 +119,4 @@ public interface ITwitchTokenEndpoint
     Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default);
 }
 
-public sealed record TwitchTokenResponse(string AccessToken, string RefreshToken);
+public sealed record TwitchTokenResponse(string AccessToken, string RefreshToken, int ExpiresIn = 3600);
