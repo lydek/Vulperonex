@@ -46,7 +46,7 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
 
 <template>
   <section class="status-card workflow-builder" :aria-labelledby="`${prefix}-title`">
-    <div class="workflow-builder__header">
+    <div class="workflow-builder__header" :data-testid="`${prefix}-toolbar`">
       <h2 :id="`${prefix}-title`" class="section-title">{{ title }}</h2>
       <slot name="add-control">
         <button
@@ -157,8 +157,15 @@ const showAdvancedPanel = (): boolean => props.showAdvanced !== false;
 }
 
 .workflow-builder__header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   justify-content: space-between;
   align-items: center;
+  padding: 8px 0;
+  background: var(--vp-bg-surface);
+  border-bottom: 1px solid var(--vp-border-default);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
 }
 
 .workflow-builder__card-header {

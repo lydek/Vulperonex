@@ -63,6 +63,7 @@ describe("StepListShell", () => {
     const wrapper = mount(Harness, { global: { plugins: [buildI18n()] } });
 
     expect(wrapper.findAll('[data-testid^="harness-id-"]').length).toBe(3);
+    expect(wrapper.get('[data-testid="harness-toolbar"]').classes()).toContain("workflow-builder__header");
 
     await wrapper.find('[data-testid="harness-add"]').trigger("click");
     expect(wrapper.findAll('[data-testid^="harness-id-"]').length).toBe(4);
