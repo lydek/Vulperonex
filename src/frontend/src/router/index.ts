@@ -1,7 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
 import AdminStatusView from "@/views/admin/AdminStatusView.vue";
-import ChatOutboxView from "@/views/admin/ChatOutboxView.vue";
-import EventMonitorView from "@/views/admin/EventMonitorView.vue";
 import MembersView from "@/views/admin/MembersView.vue";
 import OverlayPresetsView from "@/views/admin/OverlayPresetsView.vue";
 import RulesView from "@/views/admin/RulesView.vue";
@@ -19,13 +17,11 @@ export const router = createRouter({
     { path: "/monitor", name: "monitor", component: MonitorDashboardView },
     { path: "/status", name: "status", component: AdminStatusView },
     { path: "/simulate", name: "simulate", component: SimulateView },
-    { path: "/events", name: "event-monitor", component: EventMonitorView },
     { path: "/members", name: "members", component: MembersView },
     { path: "/overlay-presets", name: "overlay-presets", component: OverlayPresetsView },
     { path: "/settings", name: "settings", component: SettingsView },
     { path: "/rules", name: "rules", component: RulesView },
     { path: "/timers", name: "timers", component: TimersView },
-    { path: "/chat-outbox", name: "chat-outbox", component: ChatOutboxView },
     { path: "/twitch", name: "twitch-auth", component: TwitchAuthView },
     { path: "/overlay/alerts", name: "overlay-alerts", component: AlertOverlayView },
   ]

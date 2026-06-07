@@ -32,14 +32,11 @@ onBeforeUnmount(() => {
         <nav class="nav-list">
           <RouterLink to="/monitor" class="nav-link">{{ $t("nav.monitor") }}</RouterLink>
           <RouterLink to="/status" class="nav-link">{{ $t("nav.status") }}</RouterLink>
-          <RouterLink to="/simulate" class="nav-link">{{ $t("nav.simulate") }}</RouterLink>
-          <RouterLink to="/events" class="nav-link">{{ $t("nav.eventMonitor") }}</RouterLink>
           <RouterLink to="/members" class="nav-link">{{ $t("nav.members") }}</RouterLink>
           <RouterLink to="/overlay-presets" class="nav-link">{{ $t("nav.overlayPresets") }}</RouterLink>
           <RouterLink to="/settings" class="nav-link">{{ $t("nav.settings") }}</RouterLink>
           <RouterLink to="/rules" class="nav-link">{{ $t("nav.rules") }}</RouterLink>
           <RouterLink to="/timers" class="nav-link">{{ $t("nav.timers") }}</RouterLink>
-          <RouterLink to="/chat-outbox" class="nav-link">{{ $t("nav.chatOutbox") }}</RouterLink>
           <RouterLink to="/twitch" class="nav-link">{{ $t("nav.twitchAuth") }}</RouterLink>
         </nav>
       </div>

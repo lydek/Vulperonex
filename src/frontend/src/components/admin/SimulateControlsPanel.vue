@@ -32,13 +32,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Test mode — wired into /api/simulate/checkin via `isTest` flag. Backend
-// skips DB writes (no IncrementCheckInAsync, no member resolve persist) but
-// still publishes MemberCheckedInEvent so overlay preview reacts. Chat alias
-// path is NOT yet test-mode aware (workflow rule writes data); test mode
-// applies cleanly only to the alias=checkin direct path.
-const isTestMode = ref(true);
-
 const alias = ref<SimulateAlias>("chat");
 const platformUserId = ref("");
 const displayName = ref("");
@@ -168,8 +161,7 @@ async function onSubmit(event: Event): Promise<void> {
       result = await postSimulateCheckIn({
         platformUserId: platformUserId.value.trim() || undefined,
         displayName: displayName.value.trim() || undefined,
-        stampCount: stampCount.value,
-        isTest: isTestMode.value
+        stampCount: stampCount.value
       });
     } else {
       const body: SimulateRequestBody = {};
@@ -235,8 +227,7 @@ async function startBatchCheckin(): Promise<void> {
       const result = await postSimulateCheckIn({
         platformUserId: userId,
         displayName: name,
-        stampCount: 1,
-        isTest: isTestMode.value
+        stampCount: 1
       });
 
       batchProgress.value = Math.round(((index + 1) / total) * 100);
@@ -271,31 +262,6 @@ async function startBatchCheckin(): Promise<void> {
 
     <section class="simulate-card">
       <h3 v-if="props.isEmbedded" class="card-title">{{ t("monitor.controls.cardTitle") }}</h3>
-
-      <!-- Section 1: Test Mode -->
-      <fieldset class="form-section section-test-mode" data-testid="section-test-mode">
-        <legend class="section-legend">
-          <span class="section-icon" aria-hidden="true">🛠️</span>
-          {{ t("monitor.controls.section.testMode.title") }}
-        </legend>
-        <label class="toggle-row" data-testid="test-mode-toggle">
-          <input
-            v-model="isTestMode"
-            type="checkbox"
-            role="switch"
-            :aria-checked="isTestMode"
-            :disabled="batchRunning"
-            class="toggle-switch"
-          />
-          <span class="toggle-label">
-            <strong>{{ t("monitor.controls.testMode.label") }}</strong>
-            <span class="toggle-helper">{{ t("monitor.controls.testMode.helper") }}</span>
-          </span>
-          <span class="toggle-state-chip" :class="{ on: isTestMode }">
-            {{ isTestMode ? t("monitor.controls.testMode.on") : t("monitor.controls.testMode.off") }}
-          </span>
-        </label>
-      </fieldset>
 
       <form class="simulate-form" @submit="onSubmit" novalidate>
         <!-- Section 2: Event Type -->
@@ -594,20 +560,8 @@ async function startBatchCheckin(): Promise<void> {
         </div>
       </form>
 
-      <div v-if="ack" class="ack-card" role="status" aria-live="polite" data-testid="simulate-ack">
-        <p class="ack-headline">{{ t("simulate.ackHeadline") }}</p>
-        <dl class="ack-grid">
-          <dt>{{ t("simulate.field.accepted") }}</dt>
-          <dd data-testid="ack-accepted">{{ ack.accepted }}</dd>
-          <dt>{{ t("simulate.field.eventTypeKey") }}</dt>
-          <dd class="monitor-mono">{{ ack.eventTypeKey }}</dd>
-          <dt>{{ t("simulate.field.eventId") }}</dt>
-          <dd class="monitor-mono" data-testid="ack-event-id">{{ ack.eventId }}</dd>
-          <dt>{{ t("simulate.field.platformUserId", "Platform User ID") }}</dt>
-          <dd data-testid="ack-platform-user-id">{{ ack.platformUserId ?? "-" }}</dd>
-          <dt>{{ t("simulate.field.occurredAt") }}</dt>
-          <dd>{{ new Date(ack.occurredAt).toLocaleTimeString() }}</dd>
-        </dl>
+      <div v-if="ack" class="ack-card" role="status" aria-live="polite" data-testid="simulate-success">
+        <p class="ack-headline">{{ t("simulate.successMessage") }}</p>
       </div>
 
       <div v-if="errorCode" class="ack-error" role="alert" data-testid="simulate-error">
@@ -991,24 +945,6 @@ async function startBatchCheckin(): Promise<void> {
   font-weight: 800;
 }
 
-.ack-grid {
-  display: grid;
-  grid-template-columns: 124px minmax(0, 1fr);
-  gap: 4px 12px;
-  margin: 0;
-  font-size: 0.8rem;
-}
-
-.ack-grid dt {
-  color: var(--monitor-text-muted, #688279);
-  font-weight: 700;
-}
-
-.ack-grid dd {
-  margin: 0;
-  color: var(--monitor-text-primary, #213a34);
-}
-
 .monitor-mono {
   font-family: Consolas, "Courier New", monospace;
   overflow-wrap: anywhere;
@@ -1041,8 +977,7 @@ async function startBatchCheckin(): Promise<void> {
   }
 
   .form-row,
-  .batch-input-row,
-  .ack-grid {
+  .batch-input-row {
     grid-template-columns: 1fr;
   }
 

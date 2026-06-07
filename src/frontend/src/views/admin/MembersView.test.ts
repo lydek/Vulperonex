@@ -24,16 +24,12 @@ function mountView() {
   });
 }
 
-function createMembersFetchMock(detailResponse?: Response) {
+function createMembersFetchMock(detailResponse?: Response, list = sampleMembers) {
   return vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === "string" ? input : input.toString();
 
     if (url === "/api/members/" || url.startsWith("/api/members/?")) {
-      return new Response(JSON.stringify(sampleMembers), { status: 200 });
-    }
-
-    if (url === "/api/config/overlay.member.background_url" || url === "/api/config/overlay.member.stamp_url") {
-      return new Response(JSON.stringify({ value: "" }), { status: 200 });
+      return new Response(JSON.stringify(list), { status: 200 });
     }
 
     if (url === "/api/members/MBR-01" && detailResponse) {
@@ -59,6 +55,12 @@ const sampleMembers = [
     loyalty: { totalLoyalty: 80, checkInCount: 3 }
   }
 ];
+
+const pagedMembers = Array.from({ length: 12 }, (_, index) => ({
+  memberId: `MBR-${String(index + 1).padStart(2, "0")}`,
+  identities: [{ platform: "twitch", platformUserId: `tw-${index + 1}`, displayName: `User ${index + 1}` }],
+  loyalty: { totalLoyalty: index * 10, checkInCount: index }
+}));
 
 describe("MembersView", () => {
   afterEach(() => {
@@ -91,6 +93,26 @@ describe("MembersView", () => {
     expect(headerText).not.toContain("members.col.");
   });
 
+  it("should filter members with a platform combobox", async () => {
+    const fetchMock = createMembersFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const platformSelect = wrapper.get('[data-testid="members-platform-filter"]');
+    expect(platformSelect.element.tagName).toBe("SELECT");
+    expect(platformSelect.text()).toContain("All platforms");
+    expect(platformSelect.text()).toContain("twitch");
+    expect(platformSelect.text()).toContain("youtube");
+
+    await platformSelect.setValue("twitch");
+    await wrapper.get(".members-toolbar").trigger("submit");
+    await flushPromises();
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/members/?platform=twitch", expect.any(Object));
+  });
+
   it("should expose member edit actions on the editable members panel", async () => {
     const fetchMock = createMembersFetchMock(
       new Response(JSON.stringify({
@@ -120,6 +142,53 @@ describe("MembersView", () => {
     expect(wrapper.findAll('form[data-testid="members-edit-form"]')).toHaveLength(0);
     expect(wrapper.findAll('[data-testid="members-delete"]')).toHaveLength(0);
     expect(wrapper.findAll('[data-testid="members-seed"]')).toHaveLength(0);
+  });
+
+  it("should page the check-in management table by the selected row count", async () => {
+    vi.stubGlobal("fetch", createMembersFetchMock(undefined, pagedMembers));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.findAll(".tab-btn")[1].trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="members-checkin-page-status"]').text()).toContain("1-10 of 12");
+    expect(wrapper.findAll('[data-testid="members-row"]')).toHaveLength(10);
+
+    await wrapper.get('[data-testid="members-checkin-next"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="members-checkin-page-status"]').text()).toContain("11-12 of 12");
+    expect(wrapper.findAll('[data-testid="members-row"]')).toHaveLength(2);
+
+    await wrapper.get('[data-testid="members-checkin-page-size"]').setValue("20");
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="members-checkin-page-status"]').text()).toContain("1-12 of 12");
+    expect(wrapper.findAll('[data-testid="members-row"]')).toHaveLength(12);
+  });
+
+  it("should sort the check-in management table by supported columns", async () => {
+    vi.stubGlobal("fetch", createMembersFetchMock(undefined, pagedMembers));
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.findAll(".tab-btn")[1].trigger("click");
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-testid="members-row"]')[0].text()).toContain("User 12");
+
+    await wrapper.get('[data-testid="members-checkin-sort-checkins"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-testid="members-row"]')[0].text()).toContain("User 1");
+
+    await wrapper.get('[data-testid="members-checkin-sort-user"]').trigger("click");
+    await flushPromises();
+
+    expect(wrapper.findAll('[data-testid="members-row"]')[0].text()).toContain("User 1");
   });
 
   it("should not open the detail modal when detail loading fails", async () => {

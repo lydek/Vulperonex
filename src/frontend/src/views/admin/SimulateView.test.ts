@@ -33,7 +33,7 @@ describe("SimulateView", () => {
     vi.restoreAllMocks();
   });
 
-  it("should display ack with eventId and platformUserId when api accepts simulate", async () => {
+  it("should display simple success without ack details when api accepts simulate", async () => {
     const ack = {
       accepted: true,
       eventTypeKey: "user.sent_message",
@@ -52,11 +52,8 @@ describe("SimulateView", () => {
     await wrapper.find("form").trigger("submit");
     await flushPromises();
 
-    const ackCard = wrapper.find('[data-testid="simulate-ack"]');
-    expect(ackCard.exists()).toBe(true);
-    expect(wrapper.find('[data-testid="ack-accepted"]').text()).toBe("true");
-    expect(wrapper.find('[data-testid="ack-event-id"]').text()).toBe("evt-abc");
-    expect(wrapper.find('[data-testid="ack-platform-user-id"]').text()).toBe("sim-007");
+    expect(wrapper.find('[data-testid="simulate-ack"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="simulate-success"]').text()).toContain("Simulation sent");
     expect(wrapper.find('[data-testid="simulate-error"]').exists()).toBe(false);
   });
 

@@ -47,29 +47,17 @@ describe("SimulateControlsPanel", () => {
     vi.restoreAllMocks();
   });
 
-  it("should render four primary sections (test-mode / event / identity / event-fields)", async () => {
+  it("should render primary sections without test-mode controls", async () => {
     const wrapper = mountView();
     await flushPromises();
 
-    expect(wrapper.find('[data-testid="section-test-mode"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="section-test-mode"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="test-mode-toggle"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="section-event-type"]').exists()).toBe(true);
     // alias defaults to chat → full identity + event-fields visible
     expect(wrapper.find('[data-testid="section-identity"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="section-event-fields"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="section-batch"]').exists()).toBe(false);
-  });
-
-  it("should toggle test-mode switch and reflect chip state", async () => {
-    const wrapper = mountView();
-    await flushPromises();
-
-    const toggle = wrapper.find('[data-testid="test-mode-toggle"] input[type="checkbox"]');
-    expect(toggle.exists()).toBe(true);
-    expect((toggle.element as HTMLInputElement).checked).toBe(true);
-    expect(wrapper.find(".toggle-state-chip").text()).toBe("TEST");
-
-    await toggle.setValue(false);
-    expect(wrapper.find(".toggle-state-chip").text()).toBe("LIVE");
   });
 
   it("should show batch section only when alias is checkin", async () => {
@@ -116,7 +104,7 @@ describe("SimulateControlsPanel", () => {
     await flushPromises();
   });
 
-  it("should post checkin payload to the dedicated endpoint and render ack", async () => {
+  it("should post checkin payload to the dedicated endpoint and render simple success", async () => {
     const fetchMock = routeFetch(() => new Response(JSON.stringify({
       accepted: true,
       eventTypeKey: "system.member.checked_in",
@@ -145,12 +133,13 @@ describe("SimulateControlsPanel", () => {
         body: JSON.stringify({
           platformUserId: "sim-user",
           displayName: "Sim User",
-          stampCount: 3,
-          isTest: true
+          stampCount: 3
         })
       })
     );
-    expect(wrapper.find('[data-testid="simulate-ack"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="simulate-ack"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="simulate-success"]').text()).toContain("Simulation sent");
+    expect(wrapper.find('[data-testid="simulate-error"]').exists()).toBe(false);
   });
 
   it("should run batch checkin sequentially and emit latest ack", async () => {

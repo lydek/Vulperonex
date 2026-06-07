@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, onBeforeUnmount } from "vue";
+import { computed, onMounted, ref, watch, onBeforeUnmount } from "vue";
 import { useI18n } from "vue-i18n";
 import {
   ApiError,
@@ -10,8 +10,6 @@ import {
   resetMemberLoyalty,
   generateDeleteToken,
   deleteMemberWithToken,
-  getConfigValue,
-  setConfigValue,
   type MemberReadModel,
   type MemberAuditLog
 } from "@/api/client";
@@ -20,19 +18,18 @@ const { t } = useI18n();
 
 const members = ref<MemberReadModel[]>([]);
 const activeTab = ref<'identity' | 'checkin'>('identity');
-const showCardSettings = ref(false);
 const selected = ref<MemberReadModel | null>(null);
 const platformFilter = ref<string>("");
+const platformFilterOptions = ["simulation", "twitch", "youtube"];
 const loadingList = ref(false);
 const loadingDetail = ref(false);
 const listError = ref<string | null>(null);
 const detailError = ref<string | null>(null);
-
-const backgroundUrl = ref("");
-const stampUrl = ref("");
-const savingSettings = ref(false);
-const saveMessage = ref<string | null>(null);
-const saveError = ref<string | null>(null);
+const checkInPageSizeOptions = [10, 20, 50, 100];
+const checkInPageSize = ref(10);
+const checkInPage = ref(1);
+const checkInSortKey = ref<"user" | "checkIns" | "stamps">("checkIns");
+const checkInSortDirection = ref<"asc" | "desc">("desc");
 
 // --- Overhauled Premium Popconfirm & MemberDetailModal State ---
 const showDetailModal = ref(false);
@@ -67,7 +64,7 @@ async function confirmReset(memberId: string) {
       {
         resetLoyalty: false,
         resetCheckIn: true,
-        reason: "管理員手動重設打卡冷卻"
+        reason: "管理員手動重設打卡次數"
       }
     );
     await loadList();
@@ -221,38 +218,8 @@ const auditLogs = ref<MemberAuditLog[]>([]);
 const loadingAudit = ref(false);
 const auditError = ref<string | null>(null);
 
-async function loadCardSettings(): Promise<void> {
-  try {
-    const bgData = await getConfigValue("overlay.member.background_url");
-    backgroundUrl.value = bgData.value || "";
-    
-    const stampData = await getConfigValue("overlay.member.stamp_url");
-    stampUrl.value = stampData.value || "";
-  } catch (caught) {
-    saveError.value = t("members.cardSettings.loadFailed") + ": " + (caught instanceof Error ? caught.message : String(caught));
-  }
-}
-
-async function saveCardSettings(): Promise<void> {
-  savingSettings.value = true;
-  saveMessage.value = null;
-  saveError.value = null;
-  try {
-    await setConfigValue("overlay.member.background_url", backgroundUrl.value.trim());
-    await setConfigValue("overlay.member.stamp_url", stampUrl.value.trim());
-    
-    saveMessage.value = t("members.cardSettings.saveSuccess");
-    setTimeout(() => { saveMessage.value = null; }, 3000);
-  } catch (caught) {
-    saveError.value = caught instanceof Error ? caught.message : String(caught);
-  } finally {
-    savingSettings.value = false;
-  }
-}
-
 onMounted(() => {
   void loadList();
-  void loadCardSettings();
 });
 
 
@@ -271,6 +238,56 @@ async function loadList(): Promise<void> {
     loadingList.value = false;
   }
 }
+
+const sortedCheckInMembers = computed(() => {
+  const direction = checkInSortDirection.value === "asc" ? 1 : -1;
+  return [...members.value].sort((left, right) => {
+    if (checkInSortKey.value === "user") {
+      return getDisplayName(left).localeCompare(getDisplayName(right), undefined, { sensitivity: "base" }) * direction;
+    }
+
+    const leftValue = checkInSortKey.value === "stamps"
+      ? left.loyalty.totalLoyalty
+      : left.loyalty.checkInCount;
+    const rightValue = checkInSortKey.value === "stamps"
+      ? right.loyalty.totalLoyalty
+      : right.loyalty.checkInCount;
+    return (leftValue - rightValue) * direction;
+  });
+});
+
+const checkInTotalPages = computed(() => Math.max(1, Math.ceil(sortedCheckInMembers.value.length / checkInPageSize.value)));
+const pagedCheckInMembers = computed(() => {
+  const start = (checkInPage.value - 1) * checkInPageSize.value;
+  return sortedCheckInMembers.value.slice(start, start + checkInPageSize.value);
+});
+const checkInPageStart = computed(() => sortedCheckInMembers.value.length === 0 ? 0 : (checkInPage.value - 1) * checkInPageSize.value + 1);
+const checkInPageEnd = computed(() => Math.min(checkInPage.value * checkInPageSize.value, sortedCheckInMembers.value.length));
+
+function setCheckInSort(key: "user" | "checkIns" | "stamps") {
+  if (checkInSortKey.value === key) {
+    checkInSortDirection.value = checkInSortDirection.value === "asc" ? "desc" : "asc";
+  } else {
+    checkInSortKey.value = key;
+    checkInSortDirection.value = key === "user" ? "asc" : "desc";
+  }
+  checkInPage.value = 1;
+}
+
+function getCheckInSortLabel(key: "user" | "checkIns" | "stamps") {
+  if (checkInSortKey.value !== key) return "";
+  return checkInSortDirection.value === "asc" ? "↑" : "↓";
+}
+
+watch([platformFilter, checkInPageSize], () => {
+  checkInPage.value = 1;
+});
+
+watch(checkInTotalPages, (totalPages) => {
+  if (checkInPage.value > totalPages) {
+    checkInPage.value = totalPages;
+  }
+});
 
 async function selectMember(memberId: string): Promise<void> {
   loadingDetail.value = true;
@@ -464,12 +481,16 @@ function getIsSubscriber(member: MemberReadModel) {
     <form class="members-toolbar" @submit.prevent="loadList">
       <label class="form-field">
         <span class="form-label">{{ t("members.filterPlatform") }}</span>
-        <input
+        <select
           v-model="platformFilter"
-          type="text"
-          autocomplete="off"
           :aria-label="t('members.filterPlatform')"
-        />
+          data-testid="members-platform-filter"
+        >
+          <option value="">{{ t("members.filterPlatform.all") }}</option>
+          <option v-for="platform in platformFilterOptions" :key="platform" :value="platform">
+            {{ platform }}
+          </option>
+        </select>
       </label>
       <button type="submit" class="primary-button" :disabled="loadingList">
         {{ loadingList ? t("members.loading") : t("members.refresh") }}
@@ -587,19 +608,46 @@ function getIsSubscriber(member: MemberReadModel) {
         </table>
 
         <!-- Tab 2: Checkin Management Table -->
-        <table v-else-if="members.length > 0 && activeTab === 'checkin'" class="monitor-table" data-testid="members-table-checkin">
+        <div v-else-if="members.length > 0 && activeTab === 'checkin'" class="checkin-table-section">
+          <div class="checkin-table-controls">
+            <label class="checkin-page-size">
+              <span>{{ t("members.checkIn.pageSize") }}</span>
+              <select v-model.number="checkInPageSize" data-testid="members-checkin-page-size">
+                <option v-for="size in checkInPageSizeOptions" :key="size" :value="size">
+                  {{ size }}
+                </option>
+              </select>
+            </label>
+            <div class="checkin-page-status" data-testid="members-checkin-page-status">
+              {{ t("members.checkIn.pageStatus", { start: checkInPageStart, end: checkInPageEnd, total: sortedCheckInMembers.length }) }}
+            </div>
+          </div>
+          <p class="checkin-table-hint">{{ t("members.checkIn.resetWindowHint") }}</p>
+          <table class="monitor-table" data-testid="members-table-checkin">
           <thead>
             <tr>
               <th scope="col" style="width: 70px; text-align: center;">{{ t("members.col.avatar") || "頭像" }}</th>
-              <th scope="col">{{ t("members.col.user") || "使用者" }}</th>
-              <th scope="col" style="text-align: center; width: 130px;">{{ t("members.col.checkIns") || "累積打卡" }}</th>
-              <th scope="col" style="text-align: center; width: 130px;">{{ t("members.col.stampsCount") || "目前印章" }}</th>
-              <th scope="col" style="width: 250px; text-align: center;">打卡操作</th>
+              <th scope="col">
+                <button type="button" class="sortable-th" data-testid="members-checkin-sort-user" @click="setCheckInSort('user')">
+                  {{ t("members.col.user") || "使用者" }} <span aria-hidden="true">{{ getCheckInSortLabel("user") }}</span>
+                </button>
+              </th>
+              <th scope="col" style="text-align: center; width: 130px;">
+                <button type="button" class="sortable-th center" data-testid="members-checkin-sort-checkins" @click="setCheckInSort('checkIns')">
+                  {{ t("members.col.checkIns") || "累積打卡" }} <span aria-hidden="true">{{ getCheckInSortLabel("checkIns") }}</span>
+                </button>
+              </th>
+              <th scope="col" style="text-align: center; width: 130px;">
+                <button type="button" class="sortable-th center" data-testid="members-checkin-sort-stamps" @click="setCheckInSort('stamps')">
+                  {{ t("members.col.stampsCount") || "目前印章" }} <span aria-hidden="true">{{ getCheckInSortLabel("stamps") }}</span>
+                </button>
+              </th>
+              <th scope="col" style="width: 250px; text-align: center;">{{ t("members.checkIn.actions") }}</th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="member in members"
+              v-for="member in pagedCheckInMembers"
               :key="member.memberId"
               :class="['members-row', { 'members-row-selected': selected?.memberId === member.memberId }]"
               data-testid="members-row"
@@ -631,77 +679,52 @@ function getIsSubscriber(member: MemberReadModel) {
                 <div class="row-actions-wrapper" @click.stop>
                   <div class="popconfirm-anchor">
                     <button type="button" class="row-action-btn reset-btn-quaternary" @click="showResetPop(member.memberId)">
-                      重設冷卻
+                      {{ t("members.checkIn.resetCount") }}
                     </button>
                     <div v-if="resetPopId === member.memberId" class="popconfirm-bubble shadow-lg">
                       <div class="popconfirm-arrow"></div>
                       <div class="popconfirm-content">
                         <span class="popconfirm-icon">⚠️</span>
-                        <span class="popconfirm-text">讓該會員可以立即再次打卡。</span>
+                        <span class="popconfirm-text">{{ t("members.checkIn.resetCountConfirm") }}</span>
                       </div>
                       <div class="popconfirm-actions">
-                        <button type="button" class="popconfirm-btn cancel" @click="resetPopId = null">取消</button>
-                        <button type="button" class="popconfirm-btn confirm-reset" @click="confirmReset(member.memberId)">重設冷卻</button>
+                        <button type="button" class="popconfirm-btn cancel" @click="resetPopId = null">{{ t("members.dialog.cancel") }}</button>
+                        <button type="button" class="popconfirm-btn confirm-reset" @click="confirmReset(member.memberId)">{{ t("members.checkIn.resetCount") }}</button>
                       </div>
                     </div>
                   </div>
                   <button type="button" class="row-action-btn detail-btn-quaternary-bordered" @click="openDetailModal(member.memberId).then(() => activeDetailTab = 'loyalty')">
-                    管理詳情
+                    {{ t("members.checkIn.details") }}
                   </button>
                 </div>
               </td>
             </tr>
           </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Collapsible Visual Config for Card -->
-    <div v-if="activeTab === 'checkin'" class="settings-toggle-row">
-      <button 
-        type="button" 
-        class="compact-settings-btn"
-        @click="showCardSettings = !showCardSettings"
-      >
-        ⚙️ 集點卡視覺配置 {{ showCardSettings ? '▲' : '▼' }}
-      </button>
-    </div>
-
-    <transition name="slide-fade">
-      <div v-if="activeTab === 'checkin' && showCardSettings" class="card-settings-panel mt-4">
-        <h2 class="settings-panel-title">{{ t("members.cardSettings.title") || "集點卡視覺配置 (預設 rotan-checkin)" }}</h2>
-        <div class="settings-fields">
-          <label class="form-field flex-1">
-            <span class="form-label">{{ t("members.cardSettings.background.label") || "卡片客製背景網址 (URL)" }}</span>
-            <input
-              v-model="backgroundUrl"
-              type="text"
-              :placeholder="t('members.cardSettings.background.placeholder')"
-              autocomplete="off"
-            />
-          </label>
-          <label class="form-field flex-1">
-            <span class="form-label">{{ t("members.cardSettings.stamp.label") || "自訂蓋章印章網址 (URL)" }}</span>
-            <input
-              v-model="stampUrl"
-              type="text"
-              :placeholder="t('members.cardSettings.stamp.placeholder')"
-              autocomplete="off"
-            />
-          </label>
-          <button
-            type="button"
-            class="primary-button settings-save-btn"
-            :disabled="savingSettings"
-            @click="saveCardSettings"
-          >
-            {{ savingSettings ? t("members.cardSettings.saving") : t("members.cardSettings.save") || "儲存集點卡配置" }}
-          </button>
+          </table>
+          <div class="checkin-pagination" aria-label="Check-in table pagination">
+            <button
+              type="button"
+              class="row-action-btn"
+              data-testid="members-checkin-prev"
+              :disabled="checkInPage <= 1"
+              @click="checkInPage = Math.max(1, checkInPage - 1)"
+            >
+              {{ t("members.checkIn.previous") }}
+            </button>
+            <span data-testid="members-checkin-page">{{ checkInPage }} / {{ checkInTotalPages }}</span>
+            <button
+              type="button"
+              class="row-action-btn"
+              data-testid="members-checkin-next"
+              :disabled="checkInPage >= checkInTotalPages"
+              @click="checkInPage = Math.min(checkInTotalPages, checkInPage + 1)"
+            >
+              {{ t("members.checkIn.next") }}
+            </button>
+          </div>
         </div>
-        <p v-if="saveMessage" class="settings-success-msg" role="status">{{ saveMessage }}</p>
-        <p v-if="saveError" class="settings-error-msg" role="alert">{{ saveError }}</p>
       </div>
-    </transition>
+    </div>
 
     <!-- 1. Adjust Loyalty Dialog (Modal) -->
     <div v-if="showAdjustModal" class="modal-overlay" @click.self="showAdjustModal = false">
@@ -1062,41 +1085,6 @@ function getIsSubscriber(member: MemberReadModel) {
   min-height: 80vh;
 }
 
-/* Top Visual Panel */
-.card-settings-panel {
-  background: rgba(30, 41, 59, 0.45);
-  border: 1px solid rgba(189, 232, 232, 0.12);
-  border-radius: 16px;
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(10px);
-}
-.settings-panel-title {
-  margin-top: 0;
-  margin-bottom: 20px;
-  font-size: 18px;
-  font-weight: 700;
-  color: #BDE8E8;
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 10px rgba(189, 232, 232, 0.3);
-}
-.settings-fields {
-  display: flex;
-  gap: 20px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-}
-.flex-1 {
-  flex: 1;
-  min-width: 280px;
-}
-.settings-save-btn {
-  height: 42px;
-  white-space: nowrap;
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.25);
-}
-
 /* Table & Layout */
 .members-layout {
   display: flex;
@@ -1110,6 +1098,65 @@ function getIsSubscriber(member: MemberReadModel) {
   border: 1px solid rgba(189, 232, 232, 0.08);
   border-radius: 14px;
   overflow: visible !important;
+}
+.checkin-table-section {
+  display: grid;
+  gap: 12px;
+}
+.checkin-table-controls,
+.checkin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.checkin-page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #cbd5e1;
+  font-size: 13px;
+  font-weight: 700;
+}
+.checkin-page-size select {
+  min-width: 84px;
+}
+.checkin-page-status {
+  color: rgba(189, 232, 232, 0.72);
+  font-size: 13px;
+}
+.checkin-table-hint {
+  margin: 0;
+  padding: 0 16px;
+  color: rgba(189, 232, 232, 0.64);
+  font-size: 13px;
+}
+.sortable-th {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+.sortable-th.center {
+  text-align: center;
+}
+.sortable-th:hover {
+  color: #67e8f9;
+}
+.checkin-pagination {
+  justify-content: flex-end;
+  color: rgba(189, 232, 232, 0.72);
+  font-size: 13px;
+}
+.checkin-pagination .row-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 .members-row {
   cursor: pointer;
@@ -1923,28 +1970,6 @@ function getIsSubscriber(member: MemberReadModel) {
   box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
 }
 
-/* Collapsible Settings Style */
-.settings-toggle-row {
-  margin-top: 16px;
-  display: flex;
-  justify-content: flex-end;
-}
-.compact-settings-btn {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(189, 232, 232, 0.1);
-  color: rgba(189, 232, 232, 0.5);
-  font-size: 12px;
-  font-weight: 700;
-  padding: 6px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.compact-settings-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #BDE8E8;
-}
-
 /* Overhauled MemberDetailModal Styles */
 .detail-modal-overlay {
   position: fixed;
@@ -2435,19 +2460,6 @@ function getIsSubscriber(member: MemberReadModel) {
   color: #fff;
   background: #7c3aed;
   box-shadow: 0 0 10px rgba(124, 58, 237, 0.4);
-}
-
-/* Transition anims */
-.slide-fade-enter-active {
-  transition: all 0.25s ease-out;
-}
-.slide-fade-leave-active {
-  transition: all 0.2s cubic-bezier(1, 0.5, 0.8, 1);
-}
-.slide-fade-enter-from,
-.slide-fade-leave-to {
-  transform: translateY(-10px);
-  opacity: 0;
 }
 
 /* Explicitly round corner cells to preserve border-radius when overflow is visible */
