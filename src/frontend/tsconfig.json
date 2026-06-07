@@ -10,6 +10,8 @@
     },
     "strict": true,
     "skipLibCheck": true,
+    "incremental": true,
+    "tsBuildInfoFile": "node_modules/.cache/tsc/.tsbuildinfo",
     "jsx": "preserve",
     "resolveJsonModule": true,
     "isolatedModules": true,

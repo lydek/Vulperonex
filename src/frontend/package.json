@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "test": "vitest run --coverage",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "run-p type-check build-only",
+    "build-only": "vite build",
+    "type-check": "vue-tsc --noEmit",
     "lint": "oxlint --config oxlint.json",
     "vue-tsc": "vue-tsc",
     "postinstall": "simple-git-hooks"
@@ -15,7 +17,6 @@
   "dependencies": {
     "@microsoft/signalr": "^9.0.0",
     "@unocss/reset": "^66.0.0",
-    "monaco-editor": "^0.55.1",
     "pinia": "^3.0.0",
     "primevue": "^4.0.0",
     "reka-ui": "^2.9.8",
@@ -30,6 +31,7 @@
     "@vitest/coverage-v8": "^3.0.0",
     "@vue/test-utils": "^2.4.0",
     "jsdom": "^26.0.0",
+    "npm-run-all2": "^7.0.0",
     "oxlint": "^0.16.0",
     "simple-git-hooks": "^2.11.0",
     "typescript": "^5.8.0",
