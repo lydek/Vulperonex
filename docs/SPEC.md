@@ -1745,24 +1745,186 @@ vulperonex simulate chat    "hi" --user-id alice --display-name "Alice"
 vulperonex simulate follow  --user-id alice
 vulperonex simulate sub     --user-id alice --tier 1000
 vulperonex simulate checkin --user-id alice --stamp-count 1 [--skip-cooldown]
-vulperonex config get       log.min_level
-vulperonex config set       log.min_level "Debug"
-vulperonex rule list
-vulperonex rule enable      01HK...          # accepts full id | id prefix | --name <name>
-vulperonex rule disable     01HK... --yes
-vulperonex rule delete      01HK... --yes
+vulperonex config get       streaming.platform
+vulperonex config set       streaming.platform twitch
 vulperonex member list
-vulperonex member show      01HK...
-vulperonex member delete    01HK... --yes
-# Migrations run automatically on host startup — there is no `vulperonex db` command (see §4.11).
-# Full CLI reference: docs/cli.md
+vulperonex member show      <memberId|prefix>
+vulperonex member delete    <memberId|prefix> [--yes]
+vulperonex rule list
+vulperonex rule show        <ruleId|prefix|--name <name>>
+vulperonex rule enable      <ruleId|prefix|--name <name>>
+vulperonex rule disable     <ruleId|prefix|--name <name>> [--yes]
+vulperonex rule delete      <ruleId|prefix|--name <name>> [--yes]
+# Resolution and confirmation flows: docs/phases/phase-5_5-rapid-test/cli-id-resolution-decision.md
+
+# --- Frontend ---
+cd src/frontend
+pnpm install
+pnpm dev          # Vite development server (Photino can point here for hot reload)
+pnpm build        # output to ../Hosts/Vulperonex.Web/wwwroot
+pnpm test
+
+# --- Quality ---
+dotnet format
+# Coverage thresholds (see §7.3 for full commands):
+dotnet test tests/Vulperonex.Tests.Unit /p:CollectCoverage=true /p:Include="[Vulperonex.Domain]*" /p:Exclude="[*.Tests.*]*" /p:Threshold=90 /p:ThresholdType=line /p:ThresholdStat=average
+dotnet test tests/Vulperonex.Tests.Unit /p:CollectCoverage=true /p:Include="[Vulperonex.Application]*" /p:Exclude="[*.Tests.*]*" /p:Threshold=80 /p:ThresholdType=line /p:ThresholdStat=average
+pnpm lint   # Uses oxlint (oxlint.json config, Vue + TypeScript rules)
 ```
 
 ---
 
 ## 6. Development Conventions
 
-### 6.1 Coding Standards
+### 6.1 C# — Domain Events
+
+```csharp
+namespace Vulperonex.Domain.Events;
+
+public interface IStreamEvent
+{
+    /// <summary>
+    /// Globally unique event ID. Used for deduplication during TDQ replay upon restart.
+    /// Format: ULID string. The adapter must populate this from the platform event ID (if available), otherwise generate a new ULID.
+    /// </summary>
+    string EventId { get; }
+
+    string EventTypeKey { get; }
+    string Platform { get; }
+    StreamUser? User { get; }
+    DateTimeOffset OccurredAt { get; }
+}
+
+public sealed record UserSentMessageEvent : IStreamEvent
+{
+    // EventId: Use the message ID provided by the platform (if available), otherwise use a new ULID
+    public string EventId { get; init; } = Ulid.NewUlid().ToString();
+    public string EventTypeKey => StreamEventKeys.UserSentMessage;
+    public required string Platform { get; init; }
+    public required StreamUser User { get; init; }
+    public required string PlainText { get; init; }
+    public bool IsFirstChat { get; init; }
+    public DateTimeOffset OccurredAt { get; init; } = DateTimeOffset.UtcNow;
+}
+```
+
+### 6.2 C# — Bus and Adapter Contracts
+
+```csharp
+// Defined in Vulperonex.Adapters.Abstractions (not Application).
+// All Adapters (Twitch, Simulation, and future platforms) reference Adapters.Abstractions to implement this interface;
+// Application/Domain have no knowledge of the existence of IStreamEventSource.
+public interface IStreamEventSource
+{
+    string Platform { get; }
+    Task StartAsync(CancellationToken ct);
+    Task StopAsync(CancellationToken ct);
+}
+
+public interface IStreamEventBus
+{
+    Task PublishAsync<T>(T @event, CancellationToken ct = default) where T : IStreamEvent;
+    IDisposable Subscribe<T>(Func<T, CancellationToken, Task> handler) where T : IStreamEvent;
+
+    /// <summary>
+    /// Waits until the in-memory queue is empty and all active handlers have completed.
+    /// Semantics: handler exceptions are isolated and logged as warnings; WaitForIdleAsync itself does not aggregate or throw handler errors,
+    ///            and returns Task.CompletedTask upon completion (does not reflect whether handlers failed).
+    ///            CLI --wait utilizes this method, similarly independent of handler error counts.
+    /// Only used for integration tests and CLI --wait mode. Not used in production code paths.
+    /// </summary>
+    Task WaitForIdleAsync(CancellationToken ct = default);
+}
+
+public interface IPlatformChatSender
+{
+    string Platform { get; }
+    Task SendAsync(string text, CancellationToken ct);
+}
+```
+
+### 6.3 C# — Plugin Contracts
+
+```csharp
+/// <summary>
+/// A singleton-scoped context provided to plugins for use during their lifecycle.
+/// Does not carry per-event or per-operation data.
+/// </summary>
+public interface IPluginContext
+{
+    IStreamEventBus Events { get; }    // Subscribe and Publish
+    ILogger Logger { get; }
+    // Note: Do not expose IServiceProvider — avoids the service locator anti-pattern.
+    // If plugins need additional services, add explicit properties to this interface (post-MVP extension point).
+}
+
+/// <summary>
+/// Per-operation invocation context passed to plugin action handlers by the InvokePluginAction executor.
+/// Carries specific event data and is not shared across actions or rules.
+/// </summary>
+public interface IPluginActionContext
+{
+    /// <summary>
+    /// Fully qualified deduplication key: (EventId, WorkflowRuleId, ActionIndex[, InvocationId]).
+    /// Plugins must use this complete key (not just EventId) for ActionExecutionLog entries.
+    /// The same EventId may appear in multiple rules; using only EventId leads to deduplication conflicts across rules.
+    /// </summary>
+    string ActionExecutionKey { get; }
+
+    string EventId { get; }
+    string WorkflowRuleId { get; }
+    int ActionIndex { get; }
+    string EventTypeKey { get; }
+    StreamUser? User { get; }
+    IReadOnlyDictionary<string, JsonElement> Params { get; } // From WorkflowRule action configuration
+    ILogger Logger { get; }
+    // Note: Do not expose IServiceProvider — avoids the service locator anti-pattern.
+}
+
+public interface IVulperonexPlugin
+{
+    /// <summary>
+    /// Unique identifier for the plugin (equivalent to the WorkflowRule InvokePluginAction.PluginId lookup key).
+    /// Naming convention: lowercase-kebab, e.g., "my-plugin"; must not contain spaces or special characters.
+    /// Name and PluginId use the same string — the PluginId of InvokePluginAction must equal this value.
+    /// </summary>
+    string Name { get; }
+    string Version { get; }
+    Task InitializeAsync(IPluginContext ctx, CancellationToken ct);
+    Task ShutdownAsync(CancellationToken ct);
+
+    /// <summary>
+    /// Called by the InvokePluginAction executor. The ActionId matches the action identifier defined by this plugin.
+    /// Plugins must implement deduplication via IPluginActionContext.ActionExecutionKey to handle any external side effects.
+    /// Underneath, the Task may still run after timeout — plugins should log a warning upon CancellationToken trigger,
+    /// avoiding the side effects of late completion being mistaken for retry results (causing double side effects).
+    /// </summary>
+    Task ExecuteActionAsync(string actionId, IPluginActionContext ctx, CancellationToken ct);
+}
+```
+
+### 6.4 TypeScript — Vue Composable
+
+```ts
+// composables/useStreamEvents.ts
+import { ref, onMounted, onUnmounted } from 'vue';
+import * as signalR from '@microsoft/signalr';
+
+export function useStreamEvents() {
+  const events = ref<StreamEvent[]>([]);
+  const conn = new signalR.HubConnectionBuilder()
+    .withUrl('/hubs/events')
+    .build();
+
+  onMounted(() => conn.start());
+  onUnmounted(() => conn.stop());
+
+  conn.on('event', (e: StreamEvent) => events.value.push(e));
+  return { events };
+}
+```
+
+### 6.5 Coding Standards
 
 - **C#:** PascalCase for types and methods, camelCase for local variables, `_camelCase` for private fields. File-scoped namespaces and Primary Constructors where appropriate.
 - **TypeScript:** camelCase for identifiers, PascalCase for components, kebab-case for view filenames.
