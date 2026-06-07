@@ -1,186 +1,188 @@
-# Spec: Monitor Dashboard Redesign
+# 規格：監控儀表板重構 (Monitor Dashboard Redesign)
 
-## Objective
+## 目的
 
-Redesign `src/frontend/src/views/admin/MonitorDashboardView.vue` so its layout, visual hierarchy, and operator workflow closely follow `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/` while preserving the current Vulperonex theme colors and frontend stack.
+重構 `src/frontend/src/views/admin/MonitorDashboardView.vue`，使其版面配置、視覺階層以及操作員工作流程緊密遵循 `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/`，同時保留現有的 Vulperonex 主題顏色和前端技術棧。
 
-This is a planning spec for implementation. It defines the target UI, boundaries, task slices, verification checkpoints, and open questions before code changes continue.
+這是實作的規劃規格。它定義了目標 UI、邊界、任務切片、驗證檢查點以及在程式碼變更繼續之前的開放問題。
 
-## Product Goal
+> **狀態（部分交付）：** 已根據此規格重構 `MonitorDashboardView.vue` — 版面配置合約與標頭已**完成 (Done)**；外殼 Token、控制欄/`SimulateControlsPanel` 對照對齊以及預覽工作區為**部分完成 (Partial)**。請參見 [monitor-dashboard-redesign-plan.md](monitor-dashboard-redesign-plan.md) 以獲取權威的各任務狀態表。本文件仍作為目標設計的參考。
 
-The redesigned Monitor Dashboard should feel like a real-time operations console instead of a generic admin page.
+## 產品目標
 
-The page should optimize for three operator loops:
+重構後的監控儀表板應該感覺像是一個即時操作主控台，而不是一個通用的管理頁面。
 
-1. Trigger or simulate an event quickly from the control panel.
-2. Watch the overlay preview react immediately in the center workspace.
-3. Confirm result and context from the live chat stream on the right.
+此頁面應針對三個操作員迴路進行最佳化：
 
-## Reference Baseline
+1. 從控制面板快速觸發或模擬事件。
+2. 觀看中間工作區的 Overlay 預覽立即做出反應。
+3. 從右側的即時聊天串流確認結果和內容。
 
-Primary visual and interaction baseline:
+## 參考基準
+
+主要的視覺和互動基準：
 
 - `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorDashboard.vue`
 - `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorControls.vue`
 - `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorOverlay.vue`
 - `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/MonitorChat.vue`
 
-What to copy from the reference:
+需要從參考中複製的內容：
 
-- Dark control-room composition and density
-- Three-zone layout: left controls, center preview, right event/chat feed
-- Strong header bar with immediate system status
-- Embedded preview toolbar instead of a plain card header
-- High-contrast control groups with compact labels and clear call-to-action buttons
+- 深色控制室風格的構圖與密度
+- 三區域配置：左側控制、中間預覽、右側事件/聊天摘要
+- 具有即時系統狀態的強大標頭欄
+- 嵌入式預覽工具列，而不是簡單的卡片標頭
+- 具有緊湊標籤和清晰行動按鈕的高對比控制群組
 
-What not to copy literally:
+不應字面複製的內容：
 
 - `naive-ui`
-- SCSS mixin system
-- Legacy store/navigation structure
-- Features outside the current Vulperonex scope such as settings submodules, native-only bridge behavior, or unused monitor widgets
+- SCSS mixin 系統
+- 舊有的 store/導覽結構
+- 超出目前 Vulperonex 範圍的功能，例如設定子模組、原生專用橋接行為或未使用的監控組件
 
-## Current State
+## 目前狀態
 
-The current `MonitorDashboardView.vue` already has the basic three-panel shell:
+目前的 `MonitorDashboardView.vue` 已經有基本的三面板外殼：
 
-- Header with title and server health
-- Collapsible left simulation panel
-- Center overlay preview panel
-- Right chat stream panel
-- Narrow-screen drawer behavior
+- 帶有標題和伺服器健康狀態的標頭
+- 可摺疊的左側模擬面板
+- 中間的 Overlay 預覽面板
+- 右側的聊天串流面板
+- 窄螢幕的抽屜行為
 
-However, it still differs from the intended reference in several important ways:
+然而，它在以下幾個重要方面仍與預期的參考設計不同：
 
-- The overall page still reads as a light admin layout instead of an operations surface.
-- The center preview area lacks the stronger toolbar framing and workspace emphasis seen in the reference.
-- The left control panel hierarchy is functional but not yet visually aligned with the denser control-card rhythm from the reference.
-- The right feed area needs stronger event-stream framing and more deliberate width behavior.
-- The responsive behavior exists, but the spec should lock down exact breakpoint expectations and interaction states.
+- 整個頁面看起來仍然像是淺色的管理版面，而不是操作工作面。
+- 中間的預覽區域缺乏參考設計中更強大的工具列框架和工作區強調。
+- 左側控制面板的階層功能正常，但尚未與參考設計中更緊湊的控制卡片節奏視覺對齊。
+- 右側摘要區域需要更強大的事件流框架和更有意圖的寬度行為。
+- 回應式行為存在，但規格應該鎖定確切的斷點期望和互動狀態。
 
-## Design Direction
+## 設計方向
 
-### Visual direction
+### 視覺方向
 
-Preserve Vulperonex brand colors and follow the active Vulperonex theme. The monitor page should feel specialized without becoming a literal clone of Omni Commander.
+保留 Vulperonex 品牌顏色並遵循使用中的 Vulperonex 主題。監控頁面應感覺專業，而不是字面上複製 Omni Commander。
 
-Required traits:
+必要的特性：
 
-- The monitor workspace should derive its surface treatment from the main theme instead of hard-coding an always-dark or always-light shell
-- Bright accent usage reserved for action buttons, status, and focus
-- Strong panel separation using borders, glow, subtle gradients, and layered surfaces
-- Compact typography for controls, larger focal treatment for header and preview workspace
+- 監控工作區應從主主題中取得其表面處理，而不是硬編碼為始終深色或始終淺色的外殼
+- 亮色點綴保留給行動按鈕、狀態和焦點
+- 使用邊框、發光、細微漸層和分層表面來提供強大的面板分離
+- 控制項使用緊湊的排版，標頭和預覽工作區使用較大的焦點處理
 
-### Layout model
+### 版面模型
 
-Desktop target:
+桌上型電腦目標：
 
-- Left fixed/collapsible controls rail
-- Center dominant preview workspace
-- Right fixed chat/event feed
+- 左側固定/可摺疊控制欄
+- 中間主導的預覽工作區
+- 右側固定聊天/事件摘要
 
-Responsive target:
+回應式目標：
 
-- `>= 1280px`: three-column layout with collapsible left rail
-- `1024px - 1279px`: controls move to drawer, preview and chat remain side-by-side with a fixed two-column main area
-- `< 1024px`: preview stacked above chat, controls remain drawer-only
+- `>= 1280px`：帶有可摺疊左側控制欄的三欄配置
+- `1024px - 1279px`：控制項移至抽屜，預覽和聊天保持並排，具有固定的雙欄主區域
+- `< 1024px`：預覽堆疊在聊天之上，控制項僅在抽屜中顯示
 
-### Theme rule
+### 主題規則
 
-Do not import Omni Commander colors directly. Re-express the design through Vulperonex-owned tokens under `--monitor-*`.
+不要直接匯入 Omni Commander 的顏色。透過 `--monitor-*` 底下的 Vulperonex 自有 Token 重新表達設計。
 
-## Scope
+## 範圍
 
-### In scope
+### 納入範圍
 
-- Redesign of `MonitorDashboardView.vue`
-- Supporting style-token updates for monitor dashboard surfaces
-- Refined layout contracts between dashboard shell and existing child panels
-- Minor presentational updates in existing monitor child components when needed to match the new composition
-- Test updates for layout, accessibility, and responsive behavior
-- i18n additions required by the redesigned shell
+- 重構 `MonitorDashboardView.vue`
+- 支援監控儀表板表面的樣式 Token 更新
+- 精煉儀表板外殼與現有子面板之間的版面配置合約
+- 必要時對現有監控子組件進行微小的呈現更新，以配合新的構圖
+- 更新版面配置、無障礙和回應式行為的測試
+- 重構後的外殼所需的 i18n 新增內容
 
-### Out of scope
+### 超出範圍
 
-- New backend endpoints
-- Replacing existing preview/chat/control business logic
-- Rewriting the simulation workflows themselves
-- Porting all reference-only monitor features
-- Introducing new UI libraries or utility dependencies
+- 新的後端端點
+- 取代現有的預覽/聊天/控制商業邏輯
+- 重寫模擬工作流本身
+- 移植所有僅作參考的監控功能
+- 引入新的 UI 程式庫或工具相依性
 
-## Architecture Decisions
+## 架構決策
 
-- Keep Vue 3 + TypeScript + PrimeVue stack. No `naive-ui`, no SCSS migration.
-- Preserve current child-component boundaries unless a boundary directly blocks the redesign.
-- Drive styling through monitor-specific CSS variables instead of one-off hex values.
-- Treat the dashboard shell as the owner of responsive layout state.
-- Keep the redesign vertical: shell first, then preview chrome, then control density, then verification.
-- Keep the right-side panel chat-first for this slice. Visual reframing is allowed; changing it into a broader mixed-event product surface is not.
-- Keep preview toolbar changes presentational for this slice. Re-layout existing controls, but do not introduce a new live/draft product mode beyond what `MonitorOverlayPanel.vue` already supports.
+- 保持 Vue 3 + TypeScript + PrimeVue 技術棧。沒有 `naive-ui`，沒有 SCSS 遷移。
+- 保留目前的子組件邊界，除非邊界直接阻礙了重構。
+- 透過監控專用的 CSS 變數驅動樣式，而不是分散的十六進位顏色值。
+- 將儀表板外殼視為回應式版面配置狀態的唯一擁有者。
+- 保持垂直重構：先外殼，然後預覽框架，然後控制項密度，最後是驗證。
+- 對於此切片，保持右側面板以聊天為主。允許視覺重塑；但不允許將其更改為更廣泛的混合事件產品表面。
+- 對於此切片，保持預覽工具列變更為呈現性。重新佈局現有的控制項，但不要引入超出目前 `MonitorOverlayPanel.vue` 已支援的 live/draft 產品模式。
 
-## Target UI Breakdown
+## 目標 UI 分解
 
-### Header
+### 標頭
 
-The header should become an operations bar:
+標頭應成為操作欄：
 
-- Left: icon, eyebrow, title
-- Right: control-panel toggle action and system health chip
-- Optional subtle live/status pulse treatment
+- 左側：圖示、小字標籤、標題
+- 右側：控制面板切換行動和系統健康狀態晶片
+- 可選的細微 live/狀態脈衝處理
 
-Acceptance notes:
+驗收說明：
 
-- Must immediately communicate page identity and service state
-- Must remain usable at narrow widths without wrapping into a broken layout
+- 必須立即溝通頁面識別和服務狀態
+- 在窄寬度下必須保持可用，而不會換行成損壞的版面配置
 
-### Left controls rail
+### 左側控制欄
 
-The controls rail should visually resemble the reference rhythm:
+控制欄的視覺應類似於參考設計的節奏：
 
-- Sticky-feeling utility section at the top
-- Dense grouped control cards
-- Strong primary action buttons
-- Drawer version on narrower widths
-- `SimulateControlsPanel.vue` should be brought as close as practical to the reference in both layout and exposed functionality for this slice
+- 頂部具粘性的工具區段
+- 緊湊的分組控制卡片
+- 強大的主要行動按鈕
+- 窄寬度下的抽屜版本
+- `SimulateControlsPanel.vue` 在版面配置和公開功能上都應盡可能接近參考設計
 
-Acceptance notes:
+驗收說明：
 
-- The rail must feel intentional when open and unobtrusive when collapsed
-- Collapse/expand behavior must not break preview width calculations
-- The first redesign slice should prefer reference parity over conservative content pruning inside `SimulateControlsPanel.vue`
+- 當開啟時，控制欄必須感覺具有意圖，而當摺疊時則不易察覺
+- 摺疊/展開行為不得損壞預覽寬度計算
+- 第一個重構切片應偏好參考設計的對齊，而不是對 `SimulateControlsPanel.vue` 進行保守的內容修剪
 
-### Center preview workspace
+### 中間預覽工作區
 
-The preview area should become the visual focal point:
+預覽區域應成為視覺焦點：
 
-- Toolbar row for hub tabs, preset selection, existing environment controls, and reload
-- Secondary row for preview background controls
-- Large preview canvas area with stronger workspace framing
+- 用於 Hub 分頁、預設切換、現有環境控制和重新載入的工具列行
+- 用於預覽背景控制的第二行
+- 具有強大工作區框架的大型預覽畫布區域
 
-Acceptance notes:
+驗收說明：
 
-- The center panel should read as the primary workspace from first glance
-- Toolbar elements should stay usable without horizontal overflow at supported widths
-- This slice re-frames existing preview controls; it does not add a new live/draft product contract
+- 從第一眼開始，中間面板就應被讀作主要工作區
+- 工具列元素應在支援的寬度下保持可用，而不會發生水平溢位
+- 此切片重新建構了現有的預覽控制項；它不會增加新的 live/draft 產品合約
 
-### Right chat/event feed
+### 右側聊天/事件摘要
 
-The right panel should read as a live operational feed, but this slice keeps the existing `ChatStreamPanel` contract instead of widening it into a new mixed-event component:
+右側面板應被讀作即時操作摘要，但此切片保留了現有的 `ChatStreamPanel` 合約，而不是將其擴展為新的混合事件組件：
 
-- Clear section header
-- Tighter item framing
-- Stable width on desktop
-- Natural stacking behavior on narrow screens
+- 清晰的區段標頭
+- 更緊湊的項目框架
+- 桌上型電腦上穩定的寬度
+- 窄螢幕上的自然堆疊行為
 
-Acceptance notes:
+驗收說明：
 
-- The panel must remain readable even when the preview dominates the layout
-- Feed framing should visually support the "watch result and confirm" workflow
-- Existing chat-focused behavior must remain intact
+- 即使預覽主導了版面配置，該面板也必須保持可讀
+- 摘要框架應在視覺上支援「觀察結果並確認」的工作流程
+- 現有的聊天相關行為必須保持完整
 
-## File Strategy
+## 檔案策略
 
-Primary files likely touched during implementation:
+實作期間可能接觸的主要檔案：
 
 - `src/frontend/src/views/admin/MonitorDashboardView.vue`
 - `src/frontend/src/views/admin/MonitorDashboardView.test.ts`
@@ -191,221 +193,221 @@ Primary files likely touched during implementation:
 - `src/frontend/src/i18n/en-US.json`
 - `src/frontend/src/i18n/zh-TW.json`
 
-## Implementation Plan
+## 實作計畫
 
-### Phase 1: Lock Shell Structure
+### 第一階段：鎖定外殼結構
 
-#### Task 1: Define final layout contract for desktop, tablet, and mobile
+#### 任務 1：定義桌上型電腦、平板電腦和行動裝置的最終版面配置合約
 
-Description:
-Specify the exact behavior of header, controls rail, drawer, preview area, and chat feed across the supported breakpoints so implementation stops drifting.
+描述：
+指定標頭、控制欄、抽屜、預覽區域和聊天摘要在支援的斷點下的確切行為，使實作停止漂移。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] Desktop, medium, and narrow layout rules are explicitly documented and reflected in component state design.
-- [ ] Left-rail collapse, drawer open/close, and stacked mobile layout each have a single clear owner in the shell.
-- [ ] The resulting layout contract does not require backend or child-logic changes.
+- [ ] 桌上型、中等和窄版面配置規則已被明確記錄並反映在組件狀態設計中。
+- [ ] 左欄摺疊、抽屜開啟/關閉以及堆疊的行動版面配置在外殼中都有一個清晰的擁有者。
+- [ ] 產生的版面配置合約不需要後端或子組件邏輯變更。
 
-Verification:
+驗證：
 
-- [ ] Manual reasoning check against current `MonitorDashboardView.vue`
-- [ ] Spec review confirms no conflicting breakpoint behavior remains
+- [ ] 對照目前的 `MonitorDashboardView.vue` 進行手動推理檢查
+- [ ] 規格審查確認沒有殘留衝突的斷點行為
 
-Dependencies: None
+相依性：無
 
-Estimated scope: S
+預估規模：S
 
-#### Task 2: Redesign shell surfaces and monitor-specific tokens
+#### 任務 2：重構外殼表面與監控專用 Token
 
-Description:
-Refine the dashboard page background, panel surfaces, border language, shadows, and spacing tokens so the page shifts from generic admin styling to monitor-console styling while keeping Vulperonex colors.
+描述：
+改進儀表板頁面背景、面板表面、邊框語言、陰影和間距 Token，使頁面從通用管理樣式轉向監控主控台樣式，同時保留 Vulperonex 顏色。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] `--monitor-*` tokens cover page background, panel backgrounds, border colors, shadows, and key accents used by the dashboard shell.
-- [ ] No new hard-coded colors are introduced into the shell where tokens should apply.
-- [ ] The overall page reads closer to the reference mood without copying reference colors literally.
+- [ ] `--monitor-*` Token 涵蓋頁面背景、面板背景、邊框顏色、陰影以及外殼使用的關鍵點綴色。
+- [ ] 在應套用 Token 的外殼中沒有引入新的硬編碼顏色。
+- [ ] 整個頁面看起來更接近參考設計的氛圍，而不是字面上複製其顏色。
 
-Verification:
+驗證：
 
-- [ ] Visual check in browser at desktop width
-- [ ] Grep or review confirms shell styling uses tokens instead of scattered literals
+- [ ] 在桌上型電腦寬度下在瀏覽器中進行視覺檢查
+- [ ] Grep 或審查確認外殼樣式使用 Token 而不是散落的顏色字面值
 
-Dependencies: Task 1
+相依性：任務 1
 
-Estimated scope: M
+預估規模：M
 
-### Phase 2: Bring the Three Main Zones in Line
+### 第二階段：將三個主要區域對齊
 
-#### Task 3: Rebuild the operations header
+#### 任務 3：重建操作標頭
 
-Description:
-Turn the current header into a stronger monitor bar with clearer hierarchy, tighter action placement, and a more deliberate system health chip.
+描述：
+將目前的標頭轉變為具有更清晰階層、更緊湊操作放置和更明確系統健康狀態晶片的強大監控欄。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] Header identity, toggle action, and health state are visually scannable within one glance.
-- [ ] Health chip supports `healthy`, `unhealthy`, and `checking` without layout shift.
-- [ ] Narrow-width layout keeps header actions usable.
+- [ ] 標頭識別、切換行動和健康狀態在視覺上可一目了然。
+- [ ] 健康狀態晶片支援 `healthy`、`unhealthy` 和 `checking`，且不會發生版面配置偏移。
+- [ ] 窄寬度版面配置保持標頭操作可用。
 
-Verification:
+驗證：
 
-- [ ] `MonitorDashboardView.test.ts` covers header render and health-state class behavior
-- [ ] Manual browser check at 1440px and 768px
+- [ ] `MonitorDashboardView.test.ts` 涵蓋標頭渲染和健康狀態類別行為
+- [ ] 在 1440px 和 768px 下進行手動瀏覽器檢查
 
-Dependencies: Task 2
+相依性：任務 2
 
-Estimated scope: S
+預估規模：S
 
-#### Task 4: Redesign the controls rail and drawer presentation
+#### 任務 4：重構控制欄和抽屜呈現
 
-Description:
-Adjust the left control zone so its card rhythm, density, call-to-action hierarchy, and visible feature set more closely resemble the reference monitor controls while preserving existing simulation capabilities.
+描述：
+調整左側控制區域，使其卡片節奏、密度、行動呼叫階層和可見功能集更接近參考設計的監控控制項，同時保留現有的模擬功能。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] The rail visually reads as a dedicated operations sidebar.
-- [ ] Drawer presentation on narrower screens feels like the same feature, not a different page.
-- [ ] Existing simulation interactions remain available without functional regression.
-- [ ] `SimulateControlsPanel.vue` moves toward reference parity in both control grouping and exposed feature coverage where the current Vulperonex data/contracts already support it.
+- [ ] 該控制欄在視覺上被讀為專用的操作側邊欄。
+- [ ] 窄螢幕上的抽屜呈現感覺像是同一個功能，而不是不同的頁面。
+- [ ] 現有的模擬互動保持可用，無功能退化。
+- [ ] 在目前 Vulperonex 資料/合約已支援的情況下，`SimulateControlsPanel.vue` 在控制項分組和公開功能涵蓋範圍上移向參考設計的對齊。
 
-Verification:
+驗證：
 
-- [ ] Manual comparison against reference layout intent
-- [ ] Responsive manual check for rail vs drawer behavior
-- [ ] Manual comparison confirms the left-side controls are closer to the reference in both structure and available actions, not just styling
+- [ ] 對照參考設計的版面配置意圖進行手動比較
+- [ ] 針對控制欄與抽屜行為進行回應式手動檢查
+- [ ] 手動比較確認左側控制項在結構和可用操作上都更接近參考設計，而不僅僅是樣式上
 
-Dependencies: Task 2
+相依性：任務 2
 
-Estimated scope: M
+預估規模：M
 
-#### Task 5: Reframe the preview workspace as the visual focal point
+#### 任務 5：將預覽工作區重塑為視覺焦點
 
-Description:
-Update `MonitorOverlayPanel.vue` presentation so the preview toolbar and canvas feel like the main work surface, closer to the reference monitor preview composition. This task is presentational and compositional; it does not introduce a new live/draft product mode beyond the controls that already exist today.
+描述：
+更新 `MonitorOverlayPanel.vue` 的呈現方式，使預覽工具列和畫布感覺像主要工作表面，更接近參考設計的監控預覽構圖。此任務是呈現性和構圖性的；它不會引入超出目前已存在之 live/draft 產品合約控制。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] Toolbar hierarchy is stronger than the current card header treatment.
-- [ ] Preview background controls remain available and readable.
-- [ ] Canvas area becomes the dominant visual region in the dashboard.
-- [ ] Existing preview environment controls continue to work after the visual redesign.
+- [ ] 工具列階層比目前的卡片標頭處理更強大。
+- [ ] 預覽背景控制項保持可用且可讀。
+- [ ] 畫布區域成為儀表板中主導的視覺區域。
+- [ ] 視覺重構後，現有的預覽環境控制項繼續正常工作。
 
-Verification:
+驗證：
 
-- [ ] Manual preview inspection at desktop and medium widths
-- [ ] Existing overlay panel interactions still function
+- [ ] 在桌上型和中等寬度下進行手動預覽檢查
+- [ ] 現有的預覽面板互動仍然正常運作
 
-Dependencies: Task 2
+相依性：任務 2
 
-Estimated scope: M
+預估規模：M
 
-#### Task 6: Reframe the chat/event feed as a live verification lane
+#### 任務 6：將聊天/事件摘要重塑為即時驗證通道
 
-Description:
-Update the right-side panel framing so the existing `ChatStreamPanel` behaves like an operator confirmation feed instead of a plain content pane. This task does not expand the panel into a new cross-event stream product surface.
+描述：
+更新右側面板框架，使現有的 `ChatStreamPanel` 行為像操作員確認摘要，而不是普通的內容面板。此任務不會將面板擴展為新的跨事件流產品表面。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] Desktop width remains stable enough that feed items are readable.
-- [ ] Narrow layout stacks below preview without clipped controls or broken scroll behavior.
-- [ ] Feed header and list area visually match the new dashboard shell.
-- [ ] Existing chat-focused behavior remains intact without requiring a broader event-stream contract change.
+- [ ] 桌上型電腦寬度保持穩定，足以使摘要項目可讀。
+- [ ] 窄版面配置在預覽下方堆疊，不會有被裁剪的控制項或損壞的捲動行為。
+- [ ] 摘要標頭和清單區域在視覺上與新的外殼相符。
+- [ ] 現有的聊天特定行為保持完整，不需要更廣泛的事件流合約變更。
 
-Verification:
+驗證：
 
-- [ ] Manual check at 1440px, 1200px, and 800px widths
-- [ ] Existing feed rendering remains functional
+- [ ] 在 1440px、1200px 和 800px 寬度下進行手動檢查
+- [ ] 現有的摘要渲染保持正常運作
 
-Dependencies: Task 2
+相依性：任務 2
 
-Estimated scope: S
+預估規模：S
 
-### Checkpoint: After Phase 2
+### 檢查點：第二階段之後
 
-- [ ] The page clearly resembles the reference composition at a high level
-- [ ] Theme still feels like Vulperonex, not a direct Omni Commander skin copy
-- [ ] Desktop, medium, and mobile layouts all remain usable
-- [ ] No child panel lost core functionality
+- [ ] 頁面在高層級上清楚地類似於參考設計的構圖
+- [ ] 主題仍然感覺像 Vulperonex，而不是直接複製 Omni Commander 的皮膚
+- [ ] 桌上型、中等和行動版面配置都保持可用
+- [ ] 沒有子面板失去核心功能
 
-### Phase 3: Interaction, Accessibility, and Polish
+### 第三階段：互動、無障礙和修飾
 
-#### Task 7: Tighten responsive state handling and transitions
+#### 任務 7：收緊回應式狀態處理和過渡
 
-Description:
-Stabilize resize behavior, collapse/drawer transitions, and stacked-mode layout so users do not hit inconsistent states while switching viewport widths.
+描述：
+穩定調整大小行為、摺疊/抽屜過渡以及堆疊模式版面配置，使用戶在切換視埠寬度時不會遇到不一致的狀態。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] Desktop-to-tablet and tablet-to-mobile transitions do not leave stale open-state behavior behind.
-- [ ] Rail collapse and drawer open states are predictable and testable.
-- [ ] Layout transitions do not hide primary controls unexpectedly.
+- [ ] 桌上型到平板電腦、以及平板電腦到行動裝置的過渡不會留下過期的開啟狀態行為。
+- [ ] 控制欄摺疊和抽屜開啟狀態是可預測且可測試的。
+- [ ] 版面配置過渡不會意外隱藏主要控制項。
 
-Verification:
+驗證：
 
-- [ ] Unit tests cover wide and narrow toggle behavior
-- [ ] Manual resize testing across breakpoint edges
+- [ ] 單元測試涵蓋寬版和窄版切換行為
+- [ ] 跨斷點邊緣進行手動調整大小測試
 
-Dependencies: Tasks 3-6
+相依性：任務 3-6
 
-Estimated scope: S
+預估規模：S
 
-#### Task 8: Complete i18n and accessibility pass for the shell
+#### 任務 8：完成外殼的 i18n 和無障礙通行
 
-Description:
-Finalize labels, status semantics, drawer semantics, and keyboard-targeted behaviors needed by the redesigned shell.
+描述：
+完成重構後的外殼所需的標籤、狀態語意、抽屜語意和鍵盤特定行為。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] All new shell copy uses i18n keys.
-- [ ] Status chip, drawer, and toggle semantics remain valid.
-- [ ] Keyboard interaction remains workable for header controls and drawer close flow.
+- [ ] 所有新的外殼文字都使用 i18n 鍵。
+- [ ] 狀態晶片、抽屜和切換語意保持有效。
+- [ ] 鍵盤互動對於標頭控制和抽屜關閉流程仍然有效。
 
-Verification:
+驗證：
 
-- [ ] `MonitorDashboardView.test.ts` covers key accessibility attributes
-- [ ] Manual keyboard pass through header, drawer trigger, and drawer close action
+- [ ] `MonitorDashboardView.test.ts` 涵蓋關鍵的無障礙屬性
+- [ ] 透過標頭、抽屜觸發器和抽屜關閉行動進行手動鍵盤通行
 
-Dependencies: Task 7
+相依性：任務 7
 
-Estimated scope: S
+預估規模：S
 
-#### Task 9: Finish regression tests and manual verification script
+#### 任務 9：完成迴歸測試和手動驗證指令碼
 
-Description:
-Update tests and the final verification checklist so the redesign can be reviewed and implemented confidently in later slices.
+描述：
+更新測試和最終驗證清單，以便在以後的切片中可以有信心地下地實作重構。
 
-Acceptance criteria:
+驗收標準：
 
-- [ ] Tests cover header shell, wide layout, narrow drawer, and key responsive branches.
-- [ ] Manual verification steps are explicit for the final reviewer.
-- [ ] The redesign is represented as a finished slice rather than an informal visual tweak.
+- [ ] 測試涵蓋標頭外殼、寬版面配置、窄抽屜和關鍵回應式分支。
+- [ ] 最終審查員的手動驗證步驟非常明確。
+- [ ] 重構被呈現為一個已完成的切片，而不是非正式的視覺調整。
 
-Verification:
+驗證：
 
 - [ ] `pnpm test`
 - [ ] `pnpm vue-tsc --noEmit`
 - [ ] `pnpm build`
 - [ ] `pnpm lint`
 
-Dependencies: Task 8
+相依性：任務 8
 
-Estimated scope: S
+預估規模：S
 
-## Verification Checklist
+## 驗證核對清單
 
-Implementation should not be considered complete until all of the following are true:
+在滿足以下所有條件之前，實作不應被視為完成：
 
-- [ ] Desktop layout clearly shows left controls, dominant center preview, and right feed
-- [ ] Medium layout uses drawer controls without breaking preview/feed usability
-- [ ] Mobile layout stacks preview over feed cleanly
-- [ ] Header shows a strong monitor identity and readable health state
-- [ ] Preview area is the main visual focal point
-- [ ] Left controls and right feed feel visually related to the reference design
-- [ ] All new shell text is localized
-- [ ] Tests, type-check, build, and lint all pass
+- [ ] 桌上型電腦版面配置清楚顯示左側控制項、主導的中間預覽和右側摘要
+- [ ] 中等版面配置使用抽屜控制項，而不損害預覽/摘要的可用性
+- [ ] 行動版面配置乾淨地將預覽堆疊在摘要之上
+- [ ] 標頭顯示強大的監控識別和可讀的健康狀態
+- [ ] 預覽區域是主要的視覺焦點
+- [ ] 左側控制項和右側摘要感覺在視覺上與參考設計相關
+- [ ] 所有新外殼文字均已本地化
+- [ ] 測試、型別檢查、建置和 Linter 均通過
 
-## Suggested Verification Commands
+## 建議的驗證指令
 
 ```powershell
 cd src/frontend
@@ -415,33 +417,33 @@ corepack pnpm@9.15.4 build
 corepack pnpm@9.15.4 lint
 ```
 
-Manual verification target widths:
+手動驗證目標寬度：
 
 - `1440x900`
 - `1280x800`
 - `1024x768`
 - `800x600`
 
-## Risks and Mitigations
+## 風險與緩解
 
-| Risk | Impact | Mitigation |
+| 風險 | 影響 | 緩解措施 |
 |------|--------|------------|
-| The redesign drifts into a pixel-copy of the reference and loses Vulperonex identity | Medium | Keep layout and UX patterns, but express them through Vulperonex tokens and existing component structure |
-| Styling changes leak into child panels and create scattered overrides | Medium | Keep shell-owned tokens centralized and limit child changes to presentation seams |
-| Responsive logic becomes brittle around breakpoint edges | High | Treat `MonitorDashboardView.vue` as the single source of layout state and test both wide and narrow transitions |
-| Preview toolbar grows too wide for medium layouts | Medium | Prioritize action order and collapse lower-priority controls before forcing overflow |
-| Scope expands into unrelated monitor settings from the reference | High | Keep this spec limited to the live monitor dashboard experience only |
+| 重構漂移成參考設計的像素複製，失去了 Vulperonex 的識別 | 中 | 保留版面配置和 UX 模式，但透過 Vulperonex 擁有的 Token 和現有的組件結構來表達它們 |
+| 樣式變更洩漏到子面板中，造成零散的覆寫 | 中 | 保持外殼擁有的 Token 集中化，並將子組件變更限制在呈現縫隙中 |
+| 回應式邏輯在斷點邊緣變得脆弱 | 高 | 將 `MonitorDashboardView.vue` 視為版面配置狀態的唯一來源，並測試寬版和窄版過渡 |
+| 對於中等版面配置，預覽工具列變得太寬 | 中 | 優先安排操作順序，並在強制溢位之前摺疊低優先級的控制項 |
+| 範圍擴展到參考設計中無關的監控設定 | 高 | 保持此規格僅限於即時監控儀表板體驗 |
 
-## Decisions Captured
+## 捕獲的決策
 
-1. The monitor page should follow the current Vulperonex main theme rather than forcing a permanently dark or permanently light shell.
-2. The first redesign slice should push `SimulateControlsPanel.vue` toward reference parity in both functionality and layout instead of limiting the work to visual reorganization.
+1. 監控頁面應遵循當前的 Vulperonex 主主題，而不是強制使用永久深色或永久淺色的外殼。
+2. 第一個重構切片應推動 `SimulateControlsPanel.vue` 朝向參考設計在功能和版面配置上的對齊，而不是將工作限制在視覺重組。
 
-## Recommended Execution Order
+## 建議的執行順序
 
-1. Lock shell layout contract and tokens.
-2. Redesign header, left rail, preview workspace, and right feed.
-3. Stabilize responsive state behavior.
-4. Finish i18n, accessibility, tests, and verification.
+1. 鎖定外殼版面配置合約和 Token。
+2. 重構標頭、左控制欄、預覽工作區和右摘要欄。
+3. 穩定回應式狀態行為。
+4. 完成 i18n、無障礙、測試和驗證。
 
-This order keeps the work vertical and reviewable, with the highest visual-risk items addressed early.
+此順序使工作保持垂直和可審查，最高視覺風險的項目在早期解決。

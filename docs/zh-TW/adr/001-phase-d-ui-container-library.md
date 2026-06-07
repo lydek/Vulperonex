@@ -1,93 +1,93 @@
-# ADR 001: Phase D UI Container Library
+# ADR 001: Phase D UI 容器庫 (Phase D UI Container Library)
 
-## Status
+## 狀態
 
-Accepted, 2026-05-29.
+已接受，2026-05-29。
 
-## Context
+## 上下文 (Context)
 
-Phase 8 Phase D needs an accessible drawer, tabs, and form shell for the workflow rule editor. The existing frontend uses Vue 3, custom CSS, and a small amount of PrimeVue, but the Phase D plan selected a headless primitive library so visual styling can stay in the Vulperonex CSS system.
+工作流規則編輯器的 Phase 8 Phase D 需要一個具備無障礙支援的抽屜 (Drawer)、分頁 (Tabs) 和表單外殼。現有的前端使用 Vue 3、自訂 CSS 和少量的 PrimeVue，但 Phase D 計畫選擇了無周邊 (Headless) 的基礎元件庫 (Primitive Library)，以便視覺樣式可以保留在 Vulperonex CSS 系統中。
 
-## Decision
+## 決策
 
-Use `reka-ui` for Phase D container primitives.
+使用 `reka-ui` 作為 Phase D 的容器基礎元件。
 
-- Version installed: `reka-ui@2.9.8`.
-- Original PoC component/test were retired after `RuleEditorDrawer.vue` became the routed implementation; the historical verification evidence below records the PoC gate.
+- 安裝版本：`reka-ui@2.9.8`。
+- 在 `RuleEditorDrawer.vue` 成為正式路由實作後，原有的 PoC 組件與測試已被停用；下方的歷史驗證證據記錄了 PoC 門檻。
 
-The PoC uses:
+此 PoC 使用：
 
-- `DialogRoot`, `DialogTrigger`, `DialogPortal`, `DialogOverlay`, `DialogContent`, `DialogTitle`, `DialogDescription`, and `DialogClose` as a right-side drawer shell.
-- `TabsRoot`, `TabsList`, `TabsTrigger`, and `TabsContent` for Basic / Actions / Errors tabs.
-- Reka `Label` with native form controls for the first form path.
+- `DialogRoot`、`DialogTrigger`、`DialogPortal`、`DialogOverlay`、`DialogContent`、`DialogTitle`、`DialogDescription` 和 `DialogClose` 作為右側抽屜外殼。
+- `TabsRoot`、`TabsList`、`TabsTrigger` 和 `TabsContent` 用於 Basic / Actions / Errors 分頁。
+- Reka `Label` 搭配原生表單控制項用於第一個表單路徑。
 
-## Token And Styling Check
+## Token 與樣式檢查
 
-Reka emits stable data attributes that can be styled by existing CSS:
+Reka 發出穩定的資料屬性，可透過現有的 CSS 進行樣式設定：
 
-- Drawer: `.reka-poc-drawer[data-state="open"]`.
-- Tabs: `.reka-poc-tab[data-state="active"]`.
-- Dialog overlay/content: ordinary class selectors layered over unstyled slots.
+- 抽屜：`.reka-poc-drawer[data-state="open"]`。
+- 分頁：`.reka-poc-tab[data-state="active"]`。
+- 對話框遮罩/內容：一般類別選取器疊加在未設定樣式的插槽 (Slots) 上。
 
-The PoC intentionally uses existing local button/form classes (`primary-button`, `icon-button`, `form-field`, `form-label`) and direct CSS selectors instead of library themes. This confirms Phase D can use current CSS variables/classes without replacing the app token system.
+此 PoC 刻意使用現有的本機按鈕/表單類別（`primary-button`、`icon-button`、`form-field`、`form-label`）與直接的 CSS 選取器，而不是庫內置的主題。這確認了 Phase D 可以使用現有的 CSS 變數/類別，而無須替換應用程式的 Token 系統。
 
-## Bundle And Build Evidence
+## 軟體包與建置證據 (Bundle and Build Evidence)
 
-`reka-ui` was added to `src/frontend/package.json` and `src/frontend/pnpm-lock.yaml`.
+`reka-ui` 已新增至 `src/frontend/package.json` 與 `src/frontend/pnpm-lock.yaml`。
 
-Verification run:
+驗證執行結果：
 
-- `vitest run src/components/admin/RekaPhaseDPoc.test.ts`: 1 test passed.
-- `vue-tsc --noEmit`: passed.
-- `vite build --outDir ../../artifacts/vulperonex-phase8-reka-build --emptyOutDir`: passed.
+- `vitest run src/components/admin/RekaPhaseDPoc.test.ts`：1 個測試通過。
+- `vue-tsc --noEmit`：通過。
+- `vite build --outDir ../../artifacts/vulperonex-phase8-reka-build --emptyOutDir`：通過。
 
-Build output after the install, with the PoC component not routed into production yet:
+安裝後且 PoC 組件尚未進入正式路由時的建置輸出：
 
-- CSS bundle: `225.64 kB`, gzip `39.45 kB`.
-- Main JS bundle: `4,229.49 kB`, gzip `1,117.17 kB`.
+- CSS 軟體包：`225.64 kB`，gzip `39.45 kB`。
+- 主要 JS 軟體包：`4,229.49 kB`，gzip `1,117.17 kB`。
 
-Phase D.1 routed build output after `RuleEditorDrawer.vue` was imported by `RulesView`:
+`RuleEditorDrawer.vue` 被 `RulesView` 引入後的 Phase D.1 路由建置輸出：
 
-- CSS bundle: `227.48 kB`, gzip `39.75 kB`.
-- Main JS bundle: `4,278.37 kB`, gzip `1,132.42 kB`.
-- Routed delta versus the unrouted PoC build: CSS gzip `+0.30 kB`, main JS gzip `+15.25 kB`.
+- CSS 軟體包：`227.48 kB`，gzip `39.75 kB`。
+- 主要 JS 軟體包：`4,278.37 kB`，gzip `1,132.42 kB`。
+- 與未路由的 PoC 建置相比的路由增量：CSS gzip `+0.30 kB`，主要 JS gzip `+15.25 kB`。
 
-The routed delta is within the Phase D budget.
+路由增量在 Phase D 的預算範圍內。
 
-Phase D.2 routed build output after `TriggerEditor.vue` was switched to metadata-driven typed fields:
+`TriggerEditor.vue` 切換為由元資料驅動的強型別欄位後的 Phase D.2 路由建置輸出：
 
-- CSS bundle: `227.53 kB`, gzip `39.78 kB`.
-- Main JS bundle: `4,280.65 kB`, gzip `1,133.06 kB`.
-- Delta versus the Phase D.1 routed build: CSS gzip `+0.03 kB`, main JS gzip `+0.64 kB`.
+- CSS 軟體包：`227.53 kB`，gzip `39.78 kB`。
+- 主要 JS 軟體包：`4,280.65 kB`，gzip `1,133.06 kB`。
+- 與 Phase D.1 路由建置相比的增量：CSS gzip `+0.03 kB`，主要 JS gzip `+0.64 kB`。
 
-The D.2 delta is still within the Phase D budget.
+D.2 增量仍在 Phase D 的預算範圍內。
 
-Phase D.3 routed build output after `VariablePicker.vue` was filtered by trigger metadata:
+`VariablePicker.vue` 透過觸發器元資料進行篩選後的 Phase D.3 路由建置輸出：
 
-- CSS bundle: `227.53 kB`, gzip `39.78 kB`.
-- Main JS bundle: `4,281.45 kB`, gzip `1,133.23 kB`.
-- Delta versus the Phase D.2 routed build: CSS gzip `+0.00 kB`, main JS gzip `+0.17 kB`.
+- CSS 軟體包：`227.53 kB`，gzip `39.78 kB`。
+- 主要 JS 軟體包：`4,281.45 kB`，gzip `1,133.23 kB`。
+- 與 Phase D.2 路由建置相比的增量：CSS gzip `+0.00 kB`，主要 JS gzip `+0.17 kB`。
 
-The D.3 delta is still within the Phase D budget.
+D.3 增量仍在 Phase D 的預算範圍內。
 
-Phase D.4 routed build output after action editor metadata moved from frontend hardcoded definitions to `/api/metadata/actions`:
+動作編輯器元資料從前端硬編碼定義移至 `/api/metadata/actions` 後的 Phase D.4 路由建置輸出：
 
-- CSS bundle: `227.53 kB`, gzip `39.77 kB`.
-- Main JS bundle: `4,278.75 kB`, gzip `1,132.63 kB`.
-- Delta versus the Phase D.3 routed build: CSS gzip `-0.01 kB`, main JS gzip `-0.60 kB`.
+- CSS 軟體包：`227.53 kB`，gzip `39.77 kB`。
+- 主要 JS 軟體包：`4,278.75 kB`，gzip `1,132.63 kB`。
+- 與 Phase D.3 路由建置相比的增量：CSS gzip `-0.01 kB`，主要 JS gzip `-0.60 kB`。
 
-The D.4 delta is still within the Phase D budget.
+D.4 增量仍在 Phase D 的預算範圍內。
 
-Phase E.1 routed build output after adding the Basic-tab role chip selector:
+新增 Basic 分頁的角色晶片選取器後的 Phase E.1 路由建置輸出：
 
-- CSS bundle: `227.96 kB`, gzip `39.85 kB`.
-- Main JS bundle: `4,281.80 kB`, gzip `1,133.51 kB`.
-- Delta versus the Phase D.4 routed build: CSS gzip `+0.08 kB`, main JS gzip `+0.88 kB`.
+- CSS 軟體包：`227.96 kB`，gzip `39.85 kB`。
+- 主要 JS 軟體包：`4,281.80 kB`，gzip `1,133.51 kB`。
+- 與 Phase D.4 路由建置相比的增量：CSS gzip `+0.08 kB`，主要 JS gzip `+0.88 kB`。
 
-The E.1 delta is still within the Phase D/E UI budget.
+E.1 增量仍在 Phase D/E UI 的預算範圍內。
 
-## Consequences
+## 後續影響 (Consequences)
 
-- Continue Phase D.1 with `reka-ui` rather than PrimeVue Dialog/Tabs.
-- Keep the legacy full-page `RuleEditorView` as advanced fallback.
-- Keep measuring gzip deltas when later Phase D tasks add metadata-driven fields and action metadata stores.
+- 繼續使用 `reka-ui` 進行 Phase D.1，而非 PrimeVue Dialog/Tabs。
+- 保留舊有的全頁面 `RuleEditorView` 作為進階備用方案。
+- 在後續 Phase D 任務新增元資料驅動欄位與動作元資料存放區時，繼續測量 gzip 增量。

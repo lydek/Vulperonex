@@ -1,28 +1,26 @@
-# Workflow Expression Context Terminology
+# 工作流運算式內容詞彙 (Workflow Expression Context Terminology)
 
-Status: draft decision for Phase 8 cleanup
+狀態：針對 Phase 8 清理的決策草案
 
-## Why this exists
+## 為什麼存在此文件
 
-The workflow editor currently mixes three different ideas:
+工作流編輯器目前混合了三種不同的概念：
 
-1. Trigger event data
-2. The user who caused the trigger
-3. Persisted member data
+1. 觸發事件資料 (Trigger event data)
+2. 引起觸發的使用者 (The user who caused the trigger)
+3. 持久化的會員資料 (Persisted member data)
 
-Those are not the same thing. When the editor exposes them with overlapping names,
-users end up guessing between `Trigger.UserId`, `Member.UserId`, and platform
-overrides even though the runtime only guarantees one of them today.
+這三者並不相同。當編輯器使用重疊的名稱公開它們時，使用者最終會在 `Trigger.UserId`、`Member.UserId` 和平台覆寫之間猜測，儘管目前執行階段只保證其中之一。
 
-This note defines the current contract and the wording we should use in UI and docs.
+本說明定義了目前的合約以及我們在 UI 和文件中應使用的用詞。
 
-## Current runtime contract
+## 目前執行階段合約
 
 ### `Trigger.*`
 
-`Trigger` means the current event payload plus event-level metadata.
+`Trigger` 表示目前的事件承載資料 (Payload) 加上事件級別的元資料 (Metadata)。
 
-Examples:
+範例：
 
 - `Trigger.EventId`
 - `Trigger.EventTypeKey`
@@ -39,14 +37,13 @@ Examples:
 - `Trigger.Depth`
 - `Trigger.Payload.*`
 
-`Trigger` is event-scoped. It should not be used as a grab bag for user identity
-aliases unless the backend actually writes those fields into the event context.
+`Trigger` 的作用域是事件級別的。除非後端確實將這些欄位寫入事件內容中，否則不應將其用作使用者身分識別別名的暫存處。
 
 ### `Member.*`
 
-`Member` currently means the trigger user snapshot carried by `streamEvent.User`.
+`Member` 目前表示由 `streamEvent.User` 所攜帶的觸發使用者快照。
 
-Examples:
+範例：
 
 - `Member.UserId`
 - `Member.Platform`
@@ -58,74 +55,64 @@ Examples:
 - `Member.IsFollower`
 - `Member.IsBroadcaster`
 
-Important: in the current implementation this is not a hydrated persistent
-member read model. It is the event user snapshot exposed to expressions.
+重要提示：在目前的實作中，這**不是**一個已載入的持久化會員讀取模型 (Hydrated persistent member read model)。它是公開給運算式的事件使用者快照。
 
-### Persistent member data
+### 持久化會員資料 (Persistent member data)
 
-Persistent member data belongs to the member domain (`MemberRecord`,
-`PlatformIdentity`, loyalty state, audit history). It is not directly available
-inside the workflow expression context today.
+持久化會員資料屬於會員網域 (`MemberRecord`、`PlatformIdentity`、忠誠度狀態、稽核歷史紀錄)。目前在工作流運算式內容中無法直接取得。
 
-## Naming rules for UI
+## UI 命名規則
 
-Until we do a larger namespace rename, the editor should present the scopes with
-clearer wording:
+在我們進行更大規模的命名空間重新命名之前，編輯器應使用更清晰的用詞來呈現這些作用域：
 
-- `Trigger` group label: `Trigger Event Context`
-- `Member` group label: `Trigger User Context`
+- `Trigger` 群組標籤：`觸發事件內容 (Trigger Event Context)`
+- `Member` 群組標籤：`觸發使用者內容 (Trigger User Context)`
 
-Field labels under `Member.*` should explicitly say "trigger user", not just
-"member", because the runtime value is sourced from the current event user.
+`Member.*` 底下的欄位標籤應明確說明為「觸發使用者」，而不僅僅是「會員」，因為執行階段的值是源自於目前的事件使用者。
 
-## Action guidance
+## 行動指引 (Action guidance)
 
-### Check-in
+### 簽到 / 打卡 (Check-in)
 
-For normal chat-triggered check-in:
+對於一般的聊天觸發簽到：
 
-- user id should default to `Member.UserId`
-- platform should default to the trigger event platform
+- 使用者識別碼預設應為 `Member.UserId`
+- 平台預設應為觸發事件的平台
 
-That means the common UX should read as:
+這意味著常見的 UX 應讀作：
 
-`Check in the user who triggered this event`
+`簽到觸發此事件的使用者`
 
-Advanced overrides can still expose:
+進階覆寫仍然可以公開：
 
 - `UserId`
 - `Platform`
 
-### Other user-targeted actions
+### 其他針對使用者的行動
 
-Actions such as lottery ticket updates should also prefer `Member.UserId` as the
-default target when they mean "the current triggering user".
+當其他針對使用者的行動（例如抽獎券更新）代表「目前觸發的使用者」時，也應偏好 `Member.UserId` 作為預設目標。
 
-## Action audit snapshot
+## 行動稽核快照
 
-Current review result for user/platform-related actions:
+目前針對使用者/平台相關行動的審查結果：
 
 - `triggerCheckIn`
-  - Issue: editor previously implied manual target selection was the normal flow
-  - Decision: default to implicit trigger user; keep `UserId` and `Platform` in advanced overrides
+  - 問題：編輯器先前暗示手動選擇目標是正常流程
+  - 決策：預設為隱式觸發使用者；將 `UserId` 和 `Platform` 保留在進階覆寫中
 - `addLotteryTickets`
-  - Issue: help text was too vague about the default target
-  - Decision: keep the field editable, but document that the default target is `Member.UserId`
+  - 問題：說明文字對於預設目標過於模糊
+  - 決策：保持欄位可編輯，但說明預設目標為 `Member.UserId`
 - `lookupTwitchUser`
-  - Result: no contract mismatch found; both `Login` and `UserId` are explicit lookup inputs
+  - 結果：未發現合約不匹配；`Login` 和 `UserId` 都是明確的查詢輸入
 - `sendChatMessage`
-  - Result: internal routing fields (`TargetPlatform`, `Channel`) remain intentionally hidden from the visual editor
+  - 結果：內部路由欄位（`TargetPlatform`、`Channel`）在視覺編輯器中仍刻意隱藏
 
-## Contract cleanup rule
+## 合約清理規則
 
-Frontend variable pickers, i18n hints, metadata help text, and backend
-`ExpressionContext` must describe the same contract.
+前端變數選取器、i18n 提示、元資料說明文字以及後端 `ExpressionContext` 必須描述相同的合約。
 
-If a variable is not populated by the backend, the editor must not suggest it.
+如果變數未被後端填入，編輯器就不得建議該變數。
 
-## Known stale references
+## 已知的過期引用
 
-Some older samples still mention placeholders such as `Trigger.Arg0` or
-`Trigger.DisplayName`. Those are not part of the current backend
-`ExpressionContext` contract and should be treated as stale examples until they
-are rewritten.
+一些較舊的範例仍然提到諸如 `Trigger.Arg0` 或 `Trigger.DisplayName` 之類的預留位置。這些不屬於目前後端 `ExpressionContext` 合約的一部分，在被重寫之前應被視為過期的範例。
