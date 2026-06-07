@@ -19,6 +19,29 @@ describe("VariablePicker", () => {
     expect(wrapper.text()).toContain("Trigger User");
   });
 
+  it("does not expose low-value internal trigger fields", () => {
+    const wrapper = mount(VariablePicker, {
+      props: {
+        expressionMode: true
+      }
+    });
+
+    expect(wrapper.text()).not.toContain("Trigger.EventId");
+    expect(wrapper.text()).not.toContain("Trigger.OccurredAt");
+  });
+
+  it("does not expose failure context in normal variable picking", () => {
+    const wrapper = mount(VariablePicker, {
+      props: {
+        expressionMode: true
+      }
+    });
+
+    expect(wrapper.text()).not.toContain("Failure Context");
+    expect(wrapper.text()).not.toContain("Failure.StepIndex");
+    expect(wrapper.text()).not.toContain("Failure.ErrorMessage");
+  });
+
   it("filters trigger variables when an allowed list is provided", () => {
     const wrapper = mount(VariablePicker, {
       props: {
@@ -41,9 +64,22 @@ describe("VariablePicker", () => {
     expect(wrapper.text()).toContain("Trigger.MessageText");
     expect(wrapper.text()).not.toContain("Trigger.EventId");
 
-    await wrapper.setProps({ allowedTriggerVariables: ["EventId"] });
+    await wrapper.setProps({ allowedTriggerVariables: ["Platform"] });
 
-    expect(wrapper.text()).toContain("Trigger.EventId");
+    expect(wrapper.text()).toContain("Trigger.Platform");
     expect(wrapper.text()).not.toContain("Trigger.MessageText");
+  });
+
+  it("filters variables by search text", async () => {
+    const wrapper = mount(VariablePicker, {
+      props: {
+        expressionMode: true
+      }
+    });
+
+    await wrapper.find('[data-testid="variable-picker-search"]').setValue("IsSubscriber");
+
+    expect(wrapper.text()).toContain("Member.IsSubscriber");
+    expect(wrapper.text()).not.toContain("Trigger.EventId");
   });
 });

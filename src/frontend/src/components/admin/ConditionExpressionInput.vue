@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import VariablePicker from "@/components/admin/VariablePicker.vue";
 import {
   asString,
@@ -24,6 +25,8 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
 
+const { t } = useI18n();
+
 const mode = ref<"visual" | "raw">("visual");
 const leftVar = ref("");
 const operator = ref("==");
@@ -32,12 +35,29 @@ const rightValue = ref("");
 const previousSteps = computed(() => props.previousSteps ?? parseArrayModel(props.previousStepsJson ?? "[]"));
 const operatorOptions = computed(() => getOperatorOptions(leftVar.value));
 const valueOptions = computed(() => {
-  const contextual = getStepStatusOptions(leftVar.value);
+  const contextual = getStepStatusOptions(leftVar.value, previousSteps.value, props.actionDefinitions);
   return contextual.length > 0 ? contextual : (getVariableInfo(leftVar.value)?.options ?? []);
 });
 const modeHint = computed(() =>
   getStepStatusModeHint(leftVar.value, previousSteps.value, props.actionDefinitions)
 );
+
+watch(valueOptions, (options, previousOptions) => {
+  if (mode.value !== "visual") {
+    return;
+  }
+
+  if (options.length === 0) {
+    if ((previousOptions?.length ?? 0) > 0 && rightValue.value.length > 0) {
+      rightValue.value = "";
+    }
+    return;
+  }
+
+  if (!options.includes(rightValue.value)) {
+    rightValue.value = options[0];
+  }
+}, { immediate: true });
 
 watch(() => props.modelValue, (value) => {
   if (!tryParseExpression(value)) {
@@ -134,42 +154,61 @@ function emitRaw(value: string): void {
       </button>
     </div>
 
-    <div v-if="mode === 'visual'" class="condition-expression__builder">
-      <div class="condition-expression__field">
-        <input
-          :data-testid="dataTestId ? `${dataTestId}-left` : undefined"
-          :value="leftVar"
-          type="text"
-          placeholder="Trigger.MessageText"
-          readonly
-        />
-        <VariablePicker
-          :previous-steps="previousSteps"
-          :allowed-trigger-variables="allowedTriggerVariables"
-          :action-definitions="actionDefinitions"
-          expression-mode
-          @select="leftVar = $event"
-        />
+    <div v-if="mode === 'visual'" class="condition-expression__visual">
+      <div class="condition-expression__labels" aria-hidden="true">
+        <span>{{ t("condition.variableLabel") }}</span>
+        <span>{{ t("condition.operatorLabel") }}</span>
+        <span>{{ t("condition.valueLabel") }}</span>
       </div>
-      <select v-model="operator" :data-testid="dataTestId ? `${dataTestId}-operator` : undefined">
-        <option v-for="option in operatorOptions" :key="option.value" :value="option.value">
-          {{ option.label }}
-        </option>
-      </select>
-      <div class="condition-expression__field">
-        <select v-if="valueOptions.length > 0" v-model="rightValue" :data-testid="dataTestId ? `${dataTestId}-right` : undefined">
-          <option v-for="option in valueOptions" :key="option" :value="option">
-            {{ option }}
+      <div class="condition-expression__builder">
+        <div class="condition-expression__field condition-expression__operand">
+          <span
+            v-if="leftVar"
+            class="condition-token"
+          >
+            <span
+              class="condition-token__label"
+              :data-testid="dataTestId ? `${dataTestId}-left-selected` : undefined"
+            >{{ leftVar }}</span>
+            <button
+              type="button"
+              class="condition-token__clear"
+              :data-testid="dataTestId ? `${dataTestId}-left-clear` : undefined"
+              :aria-label="`Clear ${leftVar}`"
+              @click="leftVar = ''"
+            >×</button>
+          </span>
+          <span v-else class="condition-expression__placeholder">{{ t("condition.variableHint") }}</span>
+          <VariablePicker
+            :previous-steps="previousSteps"
+            :allowed-trigger-variables="allowedTriggerVariables"
+            :action-definitions="actionDefinitions"
+            expression-mode
+            @select="leftVar = $event"
+          />
+        </div>
+        <select v-model="operator" :data-testid="dataTestId ? `${dataTestId}-operator` : undefined">
+          <option v-for="option in operatorOptions" :key="option.value" :value="option.value">
+            {{ option.label }}
           </option>
         </select>
-        <input
-          v-else
-          :data-testid="dataTestId ? `${dataTestId}-right` : undefined"
-          v-model="rightValue"
-          type="text"
-          :placeholder="placeholder ?? 'value'"
-        />
-        <div v-if="modeHint" class="condition-expression__hint">{{ modeHint }}</div>
+        <div class="condition-expression__field">
+          <select v-if="valueOptions.length > 0" v-model="rightValue" :data-testid="dataTestId ? `${dataTestId}-right` : undefined">
+            <option v-for="option in valueOptions" :key="option" :value="option">
+              {{ option }}
+            </option>
+          </select>
+          <template v-else>
+            <input
+              :data-testid="dataTestId ? `${dataTestId}-right` : undefined"
+              v-model="rightValue"
+              type="text"
+              class="condition-expression__value-input"
+              :placeholder="t('condition.valueTextHint')"
+            />
+          </template>
+          <div v-if="modeHint" class="condition-expression__hint">{{ modeHint }}</div>
+        </div>
       </div>
     </div>
 
@@ -178,7 +217,7 @@ function emitRaw(value: string): void {
       :data-testid="dataTestId"
       :value="modelValue"
       type="text"
-      :placeholder="placeholder"
+      :placeholder="placeholder ?? 'Trigger.MessageText == \'!go\''"
       @input="emitRaw(($event.target as HTMLInputElement).value)"
     />
   </div>
@@ -216,10 +255,32 @@ function emitRaw(value: string): void {
   border-color: var(--vp-accent);
 }
 
+.condition-expression__visual {
+  display: grid;
+  gap: 4px;
+}
+
+.condition-expression__labels {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(190px, 1.35fr) minmax(120px, 0.7fr) minmax(150px, 1fr);
+}
+
+.condition-expression__labels span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--vp-text-muted);
+}
+
 .condition-expression__builder {
   display: grid;
   gap: 8px;
-  grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.8fr) minmax(0, 1.2fr);
+  grid-template-columns: minmax(190px, 1.35fr) minmax(120px, 0.7fr) minmax(150px, 1fr);
+  align-items: start;
+}
+
+.condition-expression__field :deep(.condition-expression__value-input) {
+  padding-right: 44px;
 }
 
 .condition-expression__field {
@@ -239,12 +300,6 @@ function emitRaw(value: string): void {
   color: var(--vp-text-primary);
 }
 
-.condition-expression__field :deep(input[readonly]) {
-  padding-right: 78px;
-  color: var(--vp-text-secondary);
-  background: var(--vp-bg-surface-subtle);
-}
-
 .condition-expression__field :deep(.variable-picker) {
   position: absolute;
   top: 7px;
@@ -257,8 +312,68 @@ function emitRaw(value: string): void {
   color: var(--vp-text-muted);
 }
 
+/* Left operand slot: holds either a removable variable chip or a placeholder. */
+.condition-expression__operand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 6px 44px 6px 10px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: 6px;
+  background: var(--vp-bg-surface-subtle);
+}
+
+.condition-expression__placeholder {
+  color: var(--vp-text-muted);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 13px;
+}
+
+.condition-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 4px 1px 8px;
+  border: 1px solid var(--vp-accent);
+  border-radius: 999px;
+  background: var(--vp-bg-selected);
+  color: var(--vp-text-accent);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  max-width: 100%;
+}
+
+.condition-token__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.condition-token__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--vp-text-accent);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.condition-token__clear:hover {
+  background: var(--vp-bg-surface-muted);
+}
+
 @media (max-width: 720px) {
-  .condition-expression__builder {
+  .condition-expression__builder,
+  .condition-expression__labels {
     grid-template-columns: 1fr;
   }
 }

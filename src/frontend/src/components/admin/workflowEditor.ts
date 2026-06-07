@@ -78,6 +78,21 @@ const messageMatchOptions: SelectOption[] = [
   { label: "Regex", value: "FullRegex" }
 ];
 
+const platformOptions = ["simulation", "twitch", "system"];
+const memberRoleOptions = ["Broadcaster", "Subscriber", "Moderator", "Vip", "Follower"];
+const eventTypeKeyOptions = [
+  "user.message",
+  "user.followed",
+  "user.donated",
+  "user.subscribed",
+  "user.gifted_sub",
+  "channel.raided",
+  "reward.redeemed",
+  "platform.connection_changed",
+  "workflow.timer",
+  "system.member.checked_in"
+];
+
 const cooldownScopeOptions: SelectOption[] = [
   { label: "Global", value: "Global" },
   { label: "Per user", value: "PerUser" }
@@ -94,10 +109,8 @@ const operatorDefinitions: OperatorDefinition[] = [
 ];
 
 const triggerVariableDefinitions: VariableDefinition[] = [
-  { path: "Trigger.EventId", label: "Event id", type: "string" },
-  { path: "Trigger.EventTypeKey", label: "Event type key", type: "string" },
-  { path: "Trigger.Platform", label: "Event platform", type: "string" },
-  { path: "Trigger.OccurredAt", label: "Occurred at", type: "string" },
+  { path: "Trigger.EventTypeKey", label: "Event type key", type: "enum", options: eventTypeKeyOptions },
+  { path: "Trigger.Platform", label: "Event platform", type: "enum", options: platformOptions },
   { path: "Trigger.MessageText", label: "Message text", type: "string" },
   { path: "Trigger.RewardId", label: "Reward id", type: "string" },
   { path: "Trigger.RewardTitle", label: "Reward title", type: "string" },
@@ -114,9 +127,9 @@ const triggerVariableDefinitions: VariableDefinition[] = [
 
 const memberVariableDefinitions: VariableDefinition[] = [
   { path: "Member.UserId", label: "Trigger user id", type: "string" },
-  { path: "Member.Platform", label: "Trigger user platform", type: "string" },
+  { path: "Member.Platform", label: "Trigger user platform", type: "enum", options: platformOptions },
   { path: "Member.DisplayName", label: "Trigger user display name", type: "string" },
-  { path: "Member.Roles", label: "Trigger user roles", type: "string" },
+  { path: "Member.Roles", label: "Trigger user roles", type: "enum", options: memberRoleOptions },
   { path: "Member.IsSubscriber", label: "Trigger user is subscriber", type: "boolean", options: ["true", "false"] },
   { path: "Member.IsModerator", label: "Trigger user is moderator", type: "boolean", options: ["true", "false"] },
   { path: "Member.IsVip", label: "Trigger user is VIP", type: "boolean", options: ["true", "false"] },
@@ -135,7 +148,8 @@ const failureVariableDefinitions: VariableDefinition[] = [
   { path: "Failure.ErrorMessage", label: "Failure message", type: "string" }
 ];
 
-const defaultStepStatusOptions = ["success", "repeat", "error"];
+const defaultStepStatusOptions = ["success", "error"];
+const checkInStepStatusOptions = ["success", "repeat", "error"];
 
 export const conditionDefinitions: ConditionDefinition[] = [
   {
@@ -388,12 +402,13 @@ export function buildVariableGroups(
 
     const definition = findActionDefinition(asString(item.type), actionDefinitions);
     const outputFields = Array.from(new Set(["Status", ...(definition?.outputVariables ?? ["Value"])]));
+    const actionType = asString(item.type);
     for (const outputField of outputFields) {
       stepVariables.push({
         path: `Step.${outputVariable}.${outputField}`,
         label: `${outputVariable}.${outputField}`,
-        type: inferStepVariableType(asString(item.type), outputField),
-        options: outputField === "Status" ? defaultStepStatusOptions : undefined,
+        type: inferStepVariableType(actionType, outputField),
+        options: outputField === "Status" ? getStepStatusOptionsForActionType(actionType) : undefined,
         hint: definition?.label
       });
     }
@@ -412,8 +427,7 @@ export function buildVariableGroups(
     buildGroup("trigger", "Trigger Event", triggerVariableDefinitions),
     buildGroup("args", "Args", argsVariableDefinitions),
     buildGroup("steps", "Step Outputs", stepVariables),
-    buildGroup("member", "Trigger User", memberVariableDefinitions),
-    buildGroup("failure", "Failure", failureVariableDefinitions)
+    buildGroup("member", "Trigger User", memberVariableDefinitions)
   ].filter((group) => group.variables.length > 0);
 }
 
@@ -440,8 +454,29 @@ function inferStepVariableType(actionType: string, outputField: string): Variabl
   return "string";
 }
 
-export function getStepStatusOptions(path: string): string[] {
-  return getVariableInfo(path)?.options ?? [];
+function getStepStatusOptionsForActionType(actionType: string): string[] {
+  return actionType === "triggerCheckIn" ? checkInStepStatusOptions : defaultStepStatusOptions;
+}
+
+export function getStepStatusOptions(
+  path: string,
+  previousSteps: JsonRecord[] = [],
+  actionDefinitions: ActionDefinition[] = fallbackActionDefinitions
+): string[] {
+  const cleanPath = path.replace(/[{}]/g, "");
+  const match = cleanPath.match(/^Step\.([A-Za-z][A-Za-z0-9_]*)\.Status$/);
+  if (!match) {
+    return getVariableInfo(path)?.options ?? [];
+  }
+
+  const stepName = match[1];
+  const matchedStep = previousSteps.find(item => asString(item.outputVariable).trim() === stepName);
+  const actionType = asString(matchedStep?.type);
+  if (actionType.length > 0 && findActionDefinition(actionType, actionDefinitions)) {
+    return getStepStatusOptionsForActionType(actionType);
+  }
+
+  return defaultStepStatusOptions;
 }
 
 export function getStepStatusModeHint(
