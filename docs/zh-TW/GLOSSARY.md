@@ -22,25 +22,25 @@
 * **英文術語**：`WorkflowRule` / `Rule`
 * **中文翻譯**：`工作流規則` / `規則`
 * **領域定義**：系統執行自動化任務的核心單元，包含一個觸發器（Trigger）、多個執行條件（Conditions）以及一序列執行動作（Actions）。
-* **程式碼型別**：`Vulperonex.Domain.Workflows.WorkflowRule`
+* **程式碼型別**：`Vulperonex.Application.Workflows.WorkflowRule`
 
 ### 4. Trigger / 觸發器
 * **英文術語**：`WorkflowTrigger` / `Trigger`
 * **中文翻譯**：`觸發器`
 * **領域定義**：規則執行的起動點，負責訂閱特定的事件類型鍵值 `EventTypeKey`（如 `user.message`）。
-* **程式碼型別**：`Vulperonex.Domain.Workflows.WorkflowTrigger`
+* **程式碼型別**：`Vulperonex.Application.Workflows.WorkflowTrigger`
 
-### 5. Execution Condition / 執行條件
-* **英文術語**：`ExecutionCondition` / `Condition`
+### 5. Workflow Condition / 執行條件
+* **英文術語**：`WorkflowCondition` / `Condition`
 * **中文翻譯**：`執行條件` / `前置條件`
-* **領域定義**：在具體動作執行前負責評估與篩選的過濾邏輯（如 Cooldown 冷卻時間、UserRole 身分組、MessageContent 訊息內容）。
-* **程式碼型別**：`Vulperonex.Domain.Workflows.Conditions.ExecutionCondition`
+* **領域定義**：在具體動作執行前負責評估與篩選的過濾邏輯（如 Cooldown 冷卻時間、UserRole 身分組、MessageContent 訊息內容）。註：與 `WorkflowAction` 上每步的 `ExecutionCondition` NCalc 閘門字串為不同概念。
+* **程式碼型別**：`Vulperonex.Application.Workflows.Conditions.WorkflowCondition`
 
 ### 6. Workflow Action / 工作流動作
 * **英文術語**：`WorkflowAction` / `Action`
 * **中文翻譯**：`工作流動作` / `動作`
 * **領域定義**：當規則被觸發且前置條件全數通過後執行的具體工作（如 SendChatMessage 傳送聊天訊息、InvokeSubWorkflow 呼叫子工作流）。
-* **程式碼型別**：`Vulperonex.Domain.Workflows.Actions.WorkflowAction`
+* **程式碼型別**：`Vulperonex.Application.Workflows.Actions.WorkflowAction`
 
 ### 7. Simulation / 模擬
 * **英文術語**：`Simulation` / `Simulate`
@@ -52,31 +52,31 @@
 * **英文術語**：`Overlay`
 * **中文翻譯**：`疊加幕`
 * **領域定義**：供 OBS 或其他實況軟體經由瀏覽器來源（Browser Source）載入渲染的 Web 檢視（如聊天室疊加幕 `/overlay/chat`、會員卡疊加幕 `/overlay/member`、訂閱特效疊加幕 `/overlay/alerts`）。
-* **程式碼型別**：`Vulperonex.Application.Overlay.OverlayModule`
+* **程式碼型別**：`Vulperonex.Web.SignalR.OverlayEventForwarder`（將領域事件映射為 overlay DTO 後推送至 SignalR 群組）
 
 ### 9. Preset / 預設配置
 * **英文術語**：`Preset` / `Template`
 * **中文翻譯**：`預設配置` / `樣板`
 * **領域定義**：疊加幕檢視的渲染樣式與版面配置，分為核心內建的 Vue Preset，以及使用者上傳的靜態自訂 HTML Preset。
-* **程式碼型別**：`Vulperonex.Application.Overlay.Dtos.ChatOverlayPreset`
+* **程式碼型別**：`Vulperonex.Web.Overlay.OverlayPresetStore`（＋ `OverlayPresetDescriptor`）
 
 ### 10. Transient Delivery Queue (TDQ) / 瞬態遞送佇列
 * **英文術語**：`TransientDeliveryQueue` / `TDQ`
 * **中文翻譯**：`瞬態遞送佇列` / `瞬態佇列`
 * **領域定義**：基於 SQLite 的瞬態緩衝佇列。當記憶體事件匯流排通道（Channel）滿載溢出時負責落地儲存，並於系統重新啟動時自動重播，以保證「至少遞送一次（At-Least-Once）」的可靠性。
-* **程式碼型別**：`Vulperonex.Infrastructure.EventBus.TransientDeliveryQueue`
+* **程式碼型別**：`Vulperonex.Infrastructure.Data.Entities.TransientDeliveryQueueEntity`
 
 ### 11. Deduplication (Dedup) / 重複抑制
 * **英文術語**：`Deduplication` / `Dedup`
 * **中文翻譯**：`重複抑制` / `去重`
 * **領域定義：** 透過 `ActionExecutionLog` 持久化比對，防止同一個事件（EventId）在重播或並行時被重複執行同一動作的安全防護機制。
-* **程式碼型別**：`Vulperonex.Infrastructure.EventBus.ActionExecutionLog`
+* **程式碼型別**：`Vulperonex.Infrastructure.Data.Entities.ActionExecutionLogEntity`
 
 ### 12. Audit Log / 稽核日誌
 * **英文術語**：`AuditLog` / `MemberAuditLog`
 * **中文翻譯**：`稽核日誌`
 * **領域定義**：基於 SQLite 的僅可追加（Append-only）歷史紀錄表格，用以唯讀性追蹤與記錄管理員手動調整、或工作流自動變更會員資料（如 loyalty）的異動歷史。
-* **程式碼型別**：`Vulperonex.Infrastructure.Members.MemberAuditLog`
+* **程式碼型別**：`Vulperonex.Infrastructure.Data.Entities.MemberAuditLogEntity`
 
 ### 13. Loyalty / 忠誠點數
 * **英文術語**：`Loyalty` / `LoyaltyInfo`
@@ -88,7 +88,7 @@
 * **英文術語**：`Check-In` / `CheckIn`
 * **中文翻譯**：`打卡` / `簽到`
 * **領域定義**：會員參與實況互動的簽到或印章累積行為，可增量 loyalty 次數並驅動會員疊加幕渲染。
-* **程式碼型別**：`Vulperonex.Domain.Workflows.Executors.TriggerCheckInActionExecutor`
+* **程式碼型別**：`Vulperonex.Application.Workflows.Actions.TriggerCheckInActionExecutor`
 
 ---
 

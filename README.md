@@ -17,8 +17,8 @@ This project consists of four executable Hosts:
 |---|---|---|---|
 | `Vulperonex.Web` | ASP.NET Core API + SignalR Hub + Static Overlay Site | `Exe` | `net10.0` |
 | `Vulperonex.Cli` | Console CLI (member / rule / simulate / twitch / timer / config) | `Exe` | `net10.0` |
-| `Vulperonex.Desktop` | Windows Desktop Shell (WebView2 + Embedded Web Host) | `WinExe` | `net10.0-windows` |
-| `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue + Monaco) | n/a | n/a |
+| `Vulperonex.Desktop` | Windows Desktop Shell (Photino.NET, WebView2-backed) wrapping the embedded Web host | `WinExe` | `net10.0-windows` |
+| `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue) | n/a | n/a |
 
 ---
 
@@ -32,7 +32,7 @@ This project consists of four executable Hosts:
 | PowerShell | 5.1+ / 7+ | Windows development environment |
 | Git | 2.40+ | Version control |
 
-> The Windows Desktop Host (`Vulperonex.Desktop`) requires Windows 10 1809+ and the WebView2 Runtime.
+> The Windows Desktop Host (`Vulperonex.Desktop`) is built on **Photino.NET 3.x**, which uses the system WebView2 Runtime — requires Windows 10 1809+ and the WebView2 Runtime installed.
 
 ---
 
@@ -115,18 +115,18 @@ artifacts/cli/Vulperonex.Cli.exe --help
 
 | Group | Subcommand | Purpose |
 |---|---|---|
-| `member` | `list` / `show` / `adjust-loyalty` / `reset` / `delete` / `audit` | Member management + Audit queries |
-| `rule` | `list` / `enable` / `disable` / `show` | Workflow rule switching |
-| `simulate` | `event` / `checkin` | Event simulation / Check-in |
-| `twitch` | `login` / `status` / `logout` | OAuth workflow |
-| `timer` | `list` / `trigger` | Timer workflows |
-| `config` | `get` / `set` / `list` | SystemSetting key-value |
+| `member` | `list` / `show` / `seed` / `delete` | Member management (loyalty adjust / reset / audit are API-only, not CLI) |
+| `rule` | `list` / `show` / `create` / `update` / `enable` / `disable` / `delete` | Workflow rule management |
+| `simulate` | `chat` / `follow` / `sub` / `checkin` | Event simulation / Check-in |
+| `twitch` | `auth start` / `auth reset` | OAuth workflow |
+| `timer` | `list` / `show` / `create` / `delete` | Timer workflows |
+| `config` | `get` / `set` | SystemSetting key-value (no `list`) |
 
-Examples:
+Full reference: [`docs/cli.md`](docs/cli.md). Examples:
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Cli -- member list --limit 20
-dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user testuser --platform twitch
+dotnet run --project src/Hosts/Vulperonex.Cli -- member list
+dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user-id testuser --stamp-count 1 --skip-cooldown
 ```
 
 ### Multi-language

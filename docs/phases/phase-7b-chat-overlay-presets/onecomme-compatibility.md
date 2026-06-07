@@ -2,6 +2,8 @@
 
 > Scope: Phase 7B chat overlay preset slice. This document covers how Vulperonex relates to OneComme without embedding OneComme runtime or UI.
 
+> **⚠️ Partially superseded (see SPEC §4.14.3):** the **custom preset pipeline** / `custom` preset kind / `wwwroot/overlay/custom/` referenced below was **removed**. The **built-in** preset contract (`OverlayPresetStore` built-in metadata, static `chat.html` + `chat-overlay.js`, `OverlayChatPayload`, `overlay.chat.preset` setting) remains valid. Any OneComme-import path that depended on the custom pipeline no longer has a landing target (cf. `docs/plugins/onecomme-bridge.md`). Custom-pipeline references below are historical.
+
 ## Goals and Non-Goals
 
 - **Goal:** Reduce migration friction for existing OneComme users by exposing a stable, documented preset contract that an extension can target.

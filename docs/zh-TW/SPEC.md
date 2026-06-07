@@ -1,8 +1,8 @@
 # 規格書：Vulperonex — 多平台直播自動化平台
 
-> **狀態：** 已批准 v0.4（MVP 已交付；後續功能依各 Phase 文件追蹤）。v0.4 收斂 2026-06-01 spec-vs-impl 審查報告所揭露的英文版 → 程式碼漂移（詳見 `docs/spec-vs-impl-2026-06-01.md`）。
-> **最後更新：** 2026-06-01
-> ⚠️ **翻譯落後英文版：** 本檔頭、§4.25、§6.1 已同步至 v0.4；§2 / §4.4 / §4.6 / §4.7 / §4.13.1 / §4.22 的 v0.4 細節更新請以英文版 `docs/SPEC.md` 為準，zh-TW 全面同步排在後續維護任務。
+> **狀態：** 已批准 v0.5（MVP 已交付；後續功能依各 Phase 文件追蹤）。v0.5 將工作流規則模型、儲存 schema 與 action 預設值對齊 Phase 8 實作（typed trigger filter、metadata 驅動編輯器、schema 整併、NCalc/filter 可觀測性 — 見 §4.26 與 `docs/phases/phase-8-workflow-rule-typed-filter/`）。v0.4 收斂 2026-06-01 spec-vs-impl 審查報告所揭露的英文版 → 程式碼漂移。
+> **最後更新：** 2026-06-05
+> ⚠️ **翻譯落後英文版：** §4.6 / §4.8 / §4.14 / §4.17 / OQ3 / OQ4 / OQ5 / §4.26 已同步至 v0.5（Phase 8 + 安全模型 + 疊層人物角色/簽到）；但 §2 / §4.4 / §4.7 / §4.13.1 / §4.22 仍有細節落後，請以英文版 `docs/SPEC.md` 為準，zh-TW 全面同步排在後續維護任務。
 > **儲存庫：** 全新綠地專案儲存庫。本規格書描述了**目標架構**。無現有程式碼需遷移。
 > **前身參考：** Omni-Commander (獨立繼任者 — 借鑑領域邏輯概念，而非程式碼)
 
@@ -51,10 +51,11 @@
 |---|---|
 | 框架 | Vue 3.5+ (標準 SFC — Vapor Mode 推遲至第二階段效能實驗) |
 | 建構 | Vite 7.3 (Rolldown；MVP 釘定 v7，不追 v8 — Vite 8 已發布但 MVP 期間不升級) |
-| 語言 | TypeScript 6.0 |
-| UI | PrimeVue 4 (Unstyled) / UnoCSS (Preset Wind 4) |
-| 狀態 / 通訊 | Pinia 2.3 / Axios / @microsoft/signalr 10.0 |
-| 測試 | Vitest 3 / Vue Test Utils 2.5 |
+| 語言 | TypeScript 5.8（`vue-tsc` 2.2） |
+| UI | PrimeVue 4 (Unstyled) / UnoCSS 66 (Preset Wind) / Reka UI 2.9（headless，Phase 8） |
+| 狀態 / 通訊 | Pinia 3 / Axios / @microsoft/signalr 9 / vue-router 4.5 |
+| 測試 | Vitest 3 / Vue Test Utils 2.4 / @vitest/coverage-v8 3 / jsdom |
+| Lint | oxlint 0.16 |
 | 多語言 (i18n) | vue-i18n 11.x |
 
 ---
@@ -216,23 +217,28 @@ Vulperonex 在應用層邊界使用輕量級 CQRS：
 
 **MemberResolver 競態條件處理 (G3)：**
 
-`PlatformIdentity` 具有 `UNIQUE (Platform, PlatformUserId)` 約束。Resolver 使用 SQLite `INSERT OR IGNORE` + `SELECT` — 原子性的 GetOrCreate 模式。不需要應用程式級別的鎖；SQLite WAL 會序列化寫入。
+`PlatformIdentity` 具有 `UNIQUE (Platform, PlatformUserId)` 約束。實際 resolver 先 `SELECT`（既有 → 回傳），否則 EF `Add` + `SaveChanges`，並以**行程級 `static SemaphoreSlim` 閘門**序列化，使同一 identity 的並發首事件不會重複插入；UNIQUE 約束為最後防線。*（實作註：早期設計曾提議用 raw `INSERT OR IGNORE` 依賴 SQLite WAL、不加應用層鎖；最終程式碼改用閘門 + EF — 對單寫者桌面情境更簡單且 provider 可攜。）*
 
-**CA 邊界：** Application 只定義 `IMemberResolver` port 介面（`ResolveAsync(string platform, string platformUserId) -> MemberId`）；實際 EF Core / raw SQL 實作（`MemberResolver`）放在 Infrastructure 層，不得出現在 Application 或 Domain。
+**CA 邊界：** Application 只定義 `IMemberResolver` port 介面（`ResolveMemberIdAsync(PlatformIdentity) -> MemberId`）；EF Core 實作（`MemberResolver`）放在 Infrastructure 層，不得出現在 Application 或 Domain。
 
 ```csharp
 // Application port（介面只在 Application）
 public interface IMemberResolver
 {
-    /// <returns>MemberId (ULID string) — 既有或新建</returns>
-    Task<string> ResolveAsync(string platform, string platformUserId, CancellationToken ct = default);
+    // 回傳 MemberId (ULID string) — 既有或新建
+    Task<string> ResolveMemberIdAsync(PlatformIdentity identity, CancellationToken cancellationToken = default);
 }
 
-// Infrastructure 實作（偽程式碼）— 無論誰先插入，始終讀取勝利者
-await db.ExecuteSqlRawAsync(
-    "INSERT OR IGNORE INTO PlatformIdentities (Platform, PlatformUserId, MemberId, ...) VALUES (?,?,?,...)");
-var identity = await db.PlatformIdentities
-    .FirstAsync(x => x.Platform == platform && x.PlatformUserId == userId);
+// Infrastructure 實作（偽程式碼）— 閘門序列化 get-or-create
+await Gate.WaitAsync(ct);   // private static readonly SemaphoreSlim Gate = new(1, 1)
+var existing = await db.PlatformIdentities
+    .Where(x => x.Platform == identity.Platform && x.PlatformUserId == identity.PlatformUserId)
+    .Select(x => x.MemberId).SingleOrDefaultAsync(ct);
+if (existing is not null) return existing;
+var memberId = NewUlidString();
+db.Members.Add(new MemberEntity { MemberId = memberId, ... });
+db.PlatformIdentities.Add(new PlatformIdentityEntity { MemberId = memberId, Platform = ..., PlatformUserId = ... });
+await db.SaveChangesAsync(ct);
 ```
 
 ---
@@ -260,13 +266,14 @@ L2：SQLite 資料表 — PlatformUserDisplayInfo
 CREATE TABLE PlatformUserDisplayInfo (
     Platform         TEXT NOT NULL,
     PlatformUserId   TEXT NOT NULL,
+    DisplayName      TEXT,           -- 快取的顯示名稱
     AvatarUrl        TEXT,
     ColorHex         TEXT,
     BadgesJson       TEXT,           -- 徽章字串的 JSON 陣列
     IsSubscriber     INTEGER NOT NULL DEFAULT 0,
     SubscriptionTier TEXT,           -- "1000" | "2000" | "3000" | null
     TotalBitsGiven   INTEGER NOT NULL DEFAULT 0,
-    FetchedAt        INTEGER NOT NULL,  -- Unix 時間戳
+    FetchedAt        TEXT NOT NULL,  -- ISO-8601 DateTimeOffset（EF 預設映射）
     PRIMARY KEY (Platform, PlatformUserId)
 );
 ```
@@ -276,22 +283,27 @@ CREATE TABLE PlatformUserDisplayInfo (
 ```csharp
 public interface IPlatformUserInfoCache
 {
-    ValueTask<UserDisplayInfo?> GetAsync(string platform, string userId);
-    Task SetAsync(string platform, string userId, UserDisplayInfo info);
-    // cache miss → create default UserDisplayInfo row
-    //   (AvatarUrl=null, ColorHex=null, Badges=Array.Empty<string>(), IsSubscriber=false,
-    //    SubscriptionTier=null, TotalBitsGiven=0, FetchedAt=UtcNow), then apply updater.
-    //   Never returns null post-update.
-    Task UpdateAsync(string platform, string userId, Func<UserDisplayInfo, UserDisplayInfo> updater);
+    Task<PlatformUserDisplayInfo?> GetAsync(string platform, string platformUserId, CancellationToken ct = default);
+    // cache miss → 建立預設 PlatformUserDisplayInfo row
+    //   (DisplayName=null, AvatarUrl=null, ColorHex=null, Badges=[], IsSubscriber=false,
+    //    SubscriptionTier=null, TotalBitsGiven=0, FetchedAt=UtcNow)，再套用 updater。
+    //   套用後不回傳 null。（無獨立 SetAsync — upsert 經 UpdateAsync。）
+    Task<PlatformUserDisplayInfo> UpdateAsync(
+        string platform, string platformUserId,
+        Func<PlatformUserDisplayInfo, PlatformUserDisplayInfo> updater,
+        CancellationToken ct = default);
 }
 
-public record UserDisplayInfo(
+public sealed record PlatformUserDisplayInfo(
+    string Platform,
+    string PlatformUserId,
+    string? DisplayName,
     string? AvatarUrl,
     string? ColorHex,           // null 或 ^#[0-9A-Fa-f]{6}$；不接受 CSS function / named color / alpha
-    IReadOnlyList<string> Badges,
+    IReadOnlyCollection<string> Badges,
     bool IsSubscriber,
     string? SubscriptionTier,
-    int TotalBitsGiven,
+    long TotalBitsGiven,
     DateTimeOffset FetchedAt);
 ```
 
@@ -366,19 +378,24 @@ public record UserDisplayInfo(
 WorkflowRule
 ├── Id: ULID
 ├── Name: string           // 顯示標籤，**不唯一**；CLI/API list/show 以 Id 為主鍵（Name 可重複）
+├── EventTypeKey: string?   // "user.message"、"user.followed" 等。Phase 8 提升至 rule 根層（不再巢狀於 Trigger）。僅當 IsSubWorkflow = true 時為 NULL
+├── IsSubWorkflow: bool     // true → 無自身 trigger，只能經 InvokeSubWorkflowAction 調用。EventTypeKey 與 Trigger 必須皆為 null（否則 400 SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER）
 ├── Priority: int          // 數字越小 = 優先級越高 (1 在 10 之前執行)
 ├── CreatedAt: DateTimeOffset
 ├── IsEnabled: bool
-├── ConcurrencyMode: Serial (串行) | Parallel (並行)
-├── MaxParallelism: int    // 僅在 ConcurrencyMode = Parallel 時適用；限制 API 衝擊範圍
+├── Version: int           // 樂觀並行 token；每次儲存遞增。PUT 版本不符 → 409 WORKFLOW_RULE_CONFLICT
+├── ExecutionMode: Serial (串行) | Parallel (並行)   // Phase 8 前名為 ConcurrencyMode
+├── MaxParallelism: int    // 僅在 ExecutionMode = Parallel 時適用；有效範圍 [1, 64]；超出 → INVALID_ACTION_CONFIG
+├── TimeoutSeconds: int    // rule 層級執行預算；有效範圍 [0, 86400]；超出 → INVALID_ACTION_CONFIG
+├── Throttle: WorkflowThrottlePolicy   // { MaxConcurrent [0,64], CooldownSeconds [0,86400], PerUserCooldown, PerUserCooldownSeconds [0,86400] }；預設 None
+├── MatchCondition: string?   // 選用的 rule 層級 NCalc 閘門，於 typed trigger filter 之後評估（Phase 8 自 Trigger 提升）；評估失敗會記錄 RuleId（§4.26）
 │
-├── Trigger (觸發器)
-│   ├── EventTypeKey: string          // "user.message", "user.followed" 等
-│   └── PlatformFilter: string?       // null = 所有平台；save-time normalize：trim → 空字串 → null；lowercase canonical（"Twitch" → "twitch"）
+├── Trigger: WorkflowTrigger?          // sub-workflow rule 為 null
+│   └── Filter: Dictionary<string,string>   // 每事件型別的 typed filter 鍵（§4.26）；以 ITriggerMetadataProvider.GetFilterFieldsFor(EventTypeKey) 驗證；未知鍵 → 400 INVALID_FILTER_KEY。Phase 8 取代了舊的巢狀 EventTypeKey/PlatformFilter/MatchCondition；rule 層級平台過濾已移除
 │
 ├── Conditions: List<IWorkflowCondition>   // AND 邏輯 — 必須全部通過
 │   ├── UserRoleCondition (使用者身分條件)
-│   │   ├── Roles: StreamRole 標記（`Subscriber | Moderator | Vip | Follower` — 從 adapter badge/role 欄位映射）
+│   │   ├── Roles: StreamRole 標記（`Subscriber | Moderator | Vip | Follower | Broadcaster` — 從 adapter badge/role 欄位映射）
 │   │   │   // **`CustomRoleId[]` 為 post-MVP**（需要自訂角色 CRUD + 查詢 port，不在 MVP 任務範圍）
 │   │   └── Mode: HasAny | HasAll | NotHave
 │   │
@@ -400,8 +417,10 @@ WorkflowRule
     │   ├── Template: string           // 變數佔位符：{user.displayName}, {event.amount}
     │   │   // 最大長度 500 字元；超出 → `INVALID_ACTION_CONFIG`（save time 驗證）
     │   │   // 未知 placeholder（如 {event.unknown}）→ 保留原文（不替換、不 throw）；空值 placeholder → 空字串
-    │   └── TargetPlatform: string?    // null = 來源平台；非 null 時 save-time 只驗非空白字串（不驗 adapter 是否啟用）
-    │                                  // Runtime：若無 sender 已注冊該 platform → log warning + skip action（不 crash；adapter 可動態啟停）
+    │   ├── TargetPlatform: string?    // null = 來源平台；非 null 時 save-time 只驗非空白字串（不驗 adapter 是否啟用）
+    │   │                              // Runtime：若無 sender 已注冊該 platform → log warning + skip action（不 crash；adapter 可動態啟停）
+    │   ├── Channel: string?           // null = 來源頻道；「內部化」— 留空時 executor 由 trigger event 自動推導
+    │   └── DedupKey: string?          // null = 由 execution key 自動產生；少需顯式覆蓋
     │
     ├── InvokeSubWorkflowAction (調用子工作流)
     │   └── WorkflowId: ULID
@@ -415,6 +434,11 @@ WorkflowRule
               // IPluginActionContext.Params 應定義為 `IReadOnlyDictionary<string, JsonElement>` 或包裝類，
               // 而非 `object`，以避免 runtime cast exception
 ```
+
+**Rule 層級失敗處理與每步欄位（Phase 8）：**
+- `OnFailureSteps: List<IWorkflowAction>` — 當正常步驟失敗時執行的補償步驟；action 目錄與每步欄位與 `Actions` 相同。
+- 每個 `IWorkflowAction` 另攜帶 `ExecutionCondition: string?`（選用的每步 NCalc 閘門，評估為 false 時跳過該步）與 `OutputVariable: string?`（選用，命名以供後續步驟取用該步結果）。每步錯誤欄位見 §4.8。
+- Trigger 過濾、支撐編輯器的 metadata 合約，以及 NCalc/filter 可觀測性詳見 §4.26。
 
 **優先順序解析：** 按 `Priority ASC`，然後 `CreatedAt ASC`，最後 `Id ASC`（ULID 字典序，確保無 DB 排序不穩定問題）。
 
@@ -475,8 +499,8 @@ UI 透過 SignalR 訂閱以顯示連線狀態指示器。`PlatformConnectionChan
 ```csharp
 public enum ErrorBehavior
 {
-    ContinueOnError,   // (預設) 失敗 → 記錄日誌 → 繼續下一個操作
-    StopOnError,       // 失敗 → 停止此規則中的剩餘操作
+    ContinueOnError,   // 失敗 → 記錄日誌 → 繼續下一個操作
+    StopOnError,       // (預設) 失敗 → 停止此規則中的剩餘操作
     RetryOnError,      // 失敗 → 在放棄前按退避策略重試
 }
 ```
@@ -484,12 +508,14 @@ public enum ErrorBehavior
 每個 `IWorkflowAction` 基類攜帶：
 
 ```
-ErrorBehavior: ErrorBehavior = ContinueOnError
-MaxRetries:    int = 0     // 有效範圍 [0, 10]；超出 → `INVALID_ACTION_CONFIG`
-BackoffMs:     int = 500   // 有效範圍 [100, 30000]；超出 → `INVALID_ACTION_CONFIG`
-TimeoutMs:     int = 5000  // 有效範圍 [100, 60000]；超出 → `INVALID_ACTION_CONFIG`
-                            // 超過此時間 CancellationToken 被取消；執行器停止等待
-                            // .NET 無法強行終止非同步任務 — 外掛程式必須遵守 CancellationToken
+ErrorBehavior:      ErrorBehavior = StopOnError   // 預設改為 fail-fast（Phase 8 前為 ContinueOnError）
+MaxRetries:         int = 0       // 有效範圍 [0, 10]；超出 → `INVALID_ACTION_CONFIG`
+BackoffMs:          int = 500     // 有效範圍 [100, 30000]；超出 → `INVALID_ACTION_CONFIG`
+TimeoutMs:          int = 10000   // 有效範圍 [0, 60000]；超出 → `INVALID_ACTION_CONFIG`
+                                  // 超過此時間 CancellationToken 被取消；執行器停止等待
+                                  // .NET 無法強行終止非同步任務 — 外掛程式必須遵守 CancellationToken
+ExecutionCondition: string?       // 選用的每步 NCalc 閘門；評估為 false 時跳過該步
+OutputVariable:     string?       // 選用，命名以供後續步驟取用該步結果
 ```
 
 **特殊情況：**
@@ -631,7 +657,7 @@ public class WorkflowModule : IHostedService
 2. IStreamEventBus            — 必須在任何訂閱者之前存在
 3. ISystemSettingsService     — 需先於 cache（cache 讀取容量/TTL 設定）
 4. IPlatformUserInfoCache     — 從 ISystemSettingsService 讀取 L1 容量/TTL 初始值
-5. 模組 (Modules)             — MemberModule → OverlayModule → WorkflowModule
+5. 模組 (Modules)             — MemberModuleHostedService + WorkflowEngine + OverlayEventForwarder（疊層推送）
 6. 適配器 (Adapters)           — TwitchAdapter (僅在模組就緒後開始發布)
 7. Web / SignalR Hub
 ```
@@ -642,7 +668,7 @@ public class WorkflowModule : IHostedService
 
 ### 4.11 資料庫遷移策略 (G9)
 
-**雙模式：啟動時自動執行 + 顯式 CLI 執行。**
+**啟動時自動執行（已實作）。顯式 CLI 執行為規劃中，尚未交付。**
 
 ```
 啟動時 (始終)：
@@ -650,10 +676,12 @@ public class WorkflowModule : IHostedService
   → 僅自動執行增量遷移
   → 應用程式絕不會以過時的架構啟動
 
-CLI (手動控制)：
+CLI (手動控制) — 規劃中，尚未實作：
   vulperonex db migrate        → 執行掛起的遷移
   vulperonex db status         → 列出已應用 / 掛起的遷移
   vulperonex db rollback <id>  → 回滾（需要確認提示）
+  （CLI 僅提供 rule / timer / config / member / simulate / twitch 群組；
+   目前沒有 `db` 命令群組。遷移僅於 host 啟動時執行。）
 ```
 
 **遷移安全規則：**
@@ -668,19 +696,17 @@ CLI (手動控制)：
 
 **重要提示：** `EF Core MigrateAsync()` 會執行所有掛起的遷移，而不檢查它們是否具有破壞性。上表描述的是**策略**，而非自動強制執行。強制執行透過以下方式實現：
 
-1. **CI 遷移分類器** — `Vulperonex.Tests.Architecture` 中的一項測試，透過**實例化**每個 `Migration` 類別並針對真實的 `MigrationBuilder` 實體**執行**其 `Up(MigrationBuilder)` 方法來偵測破壞性遷移，然後檢查 `MigrationBuilder.Operations` 中的破壞性操作類型：
+1. **MigrationClassifier**（`Vulperonex.Infrastructure.Migrations`）— 純函式 `Classify(IReadOnlyList<MigrationOperation>) → MigrationRisk`，將遷移操作分級為 `Safe` / `ReviewRequired` / `Destructive`：
    ```csharp
-   var builder = new MigrationBuilder(activeProvider: "Microsoft.EntityFrameworkCore.Sqlite");
-   migration.Up(builder);  // 呼叫實際的 Up() 方法
-   var destructive = builder.Operations.Any(op =>
-       op is DropTableOperation or DropColumnOperation
-           or RenameTableOperation or RenameColumnOperation or AlterColumnOperation
-       || op is SqlOperation sql
-           && Regex.IsMatch(sql.Sql, @"\b(DROP|DELETE|TRUNCATE|ALTER|RENAME)\b",
-               RegexOptions.IgnoreCase));
+   var risk = MigrationClassifier.Classify(migrationBuilder.Operations);
+   // DropTable/DropColumn/Rename + raw DROP|DELETE|TRUNCATE  → Destructive
+   // raw SQL 含 ALTER（如 ALTER TABLE … ADD COLUMN）          → ReviewRequired（保守）
+   // 僅 CreateTable/AddColumn                                 → Safe
    ```
-   如果發現任何破壞性操作且該遷移類別未標記 `[DestructiveMigration]` 屬性，則測試失敗。這種方法避免了不可靠的方法體反射，並產生了 EF Core 將執行的實際 `Operations` 列表。**注意：raw SQL 中只要含 `ALTER` 即視為 review-required（保守策略）** — 涵蓋 `ALTER TABLE ... DROP COLUMN`、`ALTER TABLE ... RENAME` 等所有 ALTER 變體；不做進一步細分。
-2. **PR 審查要求** — 任何標記為 `[DestructiveMigration]` 的遷移在合併前都需要手動審查。
+   單元測試於 `tests/Vulperonex.Tests.Unit/Infrastructure/Migrations/MigrationClassifierTests.cs`。**注意：raw SQL 中只要含 `ALTER` 即視為 review-required（保守策略）。**
+2. **PR 審查要求** — 新增遷移時由審查者執行/檢視分類器；`Destructive`/`ReviewRequired` 結果在合併前需手動審查把關。
+
+> **漂移註：** 早期設計曾提議在 `Tests.Architecture` 中實例化每個 `Migration`、執行 `Up()`，並在遷移未標記 `[DestructiveMigration]` 屬性時**讓 CI 失敗**。最終程式碼只交付可重用的 `MigrationClassifier` + 其單元測試 — **不存在 `[DestructiveMigration]` 屬性，也無針對真實遷移的自動失敗 CI 閘門**；破壞性遷移安全為審查制，非由 build 中斷強制。
 
 EF Core 遷移檔案在儲存庫中的路徑為 `src/Vulperonex.Infrastructure/Migrations/`。
 
@@ -703,20 +729,20 @@ macOS   : ~/Library/Application Support/Vulperonex/vulperonex.db
 ```csharp
 public interface IStreamEventTypeRegistry
 {
-    void Register(string key, string description, bool isSystemEvent = false);
+    void Register(StreamEventTypeMetadata metadata);   // （原為 Register(key, description, isSystemEvent)）
     bool IsKnown(string key);             // 含 system events（用於路由/dispatch）
     bool IsKnownForWorkflow(string key);  // 排除 system events（用於 WorkflowRule 驗證）
-    IReadOnlyList<RegistryDescriptor> GetAll();  // 回傳 RegistryDescriptor（不含 isSystemEvent=true 的項目）
-                                                  // API endpoint 再投影成 EventTypeDescriptor（補 IsSimulatable）
+    IReadOnlyCollection<StreamEventTypeMetadata> GetAll();  // 不含 IsSystemEvent=true 的項目
+                                                            // API endpoint 再投影成 EventTypeDescriptor（補 IsSimulatable）
 }
 
-// Registry 內部儲存型別（不暴露至 API 層）
-internal record RegistryDescriptor(
+// Registry 儲存/記錄型別（Vulperonex.Application.EventTypes）— 取代先前的 internal RegistryDescriptor
+public sealed record StreamEventTypeMetadata(
     string Key,
     string Description,
-    bool IsSystemEvent);  // true for platform.connection_changed; excluded from GetAll()
+    bool IsSystemEvent = false);  // true for platform.connection_changed；GetAll() 排除。實作：InMemoryStreamEventTypeRegistry
 
-// API DTO — GET /api/event-types endpoint 回傳（由 endpoint 從 RegistryDescriptor 投影）
+// API DTO — GET /api/event-types endpoint 回傳（由 endpoint 從 StreamEventTypeMetadata 投影）
 // 不暴露 IsSystemEvent（GetAll() 已排除；前端不應以此欄位判斷 system event）
 public record EventTypeDescriptor(
     string Key,
@@ -747,11 +773,11 @@ public static class StreamEventDescriptions
 
 ```csharp
 // TwitchAdapter.StartAsync()
-_registry.Register("user.message",  "使用者發送了聊天訊息");
-_registry.Register("user.followed", "使用者追隨了頻道");
+_registry.Register(new StreamEventTypeMetadata("user.message",  StreamEventDescriptions.UserMessage));
+_registry.Register(new StreamEventTypeMetadata("user.followed", StreamEventDescriptions.UserFollowed));
 
 // MyPlugin.InitializeAsync()
-_registry.Register("plugin.my_plugin.event", "我的外掛程式自訂事件");
+_registry.Register(new StreamEventTypeMetadata("plugin.my_plugin.event", "我的外掛程式自訂事件"));
 ```
 
 **安全檢查點：**
@@ -768,7 +794,7 @@ _registry.Register("plugin.my_plugin.event", "我的外掛程式自訂事件");
 
 ### 4.13 WorkflowRule 編輯介面 (G11)
 
-REST API 是唯一規範的寫入路徑。UI 和 CLI 都呼叫 API — 兩者都不直接寫入資料庫。伺服器永遠以 loopback-only 執行，無需身分驗證。
+REST API 是唯一規範的寫入路徑。UI 和 CLI 都呼叫 API — 兩者都不直接寫入資料庫。API 介面僅 loopback，並由 `AdminGuardMiddleware` 把關（無使用者帳號，但對 mutation 做 CSRF + Host + Origin/Referer 檢查 — 見 §4.17）。
 
 ```
 REST API  ← 唯一寫入點，強制執行所有驗證
@@ -797,7 +823,7 @@ vulperonex rule delete  <ruleId|prefix|--name <name>> [--yes]
 
 ### 4.13.1 完整 MVP REST API 介面
 
-所有 UI 和 CLI 均專門透過 REST 存取 Web 主機，兩端用戶端均無直接資料庫存取權限。伺服器永遠以 loopback-only 執行（IPv4 `127.0.0.1` + IPv6 `::1`），無需身分驗證。
+所有 UI 和 CLI 均專門透過 REST 存取 Web 主機，兩端用戶端均無直接資料庫存取權限。API 埠僅 loopback（IPv4 `127.0.0.1` + IPv6 `::1`）；無使用者帳號，但對 mutation 請求做把關（CSRF + Host + Origin/Referer — 見 §4.17）。疊層埠可額外開放 LAN，並以疊層存取金鑰保護。
 
 | 群組 | 方法 | 路徑 | 應用層埠 (Port) |
 |-------|--------|------|-----------------|
@@ -853,9 +879,11 @@ http://localhost:5001/overlay/member-card.html — 成員卡片顯示
 - **OneComme 相容屬於擴充功能 / 外掛程式類型能力，不屬於 core 直接內建整合。** Core 只需提供可擴充的樣板 preset / package contract；OneComme 相容可透過外掛、樣板匯入器、或 adapter 套件實作。
 - 以 **OneComme** 作為優先相容目標之一。目的不是 1:1 複製其內部實作，而是提供足夠接近的樣板結構 / 匯入映射 / 相容契約，降低既有 OneComme 使用者的遷移成本，同時維持 core 與第三方樣板生態的邊界。
 
-#### 4.14.1 Overlay Preset Contract (Vue 預設 + 自訂 HTML 擴充)
+#### 4.14.1 Overlay Preset Contract (Vue/靜態內建 preset)
 
-**動機：** 一般實況主想客製 overlay 視覺，不應被迫安裝 Node.js / pnpm / Vite。同時 Vulperonex 仍要提供高品質預設 Vue 版本，並支援第三方擴充（含未來 OneComme 範本匯入）。
+> **⚠️ 部分已被取代（見 §4.14.3）：** **Static HTML Override** 軌道（`/overlay/custom/{slug}.html`、`custom:{slug}` preset 值）、下方的 **Custom HTML Upload** 子節，以及 **OneComme 經上傳匯入** 路徑，已隨 custom-preset pipeline 一併**移除**。僅保留 **Built-in Presets** 列與 config-driven 自訂（文字 + 會員卡圖片經 `POST /api/overlay/assets`，§4.14.3）。下方 custom-HTML 內容僅作歷史參考。
+
+**動機：** 一般實況主想客製 overlay 視覺，不應被迫安裝 Node.js / pnpm / Vite。同時 Vulperonex 仍要提供高品質預設 Vue 版本。
 
 **雙軌渲染管道：**
 
@@ -916,8 +944,20 @@ http://localhost:5001/overlay/member-card.html — 成員卡片顯示
 | `overlay.member.stamp_url` | string (URL) | 空 | 自訂印章圖。空值則用內建 SVG 爪印 |
 | `overlay.member.stamps_per_round` | int | 10 | 一輪集滿格數 |
 | `overlay.chat.show_member_card` | bool | false | 是否在 chat overlay 內嵌會員卡 chip |
-| `overlay.chat.preset` | string | `kapchat` | Chat preset key（內建 key 或 `custom:{slug}`） |
+| `overlay.chat.preset` | string | `kapchat` | Chat preset key（僅內建 key；`custom:{slug}` 已隨 custom-preset pipeline 移除，§4.14.3） |
 | `overlay.member.preset` | string | `rotan-checkin` | Member preset key |
+| `overlay.alerts.preset` | string | (預設) | Alerts preset key |
+
+**工作流聊天輸出與疊層人物角色（§4.14.4）：**
+
+| 設定 key | 型別 | 預設 | 說明 |
+|---------|------|------|------|
+| `workflow.chat.output_destination` | string | `dual` | `SendChatMessageAction` 輸出去向：`dual` / `platform_only` / `overlay_only`。含 overlay 時，訊息經 `IWorkflowChatOverlaySink` 直接渲染進 `/overlay/chat`（不需平台往返）。 |
+| `overlay.chat.assistant_display_name` | string | (內建) | 疊層中工作流/助理發出之聊天訊息顯示的名稱。 |
+| `overlay.chat.assistant_avatar_url` | string (URL) | 空 | 助理訊息的頭像。 |
+| `overlay.chat.checkin_display_name` | string | (內建) | 渲染進 chat overlay 的簽到卡所用顯示名稱。 |
+| `checkin.reset_time_local` | string `HH:mm` | `05:00` | 每日簽到計數翻轉的本地時刻。 |
+| `checkin.repeat_card_enabled` | bool | true | true 時同日重複簽到仍發出疊層卡（以 event id 去重）；false 則每週期僅首次顯示。 |
 
 **URL 安全（前端 sanitization）：** 任何由設定注入到 CSS `url()` 的值，僅接受 `https?:` 或 `data:image/(png\|jpe?g\|gif\|svg+xml\|webp);` scheme，並禁止含 `"`、`'`、`(`、`)`、`\`、`;` 等可跳出 `url()` 的字元（防 CSS injection）。
 
@@ -1097,9 +1137,11 @@ log.db_max_size_mb        = 100             // 次要上限；超過則刪除最
 **MVP：僅限靜態 DI 註冊。** 外掛程式作為專案/套件依賴項被引用，並在編譯時於 `Program.cs` 中註冊。MVP 階段不進行執行時期 DLL 掃描或 `Assembly.LoadFrom()`。
 
 ```csharp
-// Program.cs (MVP)
-builder.Services.AddVulperonexPlugin<SoundPlugin>();
-builder.Services.AddVulperonexPlugin<MyCustomPlugin>();
+// Program.cs (MVP) — 外掛以 IVulperonexPlugin DI service 註冊；
+// StaticPluginRegistry(IEnumerable<IVulperonexPlugin>) 以 IPluginRegistry 收集。
+builder.Services.AddSingleton<IVulperonexPlugin, OneCommeBridgePlugin>();
+builder.Services.AddSingleton<IPluginRegistry, StaticPluginRegistry>();
+// （無 AddVulperonexPlugin<T> 擴充；每個外掛實作 IVulperonexPlugin.InitializeAsync(IPluginContext) 並自行註冊其 event-type key。）
 ```
 
 **第二階段（推遲）：目錄掃描 + 執行時期發現。**
@@ -1122,34 +1164,51 @@ builder.Services.AddVulperonexPlugin<MyCustomPlugin>();
 
 ### 4.17 Web 主機安全 (G15)
 
-**雙埠架構：API 埠 + 疊層埠，皆 loopback-only、無需身份驗證。**
+**雙埠架構：loopback-only 的 API 埠 + 預設 loopback-only、可選擇對外開放 LAN 供跨機 OBS 的疊層埠。** 埠以成對方式從 `(5000, 5001)` 起自動分配（見 OQ6）；下列為預設值。
 
 ```
 appsettings.json:
-  "Web": {
-    "ApiPort":     5000,   // 可配置
-    "OverlayPort": 5001    // 可配置
-  }
+  "Web": { "ApiPort": 5000, "OverlayPort": 5001 }   // 預設值；實際成對由自動分配決定
+  "Overlay": { "Lan": { "Enabled": false, "BindAddress": "0.0.0.0" } }  // 選擇性開放 LAN 疊層
+  "Security": { "CsrfTokenPath": null }              // 選擇性覆蓋 admin CSRF token 檔路徑
 ```
 
-**永遠以 loopback-only 執行（無遠端存取）：**
+**埠繫結（Kestrel）：**
 ```
-ApiPort     5000 → 僅限 loopback（127.0.0.1 與 ::1），無需身分驗證
-OverlayPort 5001 → 僅限 loopback（127.0.0.1 與 ::1），無需身分驗證
-OBS 瀏覽器源：http://localhost:5001/overlay/chat.html  (canonical 靜態 URL, 無權杖)
+ApiPort     → 永遠僅 loopback（127.0.0.1 + ::1）。Admin SPA API、所有 mutation、
+              OAuth 與 overlay 編輯器都在此，永不對外 LAN。
+OverlayPort → 永遠 loopback（admin 預覽），且當 Overlay:Lan:Enabled = true 時，
+              額外繫結 Overlay:Lan:BindAddress（預設 0.0.0.0 = 所有介面），
+              讓另一台機器的 OBS 可載入即時疊層。
 ```
 
-Kestrel 以 `IPAddress.Loopback`（IPv4）+ `IPAddress.IPv6Loopback`（IPv6）雙重繫結兩個埠。安全邊界 = bind address 本身；不需要 ApiKeyMiddleware 或 X-Vulperonex-Key header。
+**存取控制不再只靠「bind address」。** 單一 `AdminGuardMiddleware` 強制兩種規制（先前「無認證 / 無 middleware」模型已被取代）：
+
+1. **Loopback admin/mutation 請求** — 所有非 GET 的 `/api/*`，以及*全部* `/api/overlay/*`，必須通過：
+   - **Loopback** remote IP（null remote IP 直接拒絕 — 防 Unix-socket/proxy 偽冒）。
+   - **Host 白名單**（`localhost` / `127.0.0.1` / `[::1]`，忽略 port）— 防 DNS rebinding → 400 `ORIGIN_MISMATCH`。
+   - **`X-Admin-Csrf`** header 比對每行程 admin CSRF token（constant-time）→ 400 `MISSING_OR_INVALID_CSRF_HEADER`。
+   - **`Origin`/`Referer`** 至少一個存在且 host 相符 → 400 `MISSING_ORIGIN_OR_REFERER_HEADER` / `ORIGIN_MISMATCH` / `INVALID_ORIGIN_HEADER` / `REFERER_MISMATCH` / `INVALID_REFERER_HEADER`。
+   - **`GET /api/overlay/csrf-token`** 為 bootstrap 例外：僅檢查 loopback + Host（豁免 CSRF），讓 SPA 取得 token。回傳當前 token。
+
+2. **非 loopback（LAN）請求** — 限定於即時疊層介面，並以**疊層 LAN 存取金鑰**把關：
+   - 靜態 SPA/疊層 HTML 與資產：僅 GET、不需金鑰（公開用戶端程式碼；子資源載入無法附 header）。
+   - SignalR hubs（`/hubs/*`）與一小組 overlay-safe config GET（`overlay.{chat,member,alerts}.preset`、`overlay.chat.show_member_card`、`overlay.member.background_url`、`overlay.member.stamp_url`）：需金鑰，以 `?k=<key>` query 或 `X-Overlay-Key` header 傳遞。
+   - 其餘（admin API、任何 mutation、OAuth、編輯器、`/health`、`/openapi`）→ 403。
+
+**Admin CSRF token：** 256-bit Base64Url，**每次行程啟動重新產生**，寫入 `.admin-csrf-token`（或 `Security:CsrfTokenPath`）並設 owner-only ACL，關閉時刪除。重啟會使已開啟的 admin 分頁失效（需刷新重取）。*已知取捨：* 任何能對 `/api/overlay/csrf-token` 發 loopback 請求的本機行程都能讀到 token — 對無中央認證的單機桌面工具為可接受妥協。
+
+**疊層 LAN 存取金鑰：** 256-bit Base64Url，存於 `SystemSettings`（`overlay.lan.access_key`），首次啟用 LAN 存取時產生一次並**跨重啟穩定**，使 OBS URL 持續可用。`GET /api/overlay/lan-info`（admin/loopback）回傳金鑰 + 建議 LAN host URL 供貼入 OBS。
 
 **Overlay DTO 安全：** 疊層 DTO 必須是公共安全投影 — 即使伺服器永遠 loopback-only，仍需嚴格 DTO 白名單（防止日後擴充時誤加欄位、防止 SignalR 序列化過度曝光）：
 
 | 疊層 | 允許的欄位 | 禁止的欄位 |
 |---|---|---|
-| `/overlay/chat` | SchemaVersion, EventId, Timestamp, DisplayName, ColorHex, Segments, Badges | MemberId, UserId, TotalBitsGiven |
-| `/overlay/alerts` | SchemaVersion, EventId, Timestamp, DisplayName, EventType, Tier | MemberId, PlatformUserId |
-| `/overlay/member` | SchemaVersion, DisplayName, AvatarUrl, CheckInCount (僅限當前會話) | MemberId, TotalLoyalty, LinkedPlatforms |
+| `/overlay/chat`（`OverlayChatPayload`） | SchemaVersion, EventId, Timestamp, DisplayName, ColorHex, Segments, Badges, Roles?, AvatarUrl?, MemberSnapshot?, Variant? | MemberId, UserId, TotalBitsGiven |
+| `/overlay/alerts`（`OverlayAlertPayload`） | SchemaVersion, EventId, Timestamp, DisplayName, EventType, Tier, Replayed | MemberId, PlatformUserId |
+| `/overlay/member`（`OverlayMemberPayload`） | SchemaVersion, EventId, Timestamp, DisplayName, AvatarUrl?, CheckInCount (僅限當前會話), RoundIndex, StampSlotInRound | MemberId, TotalLoyalty, LinkedPlatforms |
 
-`SchemaVersion` 固定為 `1`。`EventId` 是 overlay public delivery id，用於前端去重，不得使用 MemberId、PlatformUserId 或其他內部 identity；優先使用 platform-provided id（IRC `msg-id` / EventSub `message_id`），缺值時 adapter 生成 ULID 並標記為 synthetic。`Timestamp` 為 UTC ISO-8601 event time，用於前端排序。`/overlay/member` 是狀態快照，不是事件流，因此不含 `EventId` / `Timestamp`。`OverlayModule` 在 SignalR 推送前將領域事件轉換為這些受限的 DTO。允許列表在 DTO 類型級別強制執行 — 無動態映射。
+`SchemaVersion` 固定為 `1`。`EventId` 是 overlay public delivery id，用於前端去重，不得使用 MemberId、PlatformUserId 或其他內部 identity；優先使用 platform-provided id（IRC `msg-id` / EventSub `message_id`），缺值時 adapter 生成 ULID 並標記為 synthetic。`Timestamp` 為 UTC ISO-8601 event time，用於前端排序。**三種 payload 現皆帶 `EventId` + `Timestamp`（member 為了前端去重重複簽到卡而新增 — §4.14.2）。** `MemberSnapshot`（chat）為選用的跨 hub 會員 chip（§4.14，由 `overlay.chat.show_member_card` 控制）；`Variant`/`Roles` 為渲染提示；`Replayed`（alerts）標記 EventSub 重播重送。`OverlayEventForwarder` 在 SignalR 推送前將領域事件轉換為這些受限的 DTO。允許列表在 DTO 類型級別強制執行 — 無動態映射。
 
 **OBS 瀏覽器源 URL：**
 ```
@@ -1160,14 +1219,21 @@ http://localhost:5001/overlay/member-card.html
 
 **DB 路徑解析規則（CLI 與 Web host 共同遵守）：** DB path 解析：`appsettings.json → Database:Path`（若存在），否則使用 OS app-data 預設路徑（見 §4.11）。**`Database:Path` 不允許透過 `appsettings.{Environment}.json` 或環境變數覆蓋** — Web host 與 CLI 均只讀主要 `appsettings.json`，確保兩者永遠讀相同 DB。開發環境若需自訂路徑，直接修改 `appsettings.json`（不使用 Development override）。
 
-**Kestrel 雙 loopback 繫結：**
+**Kestrel 繫結（API 僅 loopback；Overlay loopback + 選擇性 LAN）：**
 ```csharp
-builder.WebHost.ConfigureKestrel(options =>
+builder.WebHost.ConfigureKestrel(kestrel =>
 {
-    options.Listen(IPAddress.Loopback,       apiPort);      // IPv4 loopback
-    options.Listen(IPAddress.IPv6Loopback,   apiPort);      // IPv6 loopback
-    options.Listen(IPAddress.Loopback,       overlayPort);
-    options.Listen(IPAddress.IPv6Loopback,   overlayPort);
+    // API 埠：永遠僅 loopback — admin/mutation/auth 介面永不對外 LAN。
+    kestrel.Listen(IPAddress.Loopback,     apiPort);
+    kestrel.Listen(IPAddress.IPv6Loopback, apiPort);
+
+    // Overlay 埠：永遠 loopback（admin 預覽）…
+    kestrel.Listen(IPAddress.Loopback,     overlayPort);
+    kestrel.Listen(IPAddress.IPv6Loopback, overlayPort);
+
+    // …外加選擇性 LAN 繫結供跨機 OBS（應用層以疊層金鑰把關）。
+    if (lanEnabled && TryParseBindAddress(lanBindAddress, out var bindIp) && !IPAddress.IsLoopback(bindIp))
+        kestrel.Listen(bindIp, overlayPort);   // 例如 0.0.0.0 → IPAddress.Any
 });
 ```
 
@@ -1215,7 +1281,6 @@ builder.WebHost.ConfigureKestrel(options =>
    - 動態 iframe `src` 切換 chat / member / alerts，內含 `?preset={key}&t={ts}` query。
    - 預覽背景切換（transparent / green key / pink key / 純色 / 自訂背景圖 URL），給 OBS 預先看不同背景下視覺。
    - Reload 按鈕（bump query timestamp）。
-   - 進階：選 custom preset 時可切 draft / production 預覽（與 §4.14.3 整合）。
 3. **Chat stream panel**：訂閱 `/hubs/overlay/chat`，列最新 N 則訊息（純文字、含 member chip 預覽），不渲染 preset CSS（純表格樣式），讓實況主看「資料層」是否正確（與 overlay 視覺解耦）。
 4. **Header 狀態**：平台連線狀態（Twitch ✅/❌）、SignalR 連線狀態、目前 preset 設定摘要。
 
@@ -1260,11 +1325,12 @@ CLI 雖能做但實況中切視窗成本高。
 ```
 MemberAuditLogs:
   Id              ULID PK
-  MemberId        ULID FK
+  MemberId        ULID FK         -- 主體 id（會員 id；SubjectKind='module' 時為模組名稱）
+  SubjectKind     string          -- 'member'（預設） | 'module' — 此稽核表由會員與模組切換事件共用（Phase 7D）
   OccurredAt      DateTimeOffset
-  ActorKind       enum { 'user' | 'workflow' | 'cli' | 'system' }
+  ActorKind       string          -- 'user' | 'workflow' | 'cli' | 'system'
   ActorId         string?         -- workflow rule id / cli session id / null for user
-  Operation       enum { 'adjust_loyalty' | 'adjust_checkin' | 'reset' | 'delete' | 'create' }
+  Operation       string          -- 會員：'adjust_loyalty' | 'checkin' | 'reset' | 'delete'；模組：'enable_module' | 'disable_module'（開放字串，非封閉 DB enum）
   BeforeJson      string?         -- snapshot before
   AfterJson       string?         -- snapshot after
   Reason          string          -- required, non-empty
@@ -1306,11 +1372,13 @@ MemberAuditLogs:
    - 對於 `IWorkflowActionExecutor`（例如 `TriggerCheckInActionExecutor`），若關聯的模組（如打卡模組）已關閉，則應拒絕執行動作並拋出對應的 `WorkflowExecutionException`。
 
 2. **模組相依性解析 (Dependency Resolution)**：
-   - **相依定義**：
-     - `CheckInModule` (打卡模組) -> 相依於 `MemberModule` (會員核心)
-     - `LotteryModule` (抽獎點數) -> 相依於 `MemberModule` (會員核心)
-     - `OneCommeBridge` (OneComme 外掛程式) -> 無相依，但需 Core Event Bus
-     - `OverlayModule` (畫面模組) -> 無相依
+   - **模組登錄表（`ModuleStateService.Definitions`）— 名稱 / 顯示名 / 類別 / 相依**：
+     - `workflow`「Workflow Engine」(core) -> 無相依
+     - `member`「Member Module」(core) -> 無相依
+     - `checkin`「Check-In Module」(core) -> 相依於 `workflow` + `member`
+     - `lottery`「Lottery Module」(core) -> 相依於 `workflow` + `member`
+     - `onecommebridge`「OneComme Bridge」(plugin) -> 無相依，但需 Core Event Bus
+     - （無獨立可切換的 `OverlayModule`；疊層推送為 `OverlayEventForwarder`，恆開。啟用狀態以 `modules.enabled.{name}` 經 `ISystemSettingsService` 儲存。）
    - **拓撲聯鎖關閉 (Cascading Disable)**：
      - 當使用者在 UI 上**停用**一個被其他模組相依的模組時（例如停用 `MemberModule`），系統**必須**觸發拓撲依賴關閉。
      - **UI 聯鎖警告閘門**：前端將跳出警告確認：「停用『會員核心模組』將一併關閉以下相依模組：打卡模組，抽獎模組。是否確認關閉？」。
@@ -1342,7 +1410,7 @@ MemberAuditLogs:
    - 接收參數：
      - `platformUserId`: string (要模擬打卡的會員 ID，預設隨機)
      - `displayName`: string (要模擬打卡的會員顯示名稱，預設隨機)
-     - `skipCooldown`: bool (是否繞過打卡冷卻限制，預設 true)
+     - `skipCooldown`: bool (是否繞過打卡冷卻限制，**預設 false**；CLI 以 `--skip-cooldown` 開啟)
      - `stampCount`: int (本次要直接累積的印章/打卡次數，預設 1)
    - **行為**：端點直接調用 `IMemberResolver` 與 `IMemberStreamStateRepository` 將打卡次數增量，並在 SQLite 中成功變更後，發布 `MemberCheckedInEvent` 事件到事件匯流排 (Event Bus)，以便 OBS Overlay 與預覽 Hub 能即時觸發集點卡視覺效果。
 
@@ -1376,6 +1444,8 @@ MemberAuditLogs:
 
 **設計與規格：**
 
+> **Phase 7G 更名（§6.1）：** 下列平台特定名稱已泛化 — `ITwitchHelixClient` → `IHelixClient`、`ITwitchBadgeCache` → `IPlatformBadgeCache`、`TwitchBadgeDescriptor` → `PlatformBadgeDescriptor`（`TwitchBadgeCache` *實作* 類別保留原名）。下方 Phase 7E 名稱請讀作其泛化後的對應型別。
+
 1. **`ITwitchHelixClient` 徽章端點**：
    - 新增 `Task<IReadOnlyDictionary<string, TwitchBadgeDescriptor>> GetGlobalBadgesAsync(CancellationToken)`：對應 `GET helix/chat/badges/global`。
    - 新增 `Task<IReadOnlyDictionary<string, TwitchBadgeDescriptor>> GetChannelBadgesAsync(string broadcasterId, CancellationToken)`：對應 `GET helix/chat/badges?broadcaster_id={id}`。
@@ -1397,7 +1467,7 @@ MemberAuditLogs:
 
 5. **模擬路徑徽章/顏色透傳**：
    - `SimulationRequest`（`SimulationKind.Message`）新增 `IReadOnlyCollection<string> Badges` 與 `string? ColorHex`。
-   - `SimulateEndpoints` 接受 request body 之 `badges: string[]`、`colorHex: string?`；在 `adapter.SimulateAsync` 之前對 sim user (`simulation:{userId}`) 呼叫 `IPlatformUserInfoCache.UpsertAsync`，將 `Badges` + `ColorHex` 寫入快取，使後續 forwarder 之解析路徑與真實 Twitch 路徑統一。
+   - `SimulateEndpoints` 接受 request body 之 `badges: string[]`、`colorHex: string?`；在 `adapter.SimulateAsync` 之前對 sim user (`simulation:{userId}`) 呼叫 `IPlatformUserInfoCache.UpdateAsync`，將 `Badges` + `ColorHex` 寫入快取，使後續 forwarder 之解析路徑與真實 Twitch 路徑統一。
    - 此設計避免在 domain event 上新增徽章欄位污染領域模型。
 
 6. **新 API endpoint `GET /api/twitch/badges`**：
@@ -1455,6 +1525,53 @@ MemberAuditLogs:
 
 ---
 
+### 4.26 工作流規則 Typed Filter、Metadata 與可觀測性 (Phase 8)
+
+**背景與動機：**
+
+Twitch `!checkin` 事故揭露了規則管線的系統性根因：trigger filter 是通用、無型別的 `Dictionary<string,string>`，以精確 key/value 比對；NCalc 與 filter 失敗會無聲穿透，無法追溯到 `RuleId`；前後端重複維護 trigger/action metadata。Phase 8 解決這些問題並整併冗餘 schema 欄位。
+
+**1. Schema 整併（`ConsolidateWorkflowRuleSchema` + `WipeWorkflowRules` migration）：**
+
+- `EventTypeKey` 與 `MatchCondition` 自巢狀 `WorkflowTrigger` 提升至 `WorkflowRule` 根層 — 兩者在 schema 中**恰好出現一次**（見 §4.6 與 OQ3）。
+- `WorkflowTrigger` 精簡為單一 `Filter: Dictionary<string,string>`，內含 typed、每事件型別的鍵。
+- `WorkflowRule.EventTypeKey` 改為 `string?`：sub-workflow rule（`IsSubWorkflow = true`）不帶 `EventTypeKey` 與 `Trigger`；提供任一者回 `400 SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER`。非 sub-workflow rule 的 `EventTypeKey` 為 null/whitespace 仍回 `400 UNKNOWN_EVENT_TYPE_KEY`。
+- rule 層級 `PlatformFilter`、`ConcurrencyMode`（更名為 `ExecutionMode`）與 `UpdatedAt` 欄位已移除。開發 DB 已清空並由 `DefaultWorkflowRuleSeedService` 重新植入 typed 範例規則（幂等 — DB 一旦有任何 rule 即跳過 seeding）。舊 JSON 仍可反序列化（接受並忽略 legacy 內層欄位）以保向後相容。
+
+**2. Typed trigger filter matcher registry：**
+
+`TriggerFilterMatcherRegistry`（singleton、frozen 分派字典、無 runtime `Register()`）取代 `WorkflowEngine` 的通用字典比對。每個 `ITriggerFilterMatcher` 為 stateless/immutable singleton，使高頻聊天 fan-out 路徑保持 lock-free。
+
+| EventTypeKey | Matcher | Filter 鍵 |
+|---|---|---|
+| `user.message` | `MatchChatMessage`（含字界檢查，`!so` 不匹配 `!sorry`） | `CommandName`、`Prefix` |
+| `user.donated` | `MatchUserDonated`（最小門檻） | `MinAmount` |
+| `user.subscribed` | `MatchUserSubscribed` | `Tier`（`1000`/`2000`/`3000`） |
+| `user.gifted_sub` | `MatchUserGiftedSub` | `Tier`、`MinGiftCount` |
+| `channel.raided` | `MatchChannelRaided`（最小門檻） | `MinViewers` |
+| `reward.redeemed` | `MatchRewardRedeemed`（精確 title；`OptionsSource: "twitch.rewards"`，§4.25） | `RewardName` |
+| `workflow.timer` | `MatchWorkflowTimer`（精確 id） | `TimerId` |
+| 其他（如 `user.followed`） | 回退至通用字典 + warning log | — |
+
+比對先跑 typed filter；選用的 rule 層級 `MatchCondition` NCalc 閘門於其後評估。
+
+**3. Metadata 為單一真實來源：**
+
+- `ITriggerMetadataProvider` → `GET /api/metadata/triggers` 公開 `AvailableEventTypes`、`FilterFieldsFor(eventTypeKey)`（`{ key, label, type, options?, optionLabels?, optionsSource?, help, required? }`）與 `ValidVariablesFor(eventTypeKey)`。
+- `IActionMetadataProvider` → `GET /api/metadata/actions` 以反射讀取 15 個 action record 上的 `[ActionMetadata]` / `[ActionParam]` 屬性產生 typed parameter metadata（驅動 §4.22 動態 action 表單）。新增 action 未附 metadata 屬性時單元測試失敗。
+- 前端啟動時拉取這些資料而非硬編碼定義；新增 action 只需後端 record + 屬性。
+
+**4. 可觀測性（無 schema 變更）：**
+
+- `NCalcExpressionEvaluator` 於 parse/eval 失敗記錄 `Warning`，攜帶 `RuleId`、`RuleName`、8 字元 `ExpressionHash` 與 `ErrorClass`（`ParseError` / `EvalError`）— **絕不記錄原始 expression 內文**（PII 保護）。`ExpressionContext` 新增 `RuleId` / `RuleName`（`IExpressionEvaluator` 簽章不變）。
+- `WorkflowEngine` 發出結構化 `workflow_rule_skipped` 事件（`RuleId` / `Reason` / `EventTypeKey`）。日誌噪音分級：未知 filter key / action throw → `Warning`；正常 filter 或 `MatchCondition` 不匹配與 throttle deny → `Debug`；`EventTypeKey` 不匹配 → 不記錄。正常聊天流量不產生 `Information` 等級的 skip 噪音。
+
+**5. 驗證與錯誤碼：** filter key 不在該事件型別 metadata 內時，`POST`/`PUT /api/rules` 回 `400 INVALID_FILTER_KEY`（無寬鬆讀取路徑）。`INVALID_FILTER_KEY`、`SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER`、`WORKFLOW_RULE_CONFLICT` 見 OQ4。
+
+**6. 編輯器 UX：** 規則編輯器改為 Drawer + Tabs（Basic / Action Steps / Error Handling）佈局，含 schema 驅動的 `TriggerEditor`（從 `/api/metadata/triggers` 渲染 typed 欄位）、依事件型別過濾的變數選擇器，以及寫入 `UserRoleCondition` 的角色 chip 選擇器。舊的整頁 `RuleEditorView` 保留為 JSON 模式 fallback。
+
+---
+
 ## 5. 指令
 
 ```bash
@@ -1464,13 +1581,14 @@ dotnet test
 dotnet run --project src/Hosts/Vulperonex.Web
 dotnet run --project src/Hosts/Vulperonex.Desktop
 
-# --- CLI ---
-vulperonex simulate chat   --user alice --message "hi"
-vulperonex simulate follow --user alice
-vulperonex simulate sub    --user alice --tier 1000
+# --- CLI（群組：rule / timer / config / member / simulate / twitch）---
+vulperonex simulate chat    "hi" --user-id alice --display-name "Alice"
+vulperonex simulate follow  --user-id alice
+vulperonex simulate sub     --user-id alice --tier 1000
+vulperonex simulate checkin --user-id alice --stamp-count 1 [--skip-cooldown]
 vulperonex config get streaming.platform
 vulperonex config set streaming.platform twitch
-vulperonex member list --platform twitch --limit 20
+vulperonex member list
 vulperonex member show   <memberId|prefix>
 vulperonex member delete <memberId|prefix> [--yes]
 vulperonex rule list
@@ -1705,6 +1823,8 @@ dotnet test tests/Vulperonex.Tests.Unit \
 ```
 任一指令在覆蓋率低於閾值時會以非零值退出，導致 CI 建構失敗。可以新增 `reportgenerator` 用於 HTML 報告，但它不是門檻機制。
 
+> **漂移註（CI 未接線）：** 已引用 `coverlet.msbuild` 6.0.2，但 repo 目前**無 `.github/workflows` / CI pipeline** — 這些覆蓋率指令、NetArchTest 閘門（§6.1/§8.1）與遷移分類器（§4.11）皆以本地 `dotnet test` 執行，並非自動 build 中斷。本規格各處的「CI」描述為預期閘門；實際 workflow 接線尚待完成。
+
 ### 7.4 BDD + TDD 紀律
 
 - 每個行為都從 BDD 風格的情境開始：Given / When / Then (給定 / 當 / 那麼)。
@@ -1755,6 +1875,8 @@ dotnet test tests/Vulperonex.Tests.Unit \
 ---
 
 ## 9. 成功準則 (MVP)
+
+> **註：** 下方 `Test_Method_Names` 為**示意性的驗收準則識別碼**，非真實測試方法名。實際測試遵循 §7.4 `Given_<State>_When_<Action>_Then_<Expectation>` 命名，位於 `tests/`（例：SC-3 → `tests/Vulperonex.Tests.Architecture/Adapters/SimulationAdapterIsolationTests.cs`；SC-6 → `tests/Vulperonex.Tests.Integration/Adapters/TwitchWorkflowEquivalenceTests.cs`；快取 → `…/Cache/PlatformUserDisplayCacheTests.cs`）。以意圖比對，非字串比對。
 
 - [ ] **SC-1：** 整合測試 `TwitchAdapter_PublishesAllSevenMvpEvents` 通過：對於七個 MVP `EventTypeKey` 中的每一個，模擬的 Twitch 有效負載都會在匯流排上生成相應的 `IStreamEvent`（透過 `WaitForIdleAsync` + 捕獲的事件列表驗證）。
 
@@ -1846,27 +1968,33 @@ log.db_max_size_mb      = 100   (次要上限 — 以先觸發者為準)
 
 ### OQ3 — 工作流規則儲存 ✅
 
-**決策：規範化標頭 + 條件 (Conditions) 和操作 (Actions) 的 JSON 欄位。**
+**決策：規範化標頭 + Trigger / Conditions / Actions / OnFailure 步驟 / Throttle 的 JSON 欄位。**
 
 ```sql
+-- Phase 8 整併後的 schema（ConsolidateWorkflowRuleSchema migration）
 CREATE TABLE WorkflowRules (
-    Id              TEXT PRIMARY KEY,
-    Name            TEXT NOT NULL,
-    Priority        INTEGER NOT NULL DEFAULT 100,
-    IsEnabled       INTEGER NOT NULL DEFAULT 1,
-    ConcurrencyMode TEXT NOT NULL DEFAULT 'Serial',
-    MaxParallelism  INTEGER NOT NULL DEFAULT 1,
-    EventTypeKey    TEXT NOT NULL,
-    PlatformFilter  TEXT,
-    ConditionsJson  TEXT NOT NULL,
-    ActionsJson     TEXT NOT NULL,
-    CreatedAt       INTEGER NOT NULL,  -- Unix milliseconds (DateTimeOffset.ToUnixTimeMilliseconds())
-    UpdatedAt       INTEGER NOT NULL   -- Unix milliseconds; enable/disable 也更新此欄位
+    Id                   TEXT PRIMARY KEY,
+    Name                 TEXT NOT NULL,
+    EventTypeKey         TEXT,                          -- Phase 8 起可為 NULL；sub-workflow rule 為 NULL
+    TriggerJson          TEXT,                          -- 序列化的 WorkflowTrigger（typed Filter dict）；sub-workflow 為 NULL
+    MatchCondition       TEXT,                          -- 選用的 rule 層級 NCalc 閘門（Phase 8 自 TriggerJson 提升）
+    IsSubWorkflow        INTEGER NOT NULL DEFAULT 0,
+    ConditionsJson       TEXT NOT NULL DEFAULT '{}',
+    ActionsJson          TEXT NOT NULL DEFAULT '[]',
+    OnFailureActionsJson TEXT NOT NULL DEFAULT '[]',
+    IsEnabled            INTEGER NOT NULL DEFAULT 1,
+    Priority             INTEGER NOT NULL DEFAULT 0,
+    CreatedAt            TEXT NOT NULL,                 -- ISO-8601 DateTimeOffset（EF 預設映射）
+    ExecutionMode        TEXT NOT NULL DEFAULT 'Serial',   -- Phase 8 前名為 ConcurrencyMode
+    MaxParallelism       INTEGER NOT NULL DEFAULT 1,
+    ThrottleJson         TEXT NOT NULL DEFAULT '{}',
+    TimeoutSeconds       INTEGER NOT NULL DEFAULT 30,
+    Version              INTEGER NOT NULL DEFAULT 0     -- 樂觀並行 token
 );
-CREATE INDEX IX_WorkflowRules_EventTypeKey ON WorkflowRules (EventTypeKey);
+CREATE INDEX IX_WorkflowRules_CreatedAt ON WorkflowRules (CreatedAt);
 ```
 
-規則標頭已規範化（可查詢、可索引）。條件/操作作為 JSON（架構流動 — 新外掛程式類型不需要遷移）。使用 EF Core 10 JSON 映射進行類型安全的反序列化。
+規則標頭已規範化（可查詢、可索引）。Trigger 過濾、條件、操作、失敗步驟與 throttle policy 作為 JSON（架構流動 — 新外掛程式類型不需要遷移）。使用 EF Core 10 JSON 映射進行類型安全的反序列化。**Phase 8 移除了獨立的 `UpdatedAt` / `PlatformFilter` / `ConcurrencyMode` 欄位，以及先前位於 `TriggerJson` 內的巢狀 `eventTypeKey` / `matchCondition` 欄位；列表索引由 `EventTypeKey` 改為 `CreatedAt`（預設排序鍵）。**
 
 ---
 
@@ -1900,15 +2028,26 @@ Vue UI 透過 vue-i18n 將錯誤程式碼映射到在地化字串。後端不具
 | `INVALID_QUERY_PARAM` | 400 | `GET /api/members` — `limit` 超過 200 或其他 query 參數非法 |
 | `UNKNOWN_CONDITION_TYPE` | 400 | `POST/PUT /api/rules` — Conditions JSON 含未知 condition type |
 | `INVALID_RULE_ID_MISMATCH` | 400 | `PUT /api/rules/{id}` — request body id 與 route id 不一致 |
+| `INVALID_FILTER_KEY` | 400 | `POST/PUT /api/rules` — Trigger filter 含不在該事件型別 typed filter metadata 內的鍵（§4.26） |
+| `SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER` | 400 | `POST/PUT /api/rules` — `isSubWorkflow=true` 卻提供了 `eventTypeKey` / `trigger` |
+| `WORKFLOW_RULE_CONFLICT` | 409 | `PUT /api/rules/{id}` — 樂觀並行 `Version` 不符 |
+| `MISSING_OR_INVALID_CSRF_HEADER` | 400 | 任何受保護請求（loopback mutation / `/api/overlay/*`）缺少或帶錯誤 `X-Admin-Csrf`（§4.17） |
+| `MISSING_ORIGIN_OR_REFERER_HEADER` | 400 | 受保護請求 `Origin`、`Referer` 皆缺 |
+| `ORIGIN_MISMATCH` | 400 | `Origin`/Host 不在 loopback 白名單（防 DNS rebinding） |
+| `INVALID_ORIGIN_HEADER` | 400 | `Origin` 非合法絕對 URI |
+| `REFERER_MISMATCH` | 400 | `Referer` host 不在 loopback 白名單 |
+| `INVALID_REFERER_HEADER` | 400 | `Referer` 非合法絕對 URI |
+
+CLI 端專用代碼 `CLI_API_URL_NOT_LOOPBACK`：當 `VULPERONEX_API_URL` 非 loopback URL 時於用戶端發出。
 
 ---
 
-### OQ5 — Web 主機的身分驗證模型 ✅
+### OQ5 — Web 主機的身分驗證模型 ✅（已修訂 — 見 §4.17）
 
-已在第 4.17 節 (G15) 中解決。摘要：
-- 兩個埠（5000 API + 5001 Overlay）永遠以 loopback-only（IPv4 127.0.0.1 + IPv6 ::1）執行，不支援遠端存取。
-- 無需身分驗證 — Kestrel bind address 本身即為安全邊界。
-- 疊層執行在專用埠 5001。OBS 對 chat/member 應使用靜態入口 `http://localhost:5001/overlay/chat.html` 與 `http://localhost:5001/overlay/member-card.html`；`/overlay/chat`、`/overlay/member` 僅為相容 redirect alias。
+已在第 4.17 節 (G15) 中解決。原「兩埠皆 loopback-only、無認證」模型於 Phase 6+ 強化後**已被取代**：
+- **API 埠**：僅 loopback（IPv4 127.0.0.1 + IPv6 ::1）。**Overlay 埠**：預設僅 loopback，可選擇繫結 LAN（`Overlay:Lan:Enabled`）供跨機 OBS。
+- **並非無認證。** `AdminGuardMiddleware` 對 loopback mutation 與全部 `/api/overlay/*` 要求：Host 白名單 + 每行程 `X-Admin-Csrf` token + 相符的 `Origin`/`Referer`。LAN 請求僅限疊層介面且需疊層存取金鑰（`?k=` / `X-Overlay-Key`）。
+- 本機 OBS 用 `http://localhost:5001/overlay/chat.html` / `…/member-card.html`；遠端 OBS 用 `http://<lan-host>:5001/overlay/chat.html?k=<overlay-key>`（金鑰與 URL 由 `GET /api/overlay/lan-info` 取得）。`/overlay/chat`、`/overlay/member` 僅為相容 redirect alias。
 
 ---
 

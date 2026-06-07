@@ -1,7 +1,7 @@
 # Specification: Vulperonex — Multi-Platform Live Stream Automation Platform
 
-> **Status:** Approved v0.4 (MVP shipped; post-MVP feature backlog tracked per phase). v0.4 closes drift uncovered by the 2026-06-01 spec-vs-impl review (see `docs/spec-vs-impl-2026-06-01.md`).
-> **Last Updated:** 2026-06-01
+> **Status:** Approved v0.5 (MVP shipped; post-MVP feature backlog tracked per phase). v0.5 aligns the spec with shipped code via a commit-range contract audit: the Phase 8 workflow rule model / storage schema / action defaults (typed trigger filters, metadata-driven editor, schema consolidation, NCalc/filter observability — §4.26); the **hardened web-host security model** (`AdminGuardMiddleware` CSRF + Host + Origin/Referer, opt-in LAN overlay with access key — §4.17/OQ5/OQ4); overlay chat personas + workflow chat output routing and daily check-in reset/repeat (§4.14); and the real CLI surface (§4.11/§5). v0.4 closed drift uncovered by the 2026-06-01 spec-vs-impl review.
+> **Last Updated:** 2026-06-05
 > **Repository:** Brand-new greenfield project repository. This specification describes the **target architecture**. No existing code to migrate.
 > **Predecessor Reference:** Omni-Commander (Independent successor — borrowing domain logic concepts, not code)
 
@@ -51,10 +51,11 @@
 |---|---|
 | Framework | Vue 3.5+ (Standard SFC — Vapor Mode deferred to Phase 2 performance experiments) |
 | Build Tool | Vite 7.3 (Rolldown; MVP pinned to v7, not upgrading to v8 — Vite 8 is released but will not be upgraded to during MVP) |
-| Language | TypeScript 6.0 |
-| UI | PrimeVue 4 (Unstyled) / UnoCSS (Preset Wind 4) |
-| State / Communication | Pinia 2.3 / Axios / @microsoft/signalr 10.0 |
-| Testing | Vitest 3 / Vue Test Utils 2.5 |
+| Language | TypeScript 5.8 (`vue-tsc` 2.2) |
+| UI | PrimeVue 4 (Unstyled) / UnoCSS 66 (Preset Wind) / Reka UI 2.9 (headless, Phase 8) |
+| State / Communication | Pinia 3 / Axios / @microsoft/signalr 9 / vue-router 4.5 |
+| Testing | Vitest 3 / Vue Test Utils 2.4 / @vitest/coverage-v8 3 / jsdom |
+| Lint | oxlint 0.16 |
 | i18n | vue-i18n 11.x |
 
 ---
@@ -215,23 +216,28 @@ Vulperonex employs lightweight CQRS at the Application layer boundary:
 
 **MemberResolver Race Condition Handling (G3):**
 
-`PlatformIdentity` has a `UNIQUE (Platform, PlatformUserId)` constraint. Resolver uses SQLite `INSERT OR IGNORE` + `SELECT` — an atomic GetOrCreate pattern. No application-level lock is required; SQLite WAL serializes writes.
+`PlatformIdentity` has a `UNIQUE (Platform, PlatformUserId)` constraint. The shipped resolver does a `SELECT` (existing → return) then EF `Add` + `SaveChanges`, serialized by a **process-wide `static SemaphoreSlim` gate** so concurrent first-events for the same identity don't double-insert. The UNIQUE constraint remains the last-resort backstop. *(Implementation note: an earlier design proposed raw `INSERT OR IGNORE` relying on SQLite WAL with no app-level lock; the shipped code instead uses the gate + EF — simpler and provider-portable for the single-writer desktop scenario.)*
 
-**CA Boundary:** Application only defines the `IMemberResolver` port interface (`ResolveAsync(string platform, string platformUserId) -> MemberId`); the actual EF Core / raw SQL implementation (`MemberResolver`) is placed in the Infrastructure layer, and must not appear in Application or Domain.
+**CA Boundary:** Application only defines the `IMemberResolver` port interface (`ResolveMemberIdAsync(PlatformIdentity) -> MemberId`); the EF Core implementation (`MemberResolver`) lives in Infrastructure and must not appear in Application or Domain.
 
 ```csharp
 // Application port (interface only in Application)
 public interface IMemberResolver
 {
-    /// <returns>MemberId (ULID string) — existing or newly created</returns>
-    Task<string> ResolveAsync(string platform, string platformUserId, CancellationToken ct = default);
+    // returns MemberId (ULID string) — existing or newly created
+    Task<string> ResolveMemberIdAsync(PlatformIdentity identity, CancellationToken cancellationToken = default);
 }
 
-// Infrastructure implementation (pseudo-code) — whichever inserts first wins
-await db.ExecuteSqlRawAsync(
-    "INSERT OR IGNORE INTO PlatformIdentities (Platform, PlatformUserId, MemberId, ...) VALUES (?,?,?,...)");
-var identity = await db.PlatformIdentities
-    .FirstAsync(x => x.Platform == platform && x.PlatformUserId == userId);
+// Infrastructure implementation (pseudo-code) — gate serializes get-or-create
+await Gate.WaitAsync(ct);   // private static readonly SemaphoreSlim Gate = new(1, 1)
+var existing = await db.PlatformIdentities
+    .Where(x => x.Platform == identity.Platform && x.PlatformUserId == identity.PlatformUserId)
+    .Select(x => x.MemberId).SingleOrDefaultAsync(ct);
+if (existing is not null) return existing;
+var memberId = NewUlidString();
+db.Members.Add(new MemberEntity { MemberId = memberId, ... });
+db.PlatformIdentities.Add(new PlatformIdentityEntity { MemberId = memberId, Platform = ..., PlatformUserId = ... });
+await db.SaveChangesAsync(ct);
 ```
 
 ---
@@ -259,13 +265,14 @@ L2: SQLite table — PlatformUserDisplayInfo
 CREATE TABLE PlatformUserDisplayInfo (
     Platform         TEXT NOT NULL,
     PlatformUserId   TEXT NOT NULL,
+    DisplayName      TEXT,           -- cached display name
     AvatarUrl        TEXT,
     ColorHex         TEXT,
     BadgesJson       TEXT,           -- JSON array of badge strings
     IsSubscriber     INTEGER NOT NULL DEFAULT 0,
     SubscriptionTier TEXT,           -- "1000" | "2000" | "3000" | null
     TotalBitsGiven   INTEGER NOT NULL DEFAULT 0,
-    FetchedAt        INTEGER NOT NULL,  -- Unix timestamp
+    FetchedAt        TEXT NOT NULL,  -- ISO-8601 DateTimeOffset (EF default mapping)
     PRIMARY KEY (Platform, PlatformUserId)
 );
 ```
@@ -275,22 +282,27 @@ CREATE TABLE PlatformUserDisplayInfo (
 ```csharp
 public interface IPlatformUserInfoCache
 {
-    ValueTask<UserDisplayInfo?> GetAsync(string platform, string userId);
-    Task SetAsync(string platform, string userId, UserDisplayInfo info);
-    // cache miss → create default UserDisplayInfo row
-    //   (AvatarUrl=null, ColorHex=null, Badges=Array.Empty<string>(), IsSubscriber=false,
+    Task<PlatformUserDisplayInfo?> GetAsync(string platform, string platformUserId, CancellationToken ct = default);
+    // cache miss → create default PlatformUserDisplayInfo row
+    //   (DisplayName=null, AvatarUrl=null, ColorHex=null, Badges=[], IsSubscriber=false,
     //    SubscriptionTier=null, TotalBitsGiven=0, FetchedAt=UtcNow), then apply updater.
-    //   Never returns null post-update.
-    Task UpdateAsync(string platform, string userId, Func<UserDisplayInfo, UserDisplayInfo> updater);
+    //   Never returns null post-update. (No separate SetAsync — upsert is via UpdateAsync.)
+    Task<PlatformUserDisplayInfo> UpdateAsync(
+        string platform, string platformUserId,
+        Func<PlatformUserDisplayInfo, PlatformUserDisplayInfo> updater,
+        CancellationToken ct = default);
 }
 
-public record UserDisplayInfo(
+public sealed record PlatformUserDisplayInfo(
+    string Platform,
+    string PlatformUserId,
+    string? DisplayName,
     string? AvatarUrl,
     string? ColorHex,           // null or ^#[0-9A-Fa-f]{6}$; CSS functions / named colors / alpha not accepted
-    IReadOnlyList<string> Badges,
+    IReadOnlyCollection<string> Badges,
     bool IsSubscriber,
     string? SubscriptionTier,
-    int TotalBitsGiven,
+    long TotalBitsGiven,
     DateTimeOffset FetchedAt);
 ```
 
@@ -375,19 +387,24 @@ All events are **immutable `record` types** implementing `IStreamEvent`. Events 
 WorkflowRule
 ├── Id: ULID
 ├── Name: string           // Display label, **non-unique**; CLI/API list/show uses Id as primary key (Name can be duplicated)
+├── EventTypeKey: string?   // "user.message", "user.followed" etc. Lifted to the rule root in Phase 8 (no longer nested inside Trigger). NULL only when IsSubWorkflow = true
+├── IsSubWorkflow: bool     // true → no own trigger; invoked only via InvokeSubWorkflowAction. EventTypeKey and Trigger must both be null/absent (else 400 SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER)
 ├── Priority: int          // Smaller number = higher priority (1 executes before 10)
 ├── CreatedAt: DateTimeOffset
 ├── IsEnabled: bool
-├── ConcurrencyMode: Serial | Parallel
-├── MaxParallelism: int    // Only applicable when ConcurrencyMode = Parallel; limits API blast radius
+├── Version: int           // Optimistic-concurrency token; bumped on save. PUT version mismatch → 409 WORKFLOW_RULE_CONFLICT
+├── ExecutionMode: Serial | Parallel   // (named ConcurrencyMode pre-Phase-8)
+├── MaxParallelism: int    // Only applicable when ExecutionMode = Parallel; valid range [1, 64]; out-of-range → INVALID_ACTION_CONFIG
+├── TimeoutSeconds: int    // Rule-level execution budget; valid range [0, 86400]; out-of-range → INVALID_ACTION_CONFIG
+├── Throttle: WorkflowThrottlePolicy   // { MaxConcurrent [0,64], CooldownSeconds [0,86400], PerUserCooldown, PerUserCooldownSeconds [0,86400] }; defaults to None
+├── MatchCondition: string?   // Optional rule-level NCalc gate, evaluated after the typed trigger filter (lifted out of Trigger in Phase 8); evaluation failures logged with RuleId (§4.26)
 │
-├── Trigger
-│   ├── EventTypeKey: string          // "user.message", "user.followed" etc.
-│   └── PlatformFilter: string?       // null = all platforms; save-time normalization: trim → empty string → null; lowercase canonical ("Twitch" → "twitch")
+├── Trigger: WorkflowTrigger?          // null for sub-workflow rules
+│   └── Filter: Dictionary<string,string>   // Typed per-event-type filter keys (§4.26); validated against ITriggerMetadataProvider.GetFilterFieldsFor(EventTypeKey); unknown key → 400 INVALID_FILTER_KEY. Phase 8 replaced the old nested EventTypeKey/PlatformFilter/MatchCondition; rule-level platform filtering was retired
 │
 ├── Conditions: List<IWorkflowCondition>   // AND logic — all must pass
 │   ├── UserRoleCondition (User Identity Condition)
-│   │   ├── Roles: StreamRole flags (Subscriber | Moderator | Vip | Follower — mapped from adapter badge/role fields)
+│   │   ├── Roles: StreamRole flags (Subscriber | Moderator | Vip | Follower | Broadcaster — mapped from adapter badge/role fields)
 │   │   └── Mode: HasAny | HasAll | NotHave
 │   │
 │   ├── MessageContentCondition (Message Content Condition) // Only applicable when event carries plain text
@@ -403,7 +420,9 @@ WorkflowRule
 └── Actions: List<IWorkflowAction>     // Executed sequentially in list order
     ├── SendChatMessageAction (Send Chat Message)
     │   ├── Template: string           // Variable placeholders: {user.displayName}, {event.amount}
-    │   └── TargetPlatform: string?    // null = source platform; when non-null, save-time only validates non-empty string (does not validate if adapter is enabled)
+    │   ├── TargetPlatform: string?    // null = source platform; when non-null, save-time only validates non-empty string (does not validate if adapter is enabled)
+    │   ├── Channel: string?           // null = source channel; "internalized" — executor auto-derives from the trigger event when blank
+    │   └── DedupKey: string?          // null = auto-generated from the execution key; explicit override rarely needed
     │
     ├── InvokeSubWorkflowAction (Invoke Sub-Workflow)
     │   └── WorkflowId: ULID
@@ -414,6 +433,11 @@ WorkflowRule
         ├── Params: IReadOnlyDictionary<string, JsonElement>   // structured JSON params
         └── Args: IReadOnlyDictionary<string, string>          // flat string-keyed args; convenience for plugins that don't need JsonElement
 ```
+
+**Rule-level failure handling & per-step fields (Phase 8):**
+- `OnFailureSteps: List<IWorkflowAction>` — compensating steps run when a normal step fails; same action catalog and per-action fields as `Actions`.
+- Every `IWorkflowAction` also carries `ExecutionCondition: string?` (optional per-step NCalc gate — step is skipped when it evaluates false) and `OutputVariable: string?` (optional name capturing the step result for later steps). Per-action error fields are documented in §4.8.
+- Trigger filtering, the metadata contract that backs the editor, and NCalc/filter observability are specified in §4.26.
 
 **Full built-in action catalog** (post-Phase-7D reality; the three above are the canonical examples — many domain-specific actions ship as built-ins instead of pure plugin extensions for ergonomics):
 
@@ -525,8 +549,8 @@ Each action has an `ErrorBehavior` and a global action timeout:
 ```csharp
 public enum ErrorBehavior
 {
-    ContinueOnError,   // (Default) Failure → Log → Continue to next action
-    StopOnError,       // Failure → Stop remaining actions in the rule
+    ContinueOnError,   // Failure → Log → Continue to next action
+    StopOnError,       // (Default) Failure → Stop remaining actions in the rule
     RetryOnError,      // Failure → Retry according to backoff strategy before giving up
 }
 ```
@@ -534,12 +558,14 @@ public enum ErrorBehavior
 Each `IWorkflowAction` base class carries:
 
 ```
-ErrorBehavior: ErrorBehavior = ContinueOnError
-MaxRetries:    int = 0     // Valid range [0, 10]; out-of-range → INVALID_ACTION_CONFIG
-BackoffMs:     int = 500   // Valid range [100, 30000]; out-of-range → INVALID_ACTION_CONFIG
-TimeoutMs:     int = 5000  // Valid range [100, 60000]; out-of-range → INVALID_ACTION_CONFIG
-                            // CancellationToken is cancelled after this; executor stops waiting
-                            // .NET cannot forcibly terminate asynchronous tasks — plugins must observe CancellationToken
+ErrorBehavior:      ErrorBehavior = StopOnError   // Default changed to fail-fast (was ContinueOnError pre-Phase-8)
+MaxRetries:         int = 0       // Valid range [0, 10]; out-of-range → INVALID_ACTION_CONFIG
+BackoffMs:          int = 500     // Valid range [100, 30000]; out-of-range → INVALID_ACTION_CONFIG
+TimeoutMs:          int = 10000   // Valid range [0, 60000]; out-of-range → INVALID_ACTION_CONFIG
+                                  // CancellationToken is cancelled after this; executor stops waiting
+                                  // .NET cannot forcibly terminate asynchronous tasks — plugins must observe CancellationToken
+ExecutionCondition: string?       // Optional per-step NCalc gate; step is skipped when it evaluates false
+OutputVariable:     string?       // Optional name to capture the step result for use by later steps
 ```
 
 **Special Cases:**
@@ -650,7 +676,7 @@ public interface ISystemSettingsService
 
 ## 4.10 Module Lifecycle (G8)
 
-Each module (`WorkflowModule`, `OverlayModule`, `MemberModule`) implements `IHostedService`. Subscriptions are acquired during `StartAsync`, released during `StopAsync` while waiting for in-progress handlers to complete (does not discard events still being processed). **If `ct` triggers cancellation before completion is reached → log warning "shutdown timeout: {count} handlers still running" and force return (does not throw exception); handlers may continue running after process shutdown, which is a system limitation and not treated as an error.**
+Bus-subscribing modules implement `IHostedService` (the concrete one shipped is `MemberModuleHostedService`; `WorkflowModule` below is the illustrative pattern — workflow consumption runs via `WorkflowEngine`, and overlay push via `OverlayEventForwarder`). Subscriptions are acquired during `StartAsync`, released during `StopAsync` while waiting for in-progress handlers to complete (does not discard events still being processed). The logical on/off modules (`workflow`/`member`/`checkin`/`lottery`/`onecommebridge`) are tracked by `ModuleStateService`, not necessarily one `IHostedService` per module (§4.20). **If `ct` triggers cancellation before completion is reached → log warning "shutdown timeout: {count} handlers still running" and force return (does not throw exception); handlers may continue running after process shutdown, which is a system limitation and not treated as an error.**
 
 ```csharp
 public class WorkflowModule : IHostedService
@@ -681,7 +707,7 @@ public class WorkflowModule : IHostedService
 2. IStreamEventBus            — Must exist before any subscriber
 3. ISystemSettingsService     — Must precede cache (cache reads L1 capacity/TTL config)
 4. IPlatformUserInfoCache     — Reads L1 capacity/TTL from ISystemSettingsService
-5. Modules                     — MemberModule → OverlayModule → WorkflowModule
+5. Modules                     — MemberModuleHostedService + WorkflowEngine + OverlayEventForwarder (overlay push)
 6. Adapters                    — TwitchAdapter (starts publishing only after modules are ready)
 7. Web / SignalR Hub
 ```
@@ -692,7 +718,7 @@ public class WorkflowModule : IHostedService
 
 ## 4.11 Database Migration Strategy (G9)
 
-**Dual Mode: Auto-run on Startup + Explicit CLI Execution.**
+**Auto-run on Startup (implemented). Explicit CLI execution is planned — not yet shipped.**
 
 ```
 On Startup (Always):
@@ -700,10 +726,12 @@ On Startup (Always):
   → Auto-executes only incremental migrations
   → Application never starts with an outdated schema
 
-CLI (Manual Control):
-  vulperonex db migrate        → Executes pending migrations
-  vulperonex db status         → Lists applied / pending migrations
+CLI (Manual Control) — PLANNED, NOT YET IMPLEMENTED:
+  vulperonex db migrate        → Execute pending migrations
+  vulperonex db status         → List applied / pending migrations
   vulperonex db rollback <id>  → Rollback (requires confirmation prompt)
+  (The CLI ships rule / timer / config / member / simulate / twitch groups only;
+   there is no `db` command group today. Migrations run solely on host startup.)
 ```
 
 **Migration Safety Rules:**
@@ -718,19 +746,17 @@ CLI (Manual Control):
 
 **Important Note:** `EF Core MigrateAsync()` executes all pending migrations without checking if they are destructive. The table above describes the **strategy**, not automatic enforcement. Enforcement is achieved via:
 
-1. **CI Migration Classifier** — A test in `Vulperonex.Tests.Architecture` that detects destructive migrations by **instantiating** each `Migration` class, **executing** its `Up(MigrationBuilder)` method against a real `MigrationBuilder` instance, and checking for destructive operation types inside `MigrationBuilder.Operations`:
+1. **MigrationClassifier** (`Vulperonex.Infrastructure.Migrations`) — a pure function `Classify(IReadOnlyList<MigrationOperation>) → MigrationRisk` that grades a migration's operations as `Safe` / `ReviewRequired` / `Destructive`:
    ```csharp
-   var builder = new MigrationBuilder(activeProvider: "Microsoft.EntityFrameworkCore.Sqlite");
-   migration.Up(builder);  // Call actual Up() method
-   var destructive = builder.Operations.Any(op =>
-       op is DropTableOperation or DropColumnOperation
-           or RenameTableOperation or RenameColumnOperation or AlterColumnOperation
-       || op is SqlOperation sql
-           && Regex.IsMatch(sql.Sql, @"\b(DROP|DELETE|TRUNCATE|ALTER|RENAME)\b",
-               RegexOptions.IgnoreCase));
+   var risk = MigrationClassifier.Classify(migrationBuilder.Operations);
+   // DropTable/DropColumn/Rename + raw DROP|DELETE|TRUNCATE  → Destructive
+   // raw SQL containing ALTER (e.g. ALTER TABLE … ADD COLUMN) → ReviewRequired (conservative)
+   // CreateTable/AddColumn-only                              → Safe
    ```
-   If any destructive operation is found and the migration class is not annotated with the `[DestructiveMigration]` attribute, the test fails. This approach avoids fragile method-body reflection and yields the actual list of `Operations` EF Core will execute. **Note: any raw SQL containing `ALTER` is treated as review-required (conservative strategy)** — covering all ALTER variations like `ALTER TABLE ... DROP COLUMN`, `ALTER TABLE ... RENAME`, etc., without further sub-classification.
-2. **PR Review Requirement** — Any migration annotated with `[DestructiveMigration]` requires manual review before merging.
+   Unit-tested in `tests/Vulperonex.Tests.Unit/Infrastructure/Migrations/MigrationClassifierTests.cs`. **Note: any raw SQL containing `ALTER` is treated as review-required (conservative strategy).**
+2. **PR Review Requirement** — Reviewers run/inspect the classifier when a migration is added; a `Destructive`/`ReviewRequired` result gates manual review before merge.
+
+> **Drift note:** an earlier design proposed a `Tests.Architecture` test that instantiates each `Migration`, executes `Up()`, and **fails CI** unless the migration carries a `[DestructiveMigration]` attribute. The shipped code ships only the reusable `MigrationClassifier` + its unit tests — there is **no `[DestructiveMigration]` attribute and no auto-fail CI gate over real migrations**; destructive-migration safety is review-based, not enforced by a build break.
 
 EF Core migration files are located in `src/Vulperonex.Infrastructure/Migrations/` in the repository.
 
@@ -753,20 +779,20 @@ String-based `EventTypeKey` is flexible (plugins can define new types) but fragi
 ```csharp
 public interface IStreamEventTypeRegistry
 {
-    void Register(string key, string description, bool isSystemEvent = false);
+    void Register(StreamEventTypeMetadata metadata);   // (was Register(key, description, isSystemEvent))
     bool IsKnown(string key);             // Includes system events (used for routing/dispatch)
     bool IsKnownForWorkflow(string key);  // Excludes system events (used for WorkflowRule validation)
-    IReadOnlyList<RegistryDescriptor> GetAll();  // Returns RegistryDescriptor (excludes isSystemEvent=true items)
-                                                  // API endpoint projects this to EventTypeDescriptor (adds IsSimulatable)
+    IReadOnlyCollection<StreamEventTypeMetadata> GetAll();  // Excludes IsSystemEvent=true items
+                                                            // API endpoint projects this to EventTypeDescriptor (adds IsSimulatable)
 }
 
-// Registry internal storage type (not exposed to the API layer)
-internal record RegistryDescriptor(
+// Registry storage/record type (Vulperonex.Application.EventTypes) — replaces the former internal RegistryDescriptor
+public sealed record StreamEventTypeMetadata(
     string Key,
     string Description,
-    bool IsSystemEvent);  // true for platform.connection_changed; excluded from GetAll()
+    bool IsSystemEvent = false);  // true for platform.connection_changed; excluded from GetAll(). Impl: InMemoryStreamEventTypeRegistry
 
-// API DTO — returned by GET /api/event-types endpoint (projected from RegistryDescriptor)
+// API DTO — returned by GET /api/event-types endpoint (projected from StreamEventTypeMetadata)
 // Does not expose IsSystemEvent (already excluded from GetAll(); frontend should not determine system event by this field)
 public record EventTypeDescriptor(
     string Key,
@@ -793,11 +819,11 @@ Adapters and plugins register their keys during `StartAsync` / `InitializeAsync`
 
 ```csharp
 // TwitchAdapter.StartAsync()
-_registry.Register("user.message",  "使用者發送了聊天訊息");
-_registry.Register("user.followed", "使用者追隨了頻道");
+_registry.Register(new StreamEventTypeMetadata("user.message",  StreamEventDescriptions.UserMessage));
+_registry.Register(new StreamEventTypeMetadata("user.followed", StreamEventDescriptions.UserFollowed));
 
 // MyPlugin.InitializeAsync()
-_registry.Register("plugin.my_plugin.event", "我的外掛程式自訂事件");
+_registry.Register(new StreamEventTypeMetadata("plugin.my_plugin.event", "我的外掛程式自訂事件"));
 ```
 
 **Security Checkpoints:**
@@ -814,7 +840,7 @@ Unknown keys in the database degrade gracefully rather than causing fatal errors
 
 ## 4.13 WorkflowRule Editing Interface (G11)
 
-The REST API is the sole canonical write path. Both the UI and CLI call the API — neither writes directly to the database. The server always runs loopback-only with no authentication.
+The REST API is the sole canonical write path. Both the UI and CLI call the API — neither writes directly to the database. The API surface is loopback-only and guarded by `AdminGuardMiddleware` (no user accounts, but CSRF + Host + Origin/Referer checks on mutations — see §4.17).
 
 ```
 REST API  ← Sole write point, enforces all validations
@@ -843,7 +869,7 @@ Complex rule creation (multiple conditions, multiple actions) is limited to the 
 
 ### 4.13.1 Complete MVP REST API Interface
 
-All UI and CLI access the Web host exclusively via REST; neither client has direct database access. The server always runs loopback-only (IPv4 `127.0.0.1` + IPv6 `::1`) with no authentication.
+All UI and CLI access the Web host exclusively via REST; neither client has direct database access. The API port is loopback-only (IPv4 `127.0.0.1` + IPv6 `::1`); there are no user accounts, but mutating requests are guarded (CSRF + Host + Origin/Referer — see §4.17). The overlay port may additionally be LAN-exposed behind an overlay access key.
 
 | Group | Method | Path | Application Port |
 |---|---|---|---|
@@ -882,16 +908,13 @@ All UI and CLI access the Web host exclusively via REST; neither client has dire
 | Plugins/Modules | GET | `/api/plugins-modules` | `IModuleStateService` — module + plugin enabled state + dependencies (§4.20) |
 | Plugins/Modules | POST | `/api/plugins-modules/{name}/toggle` | Topological toggle with cascade |
 | Overlay Presets | GET | `/api/overlay/presets` | `OverlayPresetStore` — list of built-in preset metadata |
-| Custom Overlay Presets | GET / POST | `/api/overlay/custom-presets` | List existing custom slugs / create a new slug (`OverlayPresetEndpoints.cs`) |
-| Custom Overlay Presets | DELETE | `/api/overlay/custom-presets/{slug}` | Remove a custom preset bundle |
-| Custom Overlay Presets | GET / PUT / DELETE | `/api/overlay/custom-presets/{slug}/files[/{*path}]` | Browse / upload / delete individual files inside the bundle |
-| Custom Overlay Presets | POST | `/api/overlay/custom-presets/{slug}/deploy` | Snapshot the working draft as a versioned deployment |
-| Custom Overlay Presets | POST | `/api/overlay/custom-presets/{slug}/validate` | Static validation pass before deploy |
-| Custom Overlay Presets | GET | `/api/overlay/custom-presets/{slug}/history` | Deployment history (version stamps) |
-| Custom Overlay Presets | POST | `/api/overlay/custom-presets/{slug}/rollback/{versionStamp}` | Roll back to a previous deployment |
+| Overlay Assets | POST | `/api/overlay/assets` | `OverlayPresetStore.SaveAsset` — upload a member-card background/stamp image (images only, ≤2MB, extension + content-type validated → `wwwroot/overlay/assets/{guid}.{ext}`); returns the URL stored in `overlay.member.background_url` / `overlay.member.stamp_url` (§4.14.3) |
 | Overlay History | DELETE | `/api/overlay/{chat\|alerts\|member}/messages` | Clears the in-memory replay buffer for that hub. **Replay for late-joining OBS sources is delivered via SignalR connection setup, not REST.** |
-| Overlay LAN | GET | `/api/overlay/lan-info` | LAN-reachable URL for OBS on a separate box |
+| Overlay LAN | GET | `/api/overlay/lan-info` | `{ enabled, bindAddress, overlayPort, accessKey, suggestedHosts[] }` — LAN OBS URL + access key (§4.17) |
+| Security | GET | `/api/overlay/csrf-token` | Returns the per-process admin CSRF token; loopback + Host check only (CSRF waived). SPA fetches this before mutations (§4.17) |
 | Health | GET | `/health` | Liveness |
+
+**Admin guard (§4.17):** every non-GET `/api/*` and all `/api/overlay/*` requests require `X-Admin-Csrf` + a host-matching `Origin`/`Referer` over loopback; the CLI attaches these automatically.
 
 **Simulation Alias → EventTypeKey Mapping** (Enforced by `SimulationAliasRegistry`; uses canonical keys from §4.4):
 - `chat` → `user.message`
@@ -935,9 +958,11 @@ Each URL is an independent Vue route that connects to its SignalR group upon mou
 - **OneComme compatibility belongs to extension/plugin capabilities, not directly built into core.** Core only needs to provide extensible template presets / package contracts; OneComme compatibility can be implemented via plugins, template importers, or adapter packages.
 - **OneComme** is treated as a priority compatibility target. The goal is not to replicate its internal implementation 1:1, but to provide a close enough template structure / import mapping / compatibility contract to reduce migration costs for existing OneComme users while maintaining the boundary between core and third-party template ecosystems.
 
-#### 4.14.1 Overlay Preset Contract (Vue Defaults + Custom HTML Extensions)
+#### 4.14.1 Overlay Preset Contract (Vue/Static Built-in Presets)
 
-**Motivation:** Streamers wishing to customize overlay visuals should not be forced to install Node.js / pnpm / Vite. At the same time, Vulperonex must provide high-quality default Vue versions and support third-party extensions (including future OneComme template imports).
+> **⚠️ Partially superseded (see §4.14.3):** the **Static HTML Override** track (`/overlay/custom/{slug}.html`, `custom:{slug}` preset values), the **Custom HTML Upload** subsection below, and the **OneComme-import-via-upload** path were **removed** along with the custom-preset pipeline. Only the **Built-in Presets** row and config-driven customization (text + member-card images via `POST /api/overlay/assets`, §4.14.3) remain. The custom-HTML content below is retained for historical context only.
+
+**Motivation:** Streamers wishing to customize overlay visuals should not be forced to install Node.js / pnpm / Vite. At the same time, Vulperonex must provide high-quality default Vue presets.
 
 **Dual-Track Rendering Pipeline:**
 
@@ -1001,8 +1026,20 @@ Control flag: `overlay.chat.show_member_card` (bool, default `false`, toggled in
 | `overlay.member.stamp_url` | string (URL) | Empty | Custom stamp image. Empty uses built-in SVG paw stamp. |
 | `overlay.member.stamps_per_round` | int | 10 | Stamps needed to complete a round. |
 | `overlay.chat.show_member_card` | bool | false | Whether to embed member card chips inside chat overlays. |
-| `overlay.chat.preset` | string | `kapchat` | Chat preset key (built-in key or `custom:{slug}`) |
+| `overlay.chat.preset` | string | `kapchat` | Chat preset key (built-in key only; `custom:{slug}` removed with the custom-preset pipeline, §4.14.3) |
 | `overlay.member.preset` | string | `rotan-checkin` | Member preset key |
+| `overlay.alerts.preset` | string | (default) | Alerts preset key |
+
+**Workflow chat output & overlay personas (§4.14.4):**
+
+| Setting Key | Type | Default | Description |
+|---|---|---|---|
+| `workflow.chat.output_destination` | string | `dual` | Where `SendChatMessageAction` output goes: `dual` / `platform_only` / `overlay_only`. When it includes overlay, the message is rendered into `/overlay/chat` via `IWorkflowChatOverlaySink` (no platform round-trip needed). |
+| `overlay.chat.assistant_display_name` | string | (built-in) | Display name shown for workflow/assistant-authored chat messages in the overlay. |
+| `overlay.chat.assistant_avatar_url` | string (URL) | Empty | Avatar for assistant-authored chat messages. |
+| `overlay.chat.checkin_display_name` | string | (built-in) | Display name used for check-in cards rendered into the chat overlay. |
+| `checkin.reset_time_local` | string `HH:mm` | `05:00` | Local time of day the daily check-in counter rolls over. |
+| `checkin.repeat_card_enabled` | bool | true | When true, repeat check-ins within the same day still emit an overlay card (deduplicated by event id); when false, only the first per cycle shows. |
 
 **URL Security (Frontend Sanitization):** Any values injected from settings into CSS `url()` only accept `https?:` or `data:image/(png|jpe?g|gif|svg+xml|webp);` schemes, and forbid characters that can break out of `url()` like `"`, `'`, `(`, `)`, `\`, `;` (preventing CSS injection).
 
@@ -1177,9 +1214,12 @@ The `AppLogs` SQLite table supports the in-app log viewer (filterable by level, 
 **MVP: Static DI Registration Only.** Plugins are referenced as project/package dependencies and registered at compile-time in `Program.cs`. No runtime DLL scanning or `Assembly.LoadFrom()` is performed in the MVP.
 
 ```csharp
-// Program.cs (MVP)
-builder.Services.AddVulperonexPlugin<SoundPlugin>();
-builder.Services.AddVulperonexPlugin<MyCustomPlugin>();
+// Program.cs (MVP) — plugins are registered as IVulperonexPlugin DI services;
+// StaticPluginRegistry(IEnumerable<IVulperonexPlugin>) collects them as IPluginRegistry.
+builder.Services.AddSingleton<IVulperonexPlugin, OneCommeBridgePlugin>();
+builder.Services.AddSingleton<IPluginRegistry, StaticPluginRegistry>();
+// (There is no AddVulperonexPlugin<T> extension; each plugin implements
+//  IVulperonexPlugin.InitializeAsync(IPluginContext) and self-registers its event-type keys.)
 ```
 
 **Phase 2 (Deferred): Directory Scanning + Runtime Discovery.**
@@ -1202,34 +1242,51 @@ Phase 2 will introduce: scanning `{app_dir}/plugins/`, optional allowlist/denyli
 
 ### 4.17 Web Host Security (G15)
 
-**Dual-Port Architecture: API Port + Overlay Port, both loopback-only, no authentication required.**
+**Dual-Port Architecture: a loopback-only API port + an Overlay port that is loopback-only by default and may be optionally exposed to the LAN for cross-machine OBS.** Ports are auto-allocated in pairs starting at `(5000, 5001)` (see OQ6); the values below are the defaults.
 
 ```
 appsettings.json:
-  "Web": {
-    "ApiPort":     5000,   // Configurable
-    "OverlayPort": 5001    // Configurable
-  }
+  "Web": { "ApiPort": 5000, "OverlayPort": 5001 }   // defaults; actual pair is auto-allocated
+  "Overlay": { "Lan": { "Enabled": false, "BindAddress": "0.0.0.0" } }  // opt-in LAN overlay
+  "Security": { "CsrfTokenPath": null }              // optional override for the admin CSRF token file
 ```
 
-**Always runs loopback-only (no remote access):**
+**Port binding (Kestrel):**
 ```
-ApiPort     5000 → Loopback only (127.0.0.1 and ::1), no authentication required
-OverlayPort 5001 → Loopback only (127.0.0.1 and ::1), no authentication required
-OBS Browser Source: http://localhost:5001/overlay/chat.html  (Canonical static URL, no token)
+ApiPort     → ALWAYS loopback only (127.0.0.1 + ::1). Admin SPA APIs, all mutations,
+              OAuth, and the overlay editor live here and never reach the LAN.
+OverlayPort → ALWAYS loopback (admin preview) AND, when Overlay:Lan:Enabled = true,
+              additionally bound to Overlay:Lan:BindAddress (default 0.0.0.0 = all interfaces)
+              so OBS on another machine can load the live overlay.
 ```
 
-Kestrel binds both ports to `IPAddress.Loopback` (IPv4) + `IPAddress.IPv6Loopback` (IPv6). The security boundary is the bind address itself; no ApiKeyMiddleware or X-Vulperonex-Key headers are required.
+**Access control is no longer "bind address alone".** A single `AdminGuardMiddleware` enforces two regimes (the earlier "no authentication / no middleware" model is superseded):
+
+1. **Loopback admin/mutation requests** — every non-GET `/api/*` request, plus *all* `/api/overlay/*` requests, must pass:
+   - **Loopback** remote IP (null remote IP is rejected — blocks Unix-socket/proxy spoofing).
+   - **Host allowlist** (`localhost` / `127.0.0.1` / `[::1]`, port-insensitive) — anti-DNS-rebinding → 400 `ORIGIN_MISMATCH`.
+   - **`X-Admin-Csrf` header** matching the per-process admin CSRF token (constant-time compare) → 400 `MISSING_OR_INVALID_CSRF_HEADER`.
+   - **`Origin`/`Referer`** present and host-matching (at least one required) → 400 `MISSING_ORIGIN_OR_REFERER_HEADER` / `ORIGIN_MISMATCH` / `INVALID_ORIGIN_HEADER` / `REFERER_MISMATCH` / `INVALID_REFERER_HEADER`.
+   - **`GET /api/overlay/csrf-token`** is the bootstrap exception: loopback + Host check only (waives CSRF) so the SPA can fetch the token. It issues the current token.
+
+2. **Non-loopback (LAN) requests** — confined to the live overlay surface and gated by an **overlay LAN access key**:
+   - Static SPA/overlay HTML + assets: GET only, no key (public client code; sub-resource loads cannot attach headers).
+   - SignalR hubs (`/hubs/*`) and a small allowlist of overlay-safe config GETs (`overlay.{chat,member,alerts}.preset`, `overlay.chat.show_member_card`, `overlay.member.background_url`, `overlay.member.stamp_url`): require the key via `?k=<key>` query or `X-Overlay-Key` header.
+   - Everything else (admin APIs, any mutation, OAuth, editor, `/health`, `/openapi`) → 403.
+
+**Admin CSRF token:** 256-bit Base64Url, regenerated **every process start**, written to `.admin-csrf-token` (or `Security:CsrfTokenPath`) with owner-only ACL, deleted on shutdown. Restarting invalidates open admin tabs (refresh to re-fetch). *Known trade-off:* any local process able to issue a loopback request to `/api/overlay/csrf-token` can read the token — accepted for a single-machine desktop tool with no central auth.
+
+**Overlay LAN access key:** 256-bit Base64Url stored in `SystemSettings` (`overlay.lan.access_key`), generated once when LAN access is first enabled and **stable across restarts** so OBS URLs keep working. `GET /api/overlay/lan-info` (admin/loopback) returns the key + suggested LAN host URLs for copy-paste into OBS.
 
 **Overlay DTO Security:** Overlay DTOs must be public secure projections — even if the server is permanently loopback-only, strict DTO allowlists are required (preventing accidental future field leakage, and preventing SignalR serialization over-exposure):
 
 | Overlay | Allowed Fields | Forbidden Fields |
 |---|---|---|
-| `/overlay/chat` | SchemaVersion, EventId, Timestamp, DisplayName, ColorHex, Segments, Badges | MemberId, UserId, TotalBitsGiven |
-| `/overlay/alerts` | SchemaVersion, EventId, Timestamp, DisplayName, EventType, Tier | MemberId, PlatformUserId |
-| `/overlay/member` | SchemaVersion, DisplayName, AvatarUrl, CheckInCount (current session only) | MemberId, TotalLoyalty, LinkedPlatforms |
+| `/overlay/chat` (`OverlayChatPayload`) | SchemaVersion, EventId, Timestamp, DisplayName, ColorHex, Segments, Badges, Roles?, AvatarUrl?, MemberSnapshot?, Variant? | MemberId, UserId, TotalBitsGiven |
+| `/overlay/alerts` (`OverlayAlertPayload`) | SchemaVersion, EventId, Timestamp, DisplayName, EventType, Tier, Replayed | MemberId, PlatformUserId |
+| `/overlay/member` (`OverlayMemberPayload`) | SchemaVersion, EventId, Timestamp, DisplayName, AvatarUrl?, CheckInCount (current session only), RoundIndex, StampSlotInRound | MemberId, TotalLoyalty, LinkedPlatforms |
 
-`SchemaVersion` is fixed to `1`. `EventId` is the overlay public delivery ID used for frontend deduplication, and must not expose MemberId, PlatformUserId, or other internal identities; platform-provided IDs are preferred (IRC `msg-id` / EventSub `message_id`), and adapters generate ULIDs (marked as synthetic) in their absence. `Timestamp` is the UTC ISO-8601 event time, used for frontend sorting. `/overlay/member` represents a status snapshot, not an event stream, and thus lacks `EventId` / `Timestamp`. `OverlayModule` maps domain events to these restricted DTOs prior to SignalR pushing. Allowlist enforcement occurs at the DTO type level — no dynamic mapping.
+`SchemaVersion` is fixed to `1`. `EventId` is the overlay public delivery ID used for frontend deduplication, and must not expose MemberId, PlatformUserId, or other internal identities; platform-provided IDs are preferred (IRC `msg-id` / EventSub `message_id`), and adapters generate ULIDs (marked as synthetic) in their absence. `Timestamp` is the UTC ISO-8601 event time, used for frontend sorting. **All three payloads now carry `EventId` + `Timestamp` (member gained them for client-side dedup of repeat check-in cards — §4.14.2).** `MemberSnapshot` (chat) is the optional cross-hub member chip (§4.14, gated by `overlay.chat.show_member_card`); `Variant`/`Roles` are render hints; `Replayed` (alerts) flags an EventSub replay redelivery. `OverlayEventForwarder` maps domain events to these restricted DTOs prior to SignalR pushing. Allowlist enforcement occurs at the DTO type level — no dynamic mapping.
 
 **OBS Browser Source URLs:**
 ```
@@ -1240,14 +1297,21 @@ http://localhost:5001/overlay/member-card.html
 
 **DB Path Resolution Rules (Shared by CLI and Web Host):** DB path resolution: `appsettings.json → Database:Path` (if present), falling back to OS app-data default path (see §4.11). **`Database:Path` does not allow overrides via `appsettings.{Environment}.json` or environment variables** — both Web Host and CLI only read the primary `appsettings.json` to guarantee they access the same database. If custom paths are needed in development, modify `appsettings.json` directly (avoiding Development overrides).
 
-**Kestrel Dual Loopback Bindings:**
+**Kestrel Bindings (API loopback-only; Overlay loopback + optional LAN):**
 ```csharp
-builder.WebHost.ConfigureKestrel(options =>
+builder.WebHost.ConfigureKestrel(kestrel =>
 {
-    options.Listen(IPAddress.Loopback,       apiPort);      // IPv4 loopback
-    options.Listen(IPAddress.IPv6Loopback,   apiPort);      // IPv6 loopback
-    options.Listen(IPAddress.Loopback,       overlayPort);
-    options.Listen(IPAddress.IPv6Loopback,   overlayPort);
+    // API port: always loopback only — admin/mutating/auth surface never reaches the LAN.
+    kestrel.Listen(IPAddress.Loopback,     apiPort);
+    kestrel.Listen(IPAddress.IPv6Loopback, apiPort);
+
+    // Overlay port: always loopback (admin preview)…
+    kestrel.Listen(IPAddress.Loopback,     overlayPort);
+    kestrel.Listen(IPAddress.IPv6Loopback, overlayPort);
+
+    // …plus an optional LAN bind for cross-machine OBS (gated at the app layer by the overlay key).
+    if (lanEnabled && TryParseBindAddress(lanBindAddress, out var bindIp) && !IPAddress.IsLoopback(bindIp))
+        kestrel.Listen(bindIp, overlayPort);   // e.g. IPAddress.Any for 0.0.0.0
 });
 ```
 
@@ -1292,7 +1356,6 @@ builder.WebHost.ConfigureKestrel(options =>
    - Dynamic iframe `src` switching between chat / member / alerts, embedding a `?preset={key}&t={ts}` query.
    - Preview background switcher (transparent / green screen / pink screen / solid colors / custom background URL) to inspect overlay appearance against different backdrops.
    - Reload button (bumps query timestamp).
-   - Advanced: supports draft/production switching when custom presets are selected (integrated with §4.14.3).
 3. **Chat Stream Panel:** Subscribes to `/hubs/overlay/chat`, listing the latest N messages (plain text, including member chip previews), without rendering preset CSS (plain table style), allowing streamers to inspect the "data layer" (decoupled from overlay visuals).
 4. **Header Status:** Platform connection status (Twitch ✅/❌), SignalR connection status, and current preset settings summary.
 
@@ -1333,15 +1396,17 @@ Using the CLI during a stream has high window-switching costs.
 ```
 MemberAuditLogs:
   Id              ULID PK
-  MemberId        ULID FK
+  MemberId        ULID FK         -- the subject id (member id, or module name when SubjectKind='module')
+  SubjectKind     string          -- 'member' (default) | 'module' — the audit log is shared by member + module-toggle events (Phase 7D)
   OccurredAt      DateTimeOffset
-  ActorKind       enum { 'user' | 'workflow' | 'cli' | 'system' }
+  ActorKind       string          -- 'user' | 'workflow' | 'cli' | 'system'
   ActorId         string?         -- workflow rule id / cli session id / null for user
-  Operation       enum { 'adjust_loyalty' | 'adjust_checkin' | 'reset' | 'delete' | 'create' }
+  Operation       string          -- member: 'adjust_loyalty' | 'checkin' | 'reset' | 'delete' ; module: 'enable_module' | 'disable_module' (open-ended string, not a closed DB enum)
   BeforeJson      string?         -- snapshot before
   AfterJson       string?         -- snapshot after
   Reason          string          -- required, non-empty
 ```
+> **Note:** `SubjectKind` / `ActorKind` / `Operation` are stored as plain `TEXT` (not DB-enforced enums); the values above are the conventions the app writes. Module enable/disable audit entries (§4.20) use `SubjectKind='module'` with `MemberId` holding the module name.
 
 **Concurrency:** All mutation endpoints adopt `If-Match` headers carrying an `etag` (derived from `MemberRecord.UpdatedAt` ticks hash). Version mismatches → 409 Conflict. Frontend prompts reload upon receiving 409.
 
@@ -1381,11 +1446,13 @@ Core services (check-in, counters, lottery points, AV effects, external OneComme
    - For `IWorkflowActionExecutor` (e.g. `TriggerCheckInActionExecutor`), actions must be rejected with a `WorkflowExecutionException` if the associated module (e.g. CheckInModule) is disabled.
 
 2. **Dependency Resolution:**
-   - **Dependencies defined:**
-     - `CheckInModule` (Check-In) -> depends on `MemberModule` (Member Core)
-     - `LotteryModule` (Lottery/Points) -> depends on `MemberModule` (Member Core)
-     - `OneCommeBridge` (OneComme Plugin) -> no dependencies, requires Core Event Bus
-     - `OverlayModule` (Overlay Module) -> no dependencies
+   - **Module registry (`ModuleStateService.Definitions`) — name / display / category / dependencies:**
+     - `workflow` "Workflow Engine" (core) -> no dependencies
+     - `member` "Member Module" (core) -> no dependencies
+     - `checkin` "Check-In Module" (core) -> depends on `workflow` + `member`
+     - `lottery` "Lottery Module" (core) -> depends on `workflow` + `member`
+     - `onecommebridge` "OneComme Bridge" (plugin) -> no dependencies, requires Core Event Bus
+     - (There is no separate toggleable `OverlayModule`; overlay push is `OverlayEventForwarder`, always on. Enabled state is stored as `modules.enabled.{name}` via `ISystemSettingsService`.)
    - **Cascading Disable:**
      - Disabling a module depended on by others (e.g., disabling `MemberModule`) **must** trigger cascading dependency disabling.
      - **UI Cascade Warning Gate:** The frontend displays a warning: "Disabling 'Member Core Module' will also turn off the following dependent modules: Check-In Module, Lottery Module. Confirm disable?".
@@ -1417,7 +1484,7 @@ Existing event simulation is limited to basic actions like `chat`, `follow`, and
    - Parameters:
      - `platformUserId`: string (ID of the member to simulate check-in, defaults to random)
      - `displayName`: string (Display name of the member to simulate, defaults to random)
-     - `skipCooldown`: bool (Whether to bypass check-in cooldown, defaults to true)
+     - `skipCooldown`: bool (Whether to bypass check-in cooldown, **defaults to false**; CLI passes `--skip-cooldown` to enable)
      - `stampCount`: int (Number of stamps/check-ins to accumulate, defaults to 1)
    - **Behavior:** The endpoint directly invokes `IMemberResolver` and `IMemberStreamStateRepository` to increment check-in counts. Upon successful persistence in SQLite, it publishes a `MemberCheckedInEvent` to the Event Bus, triggering immediate stamp board visuals on the OBS Overlay and Preview Hub.
 
@@ -1460,6 +1527,8 @@ References: `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChanne
 
 **Design & Specifications:**
 
+> **Phase 7G rename (§6.1):** the platform-specific names below were generalized — `ITwitchHelixClient` → `IHelixClient`, `ITwitchBadgeCache` → `IPlatformBadgeCache`, `TwitchBadgeDescriptor` → `PlatformBadgeDescriptor` (the `TwitchBadgeCache` *implementation* class keeps its name). Read the Phase 7E names below as their current generalized equivalents.
+
 1. **`ITwitchHelixClient` Badge Endpoints:**
    - Adds `Task<IReadOnlyDictionary<string, TwitchBadgeDescriptor>> GetGlobalBadgesAsync(CancellationToken)`: maps to `GET helix/chat/badges/global`.
    - Adds `Task<IReadOnlyDictionary<string, TwitchBadgeDescriptor>> GetChannelBadgesAsync(string broadcasterId, CancellationToken)`: maps to `GET helix/chat/badges?broadcaster_id={id}`.
@@ -1481,7 +1550,7 @@ References: `ref/Omni-Commander/OmniCommander.Infrastructure/Twitch/TwitchChanne
 
 5. **Simulator Badge/Color Passthrough:**
    - `SimulationRequest` (`SimulationKind.Message`) adds `IReadOnlyCollection<string> Badges` and `string? ColorHex`.
-   - `SimulateEndpoints` accepts `badges: string[]` and `colorHex: string?` from the request body, and calls `IPlatformUserInfoCache.UpsertAsync` for the simulated user (`simulation:{userId}`) prior to calling `adapter.SimulateAsync`. This writes `Badges` + `ColorHex` to the cache, unifying resolution paths between simulated and real Twitch paths.
+   - `SimulateEndpoints` accepts `badges: string[]` and `colorHex: string?` from the request body, and calls `IPlatformUserInfoCache.UpdateAsync` for the simulated user (`simulation:{userId}`) prior to calling `adapter.SimulateAsync`. This writes `Badges` + `ColorHex` to the cache, unifying resolution paths between simulated and real Twitch paths.
    - This design avoids adding badge fields to domain events, keeping the domain model clean.
 
 6. **New API Endpoint `GET /api/twitch/badges`:**
@@ -1615,6 +1684,53 @@ Workflow rules with the `reward.redeemed` trigger expose a `RewardName` filter (
 
 ---
 
+### 4.26 Workflow Rule Typed Filter, Metadata & Observability (Phase 8)
+
+**Background & Motivation:**
+
+The Twitch `!checkin` incident exposed systemic root causes in the rule pipeline: trigger filters were a generic, untyped `Dictionary<string,string>` matched by exact key/value; NCalc and filter failures fell through silently with no way to trace them to a `RuleId`; and the frontend and backend double-maintained trigger/action metadata. Phase 8 resolves these and consolidates redundant schema fields.
+
+**1. Schema consolidation (`ConsolidateWorkflowRuleSchema` + `WipeWorkflowRules` migrations):**
+
+- `EventTypeKey` and `MatchCondition` were lifted out of the nested `WorkflowTrigger` to the `WorkflowRule` root — each now appears **exactly once** in the schema (see §4.6 and OQ3).
+- `WorkflowTrigger` is reduced to a single `Filter: Dictionary<string,string>` of typed, per-event-type keys.
+- `WorkflowRule.EventTypeKey` became `string?`: a sub-workflow rule (`IsSubWorkflow = true`) carries no `EventTypeKey` and no `Trigger`; supplying either returns `400 SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER`. A non-sub-workflow rule with a null/whitespace `EventTypeKey` still returns `400 UNKNOWN_EVENT_TYPE_KEY`.
+- Rule-level `PlatformFilter`, `ConcurrencyMode` (renamed `ExecutionMode`), and `UpdatedAt` columns were retired. The development DB was wiped and reseeded with typed sample rules via `DefaultWorkflowRuleSeedService` (idempotent — seeding is skipped once the DB holds any rule). Old JSON still deserializes (legacy inner fields are accepted and ignored) for backward compatibility.
+
+**2. Typed trigger filter matcher registry:**
+
+`TriggerFilterMatcherRegistry` (singleton, frozen dispatch dictionary, no runtime `Register()`) replaces generic dictionary matching in `WorkflowEngine`. Each `ITriggerFilterMatcher` is a stateless/immutable singleton so the high-frequency chat fan-out path stays lock-free.
+
+| EventTypeKey | Matcher | Filter keys |
+|---|---|---|
+| `user.message` | `MatchChatMessage` (with word-boundary checks so `!so` does not match `!sorry`) | `CommandName`, `Prefix` |
+| `user.donated` | `MatchUserDonated` (min-threshold) | `MinAmount` |
+| `user.subscribed` | `MatchUserSubscribed` | `Tier` (`1000`/`2000`/`3000`) |
+| `user.gifted_sub` | `MatchUserGiftedSub` | `Tier`, `MinGiftCount` |
+| `channel.raided` | `MatchChannelRaided` (min-threshold) | `MinViewers` |
+| `reward.redeemed` | `MatchRewardRedeemed` (exact title; `OptionsSource: "twitch.rewards"`, §4.25) | `RewardName` |
+| `workflow.timer` | `MatchWorkflowTimer` (exact id) | `TimerId` |
+| Others (e.g. `user.followed`) | Fallback to generic dict + warning log | — |
+
+The matched typed filter runs first; the optional rule-level `MatchCondition` NCalc gate runs afterward.
+
+**3. Metadata as the single source of truth:**
+
+- `ITriggerMetadataProvider` → `GET /api/metadata/triggers` exposes `AvailableEventTypes`, `FilterFieldsFor(eventTypeKey)` (`{ key, label, type, options?, optionLabels?, optionsSource?, help, required? }`), and `ValidVariablesFor(eventTypeKey)`.
+- `IActionMetadataProvider` → `GET /api/metadata/actions` reflects `[ActionMetadata]` / `[ActionParam]` attributes on the 15 action records (§4.6) into typed parameter metadata (drives the §4.22 dynamic action form). A unit test fails if a new action ships without metadata attributes.
+- The frontend pulls these on startup instead of hardcoding definitions; adding a new action requires only the backend record + attributes.
+
+**4. Observability (no schema change):**
+
+- `NCalcExpressionEvaluator` logs a `Warning` on parse/eval failure carrying `RuleId`, `RuleName`, an 8-char `ExpressionHash`, and an `ErrorClass` (`ParseError` / `EvalError`) — **never the raw expression body** (PII protection). `ExpressionContext` gained `RuleId` / `RuleName` (no signature change to `IExpressionEvaluator`).
+- `WorkflowEngine` emits a structured `workflow_rule_skipped` event (`RuleId` / `Reason` / `EventTypeKey`). Log noise is graded: unknown filter key / action throw → `Warning`; normal filter or `MatchCondition` no-match and throttle deny → `Debug`; `EventTypeKey` mismatch → no log. Normal chat traffic produces no `Information`-level skip noise.
+
+**5. Validation & error codes:** A filter key absent from the event type's metadata returns `400 INVALID_FILTER_KEY` on `POST`/`PUT /api/rules` (no lenient read path). See OQ4 for `INVALID_FILTER_KEY`, `SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER`, and `WORKFLOW_RULE_CONFLICT`.
+
+**6. Editor UX:** The rule editor became a Drawer + Tabs (Basic / Action Steps / Error Handling) layout with a schema-driven `TriggerEditor` (renders typed fields from `/api/metadata/triggers`), an event-type-filtered variable picker, and a role-chip selector that writes `UserRoleCondition`s. The legacy full-page `RuleEditorView` remains as a JSON-mode fallback.
+
+---
+
 ## 5. Commands
 
 ```bash
@@ -1624,23 +1740,22 @@ dotnet test
 dotnet run --project src/Hosts/Vulperonex.Web
 dotnet run --project src/Hosts/Vulperonex.Desktop
 
-# --- CLI ---
-vulperonex simulate chat   --user alice --message "hi"
-vulperonex simulate follow --user alice
-vulperonex simulate sub    --user alice --tier 1000
-vulperonex simulate checkin --user alice --stamps 1
-vulperonex config list
-vulperonex config get      log.min_level
-vulperonex config set      log.min_level "Debug"
+# --- CLI (groups: rule / timer / config / member / simulate / twitch) ---
+vulperonex simulate chat    "hi" --user-id alice --display-name "Alice"
+vulperonex simulate follow  --user-id alice
+vulperonex simulate sub     --user-id alice --tier 1000
+vulperonex simulate checkin --user-id alice --stamp-count 1 [--skip-cooldown]
+vulperonex config get       log.min_level
+vulperonex config set       log.min_level "Debug"
 vulperonex rule list
-vulperonex rule enable     01HK...
-vulperonex rule disable    01HK...
-vulperonex rule delete     01HK...
+vulperonex rule enable      01HK...          # accepts full id | id prefix | --name <name>
+vulperonex rule disable     01HK... --yes
+vulperonex rule delete      01HK... --yes
 vulperonex member list
-vulperonex member show     01HK...
-vulperonex member delete   01HK...
-vulperonex db migrate
-vulperonex db status
+vulperonex member show      01HK...
+vulperonex member delete    01HK... --yes
+# Migrations run automatically on host startup — there is no `vulperonex db` command (see §4.11).
+# Full CLI reference: docs/cli.md
 ```
 
 ---
@@ -1713,6 +1828,8 @@ dotnet test tests/Vulperonex.Tests.Unit \
 ```
 Any command dropping below these thresholds exits with a non-zero code, failing the CI build. `reportgenerator` can be added for HTML reports, but does not act as a threshold gate.
 
+> **Drift note (CI not wired):** `coverlet.msbuild` 6.0.2 is referenced, but the repo currently has **no `.github/workflows` / CI pipeline** — these coverage commands, the NetArchTest gates (§6.1/§8.1), and the migration classifier (§4.11) run via local `dotnet test`, not an automated build break. "CI" throughout this spec describes the intended gate; wiring an actual workflow is outstanding.
+
 ### 7.4 BDD + TDD Discipline
 
 - Every behavior starts from BDD-style scenarios: Given / When / Then.
@@ -1763,6 +1880,8 @@ Any command dropping below these thresholds exits with a non-zero code, failing 
 ---
 
 ## 9. Success Criteria (MVP)
+
+> **Note:** The `Test_Method_Names` below are **illustrative acceptance-criteria identifiers**, not literal test method names. Actual tests follow the §7.4 `Given_<State>_When_<Action>_Then_<Expectation>` convention and live under `tests/` (e.g. SC-3 → `tests/Vulperonex.Tests.Architecture/Adapters/SimulationAdapterIsolationTests.cs`; SC-6 → `tests/Vulperonex.Tests.Integration/Adapters/TwitchWorkflowEquivalenceTests.cs`; cache → `…/Cache/PlatformUserDisplayCacheTests.cs`). Match by intent, not by string.
 
 - [ ] **SC-1:** Integration test `TwitchAdapter_PublishesAllSevenMvpEvents` passes: for each of the seven MVP `EventTypeKey`s, simulated Twitch payloads generate corresponding `IStreamEvent`s on the bus (verified via `WaitForIdleAsync` + captured event lists).
 
@@ -1853,27 +1972,33 @@ Exceeding the size limit deletes the oldest rows until size drops below the limi
 
 ### OQ3 — Workflow Rule Storage ✅
 
-**Decision: Normalized header + JSON columns for Conditions and Actions.**
+**Decision: Normalized header + JSON columns for Trigger, Conditions, Actions, OnFailure steps, and Throttle.**
 
 ```sql
+-- Schema after Phase 8 consolidation (ConsolidateWorkflowRuleSchema migration)
 CREATE TABLE WorkflowRules (
-    Id              TEXT PRIMARY KEY,
-    Name            TEXT NOT NULL,
-    Priority        INTEGER NOT NULL DEFAULT 100,
-    IsEnabled       INTEGER NOT NULL DEFAULT 1,
-    ConcurrencyMode TEXT NOT NULL DEFAULT 'Serial',
-    MaxParallelism  INTEGER NOT NULL DEFAULT 1,
-    EventTypeKey    TEXT NOT NULL,
-    PlatformFilter  TEXT,
-    ConditionsJson  TEXT NOT NULL,
-    ActionsJson     TEXT NOT NULL,
-    CreatedAt       INTEGER NOT NULL,  -- Unix milliseconds (DateTimeOffset.ToUnixTimeMilliseconds())
-    UpdatedAt       INTEGER NOT NULL   -- Unix milliseconds; updated during enable/disable as well
+    Id                   TEXT PRIMARY KEY,
+    Name                 TEXT NOT NULL,
+    EventTypeKey         TEXT,                          -- Nullable since Phase 8; NULL for sub-workflow rules
+    TriggerJson          TEXT,                          -- Serialized WorkflowTrigger (typed Filter dict); NULL for sub-workflows
+    MatchCondition       TEXT,                          -- Optional rule-level NCalc gate (lifted out of TriggerJson in Phase 8)
+    IsSubWorkflow        INTEGER NOT NULL DEFAULT 0,
+    ConditionsJson       TEXT NOT NULL DEFAULT '{}',
+    ActionsJson          TEXT NOT NULL DEFAULT '[]',
+    OnFailureActionsJson TEXT NOT NULL DEFAULT '[]',
+    IsEnabled            INTEGER NOT NULL DEFAULT 1,
+    Priority             INTEGER NOT NULL DEFAULT 0,
+    CreatedAt            TEXT NOT NULL,                 -- ISO-8601 DateTimeOffset (EF default mapping)
+    ExecutionMode        TEXT NOT NULL DEFAULT 'Serial',   -- was ConcurrencyMode pre-Phase-8
+    MaxParallelism       INTEGER NOT NULL DEFAULT 1,
+    ThrottleJson         TEXT NOT NULL DEFAULT '{}',
+    TimeoutSeconds       INTEGER NOT NULL DEFAULT 30,
+    Version              INTEGER NOT NULL DEFAULT 0     -- Optimistic-concurrency token
 );
-CREATE INDEX IX_WorkflowRules_EventTypeKey ON WorkflowRules (EventTypeKey);
+CREATE INDEX IX_WorkflowRules_CreatedAt ON WorkflowRules (CreatedAt);
 ```
 
-Rule headers are normalized (queryable, indexable). Conditions/actions are stored as JSON (fluid schema — new plugin types do not require database migrations). Safe deserialization leverages EF Core 10 JSON mapping.
+Rule headers are normalized (queryable, indexable). Trigger filter, conditions, actions, on-failure steps, and throttle policy are stored as JSON (fluid schema — new plugin types do not require database migrations). Safe deserialization leverages EF Core 10 JSON mapping. **Phase 8 retired the separate `UpdatedAt` / `PlatformFilter` / `ConcurrencyMode` columns and the inner `eventTypeKey` / `matchCondition` fields that previously lived inside `TriggerJson`; the listing index moved from `EventTypeKey` to `CreatedAt` (the default sort key).**
 
 ---
 
@@ -1907,15 +2032,26 @@ The Vue UI maps error codes to localized strings via vue-i18n. The backend has n
 | `INVALID_QUERY_PARAM` | 400 | `GET /api/members` — `limit` exceeds 200 or other query parameters invalid |
 | `UNKNOWN_CONDITION_TYPE` | 400 | `POST/PUT /api/rules` — Conditions JSON contains unknown condition type |
 | `INVALID_RULE_ID_MISMATCH` | 400 | `PUT /api/rules/{id}` — request body ID mismatches route ID |
+| `INVALID_FILTER_KEY` | 400 | `POST/PUT /api/rules` — Trigger filter contains a key not in the event type's typed filter metadata (§4.26) |
+| `SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER` | 400 | `POST/PUT /api/rules` — `isSubWorkflow=true` but an `eventTypeKey` / `trigger` was supplied |
+| `WORKFLOW_RULE_CONFLICT` | 409 | `PUT /api/rules/{id}` — optimistic-concurrency `Version` mismatch |
+| `MISSING_OR_INVALID_CSRF_HEADER` | 400 | Any guarded request (loopback mutation / `/api/overlay/*`) missing or with a wrong `X-Admin-Csrf` (§4.17) |
+| `MISSING_ORIGIN_OR_REFERER_HEADER` | 400 | Guarded request with neither `Origin` nor `Referer` |
+| `ORIGIN_MISMATCH` | 400 | `Origin`/Host not in the loopback allowlist (anti-DNS-rebinding) |
+| `INVALID_ORIGIN_HEADER` | 400 | `Origin` header not a valid absolute URI |
+| `REFERER_MISMATCH` | 400 | `Referer` host not in the loopback allowlist |
+| `INVALID_REFERER_HEADER` | 400 | `Referer` header not a valid absolute URI |
+
+CLI-only code `CLI_API_URL_NOT_LOOPBACK` is emitted client-side when `VULPERONEX_API_URL` is not a loopback URL.
 
 ---
 
-### OQ5 — Web Host Authentication Model ✅
+### OQ5 — Web Host Authentication Model ✅ (revised — see §4.17)
 
-Resolved in §4.17 (G15). Summary:
-- Both ports (5000 API + 5001 Overlay) strictly run loopback-only (IPv4 127.0.0.1 + IPv6 ::1), forbidding remote access.
-- No authentication — Kestrel bind addresses inherently act as the security boundary.
-- Overlays run on a dedicated port 5001. OBS should use `http://localhost:5001/overlay/chat.html` and `http://localhost:5001/overlay/member-card.html` for chat/member; `/overlay/chat` and `/overlay/member` remain compatibility redirects only.
+Resolved in §4.17 (G15). The original "both ports loopback-only, no authentication" model was hardened during Phase 6+ and **superseded**:
+- **API port**: loopback-only (IPv4 127.0.0.1 + IPv6 ::1). **Overlay port**: loopback-only by default, optionally bound to the LAN (`Overlay:Lan:Enabled`) for cross-machine OBS.
+- **Not unauthenticated.** `AdminGuardMiddleware` requires, for loopback mutations and all `/api/overlay/*`: Host allowlist + per-process `X-Admin-Csrf` token + matching `Origin`/`Referer`. LAN requests are restricted to the overlay surface and require an overlay access key (`?k=` / `X-Overlay-Key`).
+- Local OBS uses `http://localhost:5001/overlay/chat.html` / `…/member-card.html`; remote OBS uses `http://<lan-host>:5001/overlay/chat.html?k=<overlay-key>` (key + URLs from `GET /api/overlay/lan-info`). `/overlay/chat` and `/overlay/member` remain compatibility redirects only.
 
 ---
 

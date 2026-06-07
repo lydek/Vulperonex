@@ -1,8 +1,10 @@
 # Workflow Rule Design Comparison & Migration Plan
 
-> **Status**: Draft · **Author**: Codex · **Created Date**: 2026-05-27
+> **Status**: Shipped (migration implemented as **Phase 8** — see `docs/SPEC.md` §4.26 and `docs/phases/phase-8-workflow-rule-typed-filter/`). Originally drafted by Codex on 2026-05-27.
 >
-> **Baseline for Comparison**: `ref/Omni-Commander` (OC) vs. current `src/Vulperonex.*` (V) state
+> **Note:** This document is a point-in-time comparison/migration RFC. The "current `V` state" it describes is the **pre-Phase-8** snapshot used as the migration baseline; the proposed design has since landed. Retained as a historical design record.
+>
+> **Baseline for Comparison**: `ref/Omni-Commander` (OC) vs. pre-Phase-8 `src/Vulperonex.*` (V) state
 >
 > **Motivation**: The member overlay showed no response when entering `!checkin` in Twitch chat. The root cause was identified as the lack of typed semantics in the current trigger filter design, which led to an accidental configuration of `platform=simulation`, locking up the production platform. Furthermore, when NCalc evaluation fails, it silently falls back to `false` without any warning across the entire pipeline. This document compiles the design differences between the two systems and proposes a phased migration plan.
 

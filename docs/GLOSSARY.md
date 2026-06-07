@@ -22,25 +22,25 @@ This document defines the core domain terms for Vulperonex. To maintain conceptu
 * **English Term**: `WorkflowRule` / `Rule`
 * **Chinese Term**: `工作流規則` / `規則`
 * **Definition**: The fundamental unit of automation, consisting of a Trigger, multiple Execution Conditions, and a sequence of Actions.
-* **Code Type**: `Vulperonex.Domain.Workflows.WorkflowRule`
+* **Code Type**: `Vulperonex.Application.Workflows.WorkflowRule`
 
 ### 4. Trigger / 觸發器
 * **English Term**: `WorkflowTrigger` / `Trigger`
 * **Chinese Term**: `觸發器`
 * **Definition**: The starting point of a Workflow Rule, which subscribes to a specific `EventTypeKey` (e.g., `user.message`).
-* **Code Type**: `Vulperonex.Domain.Workflows.WorkflowTrigger`
+* **Code Type**: `Vulperonex.Application.Workflows.WorkflowTrigger`
 
-### 5. Execution Condition / 執行條件
-* **English Term**: `ExecutionCondition` / `Condition`
+### 5. Workflow Condition / 執行條件
+* **English Term**: `WorkflowCondition` / `Condition`
 * **Chinese Term**: `執行條件` / `前置條件`
-* **Definition**: Filter logic evaluated before Actions execute (e.g., Cooldown, UserRole, MessageContent).
-* **Code Type**: `Vulperonex.Domain.Workflows.Conditions.ExecutionCondition`
+* **Definition**: Filter logic evaluated before Actions execute (e.g., Cooldown, UserRole, MessageContent). Note: distinct from the per-step `ExecutionCondition` NCalc gate string carried on `WorkflowAction`.
+* **Code Type**: `Vulperonex.Application.Workflows.Conditions.WorkflowCondition`
 
 ### 6. Workflow Action / 工作流動作
 * **English Term**: `WorkflowAction` / `Action`
 * **Chinese Term**: `工作流動作` / `動作`
 * **Definition**: A specific task executed after a rule is triggered and conditions pass (e.g., SendChatMessage, InvokeSubWorkflow).
-* **Code Type**: `Vulperonex.Domain.Workflows.Actions.WorkflowAction`
+* **Code Type**: `Vulperonex.Application.Workflows.Actions.WorkflowAction`
 
 ### 7. Simulation / 模擬
 * **English Term**: `Simulation` / `Simulate`
@@ -52,31 +52,31 @@ This document defines the core domain terms for Vulperonex. To maintain conceptu
 * **English Term**: `Overlay`
 * **Chinese Term**: `疊加幕` / `版面`
 * **Definition**: The web-based rendering view loaded by OBS or other streaming software (e.g., chat room overlay, member card overlay, alerts overlay).
-* **Code Type**: `Vulperonex.Application.Overlay.OverlayModule`
+* **Code Type**: `Vulperonex.Web.SignalR.OverlayEventForwarder` (maps domain events → overlay DTOs → SignalR groups)
 
 ### 9. Preset / 預設配置
 * **English Term**: `Preset` / `Template`
 * **Chinese Term**: `預設配置` / `樣板`
 * **Definition**: The default style layout for overlay views, categorized into built-in Vue Presets and uploaded Custom HTML Presets.
-* **Code Type**: `Vulperonex.Application.Overlay.Dtos.ChatOverlayPreset`
+* **Code Type**: `Vulperonex.Web.Overlay.OverlayPresetStore` (+ `OverlayPresetDescriptor`)
 
 ### 10. Transient Delivery Queue (TDQ) / 瞬態遞送佇列
 * **English Term**: `TransientDeliveryQueue` / `TDQ`
 * **Chinese Term**: `瞬態遞送佇列` / `瞬態佇列`
 * **Definition**: An SQLite-backed transient queue that handles event bus overflows to guarantee at-least-once event delivery through automatic startup replays.
-* **Code Type**: `Vulperonex.Infrastructure.EventBus.TransientDeliveryQueue`
+* **Code Type**: `Vulperonex.Infrastructure.Data.Entities.TransientDeliveryQueueEntity`
 
 ### 11. Deduplication (Dedup) / 重複抑制
 * **English Term**: `Deduplication` / `Dedup`
 * **Chinese Term**: `重複抑制` / `去重`
 * **Definition**: A safety guard mechanism utilizing `ActionExecutionLog` to prevent duplicate action executions for the same event.
-* **Code Type**: `Vulperonex.Infrastructure.EventBus.ActionExecutionLog`
+* **Code Type**: `Vulperonex.Infrastructure.Data.Entities.ActionExecutionLogEntity`
 
 ### 12. Audit Log / 稽核日誌
 * **English Term**: `AuditLog` / `MemberAuditLog`
 * **Chinese Term**: `稽核日誌`
 * **Definition**: An append-only historical database table recording manual adjustments or automated workflow changes made to Member data.
-* **Code Type**: `Vulperonex.Infrastructure.Members.MemberAuditLog`
+* **Code Type**: `Vulperonex.Infrastructure.Data.Entities.MemberAuditLogEntity`
 
 ### 13. Loyalty / 忠誠點數
 * **English Term**: `Loyalty` / `LoyaltyInfo`
@@ -88,7 +88,7 @@ This document defines the core domain terms for Vulperonex. To maintain conceptu
 * **English Term**: `Check-In` / `CheckIn`
 * **Chinese Term**: `打卡` / `簽到`
 * **Definition**: The check-in or stamp-collecting interactive behavior performed by a Member during live streams.
-* **Code Type**: `Vulperonex.Domain.Workflows.Executors.TriggerCheckInActionExecutor`
+* **Code Type**: `Vulperonex.Application.Workflows.Actions.TriggerCheckInActionExecutor`
 
 ---
 

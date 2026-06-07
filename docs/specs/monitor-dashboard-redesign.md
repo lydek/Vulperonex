@@ -4,7 +4,9 @@
 
 Redesign `src/frontend/src/views/admin/MonitorDashboardView.vue` so its layout, visual hierarchy, and operator workflow closely follow `ref/Omni-Commander/OmniCommander.UI/src/components/monitor/` while preserving the current Vulperonex theme colors and frontend stack.
 
-This is a planning spec for implementation. It defines the target UI, boundaries, task slices, verification checkpoints, and open questions before code changes continue.
+This is a planning spec for implementation. It defines the target UI, boundaries, task slices, verification checkpoints, and open questions.
+
+> **Status (partially shipped):** `MonitorDashboardView.vue` has been redesigned against this spec — layout contract + header are **Done**; shell tokens, controls-rail/`SimulateControlsPanel` ref-parity, and preview workspace are **Partial**. See `docs/specs/monitor-dashboard-redesign-plan.md` for the authoritative per-task status table. This document remains the target-design reference.
 
 ## Product Goal
 

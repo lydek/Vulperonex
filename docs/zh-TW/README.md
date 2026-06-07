@@ -17,8 +17,8 @@
 |---|---|---|---|
 | `Vulperonex.Web` | ASP.NET Core API + SignalR Hub + 靜態 Overlay 站台 | `Exe` | `net10.0` |
 | `Vulperonex.Cli` | 主控台 CLI (member / rule / simulate / twitch / timer / config) | `Exe` | `net10.0` |
-| `Vulperonex.Desktop` | Windows 桌面殼 (WebView2 + 內嵌 Web Host) | `WinExe` | `net10.0-windows` |
-| `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue + Monaco) | n/a | n/a |
+| `Vulperonex.Desktop` | Windows 桌面殼 (Photino.NET，WebView2 為底) 包裝內嵌 Web Host | `WinExe` | `net10.0-windows` |
+| `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue) | n/a | n/a |
 
 ---
 
@@ -32,7 +32,7 @@
 | PowerShell | 5.1+ / 7+ | Windows 開發環境 |
 | Git | 2.40+ | 版本控制 |
 
-> Windows 桌面 Host (`Vulperonex.Desktop`) 需要 Windows 10 1809+ 與 WebView2 Runtime。
+> Windows 桌面 Host (`Vulperonex.Desktop`) 以 **Photino.NET 3.x** 建構，使用系統 WebView2 Runtime — 需要 Windows 10 1809+ 並安裝 WebView2 Runtime。
 
 ---
 
@@ -115,18 +115,18 @@ artifacts/cli/Vulperonex.Cli.exe --help
 
 | 群組 | 子指令 | 用途 |
 |---|---|---|
-| `member` | `list` / `show` / `adjust-loyalty` / `reset` / `delete` / `audit` | 會員管理 + 審計查詢 |
-| `rule` | `list` / `enable` / `disable` / `show` | Workflow 規則切換 |
-| `simulate` | `event` / `checkin` | 模擬事件 / 打卡 |
-| `twitch` | `login` / `status` / `logout` | OAuth 流程 |
-| `timer` | `list` / `trigger` | 計時器 workflow |
-| `config` | `get` / `set` / `list` | SystemSetting 鍵值 |
+| `member` | `list` / `show` / `seed` / `delete` | 會員管理（忠誠調整 / 重置 / 審計為 API-only，非 CLI） |
+| `rule` | `list` / `show` / `create` / `update` / `enable` / `disable` / `delete` | Workflow 規則管理 |
+| `simulate` | `chat` / `follow` / `sub` / `checkin` | 模擬事件 / 打卡 |
+| `twitch` | `auth start` / `auth reset` | OAuth 流程 |
+| `timer` | `list` / `show` / `create` / `delete` | 計時器 workflow |
+| `config` | `get` / `set` | SystemSetting 鍵值（無 `list`） |
 
-範例：
+完整參考：[`docs/cli.md`](../cli.md)。範例：
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Cli -- member list --limit 20
-dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user testuser --platform twitch
+dotnet run --project src/Hosts/Vulperonex.Cli -- member list
+dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user-id testuser --stamp-count 1 --skip-cooldown
 ```
 
 ### 多語

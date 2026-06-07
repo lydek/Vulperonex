@@ -2,7 +2,9 @@
 
 > **Spec Baseline**: [`docs/specs/workflow-rule-design-comparison.md`](../../specs/workflow-rule-design-comparison.md)
 >
-> **Status**: Draft · **Created Date**: 2026-05-28 · **Author**: Codex
+> **Status**: Shipped · **Created Date**: 2026-05-28 · **Author**: Codex
+>
+> Implementation landed: backend schema consolidation + DB wipe (`ConsolidateWorkflowRuleSchema` / `WipeWorkflowRules` migrations, 2026-05-28), typed `TriggerFilterMatcherRegistry`, `ITriggerMetadataProvider` / `IActionMetadataProvider`, NCalc/filter observability, and the FE Drawer + schema-driven editor (through 2026-05-29). Captured in `docs/SPEC.md` §4.26. The per-task `[ ]` boxes below reflect mid-flight tracking, not final state; the code/tests are the source of truth for completion.
 >
 > **Output Scope**: All implementation slices, dependencies, verifications, and checkpoints from Phase A to Phase E in Section 6 of the Spec.
 
