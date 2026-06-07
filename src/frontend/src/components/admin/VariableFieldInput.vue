@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { nextTick, ref } from "vue";
+import { ref } from "vue";
 import VariablePicker from "@/components/admin/VariablePicker.vue";
+import VariableTokenInput, { type VariableTokenInputExpose } from "@/components/admin/VariableTokenInput.vue";
 import type { ActionDefinition, JsonRecord } from "@/components/admin/workflowEditor";
 
 const props = defineProps<{
@@ -18,51 +19,26 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
 
-const textRef = ref<HTMLInputElement | HTMLTextAreaElement | null>(null);
+const tokenInput = ref<VariableTokenInputExpose | null>(null);
 
 function updateValue(value: string): void {
   emit("update:modelValue", value);
 }
 
-async function insertVariable(variable: string): Promise<void> {
-  const element = textRef.value;
-  const current = props.modelValue;
-  if (!element) {
-    updateValue(`${current}${variable}`);
-    return;
-  }
-
-  const start = element.selectionStart ?? current.length;
-  const end = element.selectionEnd ?? start;
-  const nextValue = `${current.slice(0, start)}${variable}${current.slice(end)}`;
-  updateValue(nextValue);
-
-  await nextTick();
-  const nextCursor = start + variable.length;
-  textRef.value?.focus();
-  textRef.value?.setSelectionRange(nextCursor, nextCursor);
+function insertVariable(variable: string): void {
+  tokenInput.value?.insertToken(variable);
 }
 </script>
 
 <template>
   <div class="variable-field">
-    <input
-      v-if="!multiline"
-      :data-testid="dataTestId"
-      ref="textRef"
-      :value="modelValue"
-      type="text"
+    <VariableTokenInput
+      ref="tokenInput"
+      :model-value="modelValue"
       :placeholder="placeholder"
-      @input="updateValue(($event.target as HTMLInputElement).value)"
-    />
-    <textarea
-      v-else
-      :data-testid="dataTestId"
-      ref="textRef"
-      :value="modelValue"
-      :rows="rows ?? 4"
-      :placeholder="placeholder"
-      @input="updateValue(($event.target as HTMLTextAreaElement).value)"
+      :multiline="multiline"
+      :data-test-id="dataTestId"
+      @update:model-value="updateValue"
     />
     <VariablePicker
       class="variable-field__picker"
@@ -86,27 +62,5 @@ async function insertVariable(variable: string): Promise<void> {
   position: absolute;
   top: 7px;
   right: 8px;
-}
-
-.variable-field :deep(input),
-.variable-field :deep(textarea) {
-  width: 100%;
-  box-sizing: border-box;
-  padding-right: 44px;
-}
-
-.variable-field :deep(textarea) {
-  min-height: 88px;
-  border: 1px solid var(--vp-border-default);
-  border-radius: 6px;
-  padding: 10px 44px 10px 12px;
-  resize: vertical;
-  background: var(--vp-bg-surface);
-  color: var(--vp-text-primary);
-}
-
-.variable-field :deep(textarea) + .variable-field__picker,
-.variable-field__picker:has(+ textarea) {
-  top: 8px;
 }
 </style>

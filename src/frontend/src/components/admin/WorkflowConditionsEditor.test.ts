@@ -33,7 +33,11 @@ describe("WorkflowConditionsEditor", () => {
 
     const inputs = wrapper.findAll("input");
     await inputs[0].setValue("90");
-    await inputs[1].setValue("{Member.UserId}");
+
+    // The cooldown key field is a token-block editor (contenteditable), not a plain input.
+    const keyField = wrapper.get(".token-input");
+    keyField.element.textContent = "{Member.UserId}";
+    await keyField.trigger("input");
 
     expect(wrapper.emitted("update:modelValue")?.at(-1)?.[0]).toBe(JSON.stringify([
       {
