@@ -55,8 +55,8 @@ namespace Vulperonex.Domain.Events;
 public interface IStreamEvent
 {
     /// <summary>
-    /// 全域唯一事件 ID。用於重啟時 TDQ 重播的去重。
-    /// 格式：ULID 字串。適配器必須從平台事件 ID（如有）填充，否則生成新的 ULID。
+    /// 全域唯一事件 ID。用於重新啟動時 TDQ 重播的重複抑制。
+    /// 格式：ULID 字串。配接器必須從平台事件 ID（如有）填充，否則生成新的 ULID。
     /// </summary>
     string EventId { get; }
 
@@ -79,7 +79,7 @@ public sealed record UserSentMessageEvent : IStreamEvent
 }
 ```
 
-### 6.2 C# — 匯流排與適配器契約
+### 6.2 C# — 匯流排與配接器契約
 
 ```csharp
 // 定義於 Vulperonex.Adapters.Abstractions（非 Application）。
@@ -101,7 +101,7 @@ public interface IStreamEventBus
     /// 等待直到記憶體佇列清空且所有活動的處理程式都已完成。
     /// 語意：handler 例外被隔離後以 warning 記錄；WaitForIdleAsync 本身不聚合或拋出 handler 錯誤，
     ///       完成後回傳 Task.CompletedTask（不反映 handler 是否出錯）。
-    ///       CLI --wait 使用此方法，同樣不依賴 handler 錯誤計數。
+    ///       CLI --wait 使用此方法，同樣不相依 handler 錯誤計數。
     /// 僅用於整合測試和 CLI --wait 模式。不用於生產程式碼路徑。
     /// </summary>
     Task WaitForIdleAsync(CancellationToken ct = default);
@@ -130,15 +130,15 @@ public interface IPluginContext
 }
 
 /// <summary>
-/// InvokePluginAction 執行器傳遞給外掛程式操作處理程式的每個操作調用上下文。
+/// InvokePluginAction 執行器傳遞給外掛程式操作處理程式的每個操作呼叫上下文。
 /// 攜帶特定事件的資料，且不在操作或規則之間共享。
 /// </summary>
 public interface IPluginActionContext
 {
     /// <summary>
-    /// 完全限定的去重鍵：(EventId, WorkflowRuleId, ActionIndex[, InvocationId])。
+    /// 完全限定的重複抑制鍵：(EventId, WorkflowRuleId, ActionIndex[, InvocationId])。
     /// 外掛程式必須將此完整鍵（而非僅 EventId）用於 ActionExecutionLog 條目。
-    /// 同一 EventId 可能出現在多個規則中；僅使用 EventId 會導致跨規則的去重衝突。
+    /// 同一 EventId 可能出現在多個規則中；僅使用 EventId 會導致跨規則的重複抑制衝突。
     /// </summary>
     string ActionExecutionKey { get; }
 
@@ -166,8 +166,8 @@ public interface IVulperonexPlugin
 
     /// <summary>
     /// 由 InvokePluginAction 執行器呼叫。ActionId 匹配此外掛程式定義的操作識別子。
-    /// 外掛程式必須透過 IPluginActionContext.ActionExecutionKey 實作去重，以應對任何外部副作用。
-    /// Timeout 超時後底層 Task 可能仍在執行 — 外掛程式應在 CancellationToken 觸發後記錄 warning，
+    /// 外掛程式必須透過 IPluginActionContext.ActionExecutionKey 實作重複抑制，以應對任何外部副作用。
+    /// Timeout 逾時後底層 Task 可能仍在執行 — 外掛程式應在 CancellationToken 觸發後記錄 warning，
     /// 避免 late completion 的副作用被誤判為重試結果（造成雙副作用）。
     /// </summary>
     Task ExecuteActionAsync(string actionId, IPluginActionContext ctx, CancellationToken ct);
@@ -210,20 +210,20 @@ export function useStreamEvents() {
 ```
                  ╱╲
                 ╱  ╲    架構測試 (NetArchTest)
-               ╱────╲   - Domain 無基礎設施依賴
+               ╱────╲   - Domain 無基礎架構相依
               ╱      ╲  - Domain/Application 中無 "Twitch" 字串
              ╱        ╲
             ╱──────────╲ 整合測試
            ╱            ╲ - SimulationAdapter → Bus → WorkflowEngine → DB
           ╱              ╲
          ╱────────────────╲ 單元測試 (絕大部分)
-        ╱                  ╲ - 領域邏輯、映射、處理程式、執行器
+        ╱                  ╲ - 領域邏輯、對應、處理程式、執行器
 ```
 
 ### 7.2 位置
 
 - `tests/Vulperonex.Tests.Unit/` — 純單元測試，無 I/O。
-- `tests/Vulperonex.Tests.Integration/` — 記憶體內 SQLite + Simulation 適配器端到端測試。
+- `tests/Vulperonex.Tests.Integration/` — 記憶體內 SQLite + Simulation 配接器端到端測試。
 - `tests/Vulperonex.Tests.Architecture/` — 層級規則強制執行。
 - `src/frontend/tests/` — Vitest + Vue Test Utils。
 
@@ -231,7 +231,7 @@ export function useStreamEvents() {
 
 - 領域層 (Domain)：> 90% — 僅針對 `Vulperonex.Tests.Unit` 測量（領域是純邏輯，無 I/O）。
 - 應用層 (Application)：> 80% — 僅針對 `Vulperonex.Tests.Unit` 測量。整合測試**不**併入此門檻（coverlet.msbuild 無法在單個指令中合併兩個測試專案的報告）。如果因為應用層行為僅被整合測試覆蓋而導致單元測試覆蓋率低於 80%，解決方案是新增聚焦的單元測試（使用 Fakes/Mocks），而非放寬門檻或切換到合併報告。
-- 適配器 (Adapters)：透過 SimulationAdapter 等效性進行整合測試（真實適配器使用相同的領域映射邏輯）。
+- 配接器 (Adapters)：透過 SimulationAdapter 等效性進行整合測試（真實配接器使用相同的領域對應邏輯）。
 
 **強制執行：** 使用 **`coverlet.msbuild`**（而非 `coverlet.collector`）來根據閾值判定建構失敗。固定明確版本以避免偏差 — 使用中央套件管理或 `<PackageReference Include="coverlet.msbuild" Version="6.0.2" />`（在專案設定時固定到最新穩定版）。對於門檻工具，**不接受**萬用字元版本。
 
@@ -258,7 +258,7 @@ dotnet test tests/Vulperonex.Tests.Unit \
 ### 7.4 BDD + TDD 紀律
 
 - 每個行為都從 BDD 風格的情境開始：Given / When / Then (給定 / 當 / 那麼)。
-- 情境是驗收契約；在實作被視為完成前，它必須映射到一個或多個自動化測試。
+- 情境是驗收契約；在實作被視為完成前，它必須對應到一個或多個自動化測試。
 - 實作遵循 TDD：先寫失敗測試，確認「紅燈」，編寫通過測試的最少程式碼，確認「綠燈」，然後在測試通過的情況下重構。
 - 新的領域邏輯 → 首先根據 BDD 情境編寫失敗的單元測試。
 - 錯誤修復 → 在更改生產程式碼前，先用失敗測試重現。
@@ -278,11 +278,11 @@ dotnet test tests/Vulperonex.Tests.Unit \
 
 ### 8.1 務必執行 (Always do)
 
-- 在任何提交前執行所有適用的測試套件：始終執行 `dotnet test`；一旦 `src/frontend/` 存在，則必須執行 `pnpm test` 與 `pnpm build`（在任務 19 之前的後端任務中可跳過）。`pnpm lint` 為**手動驗證步驟**（CI 不強制），於各 Checkpoint 手動執行一次。
+- 在任何提交前執行所有適用的測試套件：始終執行 `dotnet test`；一旦 `src/frontend/` 存在，則必須執行 `pnpm test` 與 `pnpm build`（在任務 19 之前的後端任務中可略過）。`pnpm lint` 為**手動驗證步驟**（CI 不強制），於各 Checkpoint 手動執行一次。
 - 新事件實作 `IStreamEvent` 且為不可變的 `record`。
-- 適配器程式碼位於 `Adapters/Vulperonex.Adapters.<Platform>/`。
+- 配接器程式碼位於 `Adapters/Vulperonex.Adapters.<Platform>/`。
 - 平台特定的術語**遠離** `Domain` 和 `Application` 專案。
-- 使用 `MemberId` (ULID) 作為規範的成員鍵，絕不使用平台 UserId。
+- 使用 `MemberId` (ULID) 作為規範的會員鍵，絕不使用平台 UserId。
 - 在 CI 中執行架構測試。
 
 ### 8.2 需先諮詢 (Ask first)
@@ -296,9 +296,9 @@ dotnet test tests/Vulperonex.Tests.Unit \
 ### 8.3 嚴禁執行 (Never do)
 
 - 在 `Application` 或 `Domain` 專案中引用 `Twitch*`（或任何平台特定）類型。
-- 在發布後變更事件對象（狀態變更應產生新事件）。
-- 在同一個倉儲上混合命令和查詢操作（輕量級 CQRS）。
-- 繞過事件匯流排 — 適配器絕不直接呼叫處理程式。
+- 在發布後變更事件物件（狀態變更應產生新事件）。
+- 在同一個儲存庫上混合命令和查詢操作（輕量級 CQRS）。
+- 繞過事件匯流排 — 配接器絕不直接呼叫處理程式。
 - 將事件持久化到資料庫（僅限日誌記錄）。
 - 提交機密、OAuth 權杖或 `App_Data/*.db`。
 

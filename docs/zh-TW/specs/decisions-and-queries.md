@@ -8,15 +8,15 @@
 
 - [ ] **SC-1：** 整合測試 `TwitchAdapter_PublishesAllSevenMvpEvents` 通過：對於七個 MVP `EventTypeKey` 中的每一個，模擬的 Twitch 有效負載都會在匯流排上生成相應的 `IStreamEvent`（透過 `WaitForIdleAsync` + 捕獲的事件列表驗證）。
 
-- [ ] **SC-2：** 整合測試 `WorkflowEngine_ExecutesMatchingRule_OnEventTypeKey` 通過：當發布 `UserSentMessageEvent` 時，`EventTypeKey = "user.message"` 的 `WorkflowRule` 會觸發其 `SendChatMessageAction`；`IPlatformChatSender` 模擬對象恰好接收到一次 `SendAsync` 呼叫。
+- [ ] **SC-2：** 整合測試 `WorkflowEngine_ExecutesMatchingRule_OnEventTypeKey` 通過：當發布 `UserSentMessageEvent` 時，`EventTypeKey = "user.message"` 的 `WorkflowRule` 會觸發其 `SendChatMessageAction`；`IPlatformChatSender` 模擬物件恰好接收到一次 `SendAsync` 呼叫。
 
 - [ ] **SC-3：** 整合測試 `SimulationAdapter_DoesNotReferenceTwitchTypes` 通過：`Vulperonex.Adapters.Simulation` 程序集對 `Vulperonex.Adapters.Twitch` 的類型引用為零（透過 NetArchTest 或反射掃描驗證）。
 
 - [ ] **SC-4：** 架構測試 `Domain_HasNoReferenceToTwitchSymbols` 在將任何 `Twitch*` 識別子引入 `Domain` 或 `Application` 專案時，應導致建構失敗（紅燈測試）。
 
-- [ ] **SC-5：** 整合測試 `OverlayHub_ReceivesSignalRPayload_WithinTimeout`：透過 `SimulationAdapter` 發布 `UserSentMessageEvent`，斷言 `/overlay/chat` SignalR Hub 用戶端在 **5 秒**內（CI 安全超時）接收到 `OverlayChatPayload`。效能目標（非阻塞）：從事件到 SignalR 的延遲在本地機器上 < 500ms，作為基準單獨追蹤，而非判定通過/失敗的門檻。
+- [ ] **SC-5：** 整合測試 `OverlayHub_ReceivesSignalRPayload_WithinTimeout`：透過 `SimulationAdapter` 發布 `UserSentMessageEvent`，斷言 `/overlay/chat` SignalR Hub 用戶端在 **5 秒**內（CI 安全逾時）接收到 `OverlayChatPayload`。效能目標（非阻塞）：從事件到 SignalR 的延遲在本地機器上 < 500ms，作為基準單獨追蹤，而非判定通過/失敗的門檻。
 
-- [ ] **SC-5b：** 整合測試 `WorkflowSendChatMessage_Simulation_IsObservable`：在 `Simulation` 平台執行含 `SendChatMessage` 的 workflow，斷言可觀測輸出面（記憶體接收端 / Chat Outbox / 歷史檢視）於 **5 秒**內出現 rendered message、platform、channel、dedupKey 與 status，且不依賴 `/overlay/chat` 是否有 bridge。
+- [ ] **SC-5b：** 整合測試 `WorkflowSendChatMessage_Simulation_IsObservable`：在 `Simulation` 平台執行含 `SendChatMessage` 的 workflow，斷言可觀測輸出面（記憶體接收端 / Chat Outbox / 歷史檢視）於 **5 秒**內出現 rendered message、platform、channel、dedupKey 與 status，且不相依 `/overlay/chat` 是否有 bridge。
 
 - [ ] **SC-6：** 兩個互補的整合測試共同滿足此準則（拆分於 Task 12 + Task 13 實作）：
   - **SC-6a（WorkflowEngine half，Task 12）：** `SC6a_SimulationAndTwitch_ProduceSameWorkflowSideEffect`：使用相同有效負載分別透過 `SimulationAdapter` 和 `TwitchAdapter`（mock IRC）發布 `UserSentMessageEvent`；斷言兩者在 `WaitForIdleAsync` 後對 `IPlatformChatSender.SendAsync` 的呼叫完全相同。
@@ -30,11 +30,11 @@
 
 - [ ] **SC-9：** 單元測試 `SendChatMessageAction_DefaultsToSourcePlatform` 和 `SendChatMessageAction_RespectsTargetPlatformOverride`：驗證 `IPlatformChatSender` 選擇邏輯。
 
-- [ ] **SC-10：** 整合測試 `Plugin_CanPublishCustomEvent_TriggeringWorkflow`：外掛程式呼叫 `IPluginContext.Events.PublishAsync(customEvent)`；具有匹配 `EventTypeKey` 的 `WorkflowRule` 觸發；`IPlatformChatSender` 模擬對象接收到 `SendAsync`。
+- [ ] **SC-10：** 整合測試 `Plugin_CanPublishCustomEvent_TriggeringWorkflow`：外掛程式呼叫 `IPluginContext.Events.PublishAsync(customEvent)`；具有匹配 `EventTypeKey` 的 `WorkflowRule` 觸發；`IPlatformChatSender` 模擬物件接收到 `SendAsync`。
 
 - [ ] **SC-11：** 手動 / 整合驗證 `ChatOverlayTemplatePreset_CanSwitchWithoutCodeEdit`：`/overlay/chat` 可在不修改前端原始程式碼的前提下切換至少兩個樣板，至少包含 Vulperonex 內建預設與另一個可安裝 preset；切換後 payload contract 不變，且渲染仍遵守 DTO 白名單與 text binding。
 
-- [ ] **SC-11b：** 擴充功能驗證 `OneCommeCompatibility_ExtensionContract_Works`：OneComme 相容能力以外掛 / 匯入器 / adapter 形式接入，不要求 core 直接綁定其執行期；驗證可辨識 OneComme 樣板目錄結構或對應 package metadata，並映射到 Vulperonex chat overlay preset contract。
+- [ ] **SC-11b：** 擴充功能驗證 `OneCommeCompatibility_ExtensionContract_Works`：OneComme 相容能力以外掛 / 匯入器 / adapter 形式接入，不要求 core 直接綁定其執行期；驗證可辨識 OneComme 樣板目錄結構或對應 package metadata，並對應到 Vulperonex chat overlay preset contract。
 
 ---
 
@@ -45,18 +45,18 @@
 | D1 | 外掛程式載入：**啟動時靜態引用** (AssemblyLoadContext / 熱載入推遲)。 |
 | D2 | 工作流回覆路由：**預設為源平台**，允許每個操作覆寫 `TargetPlatform`。 |
 | D3 | 事件持久化：**不儲存**。僅記錄日誌 (LOG)，具有可配置的保留/清理策略。 |
-| D4 | 外掛程式範圍：**外掛程式可以同時發布和訂閱**事件（充當完整的適配器）。 |
+| D4 | 外掛程式範圍：**外掛程式可以同時發布和訂閱**事件（充當完整的配接器）。 |
 | D5 | 前端發行：**Web 主機提供 `wwwroot` 服務**，Desktop = Web 主機 + Photino 窗口。 |
-| D6 | CLI 範圍 (MVP)：**模擬 + 配置 + 規則 + 成員指令**。 |
+| D6 | CLI 範圍 (MVP)：**模擬 + 配置 + 規則 + 會員指令**。 |
 | D6a | CLI 識別碼解析 (Phase 5.5)：`rule` positional 接受**完整 id / id prefix / `--name`**；`member` 接受**完整 id / id prefix**；多重命中 → `AMBIGUOUS_ID` + 候選表；破壞性操作（`rule disable` / `rule delete` / `member delete`）互動 REPL 走 `[y/N]` prompt、非互動需 `--yes` 否則 `CONFIRMATION_REQUIRED`。設計凍結於 `docs/phases/phase-5_5-rapid-test/cli-id-resolution-decision.md`。 |
-| D7 | 成員身分：`MemberId` 為 ULID；`PlatformIdentity (Platform, PlatformUserId)` 複合鍵。 |
-| D8 | 倉儲層的輕量級 CQRS：`IMemberRepository` (命令) 與 `IMemberQueryService` (查詢) 分離。 |
+| D7 | 會員身分：`MemberId` 為 ULID；`PlatformIdentity (Platform, PlatformUserId)` 複合鍵。 |
+| D8 | 儲存庫層的輕量級 CQRS：`IMemberRepository` (命令) 與 `IMemberQueryService` (查詢) 分離。 |
 
 ---
 
 ## 11. 超出範圍 (Phase 1)
 
-- Twitch 以外的平台適配器（架構設計已預留，實作推遲）。
+- Twitch 以外的平台配接器（架構設計已預留，實作推遲）。
 - 觀眾帳號跨平台繫結（本機桌面工具無對外伺服器，不適用）。
 - 事件重播 / 事件溯源。
 - 多租戶 / SaaS 部署。
@@ -112,7 +112,7 @@ CREATE TABLE WorkflowRules (
     OnFailureActionsJson TEXT NOT NULL DEFAULT '[]',
     IsEnabled            INTEGER NOT NULL DEFAULT 1,
     Priority             INTEGER NOT NULL DEFAULT 0,
-    CreatedAt            TEXT NOT NULL,                 -- ISO-8601 DateTimeOffset（EF 預設映射）
+    CreatedAt            TEXT NOT NULL,                 -- ISO-8601 DateTimeOffset（EF 預設對應）
     ExecutionMode        TEXT NOT NULL DEFAULT 'Serial',   -- Phase 8 前名為 ConcurrencyMode
     MaxParallelism       INTEGER NOT NULL DEFAULT 1,
     ThrottleJson         TEXT NOT NULL DEFAULT '{}',
@@ -122,7 +122,7 @@ CREATE TABLE WorkflowRules (
 CREATE INDEX IX_WorkflowRules_CreatedAt ON WorkflowRules (CreatedAt);
 ```
 
-規則標頭已規範化（可查詢、可索引）。Trigger 過濾、條件、操作、失敗步驟與 throttle policy 作為 JSON（架構流動 — 新外掛程式類型不需要遷移）。使用 EF Core 10 JSON 映射進行類型安全的反序列化。**Phase 8 移除了獨立的 `UpdatedAt` / `PlatformFilter` / `ConcurrencyMode` 欄位，以及先前位於 `TriggerJson` 內的巢狀 `eventTypeKey` / `matchCondition` 欄位；列表索引由 `EventTypeKey` 改為 `CreatedAt`（預設排序鍵）。**
+規則標頭已規範化（可查詢、可索引）。Trigger 過濾、條件、操作、失敗步驟與 throttle policy 作為 JSON（架構流動 — 新外掛程式類型不需要遷移）。使用 EF Core 10 JSON 對應進行類型安全的反序列化。**Phase 8 移除了獨立的 `UpdatedAt` / `PlatformFilter` / `ConcurrencyMode` 欄位，以及先前位於 `TriggerJson` 內的巢狀 `eventTypeKey` / `matchCondition` 欄位；列表索引由 `EventTypeKey` 改為 `CreatedAt`（預設排序鍵）。**
 
 ---
 
@@ -135,7 +135,7 @@ CREATE INDEX IX_WorkflowRules_CreatedAt ON WorkflowRules (CreatedAt);
 { "error": "WORKFLOW_RULE_NOT_FOUND", "meta": { "ruleId": "01HK..." } }
 ```
 
-Vue UI 透過 vue-i18n 將錯誤程式碼映射到在地化字串。後端不具備地區感知能力。日誌始終為英文（機器可讀，跨部署一致）。
+Vue UI 透過 vue-i18n 將錯誤程式碼對應到在地化字串。後端不具備地區感知能力。日誌始終為英文（機器可讀，跨部署一致）。
 
 **MVP 錯誤程式碼契約：**
 
@@ -190,26 +190,26 @@ CLI 端專用代碼 `CLI_API_URL_NOT_LOOPBACK`：當 `VULPERONEX_API_URL` 非 lo
 
 啟動時，如果對中的任一埠不可用：
   嘗試下一對：(5002, 5003) → (5004, 5005) → (5006, 5007) → (5008, 5009)
-  成對嘗試 — 防止 API 自動跳轉到疊層的預設埠。
-  所有嘗試均失敗 → Photino 對話框：
+  成對嘗試 — 防止 API 自動重新導向到疊層的預設埠。
+  所有嘗試均失敗 → Photino 對話方塊：
     "埠 5000–5009 不可用。請在設定中配置不同的埠對。"
 
 可配置：appsettings.json →
   "Web": { "ApiPort": 5000, "OverlayPort": 5001 }
-  (手動配置跳過自動遞增；使用者需自行解決衝突。)
+  (手動配置略過自動遞增；使用者需自行解決衝突。)
 ```
 
-**Web 主機在會話中崩潰：**
+**Web 主機在工作階段中崩潰：**
 ```
 Photino 失去連線 → 顯示嵌入式靜態回退 HTML
-（打包在 Photino 二進位檔案中，無 Web 主機依賴）
-回退頁面顯示：錯誤描述 + [重啟] 按鈕
+（打包在 Photino 二進位檔案中，無 Web 主機相依）
+回退頁面顯示：錯誤描述 + [重新啟動] 按鈕
 ```
 
 **啟動時資料庫遷移失敗：**
 ```
 遷移在 Web 主機啟動前執行
-失敗 → 中止啟動 → Photino 對話框：
+失敗 → 中止啟動 → Photino 對話方塊：
   "資料庫更新失敗：{error}"
   按鈕：[開啟日誌資料夾] [退出]
 不進行自動修復以防止資料損壞。
@@ -220,6 +220,6 @@ Photino 失去連線 → 顯示嵌入式靜態回退 HTML
 ## 下一步
 
 1. **準備好進行第一階段實作。** SPEC.md 和 plan.md 已完成多輪審查；所有 P1 問題已解決。從任務 1 開始。
-2. plan.md 包含完整的任務列表、驗收準則、依賴圖和文件產出。
+2. plan.md 包含完整的任務列表、驗收準則、相依圖和文件產出。
 3. todo.md 是執行清單 — 在那裡追蹤進度。
 4. 根據 BDD 情境和 TDD 紅/綠/重構，逐任務實作。

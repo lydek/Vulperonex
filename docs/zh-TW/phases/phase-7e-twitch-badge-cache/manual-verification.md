@@ -51,8 +51,8 @@ curl http://localhost:5000/api/twitch/badges | jq '.ready, (.global | length), (
    ```
 2. Overlay 訊息出現但無徽章圖示，且 console 無 404 圖片錯誤。
 
-## 6. 重啟同步
+## 6. 重新啟動同步
 
-1. 停止 Web、重啟。
+1. 停止 Web、重新啟動。
 2. log 重新出現 `Synced N global Twitch badges`。
 3. `GET /api/twitch/badges` 立刻有資料（非首次請求才查）。

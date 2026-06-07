@@ -17,7 +17,7 @@
 
 ## 任務 13 - MemberModule + Overlay DTO
 
-- [x] 任務 13a：針對 SC-8 實作 `MemberModule` 事件訂閱與成員解析。
+- [x] 任務 13a：針對 SC-8 實作 `MemberModule` 事件訂閱與會員解析。
 - [x] 任務 13b：實作訂閱/追隨串流狀態更新。
 - [x] 任務 13c：針對 SC-6b 證明模擬/Twitch MemberRecord 資料庫狀態等效性。
 - [x] 任務 13d：實作 Overlay DTO 精確白名單合約。
@@ -25,7 +25,7 @@
 
 ## 任務 13 後續積壓工作
 
-- [x] 任務 13f：強化 SC-6a/SC-6b 等效性，包含追隨/訂閱/贊助負載，以及對快取狀態、成員狀態、`TotalBitsGiven` 與訂閱者層級的斷言。
+- [x] 任務 13f：強化 SC-6a/SC-6b 等效性，包含追隨/訂閱/贊助負載，以及對快取狀態、會員狀態、`TotalBitsGiven` 與訂閱者層級的斷言。
 
 ## 檢查點 4
 
@@ -34,7 +34,7 @@
 - [x] SC-1：mock Twitch 負載 -> 七個 MVP `IStreamEvent` 具體對應通過。
 - [x] SC-6a：SimulationAdapter 與 TwitchAdapter mock 訊息負載產生匹配的 WorkflowEngine 聊天副作用。
 - [x] SC-6b：SimulationAdapter 與 TwitchAdapter mock 訊息負載產生匹配的 MemberRecord 資料庫狀態。
-- [x] SC-8：發布 `UserSentMessageEvent` 解析出 `PlatformIdentity` 並透過解析器建立 ULID 成員 ID。
+- [x] SC-8：發布 `UserSentMessageEvent` 解析出 `PlatformIdentity` 並透過解析器建立 ULID 會員 ID。
 - [x] Twitch IRC mock -> `UserSentMessageEvent` -> MemberRecord 建立通過。
 - [x] `platform.connection_changed` 註冊行為為 `IsKnown=true` 且 `IsKnownForWorkflow=false`。
 - [x] `TwitchAdapter.StartAsync` 重複啟動具等冪性。
@@ -48,11 +48,11 @@
 - [x] DisplayHints 區段類型允許清單、六位數顏色格式、勳章 ID/值正規化、`user.avatar`、`user.is_subscriber` 與 `user.bits_total` 測試通過。
 - [x] Adapter 顯示快取更新對累計 bits 使用單調絕對值取代，且對於順序錯亂的值具備重播安全性。
 - [x] `MemberModule` 不引用 `Vulperonex.Adapters.Abstractions` 或 `IPlatformUserInfoCache`。
-- [x] 成員狀態重播使用 `(platform, sourceEventId)` 重複刪除行為，且不重複成員身分。
+- [x] 會員狀態重播使用 `(platform, sourceEventId)` 重複刪除行為，且不重複會員身分。
 - [x] Overlay DTO `System.Text.Json` 金鑰集精確白名單測試通過。
-- [x] Overlay 提醒/成員負載驗收通過：
+- [x] Overlay 提醒/會員負載驗收通過：
   - 提醒 `{schemaVersion,eventId,timestamp,displayName,eventType,tier}`
-  - 成員 `{schemaVersion,displayName,avatarUrl,checkInCount}`
+  - 會員 `{schemaVersion,displayName,avatarUrl,checkInCount}`
 - [x] SignalR 序列化精確金鑰集驗證仍保留於任務 15；第四階段僅擁有 DTO 合約測試。
 - [x] 網域/應用程式 Twitch 符號洩漏測試通過。
 - [x] 網域涵蓋率閘口 >90% 通過。

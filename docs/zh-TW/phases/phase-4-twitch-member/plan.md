@@ -21,7 +21,7 @@
 
 ---
 
-## 依賴順序
+## 相依順序
 
 ```text
 任務 12a Twitch 事件類型註冊
@@ -32,15 +32,15 @@
     -> 任務 12f OAuth PKCE 回呼與權杖重新整理
     -> 任務 12g 由 Adapter 擁有的顯示快取更新
 
-任務 13a MemberModule 事件訂閱與成員解析
-    -> 任務 13b 來自訂閱/追隨訊號的成員狀態更新
-    -> 任務 13c 模擬/Twitch 成員狀態等效性
+任務 13a MemberModule 事件訂閱與會員解析
+    -> 任務 13b 來自訂閱/追隨訊號的會員狀態更新
+    -> 任務 13c 模擬/Twitch 會員狀態等效性
     -> 任務 13d Overlay DTO 白名單合約
     -> 任務 13e 第四階段檢查點審查
     -> 任務 13f SC-6a/SC-6b 等效性強化後續
 ```
 
-任務 12 依賴第三階段事件/工作流合約與第二階段權杖/快取基礎架構。任務 13 依賴任務 12，因為 SC-6b 需要將 SimulationAdapter 與 TwitchAdapter 的輸出與成員狀態進行比較。
+任務 12 相依第三階段事件/工作流合約與第二階段權杖/快取基礎架構。任務 13 相依任務 12，因為 SC-6b 需要將 SimulationAdapter 與 TwitchAdapter 的輸出與會員狀態進行比較。
 
 ---
 
@@ -54,7 +54,7 @@
 - [ ] `StartAsync` 同時註冊 `platform.connection_changed`，但標記為 `IsSystemEvent=true`。
 - [ ] `StartAsync` 可重複呼叫：第二次呼叫不得重複註冊事件金鑰，不開啟第二組 socket，直接回傳成功。
 - [ ] `StopAsync` 可重複呼叫且不拋出例外。
-- [ ] Adapter 建構函式不要求真實 Twitch 認證資訊；測試可用虛擬對象 (fakes) 啟動。
+- [ ] Adapter 建構函式不要求真實 Twitch 認證資訊；測試可用虛擬物件 (fakes) 啟動。
 
 **驗證：**
 - [ ] 單元/整合測試：`TwitchAdapter.StartAsync` 後 `IStreamEventTypeRegistry.IsKnown("user.message") = true`。
@@ -62,7 +62,7 @@
 - [ ] 單元測試：重複啟動具等冪性，事件金鑰註冊僅發生一次。
 - [ ] 架構測試：`Vulperonex.Adapters.Twitch` 可引用 Domain/Application/Adapters.Abstractions，但 Domain/Application 不引用 Twitch。
 
-**依賴：** 任務 9a, 任務 9b
+**相依：** 任務 9a, 任務 9b
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Twitch/TwitchAdapter.cs`
@@ -83,7 +83,7 @@
 - [ ] `display.segments` 區段類型僅允許 `text | emote | badge | mention`。
 - [ ] HTML 風格的文字保留原始字串，不輸出原始 HTML 區段類型。
 - [ ] `display.color` 僅接受 `^#[0-9A-Fa-f]{6}$`；不接受三位數縮寫、八位數 alpha、CSS 具名顏色或空字串。
-- [ ] 勳章 (badge) 去重並保留首次出現順序，勳章 ID 僅允許 `[A-Za-z0-9_/\-]`，勳章值最多 64 字元，最多 20 個。
+- [ ] 勳章 (badge) 重複抑制並保留首次出現順序，勳章 ID 僅允許 `[A-Za-z0-9_/\-]`，勳章值最多 64 字元，最多 20 個。
 - [ ] `user.avatar` 僅由 Twitch 第一方負載填入；MVP 不做 URL 允許清單，overlay 端仍僅能以 DTO 安全投影方式使用。
 - [ ] `user.is_subscriber` 輸出 `"true"` / `"false"` 字串，來源為 IRC 勳章/角色正規化結果。
 - [ ] `user.bits_total` 輸出整數值字串；未知或非法值不輸出。
@@ -92,10 +92,10 @@
 - [ ] 單元測試：IRC 訊息解析 -> `UserSentMessageEvent`。
 - [ ] 單元測試：HTML 風格文字僅出現在文字區段值。
 - [ ] 單元測試：合法十六進位顏色保留，非法顏色省略。
-- [ ] 單元測試：勳章正規化去重、ID/值過濾與截斷。
+- [ ] 單元測試：勳章正規化重複抑制、ID/值過濾與截斷。
 - [ ] 單元測試：avatar、is_subscriber、bits_total 顯示提示格式正確；非法 bits total 省略。
 
-**依賴：** 任務 12a
+**相依：** 任務 12a
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Twitch/Irc/TwitchIrcMessage.cs`
@@ -114,7 +114,7 @@
 **驗收準則：**
 - [ ] mock Twitch 負載可產生七個 MVP `IStreamEvent`：message、followed、donated、subscribed、gifted subscription、raided、reward redeemed。
 - [ ] 所有事件的 `Platform` 為 `twitch`。
-- [ ] 所有 Twitch 特有的負載型別不跨出 adapter 組件。
+- [ ] 所有 Twitch 特有的負載型別不跨出 adapter 元件。
 - [ ] 發布路徑僅透過 `IStreamEventBus.PublishAsync`。
 - [ ] SC-1 通過：mock Twitch 負載 -> 七個 MVP 事件全部產生。
 
@@ -123,7 +123,7 @@
 - [ ] 單元測試：訂閱層級、贈送計數、bits 總計、raid 觀眾人數、獎勵 ID/標題正確保留。
 - [ ] 單元/整合測試：adapter 發布後，匯流排訂閱者收到對應事件。
 
-**依賴：** 任務 12b
+**相依：** 任務 12b
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Twitch/Mapping/`
@@ -148,7 +148,7 @@
 - [ ] 整合測試：模擬執行與 Twitch mock 執行的發送者呼叫快照 (snapshot) 相同。
 - [ ] `dotnet test` 中 SC-6a 通過。
 
-**依賴：** 任務 12c, 任務 10
+**相依：** 任務 12c, 任務 10
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Integration/Adapters/TwitchWorkflowEquivalenceTests.cs`
@@ -166,7 +166,7 @@
 - [ ] IRC WebSocket 斷線時立即發布 `PlatformConnectionChangedEvent { Platform = "twitch", IsConnected = false, Reason = "reconnecting" }`。
 - [ ] 重連成功後發布 `PlatformConnectionChangedEvent { IsConnected = true }`。
 - [ ] 重連延遲使用 1s -> 2s -> 4s 指數退避，最大 60s，並套用 ±20% 抖動 (jitter) 以避免多個用戶端同步重連。
-- [ ] EventSub 10 分鐘重播視窗 (replay window) 內的重播事件不因重播標記而被 adapter 過濾；僅當同一 `(platform, sourceEventId)` 在重複刪除快取 (dedup cache) 內重複送達時才跳過。重複刪除快取上限為 1000 筆條目或 10 分鐘 TTL，任一條件先達成即汰換。
+- [ ] EventSub 10 分鐘重播視窗 (replay window) 內的重播事件不因重播標記而被 adapter 過濾；僅當同一 `(platform, sourceEventId)` 在重複刪除快取 (dedup cache) 內重複送達時才略過。重複刪除快取上限為 1000 筆條目或 10 分鐘 TTL，任一條件先達成即汰換。
 - [ ] EventSub 超過重播視窗後繼續執行並記錄警告 (warning)，不發生當機 (crash) 或死結 (deadlock)。
 
 **驗證：**
@@ -176,7 +176,7 @@
 - [ ] 單元測試：同一 `(platform, sourceEventId)` 在重複刪除快取內重複送達時僅發布一次，且 10 分鐘 TTL 到期後會釋放快取條目。
 - [ ] 單元測試：EventSub 重播逾時記錄警告並繼續執行。
 
-**依賴：** 任務 12c
+**相依：** 任務 12c
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Twitch/Irc/TwitchIrcClient.cs`
@@ -223,7 +223,7 @@
 - [ ] 單元測試：重新整理權杖儲存收到原始重新整理權杖；記錄器不含原始重新整理權杖或 `refresh_token` 純文字值。
 - [ ] 單元測試：啟動時重新整理權杖流程與解密失敗流程。
 
-**依賴：** 任務 8, 任務 12a
+**相依：** 任務 8, 任務 12a
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Twitch/Auth/OAuthCallbackListener.cs`
@@ -254,7 +254,7 @@
 - [ ] 單元測試：追隨事件更新追隨者勳章。
 - [ ] 架構測試或相依性檢查：Application/Domain 不引用 `IPlatformUserInfoCache`。
 
-**依賴：** 任務 7, 任務 12c
+**相依：** 任務 7, 任務 12c
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Twitch/Mapping/`
@@ -267,7 +267,7 @@
 
 ## 任務 13a：MemberModule event subscription and member resolution
 
-**描述：** 實作 `MemberModule`，訂閱網域事件並透過 `IMemberResolver` 建立/解析 MemberRecord。此切片先完成 SC-8 的基本成員建立。
+**描述：** 實作 `MemberModule`，訂閱網域事件並透過 `IMemberResolver` 建立/解析 MemberRecord。此切片先完成 SC-8 的基本會員建立。
 
 **驗收準則：**
 - [ ] `MemberModule` 位於 Application 或符合現有裝載服務 (hosted service) 模式的邊界中。
@@ -281,7 +281,7 @@
 - [ ] 整合測試：MemberId 符合 ULID 格式。
 - [ ] 架構測試：MemberModule 不引用 adapter 抽象/顯示快取。
 
-**依賴：** 任務 7, 任務 10
+**相依：** 任務 7, 任務 10
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Members/MemberModule.cs`
@@ -294,20 +294,20 @@
 
 ## 任務 13b：Member state updates from stream events
 
-**描述：** 擴充 MemberModule 對訂閱/追隨等事件的成員狀態更新。顯示快取仍由 adapter 更新；MemberModule 僅處理 MemberRecord 狀態。
+**描述：** 擴充 MemberModule 對訂閱/追隨等事件的會員狀態更新。顯示快取仍由 adapter 更新；MemberModule 僅處理 MemberRecord 狀態。
 
 **驗收準則：**
 - [ ] `UserSubscribedEvent` 更新 MemberRecord 訂閱者狀態。
-- [ ] 追隨/訂閱等事件先解析成員，再更新狀態。
+- [ ] 追隨/訂閱等事件先解析會員，再更新狀態。
 - [ ] 更新邏輯具等冪性，TDQ 重播不造成重複累加或重複資料列；重複刪除金鑰使用 `(platform, sourceEventId)`，mock 事件必須提供穩定的 `sourceEventId`，不得使用每次處理新產生的 ULID 作為重播重複刪除金鑰。
 - [ ] MemberModule 不讀取顯示提示，不使用 Twitch 負載。
 
 **驗證：**
 - [ ] 整合測試：`UserSubscribedEvent` -> MemberRecord 訂閱者狀態已更新。
-- [ ] 整合測試：重播同一個 `(platform, sourceEventId)` 訂閱事件會保持相同的成員身分與狀態。
-- [ ] 單元/整合測試：缺少成員的路徑在更新前會使用解析器。
+- [ ] 整合測試：重播同一個 `(platform, sourceEventId)` 訂閱事件會保持相同的會員身分與狀態。
+- [ ] 單元/整合測試：缺少會員的路徑在更新前會使用解析器。
 
-**依賴：** 任務 13a
+**相依：** 任務 13a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Members/MemberModule.cs`
@@ -334,7 +334,7 @@
 - [ ] 整合測試：TwitchAdapter mock IRC 負載 X -> 快照 S2。
 - [ ] 斷言 S1 == S2。
 
-**依賴：** 任務 12d, 任務 13b
+**相依：** 任務 12d, 任務 13b
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Integration/Members/MemberEquivalenceTests.cs`
@@ -352,7 +352,7 @@
 - [ ] `OverlayChatPayload` JSON 屬性集精確等於 `{schemaVersion, eventId, timestamp, displayName, colorHex, segments, badges}`。
 - [ ] `OverlayAlertPayload` JSON 屬性集精確等於 `{schemaVersion, eventId, timestamp, displayName, eventType, tier}`。
 - [ ] `OverlayMemberPayload` JSON 屬性集精確等於 `{schemaVersion, displayName, avatarUrl, checkInCount}`。
-- [ ] `schemaVersion` 固定為 `1`；`eventId` 是公開交付 ID，用於 overlay 去重，不得使用 MemberId、PlatformUserId 或其他內部身分；優先採用平臺提供的 ID（IRC `msg-id` / EventSub `message_id`），缺值時由 adapter 生成 ULID 並標記為合成 (synthetic)；`timestamp` 為 UTC ISO-8601 事件時間，用於 overlay 排序。
+- [ ] `schemaVersion` 固定為 `1`；`eventId` 是公開交付 ID，用於 overlay 重複抑制，不得使用 MemberId、PlatformUserId 或其他內部身分；優先採用平臺提供的 ID（IRC `msg-id` / EventSub `message_id`），缺值時由 adapter 生成 ULID 並標記為合成 (synthetic)；`timestamp` 為 UTC ISO-8601 事件時間，用於 overlay 排序。
 - [ ] `OverlayMemberPayload` 是狀態快照，不是事件串流；因此不含 `eventId` / `timestamp`，避免後續為了對稱而誤加事件中繼資料。
 - [ ] DTO 不包含 MemberId、UserId、PlatformUserId、TotalBitsGiven、TotalLoyalty、LinkedPlatforms。
 - [ ] 測試使用精確匹配，不只做黑名單過濾。
@@ -364,7 +364,7 @@
 - [ ] 架構/程式碼審查：Overlay DTO 不引用持久化實體。
 - [ ] 文件檢查：任務 15 的 SignalR 序列化精確金鑰集驗證仍保留，不視為第四階段已完成。
 
-**依賴：** 任務 13a
+**相依：** 任務 13a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Overlay/Dtos/OverlayChatPayload.cs`
@@ -392,9 +392,9 @@
 - [ ] `git status --short` 乾淨；若需檢查忽略檔案，另執行 `git status --short --ignored` 並確認僅出現預期的本地檔案。
 
 **審查門檻：**
-- [ ] 開始第五階段前人工審查 Twitch adapter 邊界、OAuth/權杖處理、顯示快取擁有權、MemberModule 依賴方向、Overlay DTO 白名單。
+- [ ] 開始第五階段前人工審查 Twitch adapter 邊界、OAuth/權杖處理、顯示快取擁有權、MemberModule 相依方向、Overlay DTO 白名單。
 
-**依賴：** 任務 13d
+**相依：** 任務 13d
 
 **可能涉及的檔案：**
 - `docs/phases/phase-4-twitch-member/todo.md`
@@ -406,11 +406,11 @@
 
 ## 任務 13f - SC-6a/SC-6b equivalence strengthening follow-up
 
-**說明：** 第五階段檢查點取決於更強大的第四階段等效性閘口，以便在聊天回顯快樂路徑（happy path）之外比較模擬與 Twitch 路徑。
+**說明：** 第五階段檢查點取決於更強大的第四階段等效性閘口，以便在聊天回應快樂路徑（happy path）之外比較模擬與 Twitch 路徑。
 
 **驗收標準：**
 - [ ] 新增用於模擬與 Twitch adapter 等效性比較的追隨、訂閱與贊助負載測試資料 (fixtures)。
-- [ ] 斷言快取狀態與成員狀態副作用，而不僅是發出的聊天/動作輸出。
+- [ ] 斷言快取狀態與會員狀態副作用，而不僅是發出的聊天/動作輸出。
 - [ ] 斷言 `TotalBitsGiven` 呈單調性，且訂閱者層級狀態在模擬與 Twitch 路徑之間匹配。
 - [ ] 除非第五階段檢查點明確豁免，否則將此保留為後續積壓條目。
 
@@ -454,4 +454,4 @@
 
 - 任務 12f 是否需要真實的 HTTP listener 實作，還是先以 listener 抽象 + 單元測試驗證單次使用/loopback/路徑/連接埠行為。建議先做抽象，避免第四階段卡在作業系統 socket 細節。
 - Overlay DTO 是否僅放在 Application，還是第五階段 SignalR hub 需要 host 層級的 DTO。建議第四階段先放 Application 合約，第五階段 hub 僅序列化該 DTO。
-- 第五階段多 overlay 客戶端場景需重新評估合成 `eventId` 去重語義：平臺提供的 ID 可跨客戶端識別同一事件；adapter 後備 ULID 僅保證本機單實例交付 ID。
+- 第五階段多 overlay 用戶端場景需重新評估合成 `eventId` 重複抑制語義：平臺提供的 ID 可跨用戶端識別同一事件；adapter 後備 ULID 僅保證本機單實例交付 ID。

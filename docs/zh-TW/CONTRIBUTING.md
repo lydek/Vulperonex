@@ -11,6 +11,6 @@
 
 ## 外掛程式骨架
 
-- 新增的 Overlay 匯入器外掛應依賴 `Vulperonex.Application` 契約與 `Vulperonex.Plugins.Abstractions`。
+- 新增的 Overlay 匯入器外掛應相依 `Vulperonex.Application` 契約與 `Vulperonex.Plugins.Abstractions`。
 - 保持匯入器契約基於資料串流 (Stream)。請勿要求呼叫端交付檔案系統路徑。
 - 對於 OneComme 風格的匯入，將外部欄位對應至 Vulperonex 疊層 DTO 名稱，並對有損轉換返回警告。

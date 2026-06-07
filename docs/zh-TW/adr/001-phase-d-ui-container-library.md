@@ -13,7 +13,7 @@
 使用 `reka-ui` 作為 Phase D 的容器基礎元件。
 
 - 安裝版本：`reka-ui@2.9.8`。
-- 在 `RuleEditorDrawer.vue` 成為正式路由實作後，原有的 PoC 組件與測試已被停用；下方的歷史驗證證據記錄了 PoC 門檻。
+- 在 `RuleEditorDrawer.vue` 成為正式路由實作後，原有的 PoC 元件與測試已被停用；下方的歷史驗證證據記錄了 PoC 門檻。
 
 此 PoC 使用：
 
@@ -27,7 +27,7 @@ Reka 發出穩定的資料屬性，可透過現有的 CSS 進行樣式設定：
 
 - 抽屜：`.reka-poc-drawer[data-state="open"]`。
 - 分頁：`.reka-poc-tab[data-state="active"]`。
-- 對話框遮罩/內容：一般類別選取器疊加在未設定樣式的插槽 (Slots) 上。
+- 對話方塊遮罩/內容：一般類別選取器疊加在未設定樣式的插槽 (Slots) 上。
 
 此 PoC 刻意使用現有的本機按鈕/表單類別（`primary-button`、`icon-button`、`form-field`、`form-label`）與直接的 CSS 選取器，而不是庫內置的主題。這確認了 Phase D 可以使用現有的 CSS 變數/類別，而無須替換應用程式的 Token 系統。
 
@@ -41,7 +41,7 @@ Reka 發出穩定的資料屬性，可透過現有的 CSS 進行樣式設定：
 - `vue-tsc --noEmit`：通過。
 - `vite build --outDir ../../artifacts/vulperonex-phase8-reka-build --emptyOutDir`：通過。
 
-安裝後且 PoC 組件尚未進入正式路由時的建置輸出：
+安裝後且 PoC 元件尚未進入正式路由時的建置輸出：
 
 - CSS 軟體包：`225.64 kB`，gzip `39.45 kB`。
 - 主要 JS 軟體包：`4,229.49 kB`，gzip `1,117.17 kB`。
@@ -62,7 +62,7 @@ Reka 發出穩定的資料屬性，可透過現有的 CSS 進行樣式設定：
 
 D.2 增量仍在 Phase D 的預算範圍內。
 
-`VariablePicker.vue` 透過觸發器元資料進行篩選後的 Phase D.3 路由建置輸出：
+`VariablePicker.vue` 透過觸發器元資料篩選後的 Phase D.3 路由建置輸出：
 
 - CSS 軟體包：`227.53 kB`，gzip `39.78 kB`。
 - 主要 JS 軟體包：`4,281.45 kB`，gzip `1,133.23 kB`。

@@ -185,7 +185,7 @@
 - [x] Task 67a：`AdjustLoyaltyModal.vue`（before/after diff + reason）
 - [x] Task 67b：`ResetModal.vue`（checkboxes + reason）
 - [x] Task 67c：`DeleteConfirmDialog.vue`（兩段確認 + token）
-- [x] Task 67d：`AuditLogDrawer.vue`（timeline + 無限滾動）
+- [x] Task 67d：`AuditLogDrawer.vue`（timeline + 無限捲動）
 - [x] Task 67e：MembersView 加入操作按鈕
 - [x] Task 67f：409 conflict toast + auto reload
 - [x] Task 67g：i18n 完整雙語
@@ -248,15 +248,15 @@
 
 - [x] Task 74a：實作 `POST /api/simulate/checkin` 端點
 - [x] Task 74b：端點接收 `platformUserId`, `displayName`, `skipCooldown`, `stampCount`
-- [x] Task 74c：調用 `IMemberResolver` 與 `IMemberStreamStateRepository` 增量
+- [x] Task 74c：呼叫 `IMemberResolver` 與 `IMemberStreamStateRepository` 增量
 - [x] Task 74d：成功寫入資料庫後發布 `MemberCheckedInEvent` 事件到 EventBus
 - [x] Task 74e：整合測試模擬端點行為與狀態變更
 
-### Task 75 - 監控控制台模擬 UI 擴充 (SimulateControlsPanel)
+### Task 75 - 監控主控台模擬 UI 擴充 (SimulateControlsPanel)
 
 - [x] Task 75a：`SimulateControlsPanel.vue` 加入身分組多選勾選框 (Checkbox Group)
 - [x] Task 75b：新增忠誠度與打卡模擬專用區塊表單
-- [x] Task 75c：模擬按鈕點選調用 `POST /api/simulate/checkin` 端點
+- [x] Task 75c：模擬按鈕點選呼叫 `POST /api/simulate/checkin` 端點
 - [x] Task 75d：Vitest 測試各模擬控制元件之互動
 
 ---

@@ -24,7 +24,7 @@
 2. **`ITwitchBadgeCache`（Application 介面）+ `TwitchBadgeCache`（Infrastructure 實作）**：
    - 介面：`string? Get(string key)`、`IReadOnlyList<TwitchBadgeDescriptor> ListAll()`、`Task SyncGlobalAsync(CancellationToken)`、`Task SyncChannelAsync(string broadcasterId, CancellationToken)`、`bool IsReady`。
    - 實作：`ConcurrentDictionary<string, TwitchBadgeDescriptor>` thread-safe；sync 失敗時保留舊資料、log warning。
-   - 注意：cache 為 in-memory，應用重啟需重新同步；不做磁碟持久化。
+   - 注意：cache 為 in-memory，應用重新啟動需重新同步；不做磁碟持久化。
 
 3. **`TwitchBadgeSyncHostedService`**：
    - `StartAsync` 中 fire-and-forget 呼叫 `SyncGlobalAsync` + `SyncChannelAsync(broadcasterId)`（broadcaster id 來自 `Twitch:BroadcasterId` config，未設定則略過 channel sync）。
@@ -68,7 +68,7 @@
 - 不支援上傳自訂徽章（僅顯示已於 Twitch 註冊者）。
 - 不整合 BTTV / 7TV / FFZ 徽章與表情。
 - 不做徽章變更 audit log。
-- Cache 無背景定期 refresh（自訂徽章新增後需重啟；後續 phase 可加 24h refresh hosted service）。
+- Cache 無背景定期 refresh（自訂徽章新增後需重新啟動；後續 phase 可加 24h refresh hosted service）。
 
 ---
 

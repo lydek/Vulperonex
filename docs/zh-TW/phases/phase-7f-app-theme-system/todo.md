@@ -10,7 +10,7 @@
 
 ## 稽核 (Audit)
 
-- [x] 盤點所有管理端路由、共享組件、Overlay 預覽和靜態 Overlay 資產。
+- [x] 盤點所有管理端路由、共享元件、Overlay 預覽和靜態 Overlay 資產。
 - [x] 按檔案計算硬編碼顏色的使用次數，並將每個路由分類為 `done`、`partial`、`preset-scoped` 或 `deferred`。
 - [x] 在 `manual-verification.md` 中記錄遷移優先級和阻礙因素。
 
@@ -31,14 +31,14 @@
 ## 監控整合 (Monitor Integration)
 
 - [x] 重新連線 `monitor-tokens.css` 以衍生自 `--vp-*`。
-- [ ] 轉換仍然硬編碼應用程式外殼顏色的監控相關組件。
+- [ ] 轉換仍然硬編碼應用程式外殼顏色的監控相關元件。
 - [/] 在淺色和深色模式下驗證 `/monitor`。
 
 ## 頁面遷移（phase8-theme 分支狀態）
 
 > 此分支整合詳見 `phase8-integration.md`。狀態以 `codex/phase8-theme` 為準。
 
-- [x] 工作流編輯器組件（VariableFieldInput / VariablePicker / ConditionExpressionInput / WorkflowActionsEditor / WorkflowConditionsEditor / StepListShell / RoleChipSelector）
+- [x] 工作流編輯器元件（VariableFieldInput / VariablePicker / ConditionExpressionInput / WorkflowActionsEditor / WorkflowConditionsEditor / StepListShell / RoleChipSelector）
 - [x] `ChatOutboxView.vue`
 - [x] `MonitorDashboardView.vue`（殘留 rgba 收斂）
 - [x] `RuleEditorDrawer.vue`（phase8 以 drawer 取代 RuleEditorView）

@@ -2,10 +2,10 @@
 
 > 父層計畫：`tasks/plan.md`
 > 父層待辦：`tasks/todo.md`
-> 對照來源：`docs/SPEC.md` §4.14.1 Overlay Preset Contract、`ref/Omni-Commander/OmniCommander.WebApi/wwwroot/member-card.html` (視覺啟發，不直接複用)
+> 對照來源：`docs/SPEC.md` §4.14.1 Overlay Preset Contract、`ref/Omni-Commander/OmniCommander.WebApi/wwwroot/member-card.html` (視覺啟發，不直接重用)
 > 前置條件：Phase 7B chat overlay preset contract 已完成；Phase 6 Web admin UI + SystemSettingsService 可用。
 > 目標：補齊 member card overlay 預設樣式 + admin controller、定義自訂 HTML overlay 上傳擴充機制、提供 chat overlay 內嵌會員卡資料的可選 cross-hub 渲染路徑。
-> 邊界：OneComme 樣板匯入 plugin 為獨立 slice（Phase 7D），此 phase 僅落地 contract + 上傳基礎設施。
+> 邊界：OneComme 樣板匯入 plugin 為獨立 slice（Phase 7D），此 phase 僅落地 contract + 上傳基礎架構。
 > 進度來源：本文件 checkbox 為設計/驗收草案；實際完成狀態以 `todo.md` 為準。
 
 ---
@@ -52,11 +52,11 @@ Phase 7C 處理 (1)(2)(3) + (4) 的 contract 部分。實際 OneComme bridge plu
 
 ## Task 44 - Member Card Overlay Default Preset (Rotan-Checkin)
 
-**描述：** `/overlay/member` 預設視覺從骨架升級為 first-class 集點卡 preset，視覺啟發自 Rotan checkin overlay 但完全重寫（無原始檔案複用）。10 格集章 grid、紫金燙金邊框、爪印 SVG（內聯）、頭像 + 名稱 + VIP 徽章。
+**描述：** `/overlay/member` 預設視覺從骨架升級為 first-class 集點卡 preset，視覺啟發自 Rotan checkin overlay 但完全重寫（無原始檔案重用）。10 格集章 grid、紫金燙金邊框、爪印 SVG（行內）、頭像 + 名稱 + VIP 徽章。
 
 **驗收標準：**
 - [x] static `member-card.html` runtime 渲染完整集點卡，含進場動畫、滿章金光特效
-- [x] 卡片在 SignalR `member` hub 收到 event 時觸發顯示，7s 後自動收起
+- [x] 卡片在 SignalR `member` hub 收到 event 時觸發顯示，7s 後自動收合
 - [x] 集章數依 `checkInCount % stampsPerRound` 決定本輪格數，自動進位下一輪
 - [x] CSS base + theme token 架構：`member-card.css` 結構層、`member-card-twitch.css` 純 :root override
 - [x] 動畫 keyframe 使用 `var(--mc-*)` 在 box-shadow 中解析顏色，主題切換零重複 keyframe
@@ -161,7 +161,7 @@ Phase 7C 處理 (1)(2)(3) + (4) 的 contract 部分。實際 OneComme bridge plu
 
 **實作提示：**
 - Contract 必須走 stream 而非 file path（plugin 可能接收網路上傳的 zip）。
-- `ImportResult` 包含成功/失敗 + 警告清單（哪些 OneComme 變數無對應映射）。
+- `ImportResult` 包含成功/失敗 + 警告清單（哪些 OneComme 變數無對應對應）。
 
 ---
 
@@ -192,7 +192,7 @@ Phase 7C 處理 (1)(2)(3) + (4) 的 contract 部分。實際 OneComme bridge plu
 | CSS `url()` 使用者設定值被注入跳脫 | 中 | scheme allowlist + 引號字元黑名單 + 字串引號跳脫 helper |
 | Chat hub DTO 加 memberSnapshot 破壞既有 Phase 6 反射白名單 | 中 | 反射測試擴充涵蓋新欄位，CI gate 鎖白名單 |
 | Member snapshot 每筆 chat 都查 DB 造成熱路徑效能問題 | 中 | `PlatformUserDisplayCache` 既有快取機制延伸覆蓋 snapshot |
-| OneComme contract 過早定型，未來 plugin 實作時不合用 | 中 | Contract 只定 stream + result + 警告 list，實際映射 plugin 自行決定 |
+| OneComme contract 過早定型，未來 plugin 實作時不合用 | 中 | Contract 只定 stream + result + 警告 list，實際對應 plugin 自行決定 |
 | 自訂 HTML preset 與 Vue preset 兩條路徑長期同步成本高 | 中 | SignalR DTO 為唯一真理；preset 渲染只允許讀已白名單欄位 |
 
 ---

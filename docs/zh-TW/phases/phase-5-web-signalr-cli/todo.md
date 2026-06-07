@@ -13,11 +13,11 @@
 - [x] 任務 14a-3：實作 WorkflowRule CRUD/啟用/停用/刪除端點，並附帶 CQRS 互動測試。
 - [x] 任務 14a-4：實作 `GET /api/event-types`，並包含來自共享模擬別名註冊表的 `isSimulatable`。
 
-## 任務 14b - Minimal API 模擬 / 配置 / 成員
+## 任務 14b - Minimal API 模擬 / 配置 / 會員
 
 - [x] 任務 14b-1：僅針對 `chat`，`follow`，與 `sub` 實作 `POST /api/simulate/{alias}`，並固定 chat/follow/sub request body schema。
 - [x] 任務 14b-2：在 registry 查找前實作帶有 `security.*` 與 `oauth.*` 字首拒絕清單的 `GET|PUT /api/config/{key}`。
-- [x] 任務 14b-3：透過 `IMemberQueryService` 實作成員列表/顯示查詢端點；Phase 5 目前以 `MemberId ASC` 作為穩定排序。
+- [x] 任務 14b-3：透過 `IMemberQueryService` 實作會員列表/顯示查詢端點；Phase 5 目前以 `MemberId ASC` 作為穩定排序。
 
 ## 任務 15 - SignalR Hub + Overlay 推送 + 雙連接埠 Kestrel
 
@@ -40,7 +40,7 @@
 - [x] Web startup project 可支援 `dotnet ef database update --project src\Vulperonex.Infrastructure --startup-project src\Hosts\Vulperonex.Web`。
 - [x] 自動化測試覆蓋「未預先 migrate 的 temp SQLite DB 啟動後，`GET /api/rules` 回 200」。
 - [x] 自動化測試覆蓋真實 Web host + `VulperonexCli.RunAsync` 對本機 API 的 rule/config/member/simulate smoke path。
-- [x] CLI 提供 `twitch auth start` 或等效命令，使用 loopback-only OAuth callback、PKCE `state`/`code_verifier`，並把 refresh token 交由 API 透過 `IOAuthTokenStore` 加密保存。
+- [x] CLI 提供 `twitch auth start` 或等效命令，使用 loopback-only OAuth callback、PKCE `state`/`code_verifier`，並把 refresh token 交由 API 透過 `IOAuthTokenStore` 加密儲存。
 - [x] Twitch OAuth 授權流程不得透過 `/api/config/oauth.*` 讀寫 token；`oauth.*` protected namespace 規則維持不變。
 - [x] 手動驗證命令與預期結果記錄於 `cli-e2e-verification.md`，包含 build、啟動 API、CLI smoke、Twitch 授權前置設定與 callback URI。
 - [x] 本機 terminal 實跑 published CLI (`artifacts/cli-manual/Vulperonex.Cli.exe`) 對獨立 Web API process 的 smoke；Codex sandbox 已拒絕背景 Web host 啟動，需人工執行。
@@ -62,7 +62,7 @@
 - [x] CLI manual-test UX：`simulate` 空參數顯示局部 help；`rule create/update` 支援 JSON 檔；`member seed/delete` 支援建立與清理測試會員；`twitch auth reset` 支援清除 OAuth refresh token 後重跑授權。
 - [x] 手動驗證 REPL：Windows Terminal / PowerShell 下 one-shot、REPL、OAuth、exit/EOF 行為。
 
-## 第 5 階段依賴項
+## 第 5 階段相依項
 
 - [x] 任務 13f：強化第 4 階段 SC-6a/SC-6b 等效性，包含 follow/sub/donate 負載，或在第 5 階段關閉前明確豁免。
 
@@ -77,20 +77,20 @@
 - [x] `UNKNOWN_*` 與 `INVALID_*` 錯誤碼命名規則已記錄並遵守。
 - [x] 配置受保護命名空間檢查通過：`security.*` -> `CONFIG_KEY_SECURITY_NAMESPACE`；`oauth.*` -> `OAUTH_CREDENTIAL_NAMESPACE`。
 - [x] 未知的受保護設定金鑰（如 `oauth.unknown.refresh_token`）回傳 `OAUTH_CREDENTIAL_NAMESPACE`，確認字首拒絕清單優先於 registry 查找。
-- [x] 成員端點涵蓋列表/顯示、分頁限制、`INVALID_QUERY_PARAM` 與 `MEMBER_NOT_FOUND`。
+- [x] 會員端點涵蓋列表/顯示、分頁限制、`INVALID_QUERY_PARAM` 與 `MEMBER_NOT_FOUND`。
 - [x] SignalR overlay 聊天在 5 秒內收到事件以符合 SC-5，且本地延遲測量暴露了 <1s P95 目標。
-- [x] SignalR 序列化精確金鑰集測試涵蓋聊天、提醒與成員 overlay DTO。
-- [x] SignalR 金鑰集測試反序列化線路負載，不依賴僅反射的 DTO 檢查。
+- [x] SignalR 序列化精確金鑰集測試涵蓋聊天、提醒與會員 overlay DTO。
+- [x] SignalR 金鑰集測試反序列化線路負載，不相依僅反射的 DTO 檢查。
 - [x] 合成 `eventId` 決策記錄於 `docs/phases/phase-5-web-signalr-cli/event-id-decision.md`，在 overlay 轉寄實作前完成。
 - [x] `event-id-decision.md` 審查筆記欄位（審查者/日期/決定）填寫完成，方可進入 Task 15b。
 - [x] 兩個 Kestrel 連接埠繫結至 IPv4 loopback `127.0.0.1` 與 IPv6 loopback `::1`；非 loopback socket 測試被拒絕。
 - [x] 連接埠對分配嘗試 `5000/5001` 至 `5008/5009`，耗盡時回傳 null，再由 host 丟出 `PortExhaustedException`。
 - [x] CLI rule/config/member/simulate 命令通過整合測試。
-- [x] CLI 4xx/5xx 處理僅將後端 `error` 代碼寫入 stderr 並以退出碼 `1` 退出。
+- [x] CLI 4xx/5xx 處理僅將後端 `error` 程式碼寫入 stderr 並以退出碼 `1` 退出。
 - [x] CLI 模擬聊天固定規則透過 HTTP API 路徑觸發虛擬傳送者。
 - [x] 手動確認：CLI 模擬聊天到達 overlay SignalR，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
 - [x] CLI 端到端 smoke：新 DB 啟動 API 後不需手動 migration，真實 CLI 可成功執行 `rule list`、`config get`、`member list`、`simulate chat|follow|sub`。
-- [x] CLI Twitch OAuth smoke：`twitch auth start` 產生 Twitch authorize URL，loopback callback 收到 code 後由 API exchange token，refresh token 加密保存。
+- [x] CLI Twitch OAuth smoke：`twitch auth start` 產生 Twitch authorize URL，loopback callback 收到 code 後由 API exchange token，refresh token 加密儲存。
 - [x] CLI OAuth reset：`twitch auth reset` 只清除 refresh token，讓 `twitch auth start` 可重複人工驗證。
 - [x] CLI 空成功回應有明確輸出：`simulate`、`rule enable/disable/delete`、`member seed/delete`、`twitch auth reset` 皆印出 `OK ...`，手動測試不再靜默。
 - [x] Web host 註冊 member event consumer，`member seed` 透過 simulation pipeline 建立的會員可由 `member list` 查到。

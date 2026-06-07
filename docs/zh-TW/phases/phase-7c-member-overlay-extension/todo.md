@@ -52,7 +52,7 @@
 - [x] 預設聊天預設檔可渲染會員晶片。
 - [x] 獨立的 `wwwroot/overlay/chat.html` 可渲染會員晶片。
 - [x] vitest 涵蓋晶片渲染與淨化協助程式。
-- [ ] 1000 次事件併發觀測基準。
+- [ ] 1000 次事件並行觀測基準。
 
 ## 任務 49 - OneComme 橋接器契約 (OneComme Bridge Contract)
 

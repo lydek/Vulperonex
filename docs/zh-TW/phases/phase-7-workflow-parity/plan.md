@@ -30,7 +30,7 @@
 
 ---
 
-## 依賴圖
+## 相依圖
 
 ```text
 Task 23 Variable / Expression substrate
@@ -63,7 +63,7 @@ Task 23 Variable / Expression substrate
 - [ ] 加 NuGet `NCalcSync`（ask-first；Phase 7 實作時已先取得批准。若後續需改用其他 NCalc package，先更新本文件與 lockfile 預檢再安裝）。
 
 **驗證：**
-- [ ] Unit test：placeholder 解析正向 + 缺失 fail-soft；NCalc 表達式以 namespace scalar value 驗證（例如 `Member.IsBroadcaster == true && Counter > 5`）；template + expression 巢狀。
+- [ ] Unit test：placeholder 解析正向 + 缺失 fail-soft；NCalc 運算式以 namespace scalar value 驗證（例如 `Member.IsBroadcaster == true && Counter > 5`）；template + expression 巢狀。
 - [ ] Unit test：strict mode 切換時 missing placeholder 拋 `TemplateMissingPlaceholderException`。
 
 **預計觸及檔案：**
@@ -79,13 +79,13 @@ Task 23 Variable / Expression substrate
 
 ## Task 24 - Step ExecutionCondition + OutputVariable
 
-**描述：** `WorkflowAction` 共用基底加 `ExecutionCondition: string?`（NCalc）+ `OutputVariable: string?`（寫入 `{Step.<name>.*}`）。Engine 在執行前評估 condition，跳過時記錄為 Skipped。
+**描述：** `WorkflowAction` 共用基底加 `ExecutionCondition: string?`（NCalc）+ `OutputVariable: string?`（寫入 `{Step.<name>.*}`）。Engine 在執行前評估 condition，略過時記錄為 Skipped。
 
 **驗收標準：**
 - [ ] `WorkflowAction` 基底加兩屬性。
 - [ ] `IWorkflowActionExecutor.ExecuteAsync` 介面回傳改為 `Task<ActionExecutionResult>`（包含 `OutputValues: IReadOnlyDictionary<string, object?>?`）。
 - [ ] Engine 評估 `ExecutionCondition` (false → skip + 記 Skipped)；執行後把 OutputValues 寫入下個 step 可見的 `{Step.<OutputVariable>.*}`。
-- [ ] `InMemoryWorkflowActionExecutionStore` 多 `Skipped` 終端狀態，replay 時 skip。
+- [ ] `InMemoryWorkflowActionExecutionStore` 多 `Skipped` 終端機狀態，replay 時 skip。
 
 **驗證：**
 - [ ] Unit test：ExecutionCondition false → 後續 step 仍能跑（除非 condition 是 stop）。
@@ -180,7 +180,7 @@ Task 23 Variable / Expression substrate
 
 **驗證：**
 - [ ] Unit test：Filter `{ "Tier": "1000" }` → 只有 Tier=1000 訂閱事件命中。
-- [ ] Unit test：MatchCondition `Member.IsBroadcaster == true || Member.Role == "VIP"` 解析；不依賴自訂 NCalc function 註冊。
+- [ ] Unit test：MatchCondition `Member.IsBroadcaster == true || Member.Role == "VIP"` 解析；不相依自訂 NCalc function 註冊。
 
 **規模：** M
 
@@ -219,7 +219,7 @@ Task 23 Variable / Expression substrate
 
 **驗證：**
 - [ ] Integration test：timer 30s interval，advanced 60s → 觸發 2 次。
-- [ ] Idempotent：單一 Web host 重啟不造成重複觸發；兩個 host 同時跑屬 out-of-scope，Phase 7 不依賴尚未收斂的 Desktop/NamedMutex gate。
+- [ ] Idempotent：單一 Web host 重新啟動不造成重複觸發；兩個 host 同時跑屬 out-of-scope，Phase 7 不相依尚未收斂的 Desktop/NamedMutex gate。
 
 **規模：** M
 
@@ -233,7 +233,7 @@ Task 23 Variable / Expression substrate
 - [x] `IChatOutbox.EnqueueAsync(platform, channel, message, dedupKey?)`。
 - [x] Background worker `ChatOutboxDispatcher`：每秒 dispatch 至多 N（依 SystemSetting `chat.outbox.per_second`）。
 - [x] 缺 `IPlatformChatSender` 註冊時不得 silent no-op；outbox item 標為 `Skipped` 或 `Failed`，記錄 structured warning，並在測試中驗證可觀測。
-- [x] DedupKey 24h TTL 去重。
+- [x] DedupKey 24h TTL 重複抑制。
 
 **驗證：**
 - [ ] Unit test：burst 100 enqueue → 限速送出。
@@ -301,7 +301,7 @@ Task 23 Variable / Expression substrate
 | Rule schema 多次 migration 可能造成資料遷移痛點 | 中 | 所有 column 為 nullable / default 值；migration only-additive；DTO whitelist 測試守住契約。 |
 | Executor 一次擴 12 個，工作量大 | 高 | Task 30 拆 12 個獨立子任務，可由不同 PR 並行；MVP 可選擇先做 30a/30b/30c/30d/30k 五個核心，其餘進 backlog。 |
 | Hot reload snapshot cache 與 idempotent replay 兩個 store 互動 | 中 | snapshot cache 僅複製 rule 結構；replay store 仍以 (eventId, ruleId, actionIndex, invocationId, phase) 為 key，與 cache 解耦。 |
-| WorkflowTimer 在多 host 場景重複觸發 | 中 | Phase 7 維持單一 Web host 假設；本階段只驗證單 host 重啟 idempotency，多實例 leader election 與 Desktop/NamedMutex gate 延後。 |
+| WorkflowTimer 在多 host 場景重複觸發 | 中 | Phase 7 維持單一 Web host 假設；本階段只驗證單 host 重新啟動 idempotency，多實例 leader election 與 Desktop/NamedMutex gate 延後。 |
 | OnFailureSteps 遞迴爆炸 | 中 | OnFailureSteps 本身不再支援 OnFailure；最大深度=1。 |
 | Plugin SDK 變更可能破壞既有 plugin | 低 | Args 為新 optional 屬性，default 空 dictionary。 |
 
@@ -309,7 +309,7 @@ Task 23 Variable / Expression substrate
 
 ## 建議實作順序
 
-1. Task 23 Expression substrate（其餘多項依賴）。
+1. Task 23 Expression substrate（其餘多項相依）。
 2. Task 24 Step ExecutionCondition + OutputVariable。
 3. Task 25 Rule throttle + timeout。
 4. Task 26 OnFailureSteps。

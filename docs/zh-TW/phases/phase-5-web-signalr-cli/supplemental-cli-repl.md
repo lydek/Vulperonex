@@ -36,7 +36,7 @@
   - **Tab 自動補全**：一級命令（`rule|config|member|simulate|twitch|help|exit`）與已知子命令（`rule list|show|create|update|enable|disable|delete`、`member list|show|seed|delete`、`simulate chat|follow|sub` 等）。
   - **非互動式 stdin 後備**：當 `Console.IsInputRedirected == true`（pipe / redirect），降級為逐行讀取迴圈，不啟用按鍵處理；用於整合測試與 `echo cmd | vulperonex` 場景。實作以 `await Task.Run(() => reader.ReadLine(), ct)` 包裝，避免同步阻塞無視 `CancellationToken`；`reader` 為 `RunAsync` 注入的 `TextReader`（測試可餵 `StringReader`）。
 - 取消鍵：Ctrl+C 中斷目前 REPL 行（清空 buffer 重印 prompt）；連續第二次 Ctrl+C 或無 buffer 時退出整個 REPL。
-  - 實作機制：REPL 啟動時設 `Console.TreatControlCAsInput = true`，按鍵迴圈以 `ConsoleKey.C + ConsoleModifiers.Control` 偵測（不依賴 `Console.CancelKeyPress`，避免該事件預設殺 process 的競態）。離開 REPL 時 `try/finally` 還原 `TreatControlCAsInput = false`。
+  - 實作機制：REPL 啟動時設 `Console.TreatControlCAsInput = true`，按鍵迴圈以 `ConsoleKey.C + ConsoleModifiers.Control` 偵測（不相依 `Console.CancelKeyPress`，避免該事件預設殺 process 的競爭狀況）。離開 REPL 時 `try/finally` 還原 `TreatControlCAsInput = false`。
   - `IsInputRedirected == true` 路徑不啟用此設定（無 TTY），由 stdin EOF 自然結束。
 
 ### 非範圍（Out of Scope）
@@ -177,7 +177,7 @@ group.MapGet("/status", async (
 
 | `clientIdConfigured` | `hasRefreshToken` | Banner |
 |---|---|---|
-| false | * | `[WARN] Twitch:ClientId 未設定。請於 appsettings.json 或環境變數 Twitch__ClientId 設定後重啟 Web host。` |
+| false | * | `[WARN] Twitch:ClientId 未設定。請於 appsettings.json 或環境變數 Twitch__ClientId 設定後重新啟動 Web host。` |
 | true | false | `[WARN] Twitch OAuth 尚未授權。輸入 'twitch auth start' 開始授權流程（或 'twitch auth start --no-browser' 取得授權連結手動開啟）。` |
 | true | true | （不印任何 banner） |
 
@@ -237,7 +237,7 @@ group.MapGet("/status", async (
 - [x] `twitch auth reset` 清除已儲存 refresh token，方便重複驗證 Twitch OAuth。
 - [x] `exit` / `quit` / EOF（Windows: Ctrl+Z+Enter；Unix: Ctrl+D）結束 REPL 並回傳 exit code 0。
 - [x] 空白行 / 純空白輸入：忽略並重印 prompt，不送 API。
-- [x] ↑/↓ 在 session 歷史中前後切換；連續輸入相同命令時，僅當**最後一筆**（push 前比對 `_history.Last()`，非 read 時比對）等於新輸入才去重，中間重複的歷史保留，照搬 Omni-Commander `ConsoleCliService` 行為。
+- [x] ↑/↓ 在 session 歷史中前後切換；連續輸入相同命令時，僅當**最後一筆**（push 前比對 `_history.Last()`，非 read 時比對）等於新輸入才重複抑制，中間重複的歷史保留，照搬 Omni-Commander `ConsoleCliService` 行為。
 - [x] Tab：在一級命令位置按下，補出唯一前綴；在子命令位置同樣行為。補完葉節點（無子命令）後**不**自動追加空白；補完 Composite 後追加空白以便繼續補子命令。
 - [x] Tab：多候選循環顯示。
 - [x] `Console.IsInputRedirected == true` 時降級為 `ReadLine` 迴圈（無按鍵處理），讀到 EOF 結束。
@@ -247,7 +247,7 @@ group.MapGet("/status", async (
 
 ### 新錯誤碼
 
-| 代碼 | 觸發點 | 備註 |
+| 程式碼 | 觸發點 | 備註 |
 |------|--------|------|
 | `CLI_UNEXPECTED_ERROR` | REPL 內 `DispatchAsync` 拋出未分類例外 | 僅在 REPL 路徑使用；`CLI_` 前綴明示來自 client，不混淆 `src/Hosts/Vulperonex.Web/Errors/ErrorCodes.cs` 字典 |
 | `INVALID_ARGS` | `--interactive` / `-i` 旗標後仍有殘餘 args | 用於 one-shot 入口的旗標 parse；不進命令樹 |
@@ -271,7 +271,7 @@ group.MapGet("/status", async (
   - `Given_TwitchAuthStartInRepl_When_ClientIdMissing_Then_StderrCodeWithoutCallingStartEndpoint`。（已覆蓋）
   - `Given_CommandTreeAbstraction_When_HelpExecuted_Then_OutputsAllRegisteredCompositesRecursively`（保護遞迴抽象）。
   - `Given_InteractiveFlag_When_FollowedByExtraArgs_Then_StderrInvalidArgs`。
-  - `Given_ExitCommand_When_Executed_Then_ReplExitTokenIsRequested`（直接斷言 token 狀態，不依賴 stdin EOF）。
+  - `Given_ExitCommand_When_Executed_Then_ReplExitTokenIsRequested`（直接斷言 token 狀態，不相依 stdin EOF）。
   - `Given_TwitchAuthStartInRepl_When_CtrlCDuringWait_Then_ListenerClosedAndStderrCancelled`：模擬 listener 啟動後外層 ct 被 cancel，斷言印出 `TWITCH_OAUTH_CANCELLED` 且 `HttpListener` 已 `Stop()`（手動驗證亦覆蓋）。
   - `Given_StatusProbe_When_ApiSlow_Then_TimesOutAt2sAndPrintsWarningBanner`：stub 端點 sleep 5s，斷言 2s 內回 banner、未阻塞後續輸入。
   - 既有 `CliCommandTests` 全部維持綠燈（回歸保護）。

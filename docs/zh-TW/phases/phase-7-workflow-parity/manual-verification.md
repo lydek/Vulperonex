@@ -32,7 +32,7 @@
 | 流程 | 命令形式 | 預期結果 | 狀態 |
 | --- | --- | --- | --- |
 | 規則 建立/顯示/更新 | `rule create <sample.json>`、`rule show --name <name>`、`rule update --name <name> <sample.json>` | JSON 來回傳輸保持 Phase 7 的欄位。 | 通過 (PASS) |
-| 計時器 建立/顯示/刪除 | `timer create <rule-id> <interval-seconds>`、`timer show <timer-id>`、`timer delete <timer-id> --yes` | 計時器的 CRUD 映射到 `/api/timers`。 | 通過 (PASS) |
+| 計時器 建立/顯示/刪除 | `timer create <rule-id> <interval-seconds>`、`timer show <timer-id>`、`timer delete <timer-id> --yes` | 計時器的 CRUD 對應到 `/api/timers`。 | 通過 (PASS) |
 | 模擬觸發 | `simulate chat --message <command>` | 匹配的規則會將聊天/Overlay/特效工作排入佇列。 | 通過 (PASS) |
 
 ## Omni-Commander 功能對齊矩陣 (Parity Matrix)

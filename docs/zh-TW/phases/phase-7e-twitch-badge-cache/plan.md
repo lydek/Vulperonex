@@ -90,4 +90,4 @@
 
 - **Helix 401**：尚未授權時 sync 失敗 → log warning，不阻擋 app 啟動；picker UI 顯示 fallback empty
 - **Channel badges 無 broadcaster id**：Twitch:BroadcasterId 未設 → 僅 global 可用，picker 顯示 hint
-- **Cache 過時**：自訂徽章新增後需重啟才可見（Phase 7E 不做後台 refresh job；Phase 7F 可加 24h refresh hosted service）
+- **Cache 過時**：自訂徽章新增後需重新啟動才可見（Phase 7E 不做後台 refresh job；Phase 7F 可加 24h refresh hosted service）

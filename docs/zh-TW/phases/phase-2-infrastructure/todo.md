@@ -11,7 +11,7 @@
 - [x] 任務 4b：實作 `InMemoryStreamEventBus` dispatch、assignable match 與 handler 隔離
 - [x] 任務 4c：穩定 `WaitForIdleAsync` 與 dispatch lifecycle
 
-## 任務 5：EF Core + SQLite 基礎設施
+## 任務 5：EF Core + SQLite 基礎架構
 
 - [x] 任務 5a：建立 EF Core / SQLite 基礎與 `VulperonexDbContext`
 - [x] 任務 5b：新增 `InitialSchema` migration 與資料表配置

@@ -53,7 +53,7 @@ Phase 7B 只處理這兩條線：
 **驗收標準：**
 - [ ] `Simulation` 平台執行 `SendChatMessage` 後，使用者可在可視介面或明確 API 中查到訊息結果。
 - [ ] 結果至少包含 `message`、`platform`、`channel`、`dedupKey`、`status`、timestamp。
-- [ ] workflow chat output 驗證不再依賴 `/overlay/chat` 是否剛好有 bridge。
+- [ ] workflow chat output 驗證不再相依 `/overlay/chat` 是否剛好有 bridge。
 - [ ] `sent` / `skipped` / `failed` 狀態可區分。
 
 **實作提示：**
@@ -79,7 +79,7 @@ Phase 7B 只處理這兩條線：
 **描述：** 以 OneComme 為優先相容目標之一，但以 extension / plugin 方式接入。定義樣板匯入器、目錄掃描器、或 adapter package 的最小契約，降低既有使用者遷移成本，同時維持 core 邊界。
 
 **驗收標準：**
-- [ ] 文件明列 OneComme 相容策略：哪些能力透過外掛直接相容、哪些透過映射、哪些暫不支援。
+- [ ] 文件明列 OneComme 相容策略：哪些能力透過外掛直接相容、哪些透過對應、哪些暫不支援。
 - [ ] 至少有一條 extension/import path 明確標示為 OneComme-compatible / migration-oriented；不要求 core 內建整包整合。
 - [ ] 手動驗證記錄 OneComme 樣板目錄結構或 package metadata 的辨識與匯入流程。
 

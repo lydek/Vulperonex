@@ -10,9 +10,9 @@
 
 ## 1. 目標
 
-**Vulperonex** 是一個平台無關的直播自動化工具，它聚合來自直播平台的事件，並透過統一的事件驅動架構驅動響應式功能（聊天疊層、工作流、成員追蹤、音效）。MVP 支援 Twitch；架構設計為可擴充至其他平台而不需修改 Domain/Application 層。
+**Vulperonex** 是一個平台無關的直播自動化工具，它聚合來自直播平台的事件，並透過統一的事件驅動架構驅動響應式功能（聊天疊層、工作流、會員追蹤、音效）。MVP 支援 Twitch；架構設計為可擴充至其他平台而不需修改 Domain/Application 層。
 
-**原因：** 現有工具（包括前身專案 Omni-Commander）與 Twitch 特有概念高度耦合。Vulperonex 透過領域事件 (Domain Events) 將平台特定的事件源與功能消費者分離，從而能夠以極少的程式碼新增平台，並將測試/模擬支持作為一等事件源。
+**原因：** 現有工具（包括前身專案 Omni-Commander）與 Twitch 特有概念高度耦合。Vulperonex 透過領域事件 (Domain Events) 將平台特定的事件源與功能消費者分離，從而能夠以極少的程式碼新增平台，並將測試/模擬支援作為一等事件源。
 
 ### 目標使用者
 
@@ -22,10 +22,10 @@
 
 ### MVP 成功願景
 
-- Twitch 適配器 (Adapter) 將領域事件發布到事件匯流排 (Event Bus)。
+- Twitch 配接器 (Adapter) 將領域事件發布到事件匯流排 (Event Bus)。
 - 工作流引擎 (WorkflowEngine) 訂閱並執行規則。
 - 桌面殼層 (Photino) 託管由 Web 主機提供的 Vue UI。
-- CLI 可以模擬事件、管理配置、管理規則並檢查成員。
+- CLI 可以模擬事件、管理配置、管理規則並檢查會員。
 - 新增平台 Adapter 不需修改 Application / Domain 層（架構隔離）。
 
 ---
@@ -65,20 +65,20 @@
 ```
 Vulperonex/
 ├── src/
-│   ├── Vulperonex.Domain/                     # 純領域 — 實體、值對象、事件
+│   ├── Vulperonex.Domain/                     # 純領域 — 實體、值物件、事件
 │   ├── Vulperonex.Application/                 # 使用案例、介面、事件匯流排契約
-│   ├── Vulperonex.Infrastructure/              # EF Core, SQLite, 倉儲 (Repos), 持久化
+│   ├── Vulperonex.Infrastructure/              # EF Core, SQLite, 儲存庫 (Repos), 持久化
 │   ├── Vulperonex.Plugins.Abstractions/        # IVulperonexPlugin 契約 (來源 + 接收)
 │   │
 │   ├── Adapters/
-│   │   ├── Vulperonex.Adapters.Abstractions/   # 共享適配器介面 (IPlatformUserInfoCache 等)
+│   │   ├── Vulperonex.Adapters.Abstractions/   # 共享配接器介面 (IPlatformUserInfoCache 等)
 │   │   ├── Vulperonex.Adapters.Twitch/         # Twitch IRC + EventSub (傳入 + 傳出)
 │   │   └── Vulperonex.Adapters.Simulation/     # CLI / UI / 測試模擬
 │   │
 │   ├── Hosts/
 │   │   ├── Vulperonex.Web/                     # ASP.NET Minimal API + SignalR + wwwroot
 │   │   ├── Vulperonex.Desktop/                 # Photino 殼層 (包裝 Web)
-│   │   └── Vulperonex.Cli/                     # CLI: 模擬 / 配置 / 規則 / 成員指令
+│   │   └── Vulperonex.Cli/                     # CLI: 模擬 / 配置 / 規則 / 會員指令
 │   │
 │   └── frontend/                               # Vue 3.5 SPA，建構至 Web/wwwroot
 │       ├── src/
@@ -92,7 +92,7 @@ Vulperonex/
 ├── tests/
 │   ├── Vulperonex.Tests.Unit/
 │   ├── Vulperonex.Tests.Integration/
-│   └── Vulperonex.Tests.Architecture/          # 層級 / 依賴規則強制執行
+│   └── Vulperonex.Tests.Architecture/          # 層級 / 相依規則強制執行
 │
 ├── docs/                                        # SPEC.md 正式路徑：docs/SPEC.md
 │   ├── SPEC.md
@@ -107,7 +107,7 @@ Vulperonex/
 
 ## 模組化規格書 (導覽目錄)
 
-主規格書已拆分為多個模組化文件，以保持簡潔並優化 token 損耗：
+主規格書已拆分為多個模組化文件，以保持簡潔並最佳化 token 損耗：
 
 - **[架構核心概念](specs/architecture.md)**：分層架構、戰術 DDD 邊界、DCI 拆分準則、事件流、模組與資料庫遷移等細節 (§4.1 - §4.17)。
 - **開發指南與測試規範**：

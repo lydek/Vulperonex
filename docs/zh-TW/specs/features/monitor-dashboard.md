@@ -72,7 +72,7 @@
 **設計與規格：**
 1. **模組/外掛程式開關狀態儲存**：
    - 透過 `ISystemSettingsService` 將模組啟用狀態儲存在資料庫/系統設定檔中，使用鍵名 `modules.enabled.{moduleName}`。
-   - 所有核心 Hosted Services 在 `ExecuteAsync` 或 `StartAsync` 時需動態偵測該設定值，若為 `false` 則跳過註冊、攔截或動作執行（No-Op 狀態），已在執行的 Hosted Services 在偵測到設定變更時應即時切換狀態。
+   - 所有核心 Hosted Services 在 `ExecuteAsync` 或 `StartAsync` 時需動態偵測該設定值，若為 `false` 則略過註冊、攔截或動作執行（No-Op 狀態），已在執行的 Hosted Services 在偵測到設定變更時應即時切換狀態。
    - 對於 `IWorkflowActionExecutor`（例如 `TriggerCheckInActionExecutor`），若關聯的模組（如打卡模組）已關閉，則應拒絕執行動作並拋出對應的 `WorkflowExecutionException`。
 
 2. **模組相依性解析 (Dependency Resolution)**：
@@ -84,7 +84,7 @@
      - `onecommebridge`「OneComme Bridge」(plugin) -> 無相依，但需 Core Event Bus
      - （無獨立可切換的 `OverlayModule`；疊層推送為 `OverlayEventForwarder`，恆開。啟用狀態以 `modules.enabled.{name}` 經 `ISystemSettingsService` 儲存。）
    - **拓撲聯鎖關閉 (Cascading Disable)**：
-     - 當使用者在 UI 上**停用**一個被其他模組相依的模組時（例如停用 `MemberModule`），系統**必須**觸發拓撲依賴關閉。
+     - 當使用者在 UI 上**停用**一個被其他模組相依的模組時（例如停用 `MemberModule`），系統**必須**觸發拓撲相依關閉。
      - **UI 聯鎖警告閘門**：前端將跳出警告確認：「停用『會員核心模組』將一併關閉以下相依模組：打卡模組，抽獎模組。是否確認關閉？」。
      - 使用者確認後，API 將同時對相依模組寫入 `false`，並在系統 Audit Log 留下 `ActorKind = 'user'`、`Operation = 'disable_module'` 記錄。
    - **自動聯鎖啟用 (Cascading Enable)**：
@@ -116,7 +116,7 @@
      - `displayName`: string (要模擬打卡的會員顯示名稱，預設隨機)
      - `skipCooldown`: bool (是否繞過打卡冷卻限制，**預設 false**；CLI 以 `--skip-cooldown` 開啟)
      - `stampCount`: int (本次要直接累積的印章/打卡次數，預設 1)
-   - **行為**：端點直接調用 `IMemberResolver` 與 `IMemberStreamStateRepository` 將打卡次數增量，並在 SQLite 中成功變更後，發布 `MemberCheckedInEvent` 事件到事件匯流排 (Event Bus)，以便 OBS Overlay 與預覽 Hub 能即時觸發集點卡視覺效果。
+   - **行為**：端點直接呼叫 `IMemberResolver` 與 `IMemberStreamStateRepository` 將打卡次數增量，並在 SQLite 中成功變更後，發布 `MemberCheckedInEvent` 事件到事件匯流排 (Event Bus)，以便 OBS Overlay 與預覽 Hub 能即時觸發集點卡視覺效果。
 
 ---
 

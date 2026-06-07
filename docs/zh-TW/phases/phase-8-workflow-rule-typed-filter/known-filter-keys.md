@@ -10,11 +10,11 @@
 
 ## 2. 合法 Filter Key 清單
 
-當前系統支持的所有合法 Filter Key 如下：
+當前系統支援的所有合法 Filter Key 如下：
 
 | 事件類型 Key (`EventTypeKey`) | 合法 Filter Key | 資料型別 | 範例與語意 |
 |---|---|---|---|
-| **`user.message`** (聊天訊息) | `CommandName` | 字串 | `"!checkin"` (限定特定指令，支持自動邊界檢查防止 `!so` 誤匹 `!sorry`) |
+| **`user.message`** (聊天訊息) | `CommandName` | 字串 | `"!checkin"` (限定特定指令，支援自動邊界檢查防止 `!so` 誤匹 `!sorry`) |
 | | `Prefix` | 字串 | `"!help"` (以特定前綴開頭的訊息) |
 | **`user.donated`** (捐贈/Bits) | `MinAmount` | 數字 | `100` (捐贈的最低 Bits/金額門檻限制) |
 | **`user.subscribed`** (訂閱) | `Tier` | 字串 | `"1000"`, `"2000"`, `"3000"` (限定訂閱層級) |

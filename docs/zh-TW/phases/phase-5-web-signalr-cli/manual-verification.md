@@ -48,7 +48,7 @@ docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json
 - `rule update <rule-id> <rule.json>` 從 JSON 檔案更新相同的規則。
 - `rule disable <rule-id>` 印出 `OK rule disabled: <rule-id>`。
 - `rule enable <rule-id>` 印出 `OK rule enabled: <rule-id>`。
-- `rule delete <rule-id>` 印出 `OK rule deleted: <rule-id>` 並移除規則以進行清理。
+- `rule delete <rule-id>` 印出 `OK rule deleted: <rule-id>` 並移除規則以清理。
 - `simulate chat|follow|sub` 印出包含 `accepted`、`eventTypeKey`、`eventId`、`platformUserId` 和 `displayName` 的 JSON 確認信號；使用 `eventId` 來與 Web/SignalR 日誌進行關聯。
 - `member seed <platform-user-id> [display-name]` 透過模擬管線建立測試會員資料，並在該會員可被列出時印出 `OK member available: <member-id>`。
 - `member list` 顯示植入的會員。
@@ -61,7 +61,7 @@ docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json
 
 - 驗證者：Codex 自動化整合測試
 - 環境：Windows, 本地回環 Kestrel 測試主機
-- 命令：透過測試 HTTP 客戶端發送 `POST /api/simulate/chat`，SignalR 客戶端連線至 `/hubs/overlay/chat`
+- 命令：透過測試 HTTP 用戶端發送 `POST /api/simulate/chat`，SignalR 用戶端連線至 `/hubs/overlay/chat`
 - 預期結果：overlay 聊天 hub 在 5 秒內收到聊天負載。
 - 實際結果：`Given_OverlayChatHub_When_ChatIsSimulated_Then_EventArrivesWithinFiveSeconds` 通過。
 - 結果：PASS
@@ -77,12 +77,12 @@ docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json
 - 結果：PASS
 - 憑證 / commit：待定
 
-## 2026-05-19 - CLI 空成功回應回饋與成員植入修正
+## 2026-05-19 - CLI 空成功回應回饋與會員植入修正
 
 - 驗證者：Codex 自動化整合測試
 - 環境：Windows, Release 測試建置
 - 命令：`simulate chat`, `simulate follow`, `simulate sub`, `member seed`, `rule enable`, `rule disable`, `rule delete`, `twitch auth reset`
-- 預期結果：模擬命令印出帶有 `eventId` 的可追蹤 JSON 確認；其他空 HTTP 成功主體的命令印出明確的 `OK ...` 輸出；成員模擬事件由 Web 主機消費，並在 `member list` 中變為可見。
+- 預期結果：模擬命令印出帶有 `eventId` 的可追蹤 JSON 確認；其他空 HTTP 成功主體的命令印出明確的 `OK ...` 輸出；會員模擬事件由 Web 主機消費，並在 `member list` 中變為可見。
 - 實際結果：`CliCommandTests` 通過 49 項測試；排除固定連接埠耗盡的 `Phase5EndpointTests` 通過 40 項測試。
 - 結果：PASS
 - 憑證 / commit：待定
@@ -102,7 +102,7 @@ docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json
 - 驗證者：lydek
 - 環境：Windows PowerShell, 本地 `Vulperonex.Web` 執行於 `http://127.0.0.1:5000`，應用程式內瀏覽器開啟於 `http://127.0.0.1:5000/`
 - 命令：`help`, `simulate`, `simulate chat hello from cli`, `simulate follow`, `simulate sub`, `member seed manual-user ManualUser`, `member list`, `rule create docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json`, `rule disable <rule-id>`, `rule enable <rule-id>`, `rule delete <rule-id>`, `twitch auth reset`, `twitch auth start`（並在瀏覽器回呼中完成真實授權）
-- 預期結果：CLI 命令提供可見的成功輸出或 JSON 確認，模擬事件包含可追蹤的 `eventId`，成員植入透過 `member list` 變為可見，規則生命週期命令順利完成。關於 Twitch OAuth：`twitch auth start` 成功啟動瀏覽器，在 Twitch 上授權完成，後端 `7979` 回呼收到並驗證 CSRF state 參數，透過開發權杖端點進行代碼交換，並使用 AES-256-GCM 信封安全地加密及儲存重新整理權杖至 SQLite `SystemSettings` 中，透過 `twitch auth status` 返回配置與連接狀態來驗證。
+- 預期結果：CLI 命令提供可見的成功輸出或 JSON 確認，模擬事件包含可追蹤的 `eventId`，會員植入透過 `member list` 變為可見，規則生命週期命令順利完成。關於 Twitch OAuth：`twitch auth start` 成功啟動瀏覽器，在 Twitch 上授權完成，後端 `7979` 回呼收到並驗證 CSRF state 參數，透過開發權杖端點進行程式碼交換，並使用 AES-256-GCM 信封安全地加密及儲存重新整理權杖至 SQLite `SystemSettings` 中，透過 `twitch auth status` 返回配置與連接狀態來驗證。
 - 實際結果：使用者回報目前所有功能皆正常。Twitch 真實 OAuth 授權完成端到端：瀏覽器順利開啟、授權並重新導向回 `http://localhost:7979/auth/callback`，主控台記錄了成功的 state 驗證與權杖交換。重新整理權杖在 SQLite DB 中被驗證為 AES-256-GCM 加密（在 DB 中無法以純文字讀取，格式符合 `"v1:" + Base64`），且 CLI 順利執行了後續的自動化查詢。
 - 結果：PASS
 - 憑證 / commit：`6ff0ace`, `2d9fe4e`, `00cfe8b`

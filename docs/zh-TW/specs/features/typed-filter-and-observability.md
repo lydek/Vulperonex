@@ -13,7 +13,7 @@ Twitch `!checkin` 事故揭露了規則管線的系統性根因：trigger filter
 - `EventTypeKey` 與 `MatchCondition` 自巢狀 `WorkflowTrigger` 提升至 `WorkflowRule` 根層 — 兩者在 schema 中**恰好出現一次**（見 §4.6 與 OQ3）。
 - `WorkflowTrigger` 精簡為單一 `Filter: Dictionary<string,string>`，內含 typed、每事件型別的鍵。
 - `WorkflowRule.EventTypeKey` 改為 `string?`：sub-workflow rule（`IsSubWorkflow = true`）不帶 `EventTypeKey` 與 `Trigger`；提供任一者回 `400 SUB_WORKFLOW_MUST_NOT_HAVE_TRIGGER`。非 sub-workflow rule 的 `EventTypeKey` 為 null/whitespace 仍回 `400 UNKNOWN_EVENT_TYPE_KEY`。
-- rule 層級 `PlatformFilter`、`ConcurrencyMode`（更名為 `ExecutionMode`）與 `UpdatedAt` 欄位已移除。開發 DB 已清空並由 `DefaultWorkflowRuleSeedService` 重新植入 typed 範例規則（幂等 — DB 一旦有任何 rule 即跳過 seeding）。舊 JSON 仍可反序列化（接受並忽略 legacy 內層欄位）以保向後相容。
+- rule 層級 `PlatformFilter`、`ConcurrencyMode`（更名為 `ExecutionMode`）與 `UpdatedAt` 欄位已移除。開發 DB 已清空並由 `DefaultWorkflowRuleSeedService` 重新植入 typed 範例規則（幂等 — DB 一旦有任何 rule 即略過 seeding）。舊 JSON 仍可反序列化（接受並忽略 legacy 內層欄位）以保向後相容。
 
 **2. Typed trigger filter matcher registry：**
 

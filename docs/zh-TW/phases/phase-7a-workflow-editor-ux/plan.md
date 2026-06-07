@@ -14,10 +14,10 @@
 目前 Vulperonex 的 workflow runtime/schema 已經到位，但 Web editor 仍停留在 Phase 6/7 的「JSON-first + 輕量表單」策略。實際使用上有三個明確問題：
 
 1. `TriggerEditor` 的 filter「新增」按鈕無效，造成 trigger filter 幾乎不可用。
-2. `conditions` / `actions` / `onFailureSteps` 仍主要依賴 JSON textarea，對非開發者不直覺。
+2. `conditions` / `actions` / `onFailureSteps` 仍主要相依 JSON textarea，對非開發者不直覺。
 3. 缺少變數選取器與欄位插入體驗；使用者必須自己記憶 `{Trigger.*}` / `{Step.*}` / `{Args.*}` 語法。
 
-Phase 7A 不再討論 runtime parity，而是專注在 editor UX parity。此 slice 目標是讓常見規則編輯流程不需直接手寫 JSON，並把 Omni-Commander 中最有價值的交互能力收斂進來。
+Phase 7A 不再討論 runtime parity，而是專注在 editor UX parity。此 slice 目標是讓常見規則編輯流程不需直接手寫 JSON，並把 Omni-Commander 中最有價值的互動能力收斂進來。
 
 ---
 
@@ -25,7 +25,7 @@ Phase 7A 不再討論 runtime parity，而是專注在 editor UX parity。此 sl
 
 - **Schema 不變，UX 補齊**：不修改 Phase 7 backend contract；前端 editor 僅重新組織既有 payload。
 - **表單優先，JSON 備援**：主路徑以表單與 step builder 完成；raw JSON 僅供 import/export、未知 action、進階逃生。
-- **變數可發現**：不用再要求使用者背模板語法；可從 picker 插入，但最終仍落回同一套 `{Trigger.*}` / `{Step.*}` / `{Args.*}` / `{Member.*}` contract。
+- **變數可發現**：不用再要求使用者背樣板語法；可從 picker 插入，但最終仍落回同一套 `{Trigger.*}` / `{Step.*}` / `{Args.*}` / `{Member.*}` contract。
 - **Omni 對齊，非照抄**：借用 Omni 的 step list、action form、variable picker、condition builder 思路，但不直接搬完整 drag-and-drop graph editor。
 - **未知類型 fail-soft**：若 rule 含未知 action 或暫未支援欄位，editor 不 crash；顯示 fallback 卡片並允許 raw JSON 維護。
 - **不新增 Phase 8 scope**：不趁機擴 runtime、新增 graph engine 或重新設計 expression DSL。
@@ -71,7 +71,7 @@ Phase 7A 不再討論 runtime parity，而是專注在 editor UX parity。此 sl
 ### 進階 JSON 頁
 
 - raw JSON import/export
-- 無法映射欄位提示
+- 無法對應欄位提示
 - unknown action fallback surface
 
 ---
@@ -137,7 +137,7 @@ Phase 7A 不再討論 runtime parity，而是專注在 editor UX parity。此 sl
   - [ ] Failure
 - [ ] 可插入到 action 參數、filter value、`ExecutionCondition`、`MatchCondition` 等文字欄位。
 - [ ] 插入結果仍使用 Phase 7 contract：`{Trigger.*}` / `{Args.*}` / `{Step.*}` / `{Member.*}`。
-- [ ] `ExecutionCondition` / `MatchCondition` 提供「視覺化條件」與「原始表達式」兩種模式。
+- [ ] `ExecutionCondition` / `MatchCondition` 提供「視覺化條件」與「原始運算式」兩種模式。
 - [ ] 視覺化條件模式至少支援：
   - [ ] 選變數
   - [ ] 選 operator
@@ -154,7 +154,7 @@ Phase 7A 不再討論 runtime parity，而是專注在 editor UX parity。此 sl
 
 **驗收標準：**
 - [ ] editor 預設打開表單/step builder，不是 raw JSON。
-- [ ] rule JSON import 後可映射回表單；映射失敗處明示 unsupported/fallback。
+- [ ] rule JSON import 後可對應回表單；對應失敗處明示 unsupported/fallback。
 - [ ] 可從表單匯出完整 rule JSON，供 CLI / docs sample round-trip。
 - [ ] 維持 1MB guard、parse error、focus/refocus、oversized paste 防護。
 

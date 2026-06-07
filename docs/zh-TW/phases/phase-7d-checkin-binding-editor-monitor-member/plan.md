@@ -12,13 +12,13 @@
 
 ## 目標
 
-Phase 7C 補完 overlay 基礎設施，但留下使用者報告的關鍵缺口：
+Phase 7C 補完 overlay 基礎架構，但留下使用者報告的關鍵缺口：
 
 1. **CheckIn 與 member overlay 未綁定** — `TriggerCheckInActionExecutor` 只寫 DB，從未 publish `MemberCheckedInEvent`；`OverlayEventForwarder` 也無 forward 到 `OverlayMemberHub`。結果 `/overlay/member` 在實際 workflow 觸發時收不到任何事件。
 2. **Custom HTML upload 無法驗證合法性** — Phase 7C zip upload 落地後沒有任何 syntax / SignalR contract 檢查，使用者只能跑 OBS 才知道是否能掛 hub。
-3. **Simulate / overlay / chat 跨頁切換成本高** — 實況主 debug 流程要在多個 route 間跳轉，無法在一頁同時模擬事件 + 看 overlay + 看 chat 資料層。
+3. **Simulate / overlay / chat 跨頁切換成本高** — 實況主 debug 流程要在多個 route 間重新導向，無法在一頁同時模擬事件 + 看 overlay + 看 chat 資料層。
 4. **Member 頁面唯讀不合理** — 真實情境需要手動調 loyalty / 補簽到次數 / 重設 / 刪測試會員，目前只能走 CLI。
-5. **模組/外掛程式缺乏集中開關與依賴連鎖** — 無法設定是否開啟特定模組。且模組之間相依性未處理（如會員核心關閉，打卡/抽獎模組仍盲目執行導致狀態漂移）。
+5. **模組/外掛程式缺乏集中開關與相依連鎖** — 無法設定是否開啟特定模組。且模組之間相依性未處理（如會員核心關閉，打卡/抽獎模組仍盲目執行導致狀態漂移）。
 6. **事件模擬功能不完整** — 缺少身分組的模擬、打卡及忠誠點數的模擬。
 7. **工作流規則設定不直覺** — 使用者必須手動編寫 JSON 或複雜的 NCalc 文字，缺乏防呆與視覺化引導。
 
@@ -55,7 +55,7 @@ Phase 7D 落地七條線：
 - 模組相依性關閉之拓撲排序連鎖邏輯，以及 Hosted Services 動態狀態熱載入
 - `/admin/settings` 下的功能模組管理 UI 分頁
 - 模擬端點擴充身分組 flag，以及新增 `POST /api/simulate/checkin` 模擬打卡/忠誠度功能
-- `/monitor` 模擬控制台支援身份組多重勾選、打卡與忠誠點數模擬
+- `/monitor` 模擬主控台支援身份組多重勾選、打卡與忠誠點數模擬
 - `ConditionBuilder.vue` 視覺化條件編輯器與 NCalc 自動輸出
 - `DynamicActionForm.vue` 強型別動作參數編輯與變數選擇器浮動面板
 
@@ -98,7 +98,7 @@ Phase 7D 落地七條線：
 
 ## Task 52 - OverlayEventForwarder 訂閱 MemberCheckedInEvent
 
-**描述：** `OverlayEventForwarder.StartAsync` 加入 `stream.OfType<MemberCheckedInEvent>().Subscribe(...)`，映射為 `OverlayMemberPayload` 推 `OverlayMemberHub` + 寫 history。
+**描述：** `OverlayEventForwarder.StartAsync` 加入 `stream.OfType<MemberCheckedInEvent>().Subscribe(...)`，對應為 `OverlayMemberPayload` 推 `OverlayMemberHub` + 寫 history。
 
 **驗收標準：**
 - [ ] 新增 `ForwardMemberCheckInEventAsync` private 方法
@@ -305,7 +305,7 @@ Phase 7D 落地七條線：
 - [ ] `AdjustLoyaltyModal.vue`：表單 + before/after diff 預覽 + reason
 - [ ] `ResetModal.vue`：兩個 checkbox + reason
 - [ ] `DeleteConfirmDialog.vue`：兩段確認（拿 token → 確認執行）
-- [ ] `AuditLogDrawer.vue`：右側 drawer，timeline 列 audit；無限滾動載更多
+- [ ] `AuditLogDrawer.vue`：右側 drawer，timeline 列 audit；無限捲動載更多
 - [ ] MembersView 從唯讀升為含三個操作按鈕 + 一個 audit 按鈕
 - [ ] 409 conflict 處理：顯示 toast + 自動 reload
 - [ ] i18n 完整雙語

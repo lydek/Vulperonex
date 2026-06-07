@@ -5,7 +5,7 @@
 
 ## 上下文 (Context)
 
-在 Phase 7G 之前，`Vulperonex.Adapters.Twitch` 已經提供了完整的網域管線（包含剖析器、重複刪除快取、事件映射器、OAuth、Helix 用戶端），但**沒有即時接入來源 (Live Ingestion Source)**：`TwitchAdapter.StartAsync` 僅註冊了事件類型便停止，`PublishIrcMessageAsync` / `PublishMockPayloadAsync` 為 `internal` 且僅由測試呼叫，轉接器甚至未在 DI 中註冊。生產環境的接入完全依賴 `/api/simulate/*`。
+在 Phase 7G 之前，`Vulperonex.Adapters.Twitch` 已經提供了完整的網域管線（包含剖析器、重複刪除快取、事件對應器、OAuth、Helix 用戶端），但**沒有即時接入來源 (Live Ingestion Source)**：`TwitchAdapter.StartAsync` 僅註冊了事件類型便停止，`PublishIrcMessageAsync` / `PublishMockPayloadAsync` 為 `internal` 且僅由測試呼叫，轉接器甚至未在 DI 中註冊。生產環境的接入完全相依 `/api/simulate/*`。
 
 在開發輪次中，首次嘗試使用手寫的 `ClientWebSocket` EventSub 接入。在經過開發者審查後，重新調整設計以遵循已在 `ref/omni-commander` 中驗證過的模式：
 
@@ -19,7 +19,7 @@
 
 ## 方法（已交付）
 
-所有 TwitchLib 程式碼都位於 `Vulperonex.Web`（主機專案）。轉接器專案 (Adapter Project) 保持不引入第三方 SDK — 主機處理器將 TwitchLib 事件轉換為轉接器現有的 `TwitchIrcMessage` / `TwitchMockPayload` 型別，並呼叫強型別接入方法。測試保持不依賴 TwitchLib。
+所有 TwitchLib 程式碼都位於 `Vulperonex.Web`（主機專案）。轉接器專案 (Adapter Project) 保持不引入第三方 SDK — 主機處理器將 TwitchLib 事件轉換為轉接器現有的 `TwitchIrcMessage` / `TwitchMockPayload` 型別，並呼叫強型別接入方法。測試保持不相依 TwitchLib。
 
 ### 1. NuGet 套件（僅主機）
 
@@ -46,7 +46,7 @@
 ### 4. EventSub 警報來源
 
 `Vulperonex.Web.TwitchAuth.TwitchEventSubSource` 封裝了 `EventSubWebsocketClient`：
-- 強型別處理器映射至 `TwitchAlertPayloadFactory` 中的純協助工具（保持無通訊端，以便進行單元測試） → `TwitchMockPayload` → `adapter.IngestAlertAsync`。涵蓋範圍：`ChannelFollow`、`ChannelSubscribe`（當 `IsGift` 為真時跳過）、`ChannelSubscriptionMessage`、`ChannelSubscriptionGift`、`ChannelCheer`、`ChannelRaid`、`ChannelPointsCustomRewardRedemptionAdd`。
+- 強型別處理器對應至 `TwitchAlertPayloadFactory` 中的純協助工具（保持無通訊端，以便進行單元測試） → `TwitchMockPayload` → `adapter.IngestAlertAsync`。涵蓋範圍：`ChannelFollow`、`ChannelSubscribe`（當 `IsGift` 為真時略過）、`ChannelSubscriptionMessage`、`ChannelSubscriptionGift`、`ChannelCheer`、`ChannelRaid`、`ChannelPointsCustomRewardRedemptionAdd`。
 - `WebsocketConnected` → 針對每個訂閱類型呼叫 `IHelixClient.CreateEventSubSubscriptionAsync(type, version, condition, sessionId)`。連線工作階段 ID 重複消除 (`_lastSubscribedSessionId`) 避免在無縫重新連線時重複訂閱（Twitch 會保留訂閱狀態）。
 - `WebsocketConnected` / `WebsocketDisconnected` 發布 `PlatformConnectionChangedEvent`。
 
@@ -93,7 +93,7 @@
 | `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchHelixClient.cs` | 實作兩個新的 Helix 呼叫（建立訂閱時，409 已存在視為成功） |
 | `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchIrcChatSource.cs` | 新增 — 透過 TwitchLib.Client 建立 IRC 連線 |
 | `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchEventSubSource.cs` | 新增 — 透過 TwitchLib 建立 EventSub 與強型別處理器 |
-| `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchAlertPayloadFactory.cs` | 新增 — 純映射協助工具（具備可單元測試性） |
+| `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchAlertPayloadFactory.cs` | 新增 — 純對應協助工具（具備可單元測試性） |
 | `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchConnectionOrchestrator.cs` | 新增 — 連線協調器 BackgroundService |
 | `src/Hosts/Vulperonex.Web/TwitchAuth/TwitchRewardCache.cs` | 新增 — Singleton 快取與重新整理邏輯 |
 | `src/Hosts/Vulperonex.Web/Endpoints/TwitchRewardsEndpoints.cs` | 新增 — GET + POST 重新整理端點 |
@@ -111,7 +111,7 @@
 | `src/frontend/src/i18n/{en-US,zh-TW}.json` | 新增兌換用文字、進階選項標籤、已無法使用後綴等 |
 | `src/frontend/src/styles/app.css` | 明確的深色模式 `select`/`option`/`input` 樣式 |
 | `tests/Vulperonex.Tests.Unit/Web/TwitchRewardCacheTests.cs` | 新增 — 4 個針對快取解析與取代的測試 |
-| `tests/Vulperonex.Tests.Unit/Web/TwitchAlertPayloadFactoryTests.cs` | 新增 — 純映射器的單元測試覆蓋 |
+| `tests/Vulperonex.Tests.Unit/Web/TwitchAlertPayloadFactoryTests.cs` | 新增 — 純對應器的單元測試覆蓋 |
 | `tests/Vulperonex.Tests.Unit/Adapters/Twitch/TwitchAdapterEventTypeTests.cs` | 重寫為對強型別 `IngestChatAsync` / `IngestAlertAsync` 的測試 |
 
 ## 驗收 / 驗證
@@ -132,4 +132,4 @@
 
 - **`auth_failed` 原因** — SPEC §4.7 要求提供此欄位；目前實作僅發布 `irc_disconnected` / `eventsub_disconnected` / `null`。列為 §F.2 的後續追蹤。
 - **§6.1 分層例外** — `LookupTwitchUserAction`、`RefundTwitchRedemptionAction`、`ShoutoutAction` 仍然存在於 `Vulperonex.Application` 中（先前已存在）。在 §6.1 底下進行追蹤，目前仍待決定 (a) 重新命名為平台中立名稱，或 (b) 移至轉接器中。
-- **TwitchLib 4.x API 表面與 omni-commander 的 3.5.3 不同** — 已於實作輪次中透過反射進行驗證：`e.Payload.Event`（而非 `.Notification`）、`TwitchLib.EventSub.Core.EventArgs.Channel` 中的頻道參數、IRC 聊天顏色為 `HexColor`（而非 `ColorHex`）、斷開連線參數為 `OnDisconnectedArgs`。已記錄在原始碼註釋中。
+- **TwitchLib 4.x API 表面與 omni-commander 的 3.5.3 不同** — 已於實作輪次中透過反射驗證：`e.Payload.Event`（而非 `.Notification`）、`TwitchLib.EventSub.Core.EventArgs.Channel` 中的頻道參數、IRC 聊天顏色為 `HexColor`（而非 `ColorHex`）、斷開連線參數為 `OnDisconnectedArgs`。已記錄在原始碼註釋中。

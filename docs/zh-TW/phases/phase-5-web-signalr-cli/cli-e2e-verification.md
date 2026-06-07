@@ -34,7 +34,7 @@ chcp 65001
 
 ## 必要的自動化測試覆蓋範圍
 
-- 使用全新的 SQLite 資料庫啟動 `Vulperonex.Web`，且不進行手動 EF 遷移（EF migration）。
+- 使用全新的 SQLite 資料庫啟動 `Vulperonex.Web`，且不手動 EF 遷移（EF migration）。
 - `GET /api/rules` 必須回傳 `200 OK`，而非 `` `SQLite Error 1: no such table: WorkflowRules` ``。
 - 針對執行中的本機回環（live loopback）API 執行 CLI 指令：
   - `rule list`
@@ -47,7 +47,7 @@ chcp 65001
   - `simulate sub`
   - `simulate`（局部 help，不打 API）
   - `rule create <rule.json>` / `rule update <rule-id> <rule.json>` / `rule delete <rule-id>`
-- 驗證當 CLI 發生錯誤時，仍僅將後端 `error` 代碼寫入 stderr，並以代碼 `1` 退出（exit code 1）。
+- 驗證當 CLI 發生錯誤時，仍僅將後端 `error` 程式碼寫入 stderr，並以程式碼 `1` 退出（exit code 1）。
 
 ## 必要的 Twitch OAuth 手動流程
 
@@ -65,10 +65,10 @@ chcp 65001
 ### 1. 設定環境並啟動 Web host（終端機 A）
 
 ```powershell
-$env:Twitch__ClientId = "<您的 Twitch 應用程式客戶端識別碼>"
+$env:Twitch__ClientId = "<您的 Twitch 應用程式用戶端識別碼>"
 # Optional：只有 confidential Twitch App 才設定。
 # Public client 請省略，CLI 會使用 device-code flow。
-$env:Twitch__ClientSecret = "<您的 Twitch 應用程式客戶端密鑰>"
+$env:Twitch__ClientSecret = "<您的 Twitch 應用程式用戶端密鑰>"
 
 # /m:1 /nr:false /p:UseSharedCompilation=false：強制單執行緒 build 且不重用 build server，避免並行 build server 對 SQLite 檔鎖與 rtk sandbox 互動產生間歇性失敗。如不需此緩解，可改用一般 `dotnet build`。
 rtk proxy powershell -NoProfile -Command "dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false"
@@ -220,7 +220,7 @@ dotnet run --project src\Hosts\Vulperonex.Cli -- --interactive
 4. 按 `↑` 三次 → 預期顯示 `rule list`。
 5. 再按 `↑` → buffer 不變（已到最舊一筆）。
 6. 按 `↓` → 退回 `member list`、`config get log.min_level`、最後一筆下方為空 buffer。
-7. 輸入新命令時去重規則：連續送出兩次相同 `rule list`，歷史只保留一份（按 `↑` 依序回退 `config ... / member list / rule list`，不重複出現 `rule list`）。
+7. 輸入新命令時重複抑制規則：連續送出兩次相同 `rule list`，歷史只保留一份（按 `↑` 依序回退 `config ... / member list / rule list`，不重複出現 `rule list`）。
 
 #### 5b-3 Ctrl+C 清 buffer
 

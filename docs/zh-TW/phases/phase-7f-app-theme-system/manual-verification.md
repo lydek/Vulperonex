@@ -16,32 +16,32 @@
 | `src/frontend/src/views/admin/MembersView.vue` | 0 | 應用程式作用域，已遷移 |
 | `src/frontend/src/styles/app.css` | 0 (Token 定義之外) | 應用程式作用域基礎，已遷移 |
 | `src/frontend/src/components/admin/OverlayEditorModal.vue` | 75 | 應用程式作用域，強制回應視窗/編輯器 |
-| `src/frontend/src/components/admin/SimulateControlsPanel.vue` | 65 | 應用程式作用域，監控/模擬控制面板 |
+| `src/frontend/src/components/admin/SimulateControlsPanel.vue` | 65 | 應用程式作用域，監控/模擬主控台 |
 | `src/frontend/src/components/admin/MonitorOverlayPanel.vue` | 50 | 應用程式作用域，監控面板鉻框 |
 | `src/frontend/src/styles/monitor-tokens.css` | 43 | Token 橋接器 |
 | `src/frontend/src/components/admin/ChatStreamPanel.vue` | 40 | 應用程式作用域，監控面板鉻框 |
 | `src/frontend/src/views/overlay/MemberOverlayView.vue` | 24 | 預設檔作用域 Overlay |
 | `src/frontend/src/views/admin/ChatOutboxView.vue` | 0 | 應用程式作用域狀態顏色，已遷移 |
 | `src/frontend/src/views/admin/TwitchAuthView.vue` | 14 | 應用程式作用域，帶有 Twitch 品牌例外 |
-| `src/frontend/src/components/admin/VariablePicker.vue` | 0 | 共享編輯器組件，已遷移 |
-| `src/frontend/src/components/admin/ConditionExpressionInput.vue` | 0 | 共享編輯器組件，已遷移 |
+| `src/frontend/src/components/admin/VariablePicker.vue` | 0 | 共享編輯器元件，已遷移 |
+| `src/frontend/src/components/admin/ConditionExpressionInput.vue` | 0 | 共享編輯器元件，已遷移 |
 | `src/frontend/src/views/admin/SettingsView.vue` | 10 | 應用程式作用域設定頁面 |
 | `src/frontend/src/views/admin/RuleEditorView.vue` | 0 | 應用程式作用域編輯器鉻框，已遷移 |
-| 工作流編輯器組件 | 0 | 共享編輯器組件，已遷移 |
-| Overlay 預設組件 | 共 22 次 | 預設檔作用域 Overlay |
+| 工作流編輯器元件 | 0 | 共享編輯器元件，已遷移 |
+| Overlay 預設元件 | 共 22 次 | 預設檔作用域 Overlay |
 
 ## 路由主題矩陣 (Route Theme Matrix)
 
 | 路由 / 頁面 | 作用域 | 淺色 | 深色 | 行動裝置 | 備註 |
 | --- | --- | --- | --- | --- | --- |
-| `/monitor` | 管理端路由 | 部分完成 | 部分完成 | 待辦 (TODO) | `monitor-tokens.css` 現已衍生自 `--vp-*`；組件級別的硬編碼文字字面值仍需清理。 |
+| `/monitor` | 管理端路由 | 部分完成 | 部分完成 | 待辦 (TODO) | `monitor-tokens.css` 現已衍生自 `--vp-*`；元件級別的硬編碼文字字面值仍需清理。 |
 | `/settings` | 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | 需要主題控制項和 Token 化的設定卡片。 |
 | `/simulate` | 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | `SimulateControlsPanel` 有 65 個硬編碼顏色值。 |
 | `/events` | 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | 大部分為共享的 `app.css` 表格/晶片樣式。 |
 | `/members` | 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | 本地硬編碼顏色次數最高。 |
 | `/overlay-presets`| 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | 管理端鉻框及編輯器強制回應視窗啟動。 |
 | `/rules` | 管理端路由 | 部分完成 | 部分完成 | 待辦 (TODO) | 共享的應用程式樣式和粘性動作現已使用 `--vp-*`；瀏覽器冒煙測試待定。 |
-| `/rules/:id` | 管理端路由 | 部分完成 | 部分完成 | 待辦 (TODO) | 工作流編輯器共享組件現已使用 `--vp-*`；瀏覽器冒煙測試待定。 |
+| `/rules/:id` | 管理端路由 | 部分完成 | 部分完成 | 待辦 (TODO) | 工作流編輯器共享元件現已使用 `--vp-*`；瀏覽器冒煙測試待定。 |
 | `/timers` | 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | 大部分為共享的管理端基礎元件。 |
 | `/chat-outbox` | 管理端路由 | 部分完成 | 部分完成 | 待辦 (TODO) | 狀態徽章現已使用語意化 `--vp-*`；瀏覽器冒煙測試待定。 |
 | `/twitch` | 管理端路由 | 部分完成 | 缺失 | 待辦 (TODO) | Twitch 品牌點綴色可保留為語意化例外。 |

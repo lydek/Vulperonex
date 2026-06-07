@@ -18,4 +18,4 @@
 - 審查者：Codex
 - 日期：2026-05-16
 - 決定：採用 domain event public id 作為 overlay `eventId`，缺平台來源 id 時允許本機合成 id。
-- 後續：若 Phase 6 引入多 overlay client replay/dedup，需重新評估 synthetic id 是否足以跨 client 去重。
+- 後續：若 Phase 6 引入多 overlay client replay/dedup，需重新評估 synthetic id 是否足以跨 client 重複抑制。

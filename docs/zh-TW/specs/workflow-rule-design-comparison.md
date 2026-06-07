@@ -204,15 +204,15 @@ OC 後端有 `TriggerMetadataProvider` 提供：
 1. **Schema-driven 編輯器 UI**：已實作強型別 `WorkflowConditionsEditor`/`WorkflowActionsEditor`/`VariableFieldInput`。
 2. **Action 強型別設計**：使用 polymorphic record（`[JsonPolymorphic]`），確保執行期（runtime）型別安全。
 3. **NCalc 表示式引擎**：支援任意布林邏輯評估，表達力強。
-4. **顯式設計**：清晰的 `IsSubWorkflow` 顯式聲明與 `Parallel` 執行模式。
+4. **顯式設計**：清晰的 `IsSubWorkflow` 顯式宣告與 `Parallel` 執行模式。
 5. **事件擴充彈性**：`EventTypeKey` 採 open string 設計，新增事件無需修改後端 Enum。
 6. **角色權限過濾**：已具備強型別 `UserRoleCondition` 與前端角色勾選 UI。
 
 ### Omni-Commander 借鏡與改進項：
-1. **Trigger Filter 強型別語意（Per Event Type）**：改進 generic dict 的全等比對，杜絕平台欄位誤設導致的靜默跳過。
+1. **Trigger Filter 強型別語意（Per Event Type）**：改進 generic dict 的全等比對，杜絕平台欄位誤設導致的靜默略過。
 2. **後端 Metadata Provider 作為單一事實**：取代目前前端 `workflowEditor.ts` 的 hardcode，用以驅動前端 Filter 欄位 Schema 與動態變數白名單。
 3. **Drawer + Tabs 容器 UX**：改善 V 現行整頁 Form 導致切頁遺失上下文的問題。
-4. **NCalc 評估異常日誌定位**：將 NCalc catch 全吞例外的行為改為 `LogWarning`，並注入規則識別子以利排障。
+4. **NCalc 評估例外日誌定位**：將 NCalc catch 全吞例外的行為改為 `LogWarning`，並注入規則識別子以利排障。
 
 ---
 
@@ -260,7 +260,7 @@ Phase A.5 重點是 **schema 簡化 + legacy row migration**（不是補 validat
 ### 5b.3 `IsSubWorkflow == true` 與 `required EventTypeKey` 衝突
 
 - `WorkflowRule.EventTypeKey` 是 `required string`
-- `WorkflowRule.IsSubWorkflow == true` 時引擎跳過 event 路由
+- `WorkflowRule.IsSubWorkflow == true` 時引擎略過 event 路由
 - 前端 `isSubWorkflow=true` 隱藏 `TriggerEditor`，送出時 `eventTypeKey=""`
 - 「用空字串繞過 required」與強型別精神衝突
 
@@ -396,7 +396,7 @@ chat 流量下 no-match 是常態路徑，不能用 warning 灌爆檔案）：
   - eval throw / `HasErrors` → `LogWarning` 含 `{RuleId} {RuleName} {ExpressionHash} {ErrorClass}`
 - [ ] `WorkflowEngine` 注入 `ILogger`，依上表分級
   - 引入 structured event log（`workflow_rule_skipped` + 分類欄位）讓
-    operator 能以查詢方式 aggregate，而不是依賴 free-text grep
+    operator 能以查詢方式 aggregate，而不是相依 free-text grep
 - [ ] `MatchesTriggerFilter`：unknown key → `Warning`；value mismatch → `Debug`
 - [ ] 文件補一段「filter key 已知合法清單」短表（暫時人工維護，Phase B 取代）
 
@@ -427,7 +427,7 @@ chat 流量下 no-match 是常態路徑，不能用 warning 灌爆檔案）：
     - `IsSubWorkflow == true` ⇒ `EventTypeKey is null && Trigger is null`
     - `IsSubWorkflow == false` ⇒ `EventTypeKey is not null and not whitespace`
   - [2] DB migration：sub-workflow rule 之 `event_type_key = ''` 改 NULL
-    - **預檢**：確認 EF Core 實體映射 nullable 與 column constraint 同步調整
+    - **預檢**：確認 EF Core 實體對應 nullable 與 column constraint 同步調整
     - **鎖表風險**：先在 staging 跑 `EXPLAIN`（或 SQLite `EXPLAIN QUERY PLAN`）
       評估資料量；若需 ALTER COLUMN 改 NULL，分兩 migration（先 drop NOT NULL，
       後續釋出再 backfill）避免長鎖
@@ -535,7 +535,7 @@ V 尚未釋出，無真實 operator 資料 → 走最簡路徑：
 - [ ] 將 PoC 結果記錄至 ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md` 中。
 - [ ] 若 PoC 的套件大小超出限制 ⇒ 回退至 Naive UI 的 tree-shake 方案 ⇒ 若仍超標，則改用純手刻元件。
 - [ ] 若 PoC 的標記整合摩擦超出預期 ⇒ 評估 Inspira UI 樣式配方作為基準。
-- [ ] Phase B 的端點已上線 (D 依賴於 B)。
+- [ ] Phase B 的端點已上線 (D 相依於 B)。
 
 **任務**：
 - [ ] 引入 Drawer 容器與 Tabs（library 由 gate 決定）

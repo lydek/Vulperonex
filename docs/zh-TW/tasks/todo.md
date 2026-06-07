@@ -12,7 +12,7 @@
 - [ ] 每個自動化測試命名符合 `Given_*_When_*_Then_*`（C#）或 `should * when *`（Vitest），或測試體含 `// Given / When / Then` 區塊（每個 Checkpoint code review 驗證）
 - [ ] Domain 實作遵守 tactical DDD：Entity / Value Object / Domain Event / invariant 放在正確邊界
 - [ ] Application 邊界遵守 light CQRS：command/write ports 與 query/read DTO services 分離
-- [ ] DCI Role/Behavior（SPEC §4.1b）：Role 物件純 Domain 邏輯，不依賴 Infrastructure；Context/Interaction 在 Application；MVP 不做 runtime role/reflection/mixin；架構測試驗證 Role 無 Infrastructure 引用
+- [ ] DCI Role/Behavior（SPEC §4.1b）：Role 物件純 Domain 邏輯，不相依 Infrastructure；Context/Interaction 在 Application；MVP 不做 runtime role/reflection/mixin；架構測試驗證 Role 無 Infrastructure 引用
 - [ ] 手動驗證只補足 Photino / OBS / browser runtime，不取代自動化測試
 
 ---
@@ -38,7 +38,7 @@
 
 - [x] **Task 4** — IStreamEventBus + InMemoryStreamEventBus（Channel、handler 隔離、WaitForIdleAsync）
 - [x] **Task 5** — EF Core + SQLite + 第一批 DB migration（含 MigrationClassifier 架構測試）
-- [x] **Task 6** — TDQ 溢出處理 + ActionExecutionLog dedup（at-least-once 保證）
+- [x] **Task 6** — TDQ 溢位處理 + ActionExecutionLog dedup（at-least-once 保證）
 - [x] **Task 7** — MemberResolver（INSERT OR IGNORE 原子 GetOrCreate，**實作 Infrastructure-only**；Application 只引用 `IMemberResolver` port）+ PlatformUserDisplayCache（L1/L2，Infrastructure-only，Application/Domain 不引用）
 - [x] **Task 8** — ISystemSettingsService（SQLite-backed、熱重載 IObservable、AES-256-GCM OAuth token + IOAuthTokenStore + SystemSettingKey 常數）
 
@@ -99,7 +99,7 @@
 - [x] Task 13f Phase 4 SC-6a/SC-6b equivalence 強化已完成或明確 waive：新增 follow/sub/donate payload，驗證 cache/member state/TotalBitsGiven/subscriber tier 等副作用細節
 - [x] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 - [x] Phase 5 CLI E2E 收尾：新 SQLite DB 第一次啟動 Web API 後自動 migrate，真實 CLI 可對 loopback API 執行 rule/config/member/simulate smoke，不再需要手動 `dotnet ef database update`（自動化已通過；published CLI 對獨立 Web API process 的人工 terminal smoke 已執行）
-- [x] Phase 5 Twitch OAuth CLI 收尾：CLI 提供可手動執行的 Twitch PKCE 授權入口，callback loopback-only，refresh token 經 API/`IOAuthTokenStore` 加密保存，且不經 `/api/config/oauth.*`（自動化已通過；真 Twitch 瀏覽器授權已人工執行）
+- [x] Phase 5 Twitch OAuth CLI 收尾：CLI 提供可手動執行的 Twitch PKCE 授權入口，callback loopback-only，refresh token 經 API/`IOAuthTokenStore` 加密儲存，且不經 `/api/config/oauth.*`（自動化已通過；真 Twitch 瀏覽器授權已人工執行）
 - [x] Phase 5 CLI REPL 補充：命令樹、`help`、Twitch auth status API、最小 REPL、no-Twitch mode banner、REPL 內 `twitch auth start` 缺 ClientId 保護、Ctrl+C cancellation、TTY line editor、Tab 多候選輪替已完成；人工 terminal 驗證已完成
 - [x] 開發者快捷入口：新增 `tools/cli.ps1`，自動偵測 loopback Web host port 並直接進 REPL / 執行 one-shot CLI，降低人工驗證摩擦
 - [x] Task 15：兩埠均以 loopback（IPv4 127.0.0.1 + IPv6 ::1）雙重綁定，socket bind test 驗證通過
@@ -137,7 +137,7 @@
 
 - ~~**Task 17**~~ — 已移除（原 MockYouTube Adapter，推遲出 MVP scope）
 - [x] **Task 19** — Vue 前端骨架：Vite 7.3 + PrimeVue 4 Unstyled + UnoCSS + Pinia + useStreamEvents + 雙語系及 manifest 骨架
-- [x] **Task 20** — Web 管理主控台 (Web Admin UI)：四大面板整合、唯讀成員、JSON Textarea Rule CRUD (過濾系統事件)、Twitch OAuth 起始與 `zh-TW` / `en-US` 雙語系
+- [x] **Task 20** — Web 管理主控台 (Web Admin UI)：四大面板整合、唯讀會員、JSON Textarea Rule CRUD (過濾系統事件)、Twitch OAuth 起始與 `zh-TW` / `en-US` 雙語系
 - [x] **Task 18** — Serilog 三 Sink + AppLogs 清理 worker（`log.db_retention_days` + `log.db_max_size_mb` size-based cleanup）+ 熱重載 log level
 - [x] **Task 21** — Photino Desktop Shell + 埠衝突處理 + 靜態 fallback
 
@@ -168,7 +168,7 @@
 - [x] **Task 27** — Sub-workflow flag + Args plumbing，保留 stable `InvocationId`
 - [x] **Task 30** — Executor expansion（30a-30l；overlay/effect executor 必須 strong-typed DTO + whitelist）
 - [x] **Task 32** — ChatOutboxService rate limit + observable skipped/failed state
-- [x] **Task 31** — WorkflowTimer scheduler（單實例重啟 idempotency；多實例 leader election out-of-scope）
+- [x] **Task 31** — WorkflowTimer scheduler（單實例重新啟動 idempotency；多實例 leader election out-of-scope）
 - [x] **Task 33** — Web UI builder upgrade for Phase 7 schema
 - [x] **Task 34** — Plugin Action Args surface（backward compatible）
 - [x] **Task 35** — Manual verification + Omni parity sign-off
@@ -227,7 +227,7 @@
 
 - [x] **Task 41** — Simulation chat output observable surface：workflow `SendChatMessage` 在 simulation/local 模式下可直接看到 message / platform / channel / dedupKey / status
 - [x] **Task 42** — Chat overlay preset system：`/overlay/chat` 支援至少兩個可切換內建樣板，且切換不需改前端原始程式碼
-- [x] **Task 43** — OneComme compatibility path：以 extension/plugin 方式提供 OneComme 相容 / 匯入 / 映射策略，不直接併入 core
+- [x] **Task 43** — OneComme compatibility path：以 extension/plugin 方式提供 OneComme 相容 / 匯入 / 對應策略，不直接併入 core
 
 ### Checkpoint：Phase 7B
 
@@ -284,7 +284,7 @@
 
 | Gate | Task |
 |------|------|
-| Clean Architecture 層依賴不違規 | Task 3（持續，架構測試）|
+| Clean Architecture 層相依不違規 | Task 3（持續，架構測試）|
 | Domain > 90% 覆蓋率 | Task 2 起持續（coverlet.msbuild `/p:Include=[Vulperonex.Domain]* /p:Exclude=[*.Tests.*]* /p:Threshold=90`，CI fail on drop）|
 | Application > 80% 覆蓋率 | Task 10/11/14 持續（coverlet.msbuild `/p:Threshold=80 /p:Include=[Vulperonex.Application]* /p:Exclude=[*.Tests.*]*`；Unit tests only；Application behavior in integration → 補 unit tests with fakes）|
 | CQRS：GET 路徑不呼叫 IWorkflowRuleRepository | Task 14a（**interaction/integration test with fakes**，非靜態 assembly 掃描）|

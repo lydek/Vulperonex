@@ -20,7 +20,7 @@
 ## Task 43 - OneComme Compatibility Path
 
 - [x] Task 43a：文件化 OneComme compatibility strategy。
-- [x] Task 43b：定義 extension/import path 與樣板目錄結構或 package metadata 映射。
+- [x] Task 43b：定義 extension/import path 與樣板目錄結構或 package metadata 對應。
 - [x] Task 43c：補手動驗證流程，記錄辨識、匯入、切換結果。
 
 ## Checkpoint：Phase 7B

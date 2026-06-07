@@ -10,7 +10,7 @@
 | 區域 | 路徑 | 狀態 | 證據 |
 | --- | --- | --- | --- |
 | 觸發器篩選器列基準 | `src/frontend/src/components/admin/TriggerEditor.vue` | 通過 (PASS) | `TriggerEditor.test.ts` 涵蓋了修復 Phase 6 新增資料列缺陷之後的新增、編輯、移除和空鍵值抑制。 |
-| 共用步驟清單外殼 | `src/frontend/src/components/admin/StepListShell.vue` | 通過 (PASS) | `StepListShell.test.ts` 透過測試輔助組件涵蓋了新增、移除、向上/向下移動、摺疊以及停用的邊界狀態。 |
+| 共用步驟清單外殼 | `src/frontend/src/components/admin/StepListShell.vue` | 通過 (PASS) | `StepListShell.test.ts` 透過測試輔助元件涵蓋了新增、移除、向上/向下移動、摺疊以及停用的邊界狀態。 |
 | 條件視覺化編輯器 | `src/frontend/src/components/admin/WorkflowConditionsEditor.vue` | 通過 (PASS) | `WorkflowConditionsEditor.test.ts` 執行了由元資料登錄表驅動的表單路徑。 |
 | 行動視覺化編輯器 | `src/frontend/src/components/admin/WorkflowActionsEditor.vue` | 通過 (PASS) | `WorkflowActionsEditor.test.ts` 涵蓋了新增 → 類型切換 → 欄位編輯 → 輸出變數的來回傳輸，而不使用原始 JSON。 |
 | OnFailure 編輯器外殼 | `src/frontend/src/components/admin/OnFailureEditor.vue` | 通過 (PASS) | `OnFailureEditor.test.ts` 涵蓋了行動編輯器的重用路徑，並渲染了巢狀 onFailure 的限制說明。 |
@@ -22,14 +22,14 @@
 
 | 流程 | 狀態 | 證據 / 備註 |
 | --- | --- | --- |
-| 新增、編輯、重新排序、移除條件 | 通過 (PASS) | 完全透過 `WorkflowConditionsEditor` 外殼驅動；已透過 `WorkflowConditionsEditor.test.ts` 與 `StepListShell.test.ts` 進行驗證。 |
+| 新增、編輯、重新排序、移除條件 | 通過 (PASS) | 完全透過 `WorkflowConditionsEditor` 外殼驅動；已透過 `WorkflowConditionsEditor.test.ts` 與 `StepListShell.test.ts` 驗證。 |
 | 觸發器篩選器列 新增 / 編輯 / 移除 | 通過 (PASS) | `TriggerEditor.test.ts` 涵蓋了對草稿列的新增和移除；空鍵值在發送前會被清除。 |
 | 新增行動步驟並編輯其欄位 | 通過 (PASS) | `WorkflowActionsEditor.test.ts` 新增一個步驟，將類型切換為 `randomPicker`，編輯欄位，並斷言發送的承載資料。 |
 | 設定隨機選取器 (Random Picker) 行動 | 通過 (PASS) | 相同的行動測試透過 `string-list` / `number-list` 類型涵蓋了 `choices` 和 `weights` 欄位的來回傳輸。 |
 | 設定 OnFailure 步驟 | 通過 (PASS) | `OnFailureEditor.test.ts` 透過具有獨立模型繫結的共用外殼新增一個步驟。 |
 | 插入步驟輸出變數 | 通過 (PASS) | `VariableFieldInput.test.ts` 與 `ConditionExpressionInput.test.ts` 涵蓋了跨觸發事件 (Trigger) / 參數 (Args) / 步驟 (Step) / 會員快照 (Member) / 失敗內容 (Failure) 群組的變數選取器插入。 |
 | 切換區段至原始 JSON 備用模式並返回 | 通過 (PASS) | 每個編輯器下方的「進階 JSON」`<details>` 面板僅作為備用方案；`RuleJsonEditor.test.ts` 驗證了底層編輯器；視覺化表單仍為預設掛載。 |
-| 匯入完整規則 JSON 並呈現不受支援的欄位 | 通過 (PASS) | `RuleEditorView.test.ts` 匯入一個包含 `legacyField`、`experimental` 和 `trigger.futureKnob` 的檔案，並斷言橫幅列出了每個未映射的路徑。 |
+| 匯入完整規則 JSON 並呈現不受支援的欄位 | 通過 (PASS) | `RuleEditorView.test.ts` 匯入一個包含 `legacyField`、`experimental` 和 `trigger.futureKnob` 的檔案，並斷言橫幅列出了每個未對應的路徑。 |
 | 將目前表單匯出為 JSON | 通過 (PASS) | `RuleEditorView.test.ts` 涵蓋了 `buildExportPayload` 的來回傳輸，並斷言匯出內容攜帶了編輯後的名稱、行動和觸發器。 |
 
 ## Omni-Commander 編輯器 UX 功能對齊矩陣 (Parity Matrix)

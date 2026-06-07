@@ -2,7 +2,7 @@
 
 > Scope: Phase 7B chat overlay preset slice. This document covers how Vulperonex relates to OneComme without embedding OneComme runtime or UI.
 
-> **⚠️ 部分被取代（參見 SPEC §4.14.3）：** 下文提到的 **自訂預設檔管線 (custom preset pipeline)** / `custom` 預設類型 / `wwwroot/overlay/custom/` 已被**移除**。**內建 (built-in)** 預設合約（`OverlayPresetStore` 內建元資料、靜態 `chat.html` + `chat-overlay.js`、`OverlayChatPayload`、`overlay.chat.preset` 設定）仍然有效。任何依賴自訂管線的 OneComme 匯入路徑目前皆無落地目標（參見 [onecomme-bridge.md](../../plugins/onecomme-bridge.md)）。下文中有關自訂管線的引用僅具歷史參考價值。
+> **⚠️ 部分被取代（參見 SPEC §4.14.3）：** 下文提到的 **自訂預設檔管線 (custom preset pipeline)** / `custom` 預設類型 / `wwwroot/overlay/custom/` 已被**移除**。**內建 (built-in)** 預設合約（`OverlayPresetStore` 內建元資料、靜態 `chat.html` + `chat-overlay.js`、`OverlayChatPayload`、`overlay.chat.preset` 設定）仍然有效。任何相依自訂管線的 OneComme 匯入路徑目前皆無落地目標（參見 [onecomme-bridge.md](../../plugins/onecomme-bridge.md)）。下文中有關自訂管線的引用僅具歷史參考價值。
 
 ## Goals and Non-Goals
 

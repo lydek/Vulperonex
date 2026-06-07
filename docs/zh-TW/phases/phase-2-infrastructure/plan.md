@@ -2,7 +2,7 @@
 
 > 父計畫：`tasks/plan.md` 第二階段
 > 範圍：僅限任務 4-8
-> 目標：建立事件匯流排、SQLite/EF Core 基礎設施、TDQ at-least-once 交付、成員解析與系統設定服務，讓後續 Simulation、Workflow、Web Host 與 CLI 可以建立在穩定的 Application ports 與 Infrastructure 實作上。
+> 目標：建立事件匯流排、SQLite/EF Core 基礎架構、TDQ at-least-once 交付、會員解析與系統設定服務，讓後續 Simulation、Workflow、Web Host 與 CLI 可以建立在穩定的 Application ports 與 Infrastructure 實作上。
 
 ---
 
@@ -18,7 +18,7 @@
 
 ---
 
-## 依賴順序
+## 相依順序
 
 ```
 任務 4a IStreamEventBus contract
@@ -61,7 +61,7 @@
 - [ ] Application 專案可編譯。
 - [ ] 架構測試確認 Application 不引用 Infrastructure。
 
-**依賴：** Task 2
+**相依：** Task 2
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/EventBus/IStreamEventBus.cs`
@@ -88,7 +88,7 @@
 - [ ] 單元測試：`Subscribe<UserSentMessageEvent>` 不收到 `UserFollowedEvent`。
 - [ ] 單元測試：handler `Task.Delay(100ms)` 時，`PublishAsync` 在 < 10ms 返回。
 
-**依賴：** 任務 4a
+**相依：** 任務 4a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/EventBus/InMemoryStreamEventBus.cs`
@@ -106,14 +106,14 @@
 - [ ] `WaitForIdleAsync` 在佇列清空且所有已派發 handler 完成後 resolve。
 - [ ] handler exception 被 catch + log，不透過 `WaitForIdleAsync` 丟出。
 - [ ] cancellation token 可中止等待。
-- [ ] 測試不依賴固定 sleep；使用 idle hook 或 deterministic synchronization。
+- [ ] 測試不相依固定 sleep；使用 idle hook 或 deterministic synchronization。
 
 **驗證：**
 - [ ] 單元測試：publish 後立即 `WaitForIdleAsync`，handler 完成才 resolve。
 - [ ] 單元測試：handler throw 後 `WaitForIdleAsync` 仍 resolve。
 - [ ] 單元測試：取消 token 時等待結束並回報 cancellation。
 
-**依賴：** 任務 4b
+**相依：** 任務 4b
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/EventBus/InMemoryStreamEventBus.cs`
@@ -137,7 +137,7 @@
 - [ ] Integration test：DbContext 可在 temp SQLite 開啟並建立連線。
 - [ ] 架構測試：Application 不引用 EF Core provider / Infrastructure。
 
-**依賴：** Task 3
+**相依：** Task 3
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/Data/VulperonexDbContext.cs`
@@ -165,7 +165,7 @@
 - [ ] Integration test：套用 migration 後可查到必要 table/index。
 - [ ] Integration test：重複建立同一 `(Platform, PlatformUserId)` 會觸發 unique constraint 或被 resolver 的 `INSERT OR IGNORE` 安全處理。
 
-**依賴：** 任務 5a
+**相依：** 任務 5a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/Migrations/`
@@ -191,7 +191,7 @@
 - [ ] `MigrationClassifier` 檢查 `MigrationBuilder.Operations`。
 - [ ] raw SQL 含 `DROP` / `DELETE` / `TRUNCATE` / `RENAME` 標記 destructive。
 - [ ] raw SQL 含任何 `ALTER` 標記 review-required。
-- [ ] raw SQL 不可因為不是 EF operation type 就跳過分類。
+- [ ] raw SQL 不可因為不是 EF operation type 就略過分類。
 
 **驗證：**
 - [ ] Architecture/unit test：`DROP TABLE` raw SQL -> destructive。
@@ -201,7 +201,7 @@
 - [ ] Architecture/unit test：`TRUNCATE` raw SQL -> destructive。
 - [ ] Integration test：bootstrap + migrate 後 `PRAGMA auto_vacuum = 2`。
 
-**依賴：** 任務 5b
+**相依：** 任務 5b
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/Data/DatabaseBootstrapper.cs`
@@ -215,7 +215,7 @@
 
 ## 任務 6a：建立 TDQ 與 ActionExecutionLog schema/repository
 
-**描述：** 建立 TDQ 和副作用去重所需的持久化模型與 repository，先完成資料結構與基本 CRUD。
+**描述：** 建立 TDQ 和副作用重複抑制所需的持久化模型與 repository，先完成資料結構與基本 CRUD。
 
 **驗收準則：**
 - [ ] `TransientDeliveryQueue` 可儲存 event payload、event type、created/updated timestamp 與 replay metadata。
@@ -228,7 +228,7 @@
 - [ ] Integration test：ActionExecutionLog 可 insert pending、mark completed、mark failed。
 - [ ] Unit/integration test：TDQ payload 中的 `InvocationId` 讀回不變。
 
-**依賴：** 任務 5c
+**相依：** 任務 5c
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/EventBus/TransientDeliveryQueue.cs`
@@ -248,14 +248,14 @@
 - [ ] 模擬 Channel 滿載時事件寫入 TDQ，不丟棄。
 - [ ] 啟動 replay 會讀取未處理 TDQ items 並重新 publish。
 - [ ] TDQ item 處理成功後刪除。
-- [ ] replay 不依賴事件歷史持久化語意；TDQ 僅保存待交付項目。
+- [ ] replay 不相依事件歷史持久化語意；TDQ 僅儲存待交付項目。
 
 **驗證：**
 - [ ] Integration test：強制 Channel 滿 -> event 進 TDQ。
 - [ ] Integration test：重建 bus/bootstrap -> TDQ event 被 replay。
 - [ ] Integration test：replay 成功後 TDQ item 被刪除。
 
-**依賴：** 任務 6a, 任務 4c
+**相依：** 任務 6a, 任務 4c
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/EventBus/InMemoryStreamEventBus.cs`
@@ -268,23 +268,23 @@
 
 ## 任務 6c：實作 ActionExecutionLog dedup 與 IClock
 
-**描述：** 實作 at-least-once 副作用去重協定，包含 stale Pending retry、AttemptCount、永久 Failed 與 fake clock 測試。
+**描述：** 實作 at-least-once 副作用重複抑制協定，包含 stale Pending retry、AttemptCount、永久 Failed 與 fake clock 測試。
 
 **驗收準則：**
 - [ ] 一般 action dedup key 為 `(EventId, WorkflowRuleId, ActionIndex)`。
 - [ ] `InvokeSubWorkflowAction` dedup key 為 `(EventId, WorkflowRuleId, ActionIndex, InvocationId)`，且 `InvocationId` 在 action 執行前產生並持久化於 payload。
-- [ ] `Completed` 或 `Failed` log entry replay 時跳過。
+- [ ] `Completed` 或 `Failed` log entry replay 時略過。
 - [ ] `Pending` 且 elapsed > 30s 時重試並 `AttemptCount++`。
 - [ ] `AttemptCount >= MaxRetries+1` 後設為 `Failed`，後續不再重試。
 - [ ] stale threshold 使用 `IClock`，不直接寫死 `DateTime.UtcNow`。
 
 **驗證：**
-- [ ] Integration test：同一 key 重複執行，第二次跳過。
+- [ ] Integration test：同一 key 重複執行，第二次略過。
 - [ ] Integration test（fake clock）：stale Pending 超過 30s -> retry，`AttemptCount` 增加。
-- [ ] Integration test：`AttemptCount` 達上限 -> `Failed`，後續 replay 跳過。
+- [ ] Integration test：`AttemptCount` 達上限 -> `Failed`，後續 replay 略過。
 - [ ] Unit test：`InvocationId` replay 後不重新產生。
 
-**依賴：** 任務 6b
+**相依：** 任務 6b
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Time/IClock.cs`
@@ -311,7 +311,7 @@
 - [ ] Integration test：回傳 MemberId 符合 ULID 格式。
 - [ ] 架構測試：Application 不引用 Infrastructure resolver。
 
-**依賴：** 任務 5c
+**相依：** 任務 5c
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Members/IMemberResolver.cs`
@@ -338,7 +338,7 @@
 - [ ] Unit/integration test：L1 miss 後從 L2 回填 L1。
 - [ ] Unit test：狀態更新以新絕對值替換既有值。
 
-**依賴：** 任務 7a
+**相依：** 任務 7a
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Abstractions/IPlatformUserInfoCache.cs`
@@ -367,7 +367,7 @@
 - [ ] Integration test：過期 row 被 cleanup worker 刪除，未過期 row 保留。
 - [ ] Unit test：`Badges` default 為 empty array 而非 null。
 
-**依賴：** 任務 7b
+**相依：** 任務 7b
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Infrastructure/Cache/PlatformUserDisplayCache.cs`
@@ -386,7 +386,7 @@
 - [ ] `ISystemSettingsService` 位於 Application。
 - [ ] `Get<T>(key, default)` 可正確反序列化。
 - [ ] `SetAsync` upsert 至 `SystemSettings`。
-- [ ] `SystemSettingKey` 常數包含以下 Phase 2 擁有或已被後續 MVP task 直接依賴的 key：
+- [ ] `SystemSettingKey` 常數包含以下 Phase 2 擁有或已被後續 MVP task 直接相依的 key：
   - `OAuthTwitchRefreshToken = "oauth.twitch.refresh_token"`
   - `StreamingPlatform = "streaming.platform"`
   - `BusChannelCapacity = "bus.channel_capacity"`
@@ -406,7 +406,7 @@
 - [ ] Unit/integration test：key 寫入時正規化為 lowercase。
 - [ ] Integration test：updated timestamp 變更。
 
-**依賴：** 任務 5c
+**相依：** 任務 5c
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Settings/ISystemSettingsService.cs`
@@ -437,7 +437,7 @@
 - [ ] Unit/integration test：設定 `overlay.display_cache_l1_capacity` / `overlay.display_cache_ttl_hours` 後建立 cache，L1 capacity/TTL 使用設定值；missing key 時使用 500 / 24h。
 - [ ] Unit/integration test：變更 display cache capacity 後，L1 cache 會依新容量裁切或在後續 insert 時維持新容量上限。
 
-**依賴：** 任務 8a, 任務 4c, 任務 7c
+**相依：** 任務 8a, 任務 4c, 任務 7c
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Settings/SettingChangedEvent.cs`
@@ -484,7 +484,7 @@
 - [ ] Integration test（temp dir）：machine.key 不存在 → 建立 32 bytes 並設定 OS 限制性權限（Windows ACL user-only / Unix 0600）。
 - [ ] Platform-specific test 或抽象測試：ACL/chmod failure -> `IOException`。
 
-**依賴：** 任務 8a
+**相依：** 任務 8a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Auth/IOAuthTokenStore.cs`
@@ -516,7 +516,7 @@
 - [ ] `git status --short --ignored` 僅顯示預期忽略的本地檔案。
 
 **審查門檻：**
-- [ ] 在開始第三階段之前，人工 review 架構層依賴：確認 Domain/Application 無 Infrastructure 引用洩漏、EF Core 型別未外露、TDQ/dedup 確實 at-least-once safe。
+- [ ] 在開始第三階段之前，人工 review 架構層相依：確認 Domain/Application 無 Infrastructure 引用洩漏、EF Core 型別未外露、TDQ/dedup 確實 at-least-once safe。
 
 ---
 
@@ -527,7 +527,7 @@
 | EF Core / SQLite 套件或工具版本不匹配 | 高 | 開始 Task 5 前確認中央套件版本；新增套件先詢問；使用 repo-local restore config。 |
 | EventBus fire-and-forget 測試 flake | 中 | 使用 `WaitForIdleAsync` 和 deterministic synchronization，避免固定 sleep。 |
 | TDQ replay 造成重複副作用 | 高 | 先完成 `ActionExecutionLog` 狀態機與 fake clock 測試，再接 Workflow action executor。 |
-| SQLite 並行寫入競態 | 中 | Resolver 使用 `INSERT OR IGNORE + SELECT`，測試以多 Task 同時呼叫覆蓋。 |
+| SQLite 並行寫入競爭狀況 | 中 | Resolver 使用 `INSERT OR IGNORE + SELECT`，測試以多 Task 同時呼叫覆蓋。 |
 | token 加密跨平台檔案權限差異 | 中 | 將 machine key path/permission 抽象化，Windows ACL 與 Unix chmod 分開測試。 |
 
 ---

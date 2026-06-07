@@ -28,7 +28,7 @@
 - `SettingsView.vue` 主題切換控制 + i18n（en/zh）。
 - `useTheme.test.ts` / `SettingsView.test.ts` 共 6 測試。
 
-### Slice 2 — workflow editor + 共用組件（commit `f7a52ff`）
+### Slice 2 — workflow editor + 共用元件（commit `f7a52ff`）
 
 scoped CSS 改用 `--vp-*` token：
 
@@ -56,6 +56,6 @@ scoped CSS 改用 `--vp-*` token：
 
 ## 待辦（後續 slice）
 
-- 高色彩組件遷移：`MembersView`（292 色 premium card 設計，需 light/dark 雙 token 以保留現有淺色外觀）、`OverlayEditorModal`、`SimulateControlsPanel`、`MonitorOverlayPanel`、`ChatStreamPanel`。
+- 高色彩元件遷移：`MembersView`（292 色 premium card 設計，需 light/dark 雙 token 以保留現有淺色外觀）、`OverlayEditorModal`、`SimulateControlsPanel`、`MonitorOverlayPanel`、`ChatStreamPanel`。
 - 自訂主題（custom theme）基礎：useTheme 擴充支援使用者 token 覆寫。
 - 瀏覽器 light/dark 各斷點 smoke test。

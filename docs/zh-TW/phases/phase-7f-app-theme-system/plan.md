@@ -6,14 +6,14 @@
 
 ## 目標
 
-為 Vue 管理端外殼及共享前端組件建置一個全域主題系統。目前應用程式的顏色定義分散且硬編碼，應用程式外殼僅支援淺色，且僅有監控專用的 Token 鷹架。Phase 7F 旨在實作前明確化主題行為：Token 來源、持久化、切換 UI、遷移順序以及逐頁驗證。
+為 Vue 管理端外殼及共享前端元件建置一個全域主題系統。目前應用程式的顏色定義分散且硬編碼，應用程式外殼僅支援淺色，且僅有監控專用的 Token 鷹架。Phase 7F 旨在實作前明確化主題行為：Token 來源、持久化、切換 UI、遷移順序以及逐頁驗證。
 
 ## 現有發現
 
 - `src/frontend/src/styles/app.css` 僅支援淺色，且硬編碼了外殼、卡片、表單、表格、徽章、警報和按鈕的顏色。
 - `src/frontend/src/styles/monitor-tokens.css` 包含監控本機 Token 和一個深色區塊，但註釋指出它並非完整且全域的主題。
 - `src/frontend/src/main.ts` 使用 PrimeVue 且 `unstyled: true`；因此應用程式擁有所有的視覺 Token。
-- 多個管理頁面和編輯器組件在 SFC 樣式中定義了本機的十六進位或 rgba 值。
+- 多個管理頁面和編輯器元件在 SFC 樣式中定義了本機的十六進位或 rgba 值。
 - Overlay 路由和靜態 OBS 資產是顯示預設檔，並非管理端應用程式主題切換的首要目標。除非在管理端外殼中顯示，否則它們可以保留預設檔專用的 Token。
 
 ## 設計決策
@@ -61,7 +61,7 @@
 7. `SettingsView.vue`
 8. `RuleEditorView.vue`
 9. `ChatOutboxView.vue`
-10. 工作流編輯器組件
+10. 工作流編輯器元件
 
 ### 切片 5 - 驗證與清理
 

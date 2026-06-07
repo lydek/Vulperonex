@@ -4,7 +4,7 @@
 > 追蹤父級：本規劃
 > 目標分支：`codex/phase7-workflow-parity`（或如果偏好隔離的切片，則使用後續分支）
 
-本文件將規格書轉化為具有依賴關係、並行性、風險和驗證關卡的順序實作計畫。它考量了規格書的 Phase 1 已部分導入於當前差異中的事實。
+本文件將規格書轉化為具有相依關係、並行性、風險和驗證關卡的順序實作計畫。它考量了規格書的 Phase 1 已部分導入於當前差異中的事實。
 
 ---
 
@@ -17,7 +17,7 @@
 | 任務 3 — 標頭 | ✅ 已完成 | 毛玻璃類別、⚙️ 圖示、眉標、具有脈衝點動畫的 3 狀態晶片 |
 | 任務 4 — 控制側軌 + 抽屜 + SimulateControlsPanel 參照對等 | ⚠️ 外殼已完成，面板內部未改動 | 側軌可折疊 + 抽屜已導入；`SimulateControlsPanel.vue` 仍是單一別名驅動的表單（無測試模式切換、無視覺 4 區段節奏、未確認批次簽到對等） |
 | 任務 5 — 預覽工作區 | ⚠️ 部分完成 | `MonitorOverlayPanel.vue` 中現有的 `monitor-controls-header` 列具有分頁/預設集/環境/重新載入；尚無眉標/更強的工具列框架 |
-| 任務 6 — 聊天摘要重構 | ❌ 待處理 | `ChatStreamPanel.vue` 尚未針對新外殼進行重構 |
+| 任務 6 — 聊天摘要重構 | ❌ 待處理 | `ChatStreamPanel.vue` 尚未針對新外殼重構 |
 | 任務 7 — 響應式過渡 | ⚠️ 部分完成 | 調整大小監聽器正確，但過渡陳舊狀態邊緣僅經過輕微測試 |
 | 任務 8 — 國際化 (i18n) + 無障礙 (a11y) | ⚠️ 部分完成 | 標頭/晶片/抽屜鍵已完成；尚未加入重構後控制項/摘要/預覽的新鍵值 |
 | 任務 9 — 最終迴歸 | ⚠️ 部分完成 | 新增了 7 個 vitest 案例（本地端 172 個通過）；發現任務 4/5/6 尚有工作 |
@@ -31,7 +31,7 @@
 依據規格書推薦的執行順序進行垂直切片：
 
 1. 在 Phase 2 之前關閉 Phase 1 的缺口（決策 1 標記修正）。
-2. 依依賴順序導入 Phase 2 區域：任務 4 最優先（最高使用者可見表面積），然後並行進行任務 5 和 6。
+2. 依相依順序導入 Phase 2 區域：任務 4 最優先（最高使用者可見表面積），然後並行進行任務 5 和 6。
 3. Phase 3 綁定過渡、無障礙性 (a11y) 和迴歸測試網。
 
 每個批次都以標準的四步驟檢查點（vue-tsc、vitest、build、lint）結束。
@@ -51,7 +51,7 @@
 
 驗證：vue-tsc + vitest（煙霧測試）；預期無行為變更。
 
-依賴項：無。
+相依項：無。
 可並行性：否 —— Phase 2 的關卡。
 
 ---
@@ -72,7 +72,7 @@
 
 驗證：vue-tsc + vitest + 手動桌上型/窄版檢查。
 
-依賴項：批次 0。
+相依項：批次 0。
 與批次 2/3 的可並行性：否 —— 任務 4 在規格書中是獨立的，但使用批次 0 中修正的標記。在批次內，1.1 必須在 1.2-1.5 之前；1.6 可以與 1.4-1.5 一起執行；1.7 最後。
 
 ---
@@ -91,7 +91,7 @@
 
 驗證：vue-tsc + vitest + 於 1440/1280 寬度手動檢查。
 
-依賴項：批次 0。
+相依項：批次 0。
 與批次 1 和 3 的可並行性：是（不同的檔案，無共享狀態）。建議與批次 3 同時運行。
 
 ---
@@ -114,7 +114,7 @@
 
 驗證：vue-tsc + vitest + 於 1440/1200/800 手動測試 + 混亂測試（DevTools 節流網路 → 離線 → 線上，確認晶片能反映狀態而不會有無限制的重新連線垃圾郵件）。
 
-依賴項：批次 0。
+相依項：批次 0。
 可並行性：是，與批次 2 並行。
 
 ---
@@ -128,11 +128,11 @@
 | 4.3 | i18n 掃描：確認儀表板外殼 + 3 個面板中沒有留下硬編碼字串。 | grep + 手動 | S |
 | 4.4 | Vitest：加入過渡狀態案例（側欄開啟的寬版→窄版調整大小可正確關閉；抽屜開啟的窄版→寬版調整大小可正確關閉）。若有，更新 a11y 測試。 | `MonitorDashboardView.test.ts`, `a11y.test.ts` | S |
 | 4.5 | 最終 4 步驟檢查點：vue-tsc + vitest + build + lint。 | （指令） | XS |
-| 4.6 | 在 1440/1280/1024/800 進行手動驗證矩陣。在 `docs/phases/phase-7d-*/manual-verification.md`（或新檔案）中記錄帶日期的項目。 | docs/phases | XS |
+| 4.6 | 在 1440/1280/1024/800 手動驗證矩陣。在 `docs/phases/phase-7d-*/manual-verification.md`（或新檔案）中記錄帶日期的項目。 | docs/phases | XS |
 
 驗證：所有四個命令均為綠色；記錄手動矩陣。
 
-依賴項：批次 1, 2, 3。
+相依項：批次 1, 2, 3。
 可並行性：4.1 + 4.2 + 4.3 內部並行；4.4-4.6 最後順序執行。
 
 ---
@@ -145,7 +145,7 @@
 | R2 | `SimulateControlsPanel` 參照對等推動破壞了現有的測試/API 合約 | 中 | 高 | 保留 `alias` 參照 + 發送合約；僅在視覺上進行分區；後端模擬 API 保持不變。測試變更是相加的。 |
 | R3 | 預覽工具列 2 列在窄寬度時折行顯得尷尬 | 中 | 中 | 為每個斷點定義明確的網格樣板；最後一個彈性折行；先在 1280 測試。 |
 | R4 | 聊天面板最小寬度在 1280 上限制過於激進 | 低 | 中 | 使用 `clamp(260px, 22vw, 360px)`；手動檢查。 |
-| R5 | 調整大小抖動時響應式過渡拍動 | 低 | 中 | 使用 `requestAnimationFrame` 防抖 `updateLayout`。 |
+| R5 | 調整大小抖動時響應式過渡拍動 | 低 | 中 | 使用 `requestAnimationFrame` 防抖動 `updateLayout`。 |
 | R6 | 範圍蔓延到參照設定分頁（模組/聲音/樂透） | 高 | 高 | 透過規格書「超出範圍」進行硬性防護；拒絕未對應到任務 1-9 的子任務。 |
 | R7 | 新的 i18n 鍵值導入時沒有 zh-TW 對照 | 中 | 低 | 每個批次的 i18n 步驟在同一個 commit 中同時修改這兩個檔案；vue-tsc + 缺少鍵值警告會捕捉到漂移。 |
 | R8 | SignalR 重新連線風暴（自監聽器/間隔呼叫 `start()`） | 低（配合 Composable 合約） | 高 | Composable 將 `start()` 隱藏在具有重入保護的 `manualReconnect()` 後方。批次 3 PR 的 Lint 審查強制執行「在 Composable 之外不得呼叫 `connection.start()`」。 |
@@ -197,7 +197,7 @@ export function useHubConnectionState(connection: HubConnection) {
   connection.onreconnected(syncFromConnection);
   connection.onclose(syncFromConnection);
 
-  // L2 — 手動重新連線（呼叫端調用）
+  // L2 — 手動重新連線（呼叫端呼叫）
   async function manualReconnect(): Promise<void> {
     if (connection.state !== HubConnectionState.Disconnected) return;
     if (reconnectTimer !== null) return; // 重入保護
@@ -355,7 +355,7 @@ dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=fal
 | Q1 | `app.css` **沒有** CSS 變數（已透過 grep 確認）。應用 R1 緩解措施。 | 保持 `--monitor-*` 為僅亮色，並配置 `[data-theme="dark"]` 區塊；加入參考未來全域主題規格書的 TODO 註解。 |
 | Q2 | 使用確定的 PrimeVue ProgressBar。 | 批次 1 匯入 `primevue/progressbar`（或同等項目），並將 `:value` 驅動為 `batchProgress / batchSize * 100` |
 | Q3 | 後端 **沒有** `isTest`/`IsTest`/`testMode` 旗標（已在整個 `src/` 中透過 grep 確認）。 | 在批次 1 中加入僅 UI 的切換開關，並附帶註解 `// TODO: backend support pending — currently UI label only`。在後端導入前，請勿在請求主體中傳遞該旗標。 |
-| Q4 | 三層狀態模式：**(L1) 被動回呼** + **(L2) 增量重新連線** + **(L3) 防禦性 30 秒輪詢同步（唯讀）**。請參閱下方的「SignalR 連線狀態模式」區段。 | 批次 3 導入了新的 `useHubConnectionState` Composable。**禁止**：在監聽器/間隔中編寫重試迴圈、呼叫 `start()`，或在沒有使用者/可見性觸發的情況下自動重啟 `Disconnected`。 |
+| Q4 | 三層狀態模式：**(L1) 被動回呼** + **(L2) 增量重新連線** + **(L3) 防禦性 30 秒輪詢同步（唯讀）**。請參閱下方的「SignalR 連線狀態模式」區段。 | 批次 3 導入了新的 `useHubConnectionState` Composable。**禁止**：在監聽器/間隔中編寫重試迴圈、呼叫 `start()`，或在沒有使用者/可見性觸發的情況下自動重新啟動 `Disconnected`。 |
 
 ---
 

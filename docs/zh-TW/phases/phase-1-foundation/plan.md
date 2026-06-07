@@ -17,7 +17,7 @@
 
 ---
 
-## 依賴順序
+## 相依順序
 
 ```
 任務 1a 儲存庫/方案配置
@@ -29,9 +29,9 @@
         -> 任務 2b 具體事件
         -> 任務 2c 事件描述/測試
         -> 任務 2d 防止平台洩漏的架構規則
-            -> 任務 3a 成員實體 (Entities)/值對象 (Value Objects)
-            -> 任務 3b 應用層成員埠 (Ports)
-            -> 任務 3c 成員領域測試
+            -> 任務 3a 會員實體 (Entities)/值物件 (Value Objects)
+            -> 任務 3b 應用層會員埠 (Ports)
+            -> 任務 3c 會員領域測試
             -> 任務 3d DCI 角色隔離測試
 ```
 
@@ -50,7 +50,7 @@
 - [ ] `dotnet --info` 確認 SDK 可用性。
 - [ ] `dotnet sln Vulperonex.sln list` 執行成功。
 
-**依賴：** 無
+**相依：** 無
 
 **可能涉及的檔案：**
 - `Vulperonex.sln`
@@ -66,16 +66,16 @@
 **描述：** 新增核准架構中命名的所有生產專案，不包含業務邏輯。
 
 **驗收準則：**
-- [ ] 領域 (Domain)、應用 (Application)、基礎設施 (Infrastructure)、外掛程式抽象 (Plugins.Abstractions)、適配器抽象 (Adapters.Abstractions)、Twitch 適配器 (Adapters.Twitch)、模擬適配器 (Adapters.Simulation)、Web 主機、Cli 和桌面主機 (Desktop) 的 `.csproj` 檔案已存在。
+- [ ] 領域 (Domain)、應用 (Application)、基礎架構 (Infrastructure)、外掛程式抽象 (Plugins.Abstractions)、配接器抽象 (Adapters.Abstractions)、Twitch 配接器 (Adapters.Twitch)、模擬配接器 (Adapters.Simulation)、Web 主機、Cli 和桌面主機 (Desktop) 的 `.csproj` 檔案已存在。
 - [ ] 桌面主機的目標框架為 `net10.0-windows`。
-- [ ] 專案引用未違反依賴圖。
+- [ ] 專案引用未違反相依圖。
 
 **驗證：**
 - [ ] `dotnet sln Vulperonex.sln list` 顯示所有生產專案。
 - [ ] `dotnet restore Vulperonex.sln /m:1 /nr:false /p:UseSharedCompilation=false` 執行成功。如果環境需要儲存庫本地的 NuGet 隔離，請在建立或確認該檔案後使用 `--configfile NuGet.Config`。
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 到達編譯階段且無專案探索錯誤。
 
-**依賴：** 任務 1a
+**相依：** 任務 1a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Domain/Vulperonex.Domain.csproj`
@@ -108,7 +108,7 @@
 - [ ] `dotnet test tests/Vulperonex.Tests.Integration /m:1 /nr:false /p:UseSharedCompilation=false` 能夠發現測試專案。
 - [ ] `dotnet test tests/Vulperonex.Tests.Architecture /m:1 /nr:false /p:UseSharedCompilation=false` 能夠發現測試專案。
 
-**依賴：** 任務 1a
+**相依：** 任務 1a
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Unit/Vulperonex.Tests.Unit.csproj`
@@ -121,20 +121,20 @@
 
 ## 任務 1d：串接專案引用與架構基準
 
-**描述：** 新增允許的專案引用，以及首批強制執行依賴圖的架構測試。
+**描述：** 新增允許的專案引用，以及首批強制執行相依圖的架構測試。
 
 **驗收準則：**
 - [ ] 領域層 (Domain) 不引用任何 Vulperonex 專案。
 - [ ] 應用層 (Application) 僅引用領域層。
-- [ ] 基礎設施層 (Infrastructure) 引用應用層和領域層。
-- [ ] 適配器 (Adapters) 和主機 (Hosts) 遵循 `tasks/plan.md` 中的依賴圖。
-- [ ] 如果領域層引用了基礎設施層或平台適配器，架構測試應失敗。
+- [ ] 基礎架構層 (Infrastructure) 引用應用層和領域層。
+- [ ] 配接器 (Adapters) 和主機 (Hosts) 遵循 `tasks/plan.md` 中的相依圖。
+- [ ] 如果領域層引用了基礎架構層或平台配接器，架構測試應失敗。
 
 **驗證：**
 - [ ] `dotnet list src/Vulperonex.Domain reference` 返回無專案引用。
 - [ ] `dotnet test tests/Vulperonex.Tests.Architecture /m:1 /nr:false /p:UseSharedCompilation=false` 通過。
 
-**依賴：** 任務 1b, 1c
+**相依：** 任務 1b, 1c
 
 **可能涉及的檔案：**
 - 生產專案 `.csproj` 檔案
@@ -160,7 +160,7 @@
 - [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false`
 - [ ] `git status --short --ignored`
 
-**依賴：** 任務 1a-1d
+**相依：** 任務 1a-1d
 
 **可能涉及的檔案：** 無（僅限驗證驅動的修復）
 
@@ -170,7 +170,7 @@
 
 ## 任務 2a：定義事件契約與 StreamUser
 
-**描述：** 新增核心事件抽象和 `StreamUser` 值對象。
+**描述：** 新增核心事件抽象和 `StreamUser` 值物件。
 
 **驗收準則：**
 - [ ] `IStreamEvent` 暴露 `EventId`、`EventTypeKey`、`OccurredAt`、`Platform` 和 `StreamUser? User`。
@@ -181,7 +181,7 @@
 - [ ] 單元測試覆蓋基礎建構與不可變性預期。
 - [ ] `dotnet test tests/Vulperonex.Tests.Unit /m:1 /nr:false /p:UseSharedCompilation=false`
 
-**依賴：** 任務 1e
+**相依：** 任務 1e
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Domain/Events/IStreamEvent.cs`
@@ -206,7 +206,7 @@
 - [ ] 單元測試驗證每個事件的 `EventTypeKey`。
 - [ ] 單元測試驗證預設 `EventId` 格式符合 ULID。
 
-**依賴：** 任務 2a
+**相依：** 任務 2a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Domain/Events/StreamEventKeys.cs`
@@ -237,7 +237,7 @@
 - [ ] 單元測試驗證每個規範的工作流鍵值均有描述。
 - [ ] 實作完成後，領域層覆蓋率指令通過 >90% 閾值。
 
-**依賴：** 任務 2b
+**相依：** 任務 2b
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Domain/Events/StreamEventDescriptions.cs`
@@ -253,13 +253,13 @@
 
 **驗收準則：**
 - [ ] 如果領域層或應用層包含 `Twitch*` 類型名稱，架構測試應失敗。
-- [ ] 如果領域層引用了適配器程式集，架構測試應失敗。
+- [ ] 如果領域層引用了配接器程式集，架構測試應失敗。
 - [ ] 測試命名採用核准的 BDD 風格。
 
 **驗證：**
 - [ ] `dotnet test tests/Vulperonex.Tests.Architecture /m:1 /nr:false /p:UseSharedCompilation=false`
 
-**依賴：** 任務 2b
+**相依：** 任務 2b
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Architecture/Domain/PlatformLeakageTests.cs`
@@ -268,7 +268,7 @@
 
 ---
 
-## 任務 3a：實作成員領域模型
+## 任務 3a：實作會員領域模型
 
 **描述：** 新增 `MemberRecord`、`PlatformIdentity` 和 `LoyaltyInfo` 作為帶有不變式的小型領域類型。
 
@@ -279,9 +279,9 @@
 
 **驗證：**
 - [ ] 單元測試覆蓋有效建構。
-- [ ] 單元測試覆蓋拒絕無效平台/用戶 ID。
+- [ ] 單元測試覆蓋拒絕無效平台/使用者 ID。
 
-**依賴：** 任務 2d
+**相依：** 任務 2d
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Domain/Members/MemberRecord.cs`
@@ -293,9 +293,9 @@
 
 ---
 
-## 任務 3b：定義應用層成員埠 (Ports)
+## 任務 3b：定義應用層會員埠 (Ports)
 
-**描述：** 新增應用層成員埠，用於命令與查詢路徑，暫不包含基礎設施實作。
+**描述：** 新增應用層會員埠，用於命令與查詢路徑，暫不包含基礎架構實作。
 
 **驗收準則：**
 - [ ] `IMemberRepository` 存在於應用層且專注於寫入。
@@ -304,9 +304,9 @@
 
 **驗證：**
 - [ ] 架構測試確認領域層不引用應用層。
-- [ ] 單元編譯/編譯確認應用層可以引用領域層成員類型。
+- [ ] 單元編譯/編譯確認應用層可以引用領域層會員類型。
 
-**依賴：** 任務 3a
+**相依：** 任務 3a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Members/IMemberRepository.cs`
@@ -317,12 +317,12 @@
 
 ---
 
-## 任務 3c：完成成員測試與覆蓋率
+## 任務 3c：完成會員測試與覆蓋率
 
-**描述：** 新增針對成員行為的測試，並執行第一階段覆蓋率守門。
+**描述：** 新增針對會員行為的測試，並執行第一階段覆蓋率守門。
 
 **驗收準則：**
-- [ ] 成員測試使用 Given/When/Then 命名或主體註釋。
+- [ ] 會員測試使用 Given/When/Then 命名或主體註釋。
 - [ ] 領域層覆蓋率維持 >90%。
 - [ ] 即使應用層行為仍較薄弱，也應記錄並可執行應用層覆蓋率指令。
 
@@ -330,7 +330,7 @@
 - [ ] `dotnet test tests/Vulperonex.Tests.Unit /p:CollectCoverage=true /p:Include="[Vulperonex.Domain]*" /p:Exclude="[*.Tests.*]*" /p:Threshold=90 /p:ThresholdType=line /p:ThresholdStat=average`
 - [ ] `dotnet test tests/Vulperonex.Tests.Unit /p:CollectCoverage=true /p:Include="[Vulperonex.Application]*" /p:Exclude="[*.Tests.*]*"`
 
-**依賴：** 任務 3b
+**相依：** 任務 3b
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Unit/Domain/Members/`
@@ -345,13 +345,13 @@
 
 **驗收準則：**
 - [ ] `DciRoleIsolationTests` 掃描 `Vulperonex.Domain` 中的 `*Role` 和 `*Behavior` 類型。
-- [ ] 匹配的類型不得引用基礎設施、EF Core 或 `*.Infrastructure.*`。
+- [ ] 匹配的類型不得引用基礎架構、EF Core 或 `*.Infrastructure.*`。
 - [ ] 當尚不存在角色/行為類型時測試通過，且對未來新增保持意義。
 
 **驗證：**
 - [ ] `dotnet test tests/Vulperonex.Tests.Architecture /m:1 /nr:false /p:UseSharedCompilation=false`
 
-**依賴：** 任務 3b
+**相依：** 任務 3b
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Architecture/Domain/DciRoleIsolationTests.cs`
@@ -371,7 +371,7 @@
 - [ ] `git status --short --ignored` 僅顯示預期忽略的本地檔案。
 
 **審查門檻：**
-- [ ] 在開始第二階段之前，審查依賴方向、命名、任務大小和測試品質。
+- [ ] 在開始第二階段之前，審查相依方向、命名、任務大小和測試品質。
 
 ---
 

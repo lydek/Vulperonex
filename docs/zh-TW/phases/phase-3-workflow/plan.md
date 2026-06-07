@@ -20,7 +20,7 @@
 
 ---
 
-## 依賴順序
+## 相依順序
 
 ```
 Task 9a Event type registry contract
@@ -61,7 +61,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit test：metadata 衝突時 first-wins。
 - [ ] Unit test：`platform.connection_changed` 可標為 system event；`IsKnown=true`、`IsKnownForWorkflow=false`，且不出現在 `GetAll()`。
 
-**依賴：** Task 4
+**相依：** Task 4
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/EventTypes/IStreamEventTypeRegistry.cs`
@@ -91,7 +91,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit test：sub simulation 保留 tier。
 - [ ] Unit test：StartAsync 註冊所有 seven MVP keys，且不註冊 `platform.connection_changed` 為 workflow-visible event。
 
-**依賴：** Task 9a
+**相依：** Task 9a
 
 **可能涉及的檔案：**
 - `src/Adapters/Vulperonex.Adapters.Abstractions/IStreamEventSource.cs`
@@ -111,13 +111,13 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 
 **驗收準則：**
 - [ ] `Vulperonex.Adapters.Simulation` 不引用 `Vulperonex.Adapters.Twitch`。
-- [ ] Simulation 專案中沒有 `Twitch*` 型別依賴。
+- [ ] Simulation 專案中沒有 `Twitch*` 型別相依。
 - [ ] SC-3 與既有 SC-4 架構測試通過。
 
 **驗證：**
 - [ ] `dotnet test tests/Vulperonex.Tests.Architecture /m:1 /nr:false /p:UseSharedCompilation=false`
 
-**依賴：** Task 9b
+**相依：** Task 9b
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Architecture/Adapters/SimulationAdapterIsolationTests.cs`
@@ -143,7 +143,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit test：action/condition DTO 可用 `System.Text.Json` round-trip。
 - [ ] Application coverage gate 維持 >80%。
 
-**依賴：** Task 5
+**相依：** Task 5
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/WorkflowRule.cs`
@@ -178,7 +178,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit test：CooldownCondition DurationSeconds 範圍 validator。
 - [ ] Unit test：unknown condition type 不觸發 rule。
 
-**依賴：** Task 10a
+**相依：** Task 10a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/Conditions/WorkflowConditionEvaluator.cs`
@@ -197,7 +197,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] `IPlatformChatSender` contract 位於 Application 或 adapter abstraction 中符合 SPEC dependency direction 的位置。
 - [ ] 未設定 `TargetPlatform` 時使用來源 event platform。
 - [ ] 設定 `TargetPlatform` 時覆寫來源 platform。
-- [ ] 找不到 sender 時記錄 warning 並跳過，不 crash。
+- [ ] 找不到 sender 時記錄 warning 並略過，不 crash。
 - [ ] template rendering 未知 placeholder 保留原文；null/empty placeholder 替換為空字串。
 
 **驗證：**
@@ -206,7 +206,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit test：missing sender skip。
 - [ ] Unit test：template rendering unknown placeholder/null placeholder。
 
-**依賴：** Task 10a
+**相依：** Task 10a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/Actions/SendChatMessageActionExecutor.cs`
@@ -237,7 +237,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit/integration test：同一 event/rule/action 重播被 dedup skip。
 - [ ] Unit/integration test：同一 rule serial queue 會排序執行；不同 rule 不互相阻塞。
 
-**依賴：** Task 9b, Task 10b, Task 10c
+**相依：** Task 9b, Task 10b, Task 10c
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/WorkflowEngine.cs`
@@ -267,7 +267,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit/integration test：parallel mode 不超過 MaxParallelism。
 - [ ] `dotnet test` 全綠。
 
-**依賴：** Task 10d
+**相依：** Task 10d
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/WorkflowEngine.cs`
@@ -281,7 +281,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 
 ## Task 10f：InvokeSubWorkflow action and InvocationId dedup
 
-**描述：** 實作內建 `InvokeSubWorkflowAction` executor，讓 WorkflowEngine 可調用另一個 workflow rule，並確保子工作流調用使用穩定 `InvocationId` 參與 dedup key。
+**描述：** 實作內建 `InvokeSubWorkflowAction` executor，讓 WorkflowEngine 可呼叫另一個 workflow rule，並確保子工作流呼叫使用穩定 `InvocationId` 參與 dedup key。
 
 **驗收準則：**
 - [ ] `InvokeSubWorkflowActionExecutor` 可依 `WorkflowId` 載入目標 workflow rule 並執行其 actions。
@@ -296,7 +296,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit/integration test：`InvocationId` 在 replay 後維持不變，不重新產生 ULID。
 - [ ] Unit/integration test：sub-workflow dedup key 包含 `InvocationId`，重播不重複執行。
 
-**依賴：** Task 10e
+**相依：** Task 10e
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/Actions/InvokeSubWorkflowActionExecutor.cs`
@@ -320,12 +320,12 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] contracts 不引用 Infrastructure、Hosts 或 adapter implementations。
 
 **驗證：**
-- [ ] Architecture test：`Plugins.Abstractions` 只依賴 Domain + Application。
+- [ ] Architecture test：`Plugins.Abstractions` 只相依 Domain + Application。
 - [ ] Reflection test：plugin context interfaces property types 不含 `IServiceProvider` 或完整 `IStreamEventTypeRegistry`。
 - [ ] Unit test：JsonElement params 可用 `.GetString()` / `.GetInt32()` / `.GetBoolean()` 讀取。
 - [ ] Unit test：plugin 可透過 `IPluginContext.EventTypes` / `IPluginEventTypeRegistrar` 註冊 custom workflow-visible event type。
 
-**依賴：** Task 10a, Task 9a
+**相依：** Task 10a, Task 9a
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Plugins.Abstractions/IVulperonexPlugin.cs`
@@ -356,7 +356,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] Unit test：ActionExecutionKey 包含 event/rule/action index。
 - [ ] Unit test：JsonElement params 型別讀取不發生 `InvalidCastException`。
 
-**依賴：** Task 11a, Task 10d
+**相依：** Task 11a, Task 10d
 
 **可能涉及的檔案：**
 - `src/Vulperonex.Application/Workflows/Actions/InvokePluginActionExecutor.cs`
@@ -386,7 +386,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] `dotnet test` → SC-10 通過。
 - [ ] Application coverage gate 維持 >80%。
 
-**依賴：** Task 11b, Task 10f
+**相依：** Task 11b, Task 10f
 
 **可能涉及的檔案：**
 - `tests/Vulperonex.Tests.Integration/Plugins/PluginWorkflowTests.cs`
@@ -420,7 +420,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 | 風險 | 影響 | 緩解措施 |
 |------|------|----------|
 | WorkflowEngine 範圍過大 | 高 | 拆成 contracts、conditions、SendChatMessage、serial engine、advanced execution 五個切片。 |
-| Action timeout/retry 測試 flaky | 中 | 使用 fake clock、deterministic synchronization，不依賴固定 sleep。 |
+| Action timeout/retry 測試 flaky | 中 | 使用 fake clock、deterministic synchronization，不相依固定 sleep。 |
 | Plugin context 變成 service locator | 高 | contract 先行，reflection architecture test 阻擋 `IServiceProvider`。 |
 | SimulationAdapter 成為測試捷徑 | 中 | 所有 acceptance path 都要求 publish through `IStreamEventBus`。 |
 | WorkflowRule JSON shape 過早綁死 Web API | 中 | Phase 3 只定義 Application contract；API validation/error code mapping 留到 Task 14a。 |

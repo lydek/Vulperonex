@@ -58,7 +58,7 @@ hint: 跑 'rule list' 查可用 id
 CLI 在送出 API 前以下列順序解析 positional `<identifier>`：
 
 1. **完整 id 命中**（exact match `Id`）：採用，不查列表。
-2. **id prefix 命中唯一**：GET `/api/rules` 或 `/api/members` → 客戶端過濾 `Id.StartsWith(input, Ordinal)` → 唯一命中採用，多重命中走 `AMBIGUOUS_ID`。
+2. **id prefix 命中唯一**：GET `/api/rules` 或 `/api/members` → 用戶端過濾 `Id.StartsWith(input, Ordinal)` → 唯一命中採用，多重命中走 `AMBIGUOUS_ID`。
 3. **`--name <n>` 模式**（僅 `rule` 群組）：GET `/api/rules` → `Name.Equals(n, OrdinalIgnoreCase)`；多重命中走 `AMBIGUOUS_ID`，零命中走 `NOT_FOUND`。
 
 `--name` 與 positional id 互斥；同時提供 → `INVALID_ARGS`。
@@ -128,10 +128,10 @@ hint: 用更長 prefix 或完整 id
 `INVALID_ARGS` 既有：用於互斥 flag、`--name` 與 positional 同時提供等。
 `UNKNOWN_COMMAND` 保留：僅用於 dispatcher 找不到子命令。
 
-### 6. 競態與資料一致性
+### 6. 競爭狀況與資料一致性
 
 - 解析時 GET `/api/rules` → 確認 → 操作 API。中間 id 已被外部刪除 → API 回 404 → CLI 直接吐 `NOT_FOUND`，不重試。
-- list 結果**不**做客戶端快取（每次解析現抓），避免 cookbook 跨命令的舊資料造成幻象。Phase 6 若性能成問題再評估。
+- list 結果**不**做用戶端快取（每次解析現抓），避免 cookbook 跨命令的舊資料造成幻象。Phase 6 若性能成問題再評估。
 
 ## 為何不採用其他選項
 
@@ -164,7 +164,7 @@ hint: 用更長 prefix 或完整 id
   - one-shot 無 `--yes` → `CONFIRMATION_REQUIRED` + stderr 摘要
   - one-shot `--yes` → API 路徑正確
   - REPL 互動：模擬 stdin 輸入 `y` → 執行；`n` → `CANCELLED`
-  - REPL 互動 `--yes` → 跳過 prompt
+  - REPL 互動 `--yes` → 略過 prompt
 - `member` 群組鏡像測試（除非 SPEC 路徑差異）
 
 ## 待回填的審查筆記

@@ -115,7 +115,7 @@ artifacts/cli/Vulperonex.Cli.exe --help
 
 | 群組 | 子指令 | 用途 |
 |---|---|---|
-| `member` | `list` / `show` / `seed` / `delete` | 會員管理（忠誠調整 / 重置 / 審計為 API-only，非 CLI） |
+| `member` | `list` / `show` / `seed` / `delete` | 會員管理（忠誠調整 / 重設 / 稽核為 API-only，非 CLI） |
 | `rule` | `list` / `show` / `create` / `update` / `enable` / `disable` / `delete` | Workflow 規則管理 |
 | `simulate` | `chat` / `follow` / `sub` / `checkin` | 模擬事件 / 打卡 |
 | `twitch` | `auth start` / `auth reset` | OAuth 流程 |
@@ -161,7 +161,7 @@ dotnet publish src/Hosts/Vulperonex.Desktop -c Release -r win-x64 --self-contain
 
 產出 `artifacts/desktop/Vulperonex.Desktop.exe`。
 
-> 僅 Windows 可建（`net10.0-windows` TargetFramework）。在 Linux/Mac 上 `dotnet build` 會跳過此 host。
+> 僅 Windows 可建（`net10.0-windows` TargetFramework）。在 Linux/Mac 上 `dotnet build` 會略過此 host。
 
 ---
 
@@ -214,7 +214,7 @@ pnpm vue-tsc  # 純型別檢查
 
 | 專案 | 數量 | 用途 |
 |---|---|---|
-| `Vulperonex.Tests.Architecture` | 19 | NDepend-style 依賴方向、命名規約、層級邊界 |
+| `Vulperonex.Tests.Architecture` | 19 | NDepend-style 相依方向、命名規約、層級邊界 |
 | `Vulperonex.Tests.Unit` | 210 | 純邏輯單元測試（無 DB / 無 HTTP） |
 | `Vulperonex.Tests.Integration` | 219 | `WebApplicationFactory` + SQLite + 全 HTTP/Hub 端對端 |
 

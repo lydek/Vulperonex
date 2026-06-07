@@ -38,7 +38,7 @@ dotnet test tests/Vulperonex.Tests.Integration/Vulperonex.Tests.Integration.cspr
 | 流程 | 預期結果 | 狀態 |
 | --- | --- | --- |
 | 在沒有事件的情況下造訪 `/overlay/member-card.html` | 卡片隱藏，無執行階段錯誤 | 待定 (PENDING) |
-| 模擬會員打卡併發 (Burst) | 佇列依序播放動畫 | 待定 (PENDING) |
+| 模擬會員打卡並行 (Burst) | 佇列依序播放動畫 | 待定 (PENDING) |
 | 透過管理頁面上傳自訂預設檔 | 代號 (Slug) 出現在清單中，且自訂 URL 可以開啟 | 待定 (PENDING) |
 | 設定 `overlay.chat.preset=custom:{slug}` | `/overlay/chat` 重新導向至自訂 HTML | 待定 (PENDING) |
 | 切換 `overlay.chat.show_member_card` | 聊天會員晶片在瀏覽器中正確顯示/隱藏 | 待定 (PENDING) |
