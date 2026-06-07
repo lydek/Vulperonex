@@ -18,9 +18,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes("node_modules")) {
-            if (id.includes("monaco-editor")) {
-              return "monaco";
-            }
             return "vendor";
           }
         }

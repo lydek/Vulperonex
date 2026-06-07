@@ -964,9 +964,21 @@ http://localhost:5001/overlay/member-card.html — 成員卡片顯示
 
 ---
 
-#### 4.14.3 自訂 HTML Overlay 編輯與部署 Pipeline（Phase 7D 取代 Phase 7C 純 zip upload）
+#### 4.14.3 自訂 HTML Overlay 編輯與部署 Pipeline（已移除 / Superseded）
 
-**背景：** Phase 7C 已落地 `POST /api/overlay/custom-presets` 純 zip 上傳，但有兩個結構性問題：
+> **⚠️ 已移除：** 本節描述的線上 Monaco 編輯器、zip/HTML 上傳、custom-preset draft/deploy/validate/history/rollback pipeline 已**整體移除**（含後端 `OverlayPresetStore` 相關方法、`/api/overlay/custom-presets/*` 端點、`wwwroot/overlay/custom/` 目錄與既有自訂 preset）。
+>
+> **原因：** 任意上傳/編輯 HTML/JS/CSS 難以保證安全與格式正確，且對絕大多數使用者過於進階。
+>
+> **取代方案 —— Overlay 受限自訂（Overlay Customization）：** 改提供安全、受限的自訂介面（`OverlayPresetsView` 內），只允許：
+> - **文字替換**：助理顯示名稱 / 簽到顯示名稱 / 助理頭像網址，寫入既有 config keys（`overlay.chat.assistant_display_name`、`overlay.chat.checkin_display_name`、`overlay.chat.assistant_avatar_url`）。
+> - **圖片替換（會員卡）**：背景圖 + 印章圖，經 `POST /api/overlay/assets`（僅限影像、≤2MB、副檔名+content-type 驗證）存到 `wwwroot/overlay/assets/{guid}.{ext}`，回傳的 URL 寫入既有 config keys（`overlay.member.background_url`、`overlay.member.stamp_url`）。
+> - Overlay 端維持既有 config-driven 讀取（`member-card.js` 既已 fetch 上述 image keys 並套用）。
+> - 內建 preset 選擇（chat/member/alerts）與 OBS/LAN URL 複製維持不變。
+>
+> 以下原 pipeline 設計內容僅作歷史紀錄，**不再實作**。
+
+**背景（歷史）：** Phase 7C 已落地 `POST /api/overlay/custom-presets` 純 zip 上傳，但有兩個結構性問題：
 
 - **無法驗證樣板合法性**：上傳即落地 `wwwroot/overlay/custom/{slug}/`，HTML 是否能正常掛 SignalR / 是否符合 DTO 契約完全靠使用者自己跑 OBS 才知道。
 - **使用者修改成本高**：改一個 CSS 顏色就要重新打包 zip 再上傳，無線上 iterate 體驗。

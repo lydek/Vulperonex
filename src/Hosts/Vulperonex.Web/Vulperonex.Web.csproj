@@ -3,10 +3,7 @@
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="AngleSharp" />
-    <PackageReference Include="ExCSS" />
     <PackageReference Include="Jint" />
-    <PackageReference Include="Acornima" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Serilog.AspNetCore" />

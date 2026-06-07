@@ -572,12 +572,6 @@ export interface ConfigValueResponse {
   value: string | null;
 }
 
-export interface OverlayCustomPresetMetadata {
-  slug: string;
-  sizeBytes: number;
-  uploadedAt: string;
-}
-
 export interface OverlayPresetDescriptor {
   hubName: "chat" | "member" | "alerts";
   key: string;
@@ -626,10 +620,6 @@ export async function setConfigValue(
   }
 }
 
-export async function getOverlayCustomPresets(signal?: AbortSignal): Promise<OverlayCustomPresetMetadata[]> {
-  return getJson<OverlayCustomPresetMetadata[]>("/api/overlay/custom-presets", signal);
-}
-
 export async function getPluginModules(signal?: AbortSignal): Promise<PluginModule[]> {
   return getJson<PluginModule[]>("/api/plugins-modules", signal);
 }
@@ -658,152 +648,14 @@ export async function getOverlayPresetCatalog(signal?: AbortSignal): Promise<Ove
   return getJson<OverlayPresetDescriptor[]>("/api/overlay/presets", signal);
 }
 
-export async function deleteOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}`, {
-    method: "DELETE",
-    headers: {
-      "X-Admin-Csrf": "true"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
+export interface OverlayAssetUploadResponse {
+  url: string;
 }
 
-export interface OverlayFileDescriptor {
-  relativePath: string;
-  sizeBytes: number;
-  lastModifiedAt: string;
-}
-
-export interface OverlayHistoryVersion {
-  versionStamp: string;
-  createdAt: string;
-}
-
-export interface OverlayValidationIssue {
-  severity: string;
-  code: string;
-  message: string;
-  filePath: string | null;
-  line: number | null;
-}
-
-export async function getOverlayCustomPresetFiles(slug: string, signal?: AbortSignal): Promise<OverlayFileDescriptor[]> {
-  return getJson<OverlayFileDescriptor[]>(`/api/overlay/custom-presets/${encodeURIComponent(slug)}/files`, signal);
-}
-
-export async function readOverlayCustomPresetFile(slug: string, path: string, signal?: AbortSignal): Promise<string> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/files/${path}`, {
-    headers: {
-      Accept: "text/plain",
-      "X-Admin-Csrf": "true"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
-  return response.text();
-}
-
-export async function writeOverlayCustomPresetFile(
-  slug: string,
-  path: string,
-  content: string,
-  signal?: AbortSignal
-): Promise<void> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/files/${path}`, {
-    method: "PUT",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "X-Admin-Csrf": "true"
-    },
-    body: JSON.stringify({ content }),
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
-}
-
-export async function deleteOverlayCustomPresetFile(
-  slug: string,
-  path: string,
-  signal?: AbortSignal
-): Promise<void> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/files/${path}`, {
-    method: "DELETE",
-    headers: {
-      "X-Admin-Csrf": "true"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
-}
-
-export async function deployOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<void> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/deploy`, {
-    method: "POST",
-    headers: {
-      "X-Admin-Csrf": "true"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
-}
-
-export async function validateOverlayCustomPreset(slug: string, signal?: AbortSignal): Promise<OverlayValidationIssue[]> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/validate`, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "X-Admin-Csrf": "true"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
-  return response.json() as Promise<OverlayValidationIssue[]>;
-}
-
-export async function getOverlayCustomPresetHistory(slug: string, signal?: AbortSignal): Promise<OverlayHistoryVersion[]> {
-  return getJson<OverlayHistoryVersion[]>(`/api/overlay/custom-presets/${encodeURIComponent(slug)}/history`, signal);
-}
-
-export async function rollbackOverlayCustomPreset(
-  slug: string,
-  versionStamp: string,
-  signal?: AbortSignal
-): Promise<void> {
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets/${encodeURIComponent(slug)}/rollback/${encodeURIComponent(versionStamp)}`, {
-    method: "POST",
-    headers: {
-      "X-Admin-Csrf": "true"
-    },
-    signal
-  });
-  if (!response.ok) {
-    throw new ApiError(response.status, await safeReadBody(response));
-  }
-}
-
-export async function uploadOverlayCustomPreset(
-  slug: string,
-  file: File,
-  signal?: AbortSignal
-): Promise<OverlayCustomPresetMetadata> {
+export async function uploadOverlayAsset(file: File, signal?: AbortSignal): Promise<OverlayAssetUploadResponse> {
   const form = new FormData();
-  form.set("slug", slug);
   form.set("file", file);
-  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/custom-presets`, {
+  const response = await fetchWithCsrf(`${apiBaseUrl}/api/overlay/assets`, {
     method: "POST",
     headers: {
       "X-Admin-Csrf": "true"
@@ -814,7 +666,7 @@ export async function uploadOverlayCustomPreset(
   if (!response.ok) {
     throw new ApiError(response.status, await safeReadBody(response));
   }
-  return response.json() as Promise<OverlayCustomPresetMetadata>;
+  return response.json() as Promise<OverlayAssetUploadResponse>;
 }
 
 export async function postSimulate(

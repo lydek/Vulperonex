@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -22,159 +21,90 @@ namespace Vulperonex.Tests.Integration.Web;
 public sealed class Phase7cOverlayPresetTests
 {
     [Fact]
-    public async Task Given_CustomHtmlPresetUpload_When_ListAndCatalogRequested_Then_MetadataIsReturnedAndStaticFileServes()
+    public async Task Given_BuiltInPresets_When_CatalogRequested_Then_ReturnsBuiltInsOnly()
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
-
-        using var upload = BuildMultipartHtml("test-html", "<!DOCTYPE html><html><body>phase7c-html</body></html>");
-        var create = await client.PostAsync("/api/overlay/custom-presets", upload, TestContext.Current.CancellationToken);
-
-        var createBody = await create.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        create.StatusCode.Should().Be(HttpStatusCode.Created, "response body was {0}", createBody);
-        create.Headers.Location?.ToString().Should().Be("/overlay/custom/test-html/index.html");
-
-        var list = await client.GetAsync("/api/overlay/custom-presets", TestContext.Current.CancellationToken);
-        list.StatusCode.Should().Be(HttpStatusCode.OK);
-        var listJson = await list.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        listJson.Should().Contain("\"slug\":\"test-html\"");
-        listJson.Should().Contain("\"sizeBytes\":");
-        listJson.Should().Contain("\"uploadedAt\":");
-        listJson.Should().NotContain("D:\\");
 
         var catalog = await client.GetAsync("/api/overlay/presets", TestContext.Current.CancellationToken);
         catalog.StatusCode.Should().Be(HttpStatusCode.OK);
         var catalogJson = await catalog.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        catalogJson.Should().Contain("\"hubName\":\"chat\"");
-        catalogJson.Should().Contain("\"key\":\"custom:test-html\"");
-        catalogJson.Should().Contain("\"kind\":\"custom\"");
-
-        var staticFile = await client.GetAsync("/overlay/custom/test-html/index.html", TestContext.Current.CancellationToken);
-        staticFile.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await staticFile.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Contain("phase7c-html");
+        catalogJson.Should().Contain("\"kind\":\"builtin\"");
+        catalogJson.Should().Contain("\"key\":\"vulperonex-default\"");
+        catalogJson.Should().NotContain("custom:");
     }
 
     [Fact]
-    public async Task Given_CustomZipPresetUpload_When_PathTraversalEntryExists_Then_RequestIsRejected()
+    public async Task Given_ImageAsset_When_Uploaded_Then_UrlReturnedAndFileServed()
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
 
-        await using var zipStream = new MemoryStream();
-        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            var indexEntry = archive.CreateEntry("index.html");
-            await using (var writer = new StreamWriter(indexEntry.Open(), Encoding.UTF8, leaveOpen: false))
-            {
-                await writer.WriteAsync("<html><body>safe</body></html>");
-            }
+        using var upload = BuildMultipartImage(MinimalPng, "image/png", "background.png");
+        var create = await client.PostAsync("/api/overlay/assets", upload, TestContext.Current.CancellationToken);
 
-            var traversalEntry = archive.CreateEntry("../escape.txt");
-            await using var traversalWriter = new StreamWriter(traversalEntry.Open(), Encoding.UTF8, leaveOpen: false);
-            await traversalWriter.WriteAsync("nope");
-        }
+        var createBody = await create.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        create.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", createBody);
 
-        zipStream.Position = 0;
-        using var content = new MultipartFormDataContent();
-        content.Add(new StringContent("zip-bad"), "slug");
-        var file = new StreamContent(zipStream);
-        file.Headers.ContentType = MediaTypeHeaderValue.Parse("application/zip");
-        content.Add(file, "file", "zip-bad.zip");
+        using var document = JsonDocument.Parse(createBody);
+        var url = document.RootElement.GetProperty("url").GetString();
+        url.Should().StartWith("/overlay/assets/");
+        url.Should().EndWith(".png");
 
-        var response = await client.PostAsync("/api/overlay/custom-presets", content, TestContext.Current.CancellationToken);
+        var served = await client.GetAsync(url, TestContext.Current.CancellationToken);
+        served.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Given_NonImageAsset_When_Uploaded_Then_Rejected()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        using var upload = BuildMultipartImage(Encoding.UTF8.GetBytes("not an image"), "text/plain", "evil.txt");
+        var response = await client.PostAsync("/api/overlay/assets", upload, TestContext.Current.CancellationToken);
 
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Given_CustomPresetSetting_When_OverlayRouteRequested_Then_CustomPresetRedirectPreservesQueryString()
+    public async Task Given_SpoofedImageAsset_When_Uploaded_Then_Rejected()
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
-        using var upload = BuildMultipartHtml("redirect-me", "<!DOCTYPE html><html><body>redirect-me</body></html>");
-        var create = await client.PostAsync("/api/overlay/custom-presets", upload, TestContext.Current.CancellationToken);
-        create.EnsureSuccessStatusCode();
 
-        var setConfig = await client.PutAsJsonAsync(
-            "/api/config/overlay.chat.preset",
-            new { value = "custom:redirect-me" },
-            TestContext.Current.CancellationToken);
-        setConfig.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        using var upload = BuildMultipartImage(Encoding.UTF8.GetBytes("not really a png"), "image/png", "spoof.png");
+        var response = await client.PostAsync("/api/overlay/assets", upload, TestContext.Current.CancellationToken);
 
-        using var redirectClient = CreateClient(app, allowAutoRedirect: false);
-        var response = await redirectClient.GetAsync("/overlay/chat?foo=bar", TestContext.Current.CancellationToken);
-
-        response.StatusCode.Should().Be(HttpStatusCode.Redirect);
-        response.Headers.Location?.ToString().Should().Be("/overlay/custom/redirect-me/index.html?foo=bar");
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
     }
 
     [Fact]
-    public async Task Given_CustomPresetUpload_When_SlugInvalidOrFileTooLarge_Then_RequestIsRejected()
+    public async Task Given_RemovedCustomPresetEndpoint_When_Requested_Then_NotFound()
     {
         await using var app = await StartAppAsync();
         using var client = CreateClient(app);
 
-        using var invalidSlugUpload = BuildMultipartHtml("Bad Slug", "<html></html>");
-        var invalidSlug = await client.PostAsync("/api/overlay/custom-presets", invalidSlugUpload, TestContext.Current.CancellationToken);
-        invalidSlug.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-
-        var oversizedBytes = new byte[(5 * 1024 * 1024) + 1];
-        await using var stream = new MemoryStream(oversizedBytes);
-        using var oversized = new MultipartFormDataContent();
-        oversized.Add(new StringContent("too-big"), "slug");
-        var file = new StreamContent(stream);
-        file.Headers.ContentType = MediaTypeHeaderValue.Parse("text/html");
-        oversized.Add(file, "file", "too-big.html");
-
-        var tooLarge = await client.PostAsync("/api/overlay/custom-presets", oversized, TestContext.Current.CancellationToken);
-        tooLarge.StatusCode.Should().Be((HttpStatusCode)413);
+        var list = await client.GetAsync("/api/overlay/custom-presets", TestContext.Current.CancellationToken);
+        list.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
-    [Fact]
-    public async Task Given_InvalidDraftJavaScript_When_DeployRequested_Then_ValidationBlocksProductionDeploy()
-    {
-        await using var app = await StartAppAsync();
-        using var client = CreateClient(app);
+    // 1x1 transparent PNG.
+    private static readonly byte[] MinimalPng =
+    [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
+        0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x06, 0x00, 0x00, 0x00, 0x1F, 0x15, 0xC4,
+        0x89, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9C, 0x62, 0x00, 0x01, 0x00, 0x00,
+        0x05, 0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE,
+        0x42, 0x60, 0x82
+    ];
 
-        await using var zipStream = new MemoryStream();
-        using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, leaveOpen: true))
-        {
-            var indexEntry = archive.CreateEntry("index.html");
-            await using (var writer = new StreamWriter(indexEntry.Open(), Encoding.UTF8, leaveOpen: false))
-            {
-                await writer.WriteAsync("<!DOCTYPE html><html><body><script src=\"app.js\"></script></body></html>");
-            }
-
-            var scriptEntry = archive.CreateEntry("app.js");
-            await using var scriptWriter = new StreamWriter(scriptEntry.Open(), Encoding.UTF8, leaveOpen: false);
-            await scriptWriter.WriteAsync("function broken( {");
-        }
-
-        zipStream.Position = 0;
-        using var upload = new MultipartFormDataContent();
-        upload.Add(new StringContent("invalid-js"), "slug");
-        var file = new StreamContent(zipStream);
-        file.Headers.ContentType = MediaTypeHeaderValue.Parse("application/zip");
-        upload.Add(file, "file", "invalid-js.zip");
-
-        var create = await client.PostAsync("/api/overlay/custom-presets", upload, TestContext.Current.CancellationToken);
-        create.StatusCode.Should().Be(HttpStatusCode.Created);
-
-        var validate = await client.PostAsync("/api/overlay/custom-presets/invalid-js/validate", null, TestContext.Current.CancellationToken);
-        validate.StatusCode.Should().Be(HttpStatusCode.OK);
-        (await validate.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)).Should().Contain("js_parse_error");
-
-        var deploy = await client.PostAsync("/api/overlay/custom-presets/invalid-js/deploy", null, TestContext.Current.CancellationToken);
-        deploy.StatusCode.Should().Be(HttpStatusCode.BadRequest);
-    }
-
-    private static MultipartFormDataContent BuildMultipartHtml(string slug, string html)
+    private static MultipartFormDataContent BuildMultipartImage(byte[] bytes, string contentType, string fileName)
     {
         var content = new MultipartFormDataContent();
-        content.Add(new StringContent(slug), "slug");
-        var file = new ByteArrayContent(Encoding.UTF8.GetBytes(html));
-        file.Headers.ContentType = MediaTypeHeaderValue.Parse("text/html");
-        content.Add(file, "file", $"{slug}.html");
+        var file = new ByteArrayContent(bytes);
+        file.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        content.Add(file, "file", fileName);
         return content;
     }
 

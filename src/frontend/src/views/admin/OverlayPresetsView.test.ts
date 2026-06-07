@@ -5,13 +5,6 @@ import enUS from "@/i18n/en-US.json";
 import zhTW from "@/i18n/zh-TW.json";
 import OverlayPresetsView from "./OverlayPresetsView.vue";
 
-vi.mock("@/components/admin/OverlayEditorModal.vue", () => ({
-  default: {
-    name: "OverlayEditorModal",
-    template: "<div />"
-  }
-}));
-
 function buildI18n() {
   return createI18n({
     legacy: false,
@@ -25,10 +18,7 @@ function buildI18n() {
 function mountView() {
   return mount(OverlayPresetsView, {
     global: {
-      plugins: [buildI18n()],
-      stubs: {
-        OverlayEditorModal: true
-      }
+      plugins: [buildI18n()]
     }
   });
 }
@@ -59,13 +49,13 @@ function stubOverlayFetch(lanInfo: OverlayLanInfoFixture | (() => OverlayLanInfo
       ]), { status: 200 });
     }
 
-    if (url === "/api/overlay/custom-presets") {
-      return new Response(JSON.stringify([]), { status: 200 });
-    }
-
     if (url === "/api/overlay/lan-info") {
       const response = typeof lanInfo === "function" ? lanInfo() : lanInfo;
       return new Response(JSON.stringify(response), { status: 200 });
+    }
+
+    if (url === "/api/overlay/assets") {
+      return new Response(JSON.stringify({ url: "/overlay/assets/uploaded.png" }), { status: 200 });
     }
 
     if (url.startsWith("/api/config/")) {
@@ -154,5 +144,67 @@ describe("OverlayPresetsView", () => {
     expect(chatRow).toContain("Chat Overlay");
     expect(memberRow).toContain("Member Overlay");
     expect(wrapper.get('[data-testid="overlay-obs-copy-lan-chat"]').attributes("disabled")).toBeDefined();
+  });
+
+  it("saves overlay customization config values", async () => {
+    stubOverlayFetch();
+    const wrapper = mountView();
+    await flushPromises();
+
+    await wrapper.get('[data-testid="overlay-customize-assistant-name"]').setValue("系統小精靈");
+    await wrapper.get('[data-testid="overlay-customize-checkin-name"]').setValue("打卡系統");
+    await wrapper.get('[data-testid="overlay-customize-assistant-avatar"]').setValue("/overlay/assets/bot.png");
+    await wrapper.get('[data-testid="overlay-customize-save"]').trigger("click");
+    await flushPromises();
+
+    const calls = vi.mocked(fetch).mock.calls.map(([url, init]) => ({
+      url: String(url),
+      method: init?.method,
+      body: init?.body as string | undefined
+    }));
+    expect(calls).toContainEqual(expect.objectContaining({
+      url: "/api/config/overlay.chat.assistant_display_name",
+      method: "PUT",
+      body: JSON.stringify({ value: "系統小精靈" })
+    }));
+    expect(calls).toContainEqual(expect.objectContaining({
+      url: "/api/config/overlay.chat.checkin_display_name",
+      method: "PUT",
+      body: JSON.stringify({ value: "打卡系統" })
+    }));
+    expect(calls).toContainEqual(expect.objectContaining({
+      url: "/api/config/overlay.chat.assistant_avatar_url",
+      method: "PUT",
+      body: JSON.stringify({ value: "/overlay/assets/bot.png" })
+    }));
+  });
+
+  it("uploads a member card image and stores the returned asset URL", async () => {
+    stubOverlayFetch();
+    const wrapper = mountView();
+    await flushPromises();
+
+    const input = wrapper.get('[data-testid="overlay-customize-background-file"]');
+    Object.defineProperty(input.element, "files", {
+      configurable: true,
+      value: [new File(["png"], "background.png", { type: "image/png" })]
+    });
+    await input.trigger("change");
+    await flushPromises();
+
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) =>
+      String(url) === "/api/overlay/assets" && init?.method === "POST"
+    )).toBe(true);
+
+    await wrapper.get('[data-testid="overlay-customize-save"]').trigger("click");
+    await flushPromises();
+
+    expect(vi.mocked(fetch).mock.calls).toContainEqual(expect.arrayContaining([
+      "/api/config/overlay.member.background_url",
+      expect.objectContaining({
+        method: "PUT",
+        body: JSON.stringify({ value: "/overlay/assets/uploaded.png" })
+      })
+    ]));
   });
 });

@@ -1049,9 +1049,21 @@ The overlay page reads `DisplayHints` directly from the event payload to retriev
 
 ---
 
-#### 4.14.3 Custom HTML Overlay Editing & Deployment Pipeline (Phase 7D replaces Phase 7C pure zip upload)
+#### 4.14.3 Custom HTML Overlay Editing & Deployment Pipeline (Removed / Superseded)
 
-**Background:** Phase 7C introduced `POST /api/overlay/custom-presets` for pure zip uploads, but faced two structural issues:
+> **⚠️ Removed:** The online Monaco editor, zip/HTML upload, and the custom-preset draft/deploy/validate/history/rollback pipeline described in this section have been **removed entirely** (including the backend `OverlayPresetStore` methods, the `/api/overlay/custom-presets/*` endpoints, the `wwwroot/overlay/custom/` directory, and any existing custom presets).
+>
+> **Reason:** Arbitrary uploaded/edited HTML/JS/CSS cannot be kept safe and well-formed reliably, and the feature was too advanced for most users.
+>
+> **Replacement — Overlay Customization:** A constrained, safe customization surface (in `OverlayPresetsView`) that only allows:
+> - **Text replacement:** assistant display name / check-in display name / assistant avatar URL, written to existing config keys (`overlay.chat.assistant_display_name`, `overlay.chat.checkin_display_name`, `overlay.chat.assistant_avatar_url`).
+> - **Image replacement (member card):** background + stamp images, uploaded via `POST /api/overlay/assets` (images only, ≤2MB, extension + content-type validated) to `wwwroot/overlay/assets/{guid}.{ext}`; the returned URL is stored in the existing config keys (`overlay.member.background_url`, `overlay.member.stamp_url`).
+> - Overlays keep their existing config-driven reads (`member-card.js` already fetches and applies those image keys).
+> - Built-in preset selection (chat/member/alerts) and OBS/LAN URL copy are unchanged.
+>
+> The original pipeline design below is retained for historical record only and is **no longer implemented**.
+
+**Background (historical):** Phase 7C introduced `POST /api/overlay/custom-presets` for pure zip uploads, but faced two structural issues:
 - **Unable to validate template legitimacy:** Uploading lands directly in `wwwroot/overlay/custom/{slug}/`; whether the HTML successfully hooks into SignalR or conforms to the DTO contract remained unknown until the user ran OBS manually.
 - **High modification costs for users:** Changing a CSS color required re-archiving the zip and re-uploading, offering no online iteration experience.
 
