@@ -418,27 +418,32 @@ function normalizeRole(value: string): string {
 <style scoped>
 .rule-drawer-overlay {
   position: fixed;
-  inset: 0;
+  inset: 0 0 0 232px;
   background: var(--vp-bg-backdrop);
   z-index: 100;
 }
 
+@media (max-width: 760px) {
+  .rule-drawer-overlay {
+    inset: 0;
+  }
+}
+
 .rule-drawer {
   position: fixed;
-  inset: 0 0 0 auto;
+  inset: 0 0 0 232px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  width: min(720px, 100vw);
   border-left: 1px solid var(--vp-border-default);
   background: var(--vp-bg-surface);
-  padding: 18px;
+  padding: 24px clamp(24px, 6vw, 80px);
   box-shadow: var(--vp-shadow-elevated);
   z-index: 101;
 }
 
 .rule-drawer[data-state="open"] {
-  animation: rule-drawer-slide-in 0.18s ease-out;
+  animation: rule-drawer-fade-in 0.18s ease-out;
 }
 
 .rule-drawer__header,
@@ -511,21 +516,23 @@ function normalizeRole(value: string): string {
   padding-top: 12px;
 }
 
-@keyframes rule-drawer-slide-in {
+@keyframes rule-drawer-fade-in {
   from {
-    transform: translateX(24px);
+    transform: translateY(8px);
     opacity: 0.75;
   }
 
   to {
-    transform: translateX(0);
+    transform: translateY(0);
     opacity: 1;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .rule-drawer {
-    width: 100vw;
+    inset: 0;
+    border-left: 0;
+    padding: 16px;
   }
 
   .rule-drawer__basic-grid {
