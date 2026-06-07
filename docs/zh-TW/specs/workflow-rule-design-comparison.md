@@ -200,7 +200,7 @@ OC 後端有 `TriggerMetadataProvider` 提供：
 
 ## 5. 客觀總結
 
-**Vulperonex 勝項保留**：
+### Vulperonex 勝項保留：
 1. **Schema-driven 編輯器 UI**：已實作強型別 `WorkflowConditionsEditor`/`WorkflowActionsEditor`/`VariableFieldInput`。
 2. **Action 強型別設計**：使用 polymorphic record（`[JsonPolymorphic]`），確保執行期（runtime）型別安全。
 3. **NCalc 表示式引擎**：支援任意布林邏輯評估，表達力強。
@@ -208,7 +208,7 @@ OC 後端有 `TriggerMetadataProvider` 提供：
 5. **事件擴充彈性**：`EventTypeKey` 採 open string 設計，新增事件無需修改後端 Enum。
 6. **角色權限過濾**：已具備強型別 `UserRoleCondition` 與前端角色勾選 UI。
 
-**Omni-Commander 借鏡與改進項**：
+### Omni-Commander 借鏡與改進項：
 1. **Trigger Filter 強型別語意（Per Event Type）**：改進 generic dict 的全等比對，杜絕平台欄位誤設導致的靜默跳過。
 2. **後端 Metadata Provider 作為單一事實**：取代目前前端 `workflowEditor.ts` 的 hardcode，用以驅動前端 Filter 欄位 Schema 與動態變數白名單。
 3. **Drawer + Tabs 容器 UX**：改善 V 現行整頁 Form 導致切頁遺失上下文的問題。
@@ -526,14 +526,16 @@ V 尚未釋出，無真實 operator 資料 → 走最簡路徑：
 3. **變數選取過濾**：`VariablePicker` 改為依當前事件型別（per-event-type）過濾，僅列出合法的變數白名單。
 4. **單一事實拉取**：Action 與 Condition 的定義來源由前端 hardcode 改為從後端 API 統一拉取，杜絕前後端雙寫風險。
 
-**Gate（必須先完成才開工）**：
-- 待決策 §8.1（Naive UI vs 手刻）已決議並落定 ADR
-- bundle size 影響評估完成（before/after gzip 數字，目標 +< 200 KB）
-  - **超出預算之 fallback 順序**：手刻 Drawer/Tabs ＞ Headless UI（Radix Vue
-    / PrimeVue 輕量模式）＞ Naive UI tree-shake 後仍超標則放棄整套引入
-- 與既有 design token / CSS 變數整合方案敲定
-- 未經此 gate 不准 `pnpm add naive-ui` 或同等套件
-- Phase B metadata endpoint 已上線（D 依賴 B）
+#### Gate D · 執行前檢查清單
+- [x] **AQ-1 已解決**：採用 Reka UI (headless) + 既有自訂 CSS (AD-6)。
+- [ ] **Reka UI PoC**：執行 `pnpm add reka-ui` 並建置一個包含 Drawer、Tabs 與 Form 的最小可行範例 (PoC)。
+  - 測量套件大小 (gzip 前/後，目標 +<200 KB，預估 ~30 KB)。
+  - **設計語彙標記整合驗證**：驗證 Reka 原始未樣式化插槽 / data 屬性 (`data-state`、`data-orientation` 等) 是否能被既有的 CSS 變數選擇器接軌，確保主題顏色 (深色/淺色、主題色) 能被完全繼承而不需重寫標記系統。
+  - 列出至少 3 個關鍵元件 (Drawer / Tabs / Dialog) 的樣式整合範例。
+- [ ] 將 PoC 結果記錄至 ADR `docs/zh-TW/adr/[N]-phase-d-ui-container-library.md` 中。
+- [ ] 若 PoC 的套件大小超出限制 ⇒ 回退至 Naive UI 的 tree-shake 方案 ⇒ 若仍超標，則改用純手刻元件。
+- [ ] 若 PoC 的標記整合摩擦超出預期 ⇒ 評估 Inspira UI 樣式配方作為基準。
+- [ ] Phase B 的端點已上線 (D 依賴於 B)。
 
 **任務**：
 - [ ] 引入 Drawer 容器與 Tabs（library 由 gate 決定）
@@ -583,7 +585,7 @@ V 尚未釋出，無真實 operator 資料 → 走最簡路徑：
 
 ## 7. 風險與非目標
 
-**風險**：
+### 風險：
 - Phase A.5 schema migration 失敗 → 既有 rule 讀取錯亂。對策：
   migration 在獨立 transaction，含 dry-run mode；每條 rule 改寫前後
   做 JSON diff log；保留 backup table 一個 release cycle
@@ -596,7 +598,7 @@ V 尚未釋出，無真實 operator 資料 → 走最簡路徑：
 - Metadata schema 一旦釋出，後續加 action / event 必須同步 metadata →
   測試守住
 
-**非目標**：
+### 非目標：
 - 不重寫 NCalc 引擎（保留 V 強表達力）
 - 不替換 action polymorphic record（V 該勝項保留）
 - 不從 OC 移植 desktop (Tauri) — V 是 web-first
@@ -633,7 +635,7 @@ V 尚未釋出，無真實 operator 資料 → 走最簡路徑：
 
 ## 9. 參考檔案索引
 
-V 現況：
+### V 現況：
 - 規則模型：[`src/Vulperonex.Application/Workflows/WorkflowRule.cs`](../../../src/Vulperonex.Application/Workflows/WorkflowRule.cs)
 - Trigger：[`src/Vulperonex.Application/Workflows/WorkflowTrigger.cs`](../../../src/Vulperonex.Application/Workflows/WorkflowTrigger.cs)
 - Action 抽象：[`src/Vulperonex.Application/Workflows/Actions/WorkflowAction.cs`](../../../src/Vulperonex.Application/Workflows/Actions/WorkflowAction.cs)
@@ -642,7 +644,7 @@ V 現況：
 - 編輯器：[`src/frontend/src/views/admin/RuleEditorView.vue`](../../../src/frontend/src/views/admin/RuleEditorView.vue)
 - TriggerEditor：[`src/frontend/src/components/admin/TriggerEditor.vue`](../../../src/frontend/src/components/admin/TriggerEditor.vue)
 
-OC (ref/)：
+### OC (ref/)：
 - 規則模型：`ref/Omni-Commander/OmniCommander.Domain/Workflows/WorkflowRule.cs`
 - Trigger：`ref/Omni-Commander/OmniCommander.Domain/Workflows/WorkflowTrigger.cs`
 - EventType enum：`ref/Omni-Commander/OmniCommander.Domain/Workflows/TriggerEventType.cs`
