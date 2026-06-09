@@ -112,11 +112,13 @@ Vulperonex/
 - **[架構核心概念](specs/architecture.md)**：分層架構、戰術 DDD 邊界、DCI 拆分準則、事件流、模組與資料庫遷移等細節 (§4.1 - §4.17)。
 - **開發指南與測試規範**：
   - **[指令慣例與測試策略](specs/conventions.md)**：開發指令、編碼風格、測試金字塔、覆蓋率目標與 BDD+TDD 紀律 (§5 - §8)。
-- **功能模組規格書 (Phase 7 & Phase 8)**：
+- **功能模組規格書 (Phase 7 – Phase 9)**：
   - **[統一監控面板](specs/features/monitor-dashboard.md)**：統一即時監控頁、模擬控制、模組與外掛程式管理系統、版面配置 (§4.18, §4.20 - §4.22)。
   - **[會員管理編輯介面](specs/features/member-admin.md)**：調整會員忠誠度、打卡次數與 SQLite 稽核日誌 (§4.19)。
   - **[Twitch 徽章與頻道點數獎勵快取](specs/features/badge-and-reward-cache.md)**：Helix API、記憶體快取同步、模擬器徽章與獎勵選擇器 UI (§4.23, §4.25)。
   - **[全域應用程式主題系統](specs/features/theme-system.md)**：應用程式設計語彙標記 (`--vp-*`)、執行期合約與設定 UI (§4.24)。
   - **[工作流規則強型別過濾器](specs/features/typed-filter-and-observability.md)**：Schema 整併、強型別比對器、動態元資料提供者與運算式 Warn 日誌 (§4.26)。
+  - **[模擬副作用政策](specs/features/simulation-side-effect-policy.md)**：模擬事件下動作分類、外部 API 一律 skip、DB 寫入 toggle 與 leaf 守門原則 (§4.27)。
+  - **[平台登入名稱顯示](specs/features/platform-login-display.md)**：由 IRC 捕捉 Twitch login、寫入顯示資訊快取、經讀取模型曝露至 API，UI 以 `@{login}` 取代數字 ID (§4.28)。
 - **附錄與歷史決策**：
   - **[歷史決策、MVP 指標與疑義解答](specs/decisions-and-queries.md)**：成功準則、設計決策 (D1 - D8) 與 Resolved Queries (OQ1 - OQ6) (§9 - §12)。

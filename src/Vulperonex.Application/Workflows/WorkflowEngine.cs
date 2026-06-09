@@ -622,6 +622,9 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         {
             member["Platform"] = streamEvent.User.Platform;
             member["UserId"] = streamEvent.User.UserId;
+            member["Login"] = string.IsNullOrWhiteSpace(streamEvent.User.Login)
+                ? streamEvent.User.UserId
+                : streamEvent.User.Login;
             member["DisplayName"] = streamEvent.User.DisplayName;
             member["Roles"] = streamEvent.User.Roles.ToString();
             member["IsSubscriber"] = streamEvent.User.Roles.HasFlag(StreamRole.Subscriber);

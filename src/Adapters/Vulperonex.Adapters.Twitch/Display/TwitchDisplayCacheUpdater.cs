@@ -24,6 +24,7 @@ public sealed class TwitchDisplayCacheUpdater(IPlatformUserInfoCache cache)
                 Badges = displayHints.Badges,
                 IsSubscriber = displayHints.IsSubscriber || current.IsSubscriber,
                 TotalBitsGiven = Math.Max(current.TotalBitsGiven, displayHints.TotalBitsGiven),
+                Login = streamEvent.User.Login ?? current.Login,
             },
             cancellationToken);
     }

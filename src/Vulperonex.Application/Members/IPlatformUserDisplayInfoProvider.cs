@@ -11,4 +11,5 @@ public interface IPlatformUserDisplayInfoProvider
 public sealed record PlatformUserDisplayInfo(
     string DisplayName,
     string? AvatarUrl,
-    bool IsSubscriber);
+    bool IsSubscriber,
+    string? Login = null);

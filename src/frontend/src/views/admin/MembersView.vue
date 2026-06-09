@@ -463,6 +463,11 @@ function getDisplayName(member: MemberReadModel) {
   return primary?.displayName || member.memberId;
 }
 
+function getLoginHandle(member: MemberReadModel | null) {
+  const primary = getPrimaryIdentity(member);
+  return primary?.login || primary?.platformUserId || member?.memberId || "";
+}
+
 function getIsSubscriber(member: MemberReadModel) {
   const primary = getPrimaryIdentity(member);
   return primary?.isSubscriber ?? false;
@@ -570,7 +575,7 @@ function getIsSubscriber(member: MemberReadModel) {
                 <span class="table-display-name">{{ getDisplayName(member) }}</span>
               </td>
               <td>
-                <span class="table-login-name font-mono">@{{ getPrimaryIdentity(member)?.platformUserId || member.memberId }}</span>
+                <span class="table-login-name font-mono">@{{ getLoginHandle(member) }}</span>
               </td>
               <td style="text-align: center;">
                 <span :class="['role-badge-tag', getIsSubscriber(member) ? 'subscriber' : 'viewer']">
@@ -666,7 +671,7 @@ function getIsSubscriber(member: MemberReadModel) {
               <td>
                 <div class="table-user-info">
                   <span class="table-display-name">{{ getDisplayName(member) }}</span>
-                  <span class="table-login-name font-mono">@{{ getPrimaryIdentity(member)?.platformUserId || member.memberId }}</span>
+                  <span class="table-login-name font-mono">@{{ getLoginHandle(member) }}</span>
                 </div>
               </td>
               <td style="text-align: center;" class="monitor-mono text-success-highlight">
@@ -876,7 +881,7 @@ function getIsSubscriber(member: MemberReadModel) {
                   <span v-else class="role-badge-tag viewer small-badge">一般觀眾</span>
                 </div>
               </div>
-              <span class="header-sub-text font-mono">ID: {{ selected.memberId }} | @{{ getPrimaryIdentity(selected)?.platformUserId || selected.memberId }}</span>
+              <span class="header-sub-text font-mono">ID: {{ selected.memberId }} | @{{ getLoginHandle(selected) }}</span>
             </div>
           </div>
           <button type="button" class="modal-close-btn" @click="closeDetailModal">✕</button>
@@ -925,7 +930,7 @@ function getIsSubscriber(member: MemberReadModel) {
             <div class="premium-descriptions-table">
               <div class="desc-row">
                 <div class="desc-label">Twitch ID</div>
-                <div class="desc-val font-mono">{{ getPrimaryIdentity(selected)?.platformUserId || selected.memberId }}</div>
+                <div class="desc-val font-mono">{{ getLoginHandle(selected) }}</div>
                 <div class="desc-label">顯示名稱</div>
                 <div class="desc-val">{{ getDisplayName(selected) }}</div>
               </div>

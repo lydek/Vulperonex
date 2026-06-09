@@ -20,5 +20,6 @@ public sealed class PlatformUserDisplayInfoConfiguration : IEntityTypeConfigurat
         builder.Property(displayInfo => displayInfo.SubscriptionTier).HasColumnType("TEXT");
         builder.Property(displayInfo => displayInfo.TotalBitsGiven).HasColumnType("INTEGER");
         builder.Property(displayInfo => displayInfo.FetchedAt).HasColumnType("TEXT");
+        builder.Property(displayInfo => displayInfo.Login).HasColumnType("TEXT");
     }
 }

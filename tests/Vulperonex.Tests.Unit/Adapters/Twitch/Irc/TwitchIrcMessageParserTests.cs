@@ -30,6 +30,7 @@ public sealed class TwitchIrcMessageParserTests
         result.Event.Platform.Should().Be("twitch");
         result.Event.User.UserId.Should().Be("42");
         result.Event.User.DisplayName.Should().Be("Alice");
+        result.Event.User.Login.Should().Be("alice");
         result.Event.User.Roles.Should().Be(StreamRole.Subscriber | StreamRole.Moderator | StreamRole.Broadcaster | StreamRole.Vip);
         result.Event.MessageText.Should().Be("<b>hello</b>");
         result.DisplayHints.ColorHex.Should().Be("#12A0ff");
@@ -59,6 +60,26 @@ public sealed class TwitchIrcMessageParserTests
         result.DisplayHints.Badges.Should().BeEmpty();
         result.DisplayHints.TotalBitsGiven.Should().Be(0);
         TwitchIrcMessageParser.IsAllowedSegmentType("html").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Given_NumericUserId_When_Parsed_Then_LoginIsTakenFromIrcUserName()
+    {
+        var message = new TwitchIrcMessage(
+            new Dictionary<string, string>
+            {
+                ["user-id"] = "109565589",
+                ["display-name"] = "RotanFox",
+            },
+            "rotanfox",
+            "channel",
+            "hello");
+
+        var result = TwitchIrcMessageParser.Parse(message);
+
+        result.Event.User.UserId.Should().Be("109565589");
+        result.Event.User.DisplayName.Should().Be("RotanFox");
+        result.Event.User.Login.Should().Be("rotanfox");
     }
 
     [Theory]

@@ -20,6 +20,7 @@ public sealed class PlatformUserDisplayInfoProvider(
         string? avatarUrl = displayInfo?.AvatarUrl;
         string? displayName = displayInfo?.DisplayName;
         bool isSubscriber = displayInfo?.IsSubscriber ?? false;
+        string? login = displayInfo?.Login;
 
         if (string.Equals(platform, "twitch", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(avatarUrl))
         {
@@ -62,6 +63,7 @@ public sealed class PlatformUserDisplayInfoProvider(
         return new Vulperonex.Application.Members.PlatformUserDisplayInfo(
             displayName ?? platformUserId,
             avatarUrl,
-            isSubscriber);
+            isSubscriber,
+            login);
     }
 }

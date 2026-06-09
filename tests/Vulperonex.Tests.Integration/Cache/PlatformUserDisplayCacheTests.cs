@@ -93,6 +93,29 @@ public sealed class PlatformUserDisplayCacheTests
     }
 
     [Fact]
+    public async Task Given_LoginWritten_When_GetAsync_Then_LoginRoundTrips()
+    {
+        await using var fixture = new Infrastructure.SqliteFixture();
+        await using var context = await fixture.CreateContextAsync();
+        await context.Database.MigrateAsync(TestContext.Current.CancellationToken);
+        var cache = new PlatformUserDisplayCache(context);
+
+        await cache.UpdateAsync(
+            "twitch",
+            "109565589",
+            displayInfo => displayInfo with { DisplayName = "RotanFox", Login = "rotanfox" },
+            TestContext.Current.CancellationToken);
+
+        var fromL1 = await cache.GetAsync("twitch", "109565589", TestContext.Current.CancellationToken);
+        fromL1!.Login.Should().Be("rotanfox");
+
+        await using var freshContext = await fixture.CreateContextAsync();
+        var freshCache = new PlatformUserDisplayCache(freshContext);
+        var fromL2 = await freshCache.GetAsync("twitch", "109565589", TestContext.Current.CancellationToken);
+        fromL2!.Login.Should().Be("rotanfox");
+    }
+
+    [Fact]
     public async Task Given_ExpiredRows_When_CleanupRuns_Then_ExpiredRowsAreDeletedAndFreshRowsRemain()
     {
         await using var fixture = new Infrastructure.SqliteFixture();

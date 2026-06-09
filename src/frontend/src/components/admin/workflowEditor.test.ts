@@ -3,15 +3,16 @@ import { buildVariableGroups, getVariableInfo, getStepStatusModeHint } from "./w
 
 describe("workflowEditor variable contract", () => {
   it("matches the backend trigger context instead of exposing stale trigger user aliases", () => {
-    expect(getVariableInfo("Trigger.Platform")?.type).toBe("string");
-    expect(getVariableInfo("Trigger.OccurredAt")?.type).toBe("string");
+    expect(getVariableInfo("Trigger.Platform")?.type).toBe("enum");
+    expect(getVariableInfo("Trigger.OccurredAt")).toBeUndefined();
     expect(getVariableInfo("Trigger.UserId")).toBeUndefined();
     expect(getVariableInfo("Trigger.Channel")).toBeUndefined();
   });
 
   it("exposes trigger user fields through the Member scope", () => {
     expect(getVariableInfo("Member.UserId")?.type).toBe("string");
-    expect(getVariableInfo("Member.Platform")?.type).toBe("string");
+    expect(getVariableInfo("Member.Login")?.type).toBe("string");
+    expect(getVariableInfo("Member.Platform")?.type).toBe("enum");
     expect(getVariableInfo("Member.IsModerator")?.type).toBe("boolean");
   });
 

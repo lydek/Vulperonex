@@ -128,7 +128,9 @@ public sealed class DefaultWorkflowRuleSeedService(
                 [
                     new ShoutoutAction
                     {
-                        TargetLogin = "{Trigger.MessageText.Substring(4)}"
+                        TargetLogin = "{Trigger.MessageText.Substring(4)}",
+                        // Best-effort: a failed shoutout must not block the follow-up message.
+                        ErrorBehavior = ErrorBehavior.ContinueOnError
                     },
                     new SendChatMessageAction
                     {
@@ -257,7 +259,11 @@ public sealed class DefaultWorkflowRuleSeedService(
                 [
                     new ShoutoutAction
                     {
-                        TargetLogin = "{Trigger.UserDisplayName}"
+                        TargetLogin = "{Member.Login}",
+                        // Shoutout is best-effort: a failed Helix call (e.g. Twitch not
+                        // authorized, or target login unknown during simulation) must not
+                        // abort the rule before the welcome chat message is sent.
+                        ErrorBehavior = ErrorBehavior.ContinueOnError
                     },
                     new SendChatMessageAction
                     {

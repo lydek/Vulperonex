@@ -91,7 +91,8 @@ public sealed class PlatformUserDisplayCache(
             row.IsSubscriber,
             row.SubscriptionTier,
             row.TotalBitsGiven,
-            row.FetchedAt);
+            row.FetchedAt,
+            Login: row.Login);
     }
 
     private static void Apply(PlatformUserDisplayInfoEntity row, PlatformUserDisplayInfo displayInfo)
@@ -104,6 +105,7 @@ public sealed class PlatformUserDisplayCache(
         row.SubscriptionTier = displayInfo.SubscriptionTier;
         row.TotalBitsGiven = displayInfo.TotalBitsGiven;
         row.FetchedAt = displayInfo.FetchedAt == default ? DateTimeOffset.UtcNow : displayInfo.FetchedAt;
+        row.Login = displayInfo.Login;
     }
 
     private static string CacheKey(string platform, string platformUserId)

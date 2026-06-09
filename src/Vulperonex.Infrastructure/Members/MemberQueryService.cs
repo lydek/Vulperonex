@@ -66,7 +66,8 @@ public sealed class MemberQueryService(
                     identity.PlatformUserId,
                     displayInfo?.DisplayName,
                     displayInfo?.AvatarUrl,
-                    displayInfo?.IsSubscriber)
+                    displayInfo?.IsSubscriber,
+                    displayInfo?.Login)
             ));
         }
 
@@ -119,7 +120,8 @@ public sealed class MemberQueryService(
                 identity.PlatformUserId,
                 displayInfo?.DisplayName,
                 displayInfo?.AvatarUrl,
-                displayInfo?.IsSubscriber));
+                displayInfo?.IsSubscriber,
+                displayInfo?.Login));
         }
 
         return new MemberReadModel(

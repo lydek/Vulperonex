@@ -112,11 +112,13 @@ The main specification has been split into modular documents to keep it clean an
 - **[Architectural Core Concepts](specs/architecture.md)**: Details on layered architecture, tactical DDD boundaries, DCI-inspired decomposition, event flows, modules, and database migrations (§4.1 - §4.17).
 - **Development Conventions & Guidelines**:
   - **[Conventions, Commands & Testing](specs/conventions.md)**: Command reference, coding standards, test pyramid, coverage targets, and BDD+TDD discipline (§5 - §8).
-- **Feature Specifications (Phase 7 & Phase 8)**:
+- **Feature Specifications (Phase 7 – Phase 9)**:
   - **[Monitor Dashboard](specs/features/monitor-dashboard.md)**: Specs for Unified Monitor page, simulating controls, module & plugin registry, and layout (§4.18, §4.20 - §4.22).
   - **[Member Admin surface](specs/features/member-admin.md)**: Spec for editing member loyalty, check-in, and append-only SQLite audits (§4.19).
   - **[Twitch Badges & Channel-Point Rewards](specs/features/badge-and-reward-cache.md)**: Helix APIs, in-memory cache sync, simulated user updates, and picker UI (§4.23, §4.25).
   - **[Global Theme System](specs/features/theme-system.md)**: App tokens (`--vp-*`), runtime contract, and settings surface (§4.24).
   - **[Workflow Rule Typed Filters](specs/features/typed-filter-and-observability.md)**: Schema consolidation, typed trigger filter matchers, dynamic metadata providers, and Warning-level expression logging (§4.26).
+  - **[Simulation Side-Effect Policy](specs/features/simulation-side-effect-policy.md)**: Action categorization under simulated events, skipping external APIs, DB write toggle, and leaf gatekeeper principle (§4.27).
+  - **[Platform Login Handle Display](specs/features/platform-login-display.md)**: Capturing Twitch logins from IRC, writing to user display info cache, exposing via read models, and rendering `@{login}` in the UI instead of numeric IDs (§4.28).
 - **Appendix & Decisions**:
   - **[Resolved Decisions, MVP criteria & OQs](specs/decisions-and-queries.md)**: Success criteria, design decisions (D1 - D8), and resolved queries (OQ1 - OQ6) (§9 - §12).

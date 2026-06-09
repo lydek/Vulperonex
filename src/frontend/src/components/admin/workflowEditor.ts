@@ -127,6 +127,7 @@ const triggerVariableDefinitions: VariableDefinition[] = [
 
 const memberVariableDefinitions: VariableDefinition[] = [
   { path: "Member.UserId", label: "Trigger user id", type: "string" },
+  { path: "Member.Login", label: "Trigger user login", type: "string" },
   { path: "Member.Platform", label: "Trigger user platform", type: "enum", options: platformOptions },
   { path: "Member.DisplayName", label: "Trigger user display name", type: "string" },
   { path: "Member.Roles", label: "Trigger user roles", type: "enum", options: memberRoleOptions },

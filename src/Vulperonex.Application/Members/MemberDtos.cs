@@ -12,6 +12,7 @@ public sealed record PlatformIdentityReadModel(
     string PlatformUserId,
     string? DisplayName = null,
     string? AvatarUrl = null,
-    bool? IsSubscriber = null);
+    bool? IsSubscriber = null,
+    string? Login = null);
 
 public sealed record LoyaltyReadModel(int TotalLoyalty, int CheckInCount);

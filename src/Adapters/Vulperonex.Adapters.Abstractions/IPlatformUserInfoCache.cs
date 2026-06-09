@@ -24,4 +24,5 @@ public sealed record PlatformUserDisplayInfo(
     bool IsSubscriber,
     string? SubscriptionTier,
     long TotalBitsGiven,
-    DateTimeOffset FetchedAt);
+    DateTimeOffset FetchedAt,
+    string? Login = null);

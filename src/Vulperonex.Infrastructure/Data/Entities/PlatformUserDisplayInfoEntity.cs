@@ -21,4 +21,6 @@ public sealed class PlatformUserDisplayInfoEntity
     public long TotalBitsGiven { get; set; }
 
     public DateTimeOffset FetchedAt { get; set; }
+
+    public string? Login { get; set; }
 }

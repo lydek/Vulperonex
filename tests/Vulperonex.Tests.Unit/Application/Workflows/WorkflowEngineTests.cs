@@ -310,6 +310,24 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_StreamUserLogin_When_ActionRuns_Then_MemberLoginIsAvailableInExpressionContext()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule();
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(
+            rule,
+            NewMessageEvent(userId: "12345", displayName: "Alice Display", login: "alice_login"),
+            TestContext.Current.CancellationToken);
+
+        executor.Contexts.Should().ContainSingle();
+        executor.Contexts[0].ExpressionContext.Member["Login"].Should().Be("alice_login");
+        executor.Contexts[0].ExpressionContext.Member["DisplayName"].Should().Be("Alice Display");
+    }
+
+    [Fact]
     public async Task Given_GlobalCooldown_When_RuleRunsTwiceImmediately_Then_SecondRunIsSkipped()
     {
         var executor = new RecordingActionExecutor();
@@ -870,13 +888,14 @@ public sealed class WorkflowEngineTests
         string eventId = "event-1",
         string userId = "alice",
         string displayName = "Alice",
-        string messageText = "!hello")
+        string messageText = "!hello",
+        string? login = null)
     {
         return new UserSentMessageEvent
         {
             EventId = eventId,
             Platform = "twitch",
-            User = new StreamUser("twitch", userId, displayName),
+            User = new StreamUser("twitch", userId, displayName, Login: login),
             MessageText = messageText,
         };
     }

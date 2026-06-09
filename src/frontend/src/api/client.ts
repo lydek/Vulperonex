@@ -18,6 +18,7 @@ export interface SimulateRequestBody {
   tier?: string;
   recipientDisplayName?: string;
   bits?: number;
+  viewers?: number;
   rewardId?: string;
   rewardTitle?: string;
   userInput?: string;
@@ -140,6 +141,7 @@ export interface PlatformIdentity {
   displayName?: string;
   avatarUrl?: string;
   isSubscriber?: boolean;
+  login?: string | null;
 }
 
 export interface MemberLoyalty {

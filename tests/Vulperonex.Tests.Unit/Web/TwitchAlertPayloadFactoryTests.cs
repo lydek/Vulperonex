@@ -14,6 +14,7 @@ public sealed class TwitchAlertPayloadFactoryTests
 
         p.Kind.Should().Be(TwitchMockPayloadKind.Followed);
         p.User.UserId.Should().Be("42");
+        p.User.Login.Should().Be("alice");
         p.User.DisplayName.Should().Be("Alice");
         p.SourceEventId.Should().Be("src-1");
     }
@@ -53,6 +54,7 @@ public sealed class TwitchAlertPayloadFactoryTests
 
         p.Kind.Should().Be(TwitchMockPayloadKind.Raided);
         p.User.UserId.Should().Be("77");
+        p.User.Login.Should().Be("raider");
         p.ViewerCount.Should().Be(321);
     }
 

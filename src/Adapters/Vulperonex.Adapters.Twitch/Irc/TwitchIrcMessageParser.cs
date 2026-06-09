@@ -35,7 +35,7 @@ public static partial class TwitchIrcMessageParser
         {
             EventId = GetTag(message, "msg-id", TwitchSyntheticEventId.New()),
             Platform = "twitch",
-            User = new StreamUser("twitch", platformUserId, displayName, RolesFromBadges(badges)),
+            User = new StreamUser("twitch", platformUserId, displayName, RolesFromBadges(badges), message.UserName),
             MessageText = message.Text,
             Segments = segments
         };

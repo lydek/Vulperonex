@@ -46,7 +46,7 @@ public static class TwitchAlertPayloadFactory
             ? name
             : (!string.IsNullOrWhiteSpace(login) ? login : userId);
         return string.IsNullOrWhiteSpace(userId)
-            ? new StreamUser("twitch", "anonymous", displayName ?? "Anonymous", StreamRole.None)
-            : new StreamUser("twitch", userId, displayName ?? userId, StreamRole.None);
+            ? new StreamUser("twitch", "anonymous", displayName ?? "Anonymous", StreamRole.None, login)
+            : new StreamUser("twitch", userId, displayName ?? userId, StreamRole.None, login);
     }
 }
