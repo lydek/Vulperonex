@@ -39,6 +39,7 @@ const message = ref("");
 const tier = ref("1000");
 const recipientDisplayName = ref("");
 const bits = ref(100);
+const viewers = ref(50);
 const rewardId = ref("");
 const twitchRewards = useTwitchRewardsStore();
 const selectedRewardTitle = computed(() => {
@@ -131,6 +132,7 @@ watch(
 const showTierInput = computed(() => alias.value === "sub" || alias.value === "giftsub");
 const showRecipientInput = computed(() => alias.value === "giftsub");
 const showBitsInput = computed(() => alias.value === "bits");
+const showViewersInput = computed(() => alias.value === "raid");
 const showRewardInput = computed(() => alias.value === "redeem");
 watch(showRewardInput, (visible) => {
   if (visible) {
@@ -173,6 +175,7 @@ async function onSubmit(event: Event): Promise<void> {
         body.recipientDisplayName = recipientDisplayName.value.trim();
       }
       if (showBitsInput.value) body.bits = bits.value;
+      if (showViewersInput.value) body.viewers = viewers.value;
       if (showRewardInput.value && rewardId.value.trim()) {
         body.rewardId = rewardId.value.trim();
         if (selectedRewardTitle.value) {
@@ -400,7 +403,7 @@ async function startBatchCheckin(): Promise<void> {
 
         <!-- Section 5: Event-specific Fields -->
         <fieldset
-          v-if="showMessageInput || showTierInput || showRecipientInput || showBitsInput || showRewardInput || showStampInput"
+          v-if="showMessageInput || showTierInput || showRecipientInput || showBitsInput || showViewersInput || showRewardInput || showStampInput"
           class="form-section section-event-fields"
           data-testid="section-event-fields"
         >
@@ -445,6 +448,11 @@ async function startBatchCheckin(): Promise<void> {
           <label v-if="showBitsInput" class="form-field">
             <span class="form-label">{{ t("monitor.controls.fields.bits") }}</span>
             <input v-model="bits" type="number" min="1" :disabled="batchRunning" />
+          </label>
+
+          <label v-if="showViewersInput" class="form-field">
+            <span class="form-label">{{ t("monitor.controls.fields.viewers") }}</span>
+            <input v-model="viewers" type="number" min="0" :disabled="batchRunning" />
           </label>
 
           <label v-if="showRewardInput" class="form-field">

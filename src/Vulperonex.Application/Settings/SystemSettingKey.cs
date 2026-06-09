@@ -32,6 +32,14 @@ public static class SystemSettingKey
     public const string OverlayLanAccessKey = "overlay.lan.access_key";
     public const string WorkflowChatOutputDestination = "workflow.chat.output_destination";
 
+    /// <summary>
+    /// When true, simulated events (Platform == "simulation") are allowed to perform real
+    /// persistent writes (check-in increment + audit, counter / lottery increments). Default
+    /// false: simulation must not pollute real member/counter data. See feature spec §4.27.
+    /// External Twitch API actions (shoutout / refund / lookup) are skipped regardless of this flag.
+    /// </summary>
+    public const string SimulationAllowPersistentWrites = "simulation.allow_persistent_writes";
+
     public static string ModuleEnabled(string moduleName)
     {
         if (string.IsNullOrWhiteSpace(moduleName))

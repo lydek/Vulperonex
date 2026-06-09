@@ -55,6 +55,7 @@ public sealed class SystemSettingKeyTests
             "overlay.member.stamp_url",
             "members.audit_retention_days",
             "overlay.lan.access_key",
-            "workflow.chat.output_destination");
+            "workflow.chat.output_destination",
+            "simulation.allow_persistent_writes");
     }
 }

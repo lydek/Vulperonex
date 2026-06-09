@@ -46,6 +46,15 @@ public sealed class TriggerCheckInActionExecutor(
 
         var identity = PlatformIdentity.Create(platform, userId);
 
+        // Simulation side-effect policy (§4.27): unless persistent writes are explicitly allowed,
+        // a simulated event must not increment the real check-in count or write an audit log. Emit
+        // a read-only synthetic card (mirrors the SimulateEndpoints check-in isTest path) so the
+        // overlay preview still reacts.
+        if (await SimulationSideEffect.ShouldSuppressPersistentWriteAsync(context, systemSettingsService, cancellationToken))
+        {
+            return await SimulateCheckInAsync(identity, platform, userId, context, cancellationToken).ConfigureAwait(false);
+        }
+
         var memberBefore = await memberQueryService.FindByIdentityAsync(identity, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Member '{platform}:{userId}' was not found before check-in.");
         var resetTimeLocal = await systemSettingsService
@@ -213,6 +222,75 @@ public sealed class TriggerCheckInActionExecutor(
                 ["RoundIndex"] = roundIndex,
                 ["StampSlotInRound"] = stampSlotInRound,
                 ["WindowStartedAt"] = currentWindowStartedAt,
+            });
+    }
+
+    private async Task<ActionExecutionResult> SimulateCheckInAsync(
+        PlatformIdentity identity,
+        string platform,
+        string userId,
+        ActionExecutionContext context,
+        CancellationToken cancellationToken)
+    {
+        // Read-only: do NOT increment or write an audit log. Synthesise the next count from any
+        // existing record so the overlay card preview advances without mutating real data.
+        var existing = await memberQueryService.FindByIdentityAsync(identity, cancellationToken).ConfigureAwait(false);
+        var baseCount = existing?.Loyalty.CheckInCount ?? 0;
+        var count = baseCount + 1;
+        var totalLoyalty = existing?.Loyalty.TotalLoyalty ?? 0;
+
+        var stampsPerRound = await systemSettingsService.GetAsync<int>("overlay.member.stamps_per_round", 10, cancellationToken).ConfigureAwait(false);
+        if (stampsPerRound <= 0)
+        {
+            stampsPerRound = 10;
+        }
+
+        var roundIndex = (int)Math.Ceiling((double)count / stampsPerRound);
+        var stampSlotInRound = ((count - 1) % stampsPerRound) + 1;
+
+        var displayName = userId;
+        string? avatarUrl = null;
+        var streamRole = StreamRole.None;
+
+        var displayInfo = await userInfoProvider.GetAsync(platform, userId, cancellationToken).ConfigureAwait(false);
+        if (displayInfo != null)
+        {
+            displayName = displayInfo.DisplayName ?? userId;
+            avatarUrl = displayInfo.AvatarUrl;
+            if (displayInfo.IsSubscriber)
+            {
+                streamRole |= StreamRole.Subscriber;
+            }
+        }
+
+        if (context.StreamEvent.User is { } eventUser && eventUser.UserId == userId)
+        {
+            displayName = eventUser.DisplayName;
+            streamRole = eventUser.Roles;
+        }
+
+        var streamUser = new StreamUser(platform, userId, displayName, streamRole);
+        await eventBus.PublishAsync(new MemberCheckedInEvent
+        {
+            Platform = platform,
+            User = streamUser,
+            AvatarUrl = avatarUrl,
+            CheckInCount = count,
+            TotalLoyalty = totalLoyalty,
+            RoundIndex = roundIndex,
+            StampSlotInRound = stampSlotInRound,
+        }, cancellationToken).ConfigureAwait(false);
+
+        return ActionExecutionResult.FromOutput(
+            new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Platform"] = platform,
+                ["UserId"] = userId,
+                ["DisplayName"] = displayName,
+                ["CheckInCount"] = count,
+                ["TotalLoyalty"] = totalLoyalty,
+                ["RoundIndex"] = roundIndex,
+                ["StampSlotInRound"] = stampSlotInRound,
             });
     }
 

@@ -29,6 +29,7 @@ public static class ConfigEndpoints
         SystemSettingKey.OverlayMemberBackgroundUrl,
         SystemSettingKey.OverlayMemberStampUrl,
         SystemSettingKey.WorkflowChatOutputDestination,
+        SystemSettingKey.SimulationAllowPersistentWrites,
     }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
 
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder endpoints)

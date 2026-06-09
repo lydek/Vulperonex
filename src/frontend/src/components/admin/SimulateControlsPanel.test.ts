@@ -29,7 +29,7 @@ function badgesEmptyResponse(): Response {
 }
 
 function routeFetch(simulateResponse: () => Response) {
-  return vi.fn(async (input: RequestInfo | URL) => {
+  return vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     if (url.includes("/api/twitch/badges")) return badgesEmptyResponse();
     return simulateResponse();
@@ -140,6 +140,39 @@ describe("SimulateControlsPanel", () => {
     expect(wrapper.find('[data-testid="simulate-ack"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="simulate-success"]').text()).toContain("Simulation sent");
     expect(wrapper.find('[data-testid="simulate-error"]').exists()).toBe(false);
+  });
+
+  it("should post raid viewers to the simulate endpoint", async () => {
+    const fetchMock = routeFetch(() => new Response(JSON.stringify({
+      accepted: true,
+      eventTypeKey: "channel.raided",
+      eventId: "evt-raid-1",
+      platform: "simulation",
+      platformUserId: "raider",
+      displayName: "Raider",
+      occurredAt: "2026-05-24T00:00:00Z"
+    }), { status: 202 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const wrapper = mountView();
+    await flushPromises();
+
+    const selects = wrapper.findAll("select");
+    await selects[0].setValue("raid");
+    await wrapper.find('input[placeholder="e.g. sim-user-id"]').setValue("raider");
+    await wrapper.find('input[placeholder="e.g. Sim User"]').setValue("Raider");
+    await wrapper.find('input[type="number"]').setValue("42");
+    await wrapper.find("form").trigger("submit");
+    await flushPromises();
+
+    const raidCall = fetchMock.mock.calls.find((call) => call[0] === "/api/simulate/raid");
+    expect(raidCall).toBeDefined();
+    expect(raidCall![1]).toEqual(expect.objectContaining({ method: "POST" }));
+    expect(JSON.parse(String((raidCall![1] as RequestInit).body))).toEqual(expect.objectContaining({
+      platformUserId: "raider",
+      displayName: "Raider",
+      viewers: 42
+    }));
   });
 
   it("should run batch checkin sequentially and emit latest ack", async () => {

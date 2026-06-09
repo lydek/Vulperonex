@@ -439,6 +439,214 @@ public sealed class ExecutorExpansionTests
     }
 
     [Fact]
+    public async Task Given_ShoutoutAction_When_HelixThrows_Then_ReturnsNotSentAndDoesNotAbortRule()
+    {
+        // Best-effort shoutout: a Helix failure (e.g. Twitch not authorized) must be
+        // swallowed into IsSent=false so the rule continues to its next step instead of
+        // aborting before a follow-up chat message can be sent.
+        var client = new RecordingTwitchHelixClient
+        {
+            ShoutoutException = new InvalidOperationException("Twitch OAuth authorization is required."),
+        };
+        var executor = new ShoutoutActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new ShoutoutAction { TargetLogin = "@{Member.DisplayName}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        client.Shoutouts.Should().ContainSingle();
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["IsSent"].Should().Be(false);
+    }
+
+    [Fact]
+    public async Task Given_ShoutoutAction_When_EventIsSimulated_Then_SkipsHelixAndReturnsSyntheticSuccess()
+    {
+        // Simulated events must not hit real Twitch. The executor returns synthetic IsSent=true
+        // and never calls the Helix client, so downstream steps still run under simulation.
+        var client = new RecordingTwitchHelixClient
+        {
+            ShoutoutResult = new PlatformShoutoutResult(true, "alice", "user-1", "Alice"),
+        };
+        var executor = new ShoutoutActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new ShoutoutAction { TargetLogin = "@{Member.DisplayName}" },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        client.Shoutouts.Should().BeEmpty();
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["IsSent"].Should().Be(true);
+        result.OutputValues!["TargetLogin"].Should().Be("Alice");
+        result.OutputValues!["TargetUserId"].Should().Be(string.Empty);
+        result.OutputValues!["TargetDisplayName"].Should().Be("Alice");
+    }
+
+    [Fact]
+    public async Task Given_RefundAction_When_EventIsSimulated_Then_SkipsHelixAndReturnsSyntheticRefund()
+    {
+        // §4.27: a simulated reward.redeemed must not issue a real Twitch refund.
+        var client = new RecordingTwitchHelixClient { RefundResult = true };
+        var executor = new RefundRewardRedemptionActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new RefundRewardRedemptionAction { RewardId = "reward-x", RedemptionId = "redemption-x" },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        client.Refunds.Should().BeEmpty();
+        result.OutputValues!["IsRefunded"].Should().Be(true);
+    }
+
+    [Fact]
+    public async Task Given_LookupAction_When_EventIsSimulated_Then_SkipsHelixAndReturnsSyntheticUser()
+    {
+        // §4.27: a simulated event must not hit the real Twitch users API.
+        var client = new RecordingTwitchHelixClient();
+        var executor = new LookupPlatformUserActionExecutor(client, new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new LookupPlatformUserAction { Login = "someuser" },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        client.Requests.Should().BeEmpty();
+        result.OutputValues!["IsFound"].Should().Be(true);
+        result.OutputValues!["Login"].Should().Be("someuser");
+    }
+
+    [Fact]
+    public async Task Given_UpdateCounter_When_SimulatedAndWritesSuppressed_Then_SkipsRealIncrement()
+    {
+        // §4.27: persistent writes suppressed by default under simulation (setting defaults false).
+        var repository = new RecordingCounterRepository();
+        var executor = new UpdateCounterActionExecutor(repository, new TemplateResolver(), new FakeSystemSettingsService());
+
+        var result = await executor.ExecuteAsync(
+            new UpdateCounterAction { Key = "wins", Delta = 3 },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        repository.Calls.Should().BeEmpty();
+        result.OutputValues!["Value"].Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_UpdateCounter_When_SimulatedAndWritesAllowed_Then_IncrementsCounter()
+    {
+        var repository = new RecordingCounterRepository();
+        var settings = new FakeSystemSettingsService { SimulationAllowPersistentWrites = true };
+        var executor = new UpdateCounterActionExecutor(repository, new TemplateResolver(), settings);
+
+        var result = await executor.ExecuteAsync(
+            new UpdateCounterAction { Key = "wins", Delta = 3 },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        repository.Calls.Should().ContainSingle().Which.Should().Be(("wins", 3));
+        result.OutputValues!["Value"].Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Given_AddLotteryTickets_When_SimulatedAndWritesSuppressed_Then_SkipsRealIncrement()
+    {
+        var repository = new RecordingCounterRepository();
+        var executor = new AddLotteryTicketsActionExecutor(
+            repository,
+            new TemplateResolver(),
+            new AlwaysEnabledModuleStateService(),
+            new FakeSystemSettingsService());
+
+        var result = await executor.ExecuteAsync(
+            new AddLotteryTicketsAction { UserId = "{Member.UserId}", Amount = 5 },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        repository.Calls.Should().BeEmpty();
+        result.OutputValues!["TicketCount"].Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Given_AddLotteryTickets_When_SimulatedAndWritesAllowed_Then_IncrementsTickets()
+    {
+        var repository = new RecordingCounterRepository();
+        var settings = new FakeSystemSettingsService { SimulationAllowPersistentWrites = true };
+        var executor = new AddLotteryTicketsActionExecutor(
+            repository,
+            new TemplateResolver(),
+            new AlwaysEnabledModuleStateService(),
+            settings);
+
+        var result = await executor.ExecuteAsync(
+            new AddLotteryTicketsAction { UserId = "{Member.UserId}", Amount = 5 },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        repository.Calls.Should().ContainSingle().Which.Should().Be(("lottery.tickets.alice", 5));
+        result.OutputValues!["TicketCount"].Should().Be(5);
+    }
+
+    [Fact]
+    public async Task Given_TriggerCheckIn_When_SimulatedAndWritesSuppressed_Then_SkipsDbWriteButEmitsCard()
+    {
+        // §4.27: no DB increment / audit, but still emit the overlay card so the preview reacts.
+        var repository = new RecordingMemberStreamStateRepository();
+        var bus = new RecordingStreamEventBus();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        var executor = new TriggerCheckInActionExecutor(
+            repository,
+            new TemplateResolver(),
+            bus,
+            new AlwaysEnabledModuleStateService(),
+            new FakeSystemSettingsService(),
+            new FakePlatformUserDisplayInfoProvider(),
+            new FakeMemberQueryService(),
+            auditLogRepository,
+            new FakeTransactionProvider());
+
+        var result = await executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        repository.CheckIns.Should().BeEmpty();
+        auditLogRepository.Logs.Should().BeEmpty();
+        bus.Published.Should().ContainSingle().Which.Should().BeOfType<MemberCheckedInEvent>();
+        result.OutputValues!.Should().ContainKey("CheckInCount");
+    }
+
+    [Fact]
+    public async Task Given_TriggerCheckIn_When_SimulatedAndWritesAllowed_Then_PersistsCheckIn()
+    {
+        var repository = new RecordingMemberStreamStateRepository();
+        var bus = new RecordingStreamEventBus();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        var settings = new FakeSystemSettingsService { SimulationAllowPersistentWrites = true };
+        var executor = new TriggerCheckInActionExecutor(
+            repository,
+            new TemplateResolver(),
+            bus,
+            new AlwaysEnabledModuleStateService(),
+            settings,
+            new FakePlatformUserDisplayInfoProvider(),
+            new FakeMemberQueryService(),
+            auditLogRepository,
+            new FakeTransactionProvider());
+
+        var result = await executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(platform: "simulation"),
+            TestContext.Current.CancellationToken);
+
+        repository.CheckIns.Should().ContainSingle().Which.Should().Be(PlatformIdentity.Create("simulation", "alice"));
+        auditLogRepository.Logs.Should().ContainSingle();
+        bus.Published.Should().ContainSingle().Which.Should().BeOfType<MemberCheckedInEvent>();
+        result.OutputValues!["CheckInCount"].Should().Be(1);
+    }
+
+    [Fact]
     public async Task Given_RefundTwitchRedemptionAction_When_Executed_Then_RewardAndRedemptionAreResolved()
     {
         var client = new RecordingTwitchHelixClient { RefundResult = true };
@@ -460,13 +668,13 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["RedemptionId"].Should().Be("redemption-1");
     }
 
-    private static ActionExecutionContext NewContext(DateTimeOffset? occurredAt = null)
+    private static ActionExecutionContext NewContext(DateTimeOffset? occurredAt = null, string platform = "twitch")
     {
         var streamEvent = new UserSentMessageEvent
         {
             EventId = "event-1",
-            Platform = "twitch",
-            User = new StreamUser("twitch", "alice", "Alice"),
+            Platform = platform,
+            User = new StreamUser(platform, "alice", "Alice"),
             OccurredAt = occurredAt ?? new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero),
         };
 
@@ -606,6 +814,7 @@ public sealed class ExecutorExpansionTests
     {
         public PlatformUserProfile? User { get; init; }
         public PlatformShoutoutResult? ShoutoutResult { get; init; }
+        public Exception? ShoutoutException { get; init; }
         public bool RefundResult { get; init; }
         public List<(string? Login, string? UserId)> Requests { get; } = [];
         public List<string> Shoutouts { get; } = [];
@@ -625,6 +834,10 @@ public sealed class ExecutorExpansionTests
             CancellationToken cancellationToken = default)
         {
             Shoutouts.Add(targetLogin);
+            if (ShoutoutException is not null)
+            {
+                return Task.FromException<PlatformShoutoutResult>(ShoutoutException);
+            }
             return Task.FromResult(ShoutoutResult ?? new PlatformShoutoutResult(false, targetLogin, null, null));
         }
 
@@ -676,6 +889,7 @@ public sealed class ExecutorExpansionTests
     private sealed class FakeSystemSettingsService : Vulperonex.Application.Settings.ISystemSettingsService
     {
         public bool RepeatCardEnabled { get; init; } = true;
+        public bool SimulationAllowPersistentWrites { get; init; }
 
         public IObservable<Vulperonex.Application.Settings.SettingChangedEvent> Changes => 
             new System.Reactive.Subjects.Subject<Vulperonex.Application.Settings.SettingChangedEvent>();
@@ -693,6 +907,10 @@ public sealed class ExecutorExpansionTests
             if (key == "checkin.repeat_card_enabled" && typeof(T) == typeof(bool))
             {
                 return Task.FromResult((T)(object)RepeatCardEnabled);
+            }
+            if (key == Vulperonex.Application.Settings.SystemSettingKey.SimulationAllowPersistentWrites && typeof(T) == typeof(bool))
+            {
+                return Task.FromResult((T)(object)SimulationAllowPersistentWrites);
             }
             return Task.FromResult(defaultValue);
         }

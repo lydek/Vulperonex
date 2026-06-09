@@ -696,6 +696,27 @@ public sealed class Phase5EndpointTests
     }
 
     [Fact]
+    public async Task Given_ConfigEndpoint_When_SimulationWriteToggleIsSaved_Then_KeyIsRegistered()
+    {
+        await using var app = await StartAppAsync();
+        using var client = CreateClient(app);
+
+        var putResponse = await client.PutAsJsonAsync(
+            "/api/config/simulation.allow_persistent_writes",
+            new { value = "true" },
+            TestContext.Current.CancellationToken);
+        var getResponse = await client.GetAsync(
+            "/api/config/SIMULATION.ALLOW_PERSISTENT_WRITES",
+            TestContext.Current.CancellationToken);
+
+        putResponse.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var json = await getResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        json.Should().Contain("\"key\":\"simulation.allow_persistent_writes\"");
+        json.Should().Contain("\"value\":\"true\"");
+    }
+
+    [Fact]
     public async Task Given_MemberEndpoint_When_InvalidQueryParamIsSubmitted_Then_ErrorCodeIsReturned()
     {
         await using var app = await StartAppAsync();

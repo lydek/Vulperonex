@@ -231,7 +231,7 @@ public static class SimulateEndpoints
             SimulationKind.Subscribed => SimulationRequest.Subscribed("simulation", user, request.Tier ?? "1000"),
             SimulationKind.Donated => SimulationRequest.Donated("simulation", user, request.Bits ?? 100),
             SimulationKind.GiftedSubscription => SimulationRequest.GiftedSubscription("simulation", user, request.Tier ?? "1000", 1),
-            SimulationKind.Raided => SimulationRequest.Raided("simulation", user, 100),
+            SimulationKind.Raided => SimulationRequest.Raided("simulation", user, request.Viewers ?? 100),
             SimulationKind.RewardRedeemed => SimulationRequest.RewardRedeemed(
                 "simulation",
                 user,
@@ -309,6 +309,7 @@ public static class SimulateEndpoints
         string? ColorHex = null,
         string? RecipientDisplayName = null,
         int? Bits = null,
+        int? Viewers = null,
         string? RewardId = null,
         string? RewardTitle = null,
         string? UserInput = null);
