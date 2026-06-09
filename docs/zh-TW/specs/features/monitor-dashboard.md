@@ -91,7 +91,7 @@
      - 當使用者在 UI 上**啟用**一個具有相依性的模組時（例如啟用 `CheckInModule`），若其相依模組（例如 `MemberModule`）為關閉狀態，系統應**自動一併開啟**其相依模組，或**彈出警示並拒絕啟動**。
 
 3. **模組管理端點 (API)**：
-   - `GET /api/plugins-modules`：列出所有模組/外掛名稱、中文顯示名稱、說明、目前是否執行中 (`IsActive`) 以及相依列表。
+   - `GET /api/plugins-modules`：列出所有模組/外掛名稱、中文顯示名稱、說明、目前是否執行中 (`IsActive`) 以及相依清單。
    - `POST /api/plugins-modules/{name}/toggle`：參數為 `enabled: bool`。觸發相依性計算，成功執行後回傳拓撲變動後的所有模組狀態清單。
 
 4. **UI 管理頁面**：
@@ -133,5 +133,5 @@
    - 前端元件最終自動將視覺化設定轉換並輸出成標準的 NCalc 運算式（例如：`member.stamps >= 10`）傳給後端 API。
 
 2. **動態動作表單 (Dynamic Action Form)**：
-   - 針對每個 Action 類型（例如 `TriggerCheckIn`、`RefundTwitchRedemption`、`TriggerEffect` 等），根據後端註冊的 `ActionParameterMetadata`（型別含 string, number, boolean, select, text）動態生成對應的強型別輸入控制項。
-   - 元件內整合「變數選擇器浮動面板」，使用者於輸入框內游標點選或輸入 `{` 時，即時跳出可用變數列表，點擊即可插入變數範本字串（如 `{user.displayName}`），避免拼寫錯誤。
+   - 針對每個 Action 類型（例如 `TriggerCheckIn`、`RefundTwitchRedemption`、`TriggerEffect` 等），根據後端註冊的 `ActionParameterMetadata`（型別含 string, number, boolean, select, text）動態產生對應的強型別輸入控制項。
+   - 元件內整合「變數選擇器浮動面板」，使用者於輸入框內游標點選或輸入 `{` 時，即時跳出可用變數列表，點選即可插入變數範本字串（如 `{user.displayName}`），避免拼寫錯誤。

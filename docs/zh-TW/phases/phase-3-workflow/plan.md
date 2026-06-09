@@ -403,7 +403,7 @@ Task 10 depends on Task 9 because workflow integration tests should use Simulati
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 通過，0 warnings。
 - [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` 通過。
 - [ ] SC-2, SC-3, SC-4, SC-9, SC-10 通過。
-- [ ] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` 端到端通過。
+- [ ] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` 端對端通過。
 - [ ] Plugin 可發布事件並觸發 rule。
 - [ ] Domain coverage gate >90% 通過。
 - [ ] Application coverage gate >80% 通過。

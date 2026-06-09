@@ -39,7 +39,7 @@
 
 - [x] 全方案編譯通過
 - [x] 全方案測試通過
-- [x] 事件 publish → bus → handler 端到端通過
+- [x] 事件 publish → bus → handler 端對端通過
 - [x] `MigrationClassifier` raw SQL destructive/review-required tests 通過
 - [x] DB bootstrap `PRAGMA auto_vacuum = 2` 通過
 - [x] TDQ overflow → replay → delete 通過

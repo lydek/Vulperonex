@@ -103,6 +103,6 @@ docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json
 - 環境：Windows PowerShell, 本地 `Vulperonex.Web` 執行於 `http://127.0.0.1:5000`，應用程式內瀏覽器開啟於 `http://127.0.0.1:5000/`
 - 命令：`help`, `simulate`, `simulate chat hello from cli`, `simulate follow`, `simulate sub`, `member seed manual-user ManualUser`, `member list`, `rule create docs/phases/phase-5-web-signalr-cli/examples/manual-cli-rule.json`, `rule disable <rule-id>`, `rule enable <rule-id>`, `rule delete <rule-id>`, `twitch auth reset`, `twitch auth start`（並在瀏覽器回呼中完成真實授權）
 - 預期結果：CLI 命令提供可見的成功輸出或 JSON 確認，模擬事件包含可追蹤的 `eventId`，會員植入透過 `member list` 變為可見，規則生命週期命令順利完成。關於 Twitch OAuth：`twitch auth start` 成功啟動瀏覽器，在 Twitch 上授權完成，後端 `7979` 回呼收到並驗證 CSRF state 參數，透過開發權杖端點進行程式碼交換，並使用 AES-256-GCM 信封安全地加密及儲存重新整理權杖至 SQLite `SystemSettings` 中，透過 `twitch auth status` 返回配置與連接狀態來驗證。
-- 實際結果：使用者回報目前所有功能皆正常。Twitch 真實 OAuth 授權完成端到端：瀏覽器順利開啟、授權並重新導向回 `http://localhost:7979/auth/callback`，主控台記錄了成功的 state 驗證與權杖交換。重新整理權杖在 SQLite DB 中被驗證為 AES-256-GCM 加密（在 DB 中無法以純文字讀取，格式符合 `"v1:" + Base64`），且 CLI 順利執行了後續的自動化查詢。
+- 實際結果：使用者回報目前所有功能皆正常。Twitch 真實 OAuth 授權完成端對端：瀏覽器順利開啟、授權並重新導向回 `http://localhost:7979/auth/callback`，主控台記錄了成功的 state 驗證與權杖交換。重新整理權杖在 SQLite DB 中被驗證為 AES-256-GCM 加密（在 DB 中無法以純文字讀取，格式符合 `"v1:" + Base64`），且 CLI 順利執行了後續的自動化查詢。
 - 結果：PASS
 - 憑證 / commit：`6ff0ace`, `2d9fe4e`, `00cfe8b`

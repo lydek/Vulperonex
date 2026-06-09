@@ -32,7 +32,7 @@
 - [x] 任務 16c：實作 CLI `config get|set` 與 `member list|show`。
 - [x] 任務 16d：實作 CLI `simulate chat|follow|sub` 與共享資料庫路徑覆蓋保護。
 - [x] 任務 16e：完成 第 5 階段檢查點審查與手動 overlay 交付。
-- [x] 任務 16f：補齊 CLI 端到端手動測試 gate：Web API 啟動後自動套用 SQLite migration、真實 CLI 程序可打到本機 API/DB、並提供 Twitch OAuth PKCE 授權入口。
+- [x] 任務 16f：補齊 CLI 端對端手動測試 gate：Web API 啟動後自動套用 SQLite migration、真實 CLI 程序可打到本機 API/DB、並提供 Twitch OAuth PKCE 授權入口。
 
 ## 任務 16f - CLI E2E / Twitch OAuth 收尾
 
@@ -71,7 +71,7 @@
 - [x] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 以 0 個警告通過。
 - [x] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` 通過。
 - [x] SC-2、SC-5、SC-8、SC-9 通過。
-- [x] WorkflowRule CRUD 與循環引用偵測端到端通過。
+- [x] WorkflowRule CRUD 與循環引用偵測端對端通過。
 - [x] `GET /api/event-types` 排除 `platform.connection_changed`，且 `isSimulatable` 只對 `chat`，`follow`，`sub` 回傳 true。
 - [x] 第五階段錯誤碼已集中管理，並由 HTTP 狀態對應表涵蓋。
 - [x] `UNKNOWN_*` 與 `INVALID_*` 錯誤碼命名規則已記錄並遵守。
@@ -89,7 +89,7 @@
 - [x] CLI 4xx/5xx 處理僅將後端 `error` 程式碼寫入 stderr 並以退出碼 `1` 退出。
 - [x] CLI 模擬聊天固定規則透過 HTTP API 路徑觸發虛擬傳送者。
 - [x] 手動確認：CLI 模擬聊天到達 overlay SignalR，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`。
-- [x] CLI 端到端 smoke：新 DB 啟動 API 後不需手動 migration，真實 CLI 可成功執行 `rule list`、`config get`、`member list`、`simulate chat|follow|sub`。
+- [x] CLI 端對端 smoke：新 DB 啟動 API 後不需手動 migration，真實 CLI 可成功執行 `rule list`、`config get`、`member list`、`simulate chat|follow|sub`。
 - [x] CLI Twitch OAuth smoke：`twitch auth start` 產生 Twitch authorize URL，loopback callback 收到 code 後由 API exchange token，refresh token 加密儲存。
 - [x] CLI OAuth reset：`twitch auth reset` 只清除 refresh token，讓 `twitch auth start` 可重複人工驗證。
 - [x] CLI 空成功回應有明確輸出：`simulate`、`rule enable/disable/delete`、`member seed/delete`、`twitch auth reset` 皆印出 `OK ...`，手動測試不再靜默。

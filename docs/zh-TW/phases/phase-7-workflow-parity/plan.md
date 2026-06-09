@@ -120,7 +120,7 @@ Task 23 Variable / Expression substrate
 **描述：** `WorkflowRule` 加 `OnFailureSteps: IReadOnlyList<WorkflowAction>?`，當主流程因 `StopOnError` 中止或 timeout 時，engine 跑 OnFailureSteps 作為補救（不再有第二層 OnFailure）。
 
 **驗收標準：**
-- [ ] Rule schema 加欄位 + EF 持久；優先新增 `OnFailureActionsJson`（或等價新欄位），不混入既有 `ActionsJson`，避免主鏈與補救鏈序列化/遷移互相污染。
+- [ ] Rule schema 加欄位 + EF 持久；優先新增 `OnFailureActionsJson`（或等價新欄位），不混入既有 `ActionsJson`，避免主鏈與補救鏈序列化/遷移互相汙染。
 - [ ] Engine：主鏈失敗 → 創新 ExecutionContext（注入 `{Trigger.*}` + `{Failure.StepIndex}` + `{Failure.ErrorMessage}`） → 跑 OnFailureSteps 鏈，**OnFailureSteps 本身不再支援 OnFailureSteps**（避免遞迴）。
 - [ ] Idempotent replay：OnFailure 鏈 ActionExecutionKey 加 `phase=OnFailure` 區分。
 

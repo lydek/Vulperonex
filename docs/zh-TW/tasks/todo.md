@@ -44,7 +44,7 @@
 
 ### ✅ Checkpoint 2
 - [x] `dotnet test` 全綠
-- [x] 事件 publish → bus → handler 端到端
+- [x] 事件 publish → bus → handler 端對端
 - [x] MemberResolver 並行測試通過
 - [x] Task 5：`PRAGMA auto_vacuum` = 2（FULL）bootstrap assertion 通過
 - [x] Task 7：`IPlatformUserInfoCache.UpdateAsync` cache miss → default row（`Badges = Array.Empty<string>()`）通過
@@ -62,7 +62,7 @@
 
 ### ✅ Checkpoint 3
 - [x] SC-2, SC-3, SC-4, SC-9, SC-10 通過
-- [x] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端到端
+- [x] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端對端
 
 ---
 
@@ -97,7 +97,7 @@
 - [x] CLI rule / config / member / simulate 全命令 integration test 通過
 - [x] CLI simulate chat fixture rule + mock sender 驗證通過
 - [x] Task 13f Phase 4 SC-6a/SC-6b equivalence 強化已完成或明確 waive：新增 follow/sub/donate payload，驗證 cache/member state/TotalBitsGiven/subscriber tier 等副作用細節
-- [x] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
+- [x] CLI simulate → Overlay SignalR 端對端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 - [x] Phase 5 CLI E2E 收尾：新 SQLite DB 第一次啟動 Web API 後自動 migrate，真實 CLI 可對 loopback API 執行 rule/config/member/simulate smoke，不再需要手動 `dotnet ef database update`（自動化已通過；published CLI 對獨立 Web API process 的人工 terminal smoke 已執行）
 - [x] Phase 5 Twitch OAuth CLI 收尾：CLI 提供可手動執行的 Twitch PKCE 授權入口，callback loopback-only，refresh token 經 API/`IOAuthTokenStore` 加密儲存，且不經 `/api/config/oauth.*`（自動化已通過；真 Twitch 瀏覽器授權已人工執行）
 - [x] Phase 5 CLI REPL 補充：命令樹、`help`、Twitch auth status API、最小 REPL、no-Twitch mode banner、REPL 內 `twitch auth start` 缺 ClientId 保護、Ctrl+C cancellation、TTY line editor、Tab 多候選輪替已完成；人工 terminal 驗證已完成

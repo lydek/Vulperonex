@@ -183,7 +183,7 @@ group.MapGet("/status", async (
 
 - **不**在 banner 預建 `authorize_url`。原因：REPL 啟動時若預先呼叫 `POST /api/twitch/auth/start` 取 URL，會把 `redirect_uri` 綁到固定 callback port，但 REPL 未啟 `HttpListener`，使用者點該 URL 後瀏覽器將收到 connection refused；且後續使用者執行 `twitch auth start` 會建新 state + 新 PKCE verifier，預建 URL 永久作廢。Banner 僅提示命令，由 `twitch auth start` 命令本身負責建 session 與啟 listener。
 - 連帶結論：`TwitchOAuthSessionStore` 不會被 REPL 啟動流程額外佔用 slot（無記憶體膨脹風險）。
-- 若狀態端點本身失敗（HTTP 5xx / 連線失敗 / 逾時）：印 `[WARN] 無法取得 Twitch 狀態（<error_code>）。` 並繼續進入 REPL（不阻斷）。狀態 probe **共用** `RunAsync` 注入的 `HttpClient`（同一 stub 可攔截，整合測試可控），timeout 以 `using var cts = CancellationTokenSource.CreateLinkedTokenSource(outerCt); cts.CancelAfter(TimeSpan.FromSeconds(2));` 配合 `client.SendAsync(request, cts.Token)` 實作；**不**修改 `HttpClient.Timeout` 全域屬性，避免污染後續命令。
+- 若狀態端點本身失敗（HTTP 5xx / 連線失敗 / 逾時）：印 `[WARN] 無法取得 Twitch 狀態（<error_code>）。` 並繼續進入 REPL（不阻斷）。狀態 probe **共用** `RunAsync` 注入的 `HttpClient`（同一 stub 可攔截，整合測試可控），timeout 以 `using var cts = CancellationTokenSource.CreateLinkedTokenSource(outerCt); cts.CancelAfter(TimeSpan.FromSeconds(2));` 配合 `client.SendAsync(request, cts.Token)` 實作；**不**修改 `HttpClient.Timeout` 全域屬性，避免汙染後續命令。
 - `twitch auth start` 命令 `ExecuteAsync` 入口處再次檢查狀態：若 `clientIdConfigured == false`，直接印 `TWITCH_CLIENT_ID_MISSING` 至 stderr 並指示設定方式，不送 `POST /api/twitch/auth/start`。
 - One-shot 模式（`vulperonex twitch auth start`）行為**不變**：直接打 API，依後端回的錯誤碼透傳。Banner 僅 REPL 使用。
 - `twitch auth reset` / `clear` / `logout` 呼叫 `DELETE /api/twitch/auth/token`，只清除已儲存 refresh token；不修改 `Twitch:ClientId` 或 `Twitch:ClientSecret` 設定。此命令用於重複人工驗證 OAuth start/complete 流程。

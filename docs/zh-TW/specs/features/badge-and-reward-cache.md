@@ -38,7 +38,7 @@
 5. **模擬路徑徽章/顏色透傳**：
    - `SimulationRequest`（`SimulationKind.Message`）新增 `IReadOnlyCollection<string> Badges` 與 `string? ColorHex`。
    - `SimulateEndpoints` 接受 request body 之 `badges: string[]`、`colorHex: string?`；在 `adapter.SimulateAsync` 之前對 sim user (`simulation:{userId}`) 呼叫 `IPlatformUserInfoCache.UpdateAsync`，將 `Badges` + `ColorHex` 寫入快取，使後續 forwarder 之解析路徑與真實 Twitch 路徑統一。
-   - 此設計避免在 domain event 上新增徽章欄位污染領域模型。
+   - 此設計避免在 domain event 上新增徽章欄位汙染領域模型。
 
 6. **新 API endpoint `GET /api/twitch/badges`**：
    - 回傳 `{ global: TwitchBadgeDescriptor[], channel: TwitchBadgeDescriptor[] }`，供前端 picker UI 列出可選徽章。
@@ -46,7 +46,7 @@
    - 受 admin auth 限制（與其他 `/api/twitch/*` 端點一致）。
 
 7. **前端 `SimulateControlsPanel.vue` UI 改造**：
-   - onMounted 呼叫 `getTwitchBadges()` 並依 `setId` 分組顯示為徽章 chip grid，每 chip 為 `<img>` + tooltip 標題；點擊 toggle 加入 `selectedBadges`。
+   - onMounted 呼叫 `getTwitchBadges()` 並依 `setId` 分組顯示為徽章 chip grid，每 chip 為 `<img>` + tooltip 標題；點選 toggle 加入 `selectedBadges`。
    - 新增「名稱顏色」欄位：hex input 配對即時 color swatch（預設 `#FFCA28`）。
    - submit 時於 request body 帶入 `badges: selectedBadges` 與 `colorHex`。
    - 移除「Streamer Roles」文字角色多選區（向後相容：若舊測試傳 `roles` 仍解析為對應 badge key，由後端 derive；本期前端 UI 不曝光）。

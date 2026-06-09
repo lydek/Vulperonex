@@ -2,7 +2,7 @@
 
 > 相關待辦清單: `docs/phases/phase-6-web-ui/todo.md`
 
-本檔案記錄無法完全由自動化測試證實的手動檢查：瀏覽器 UI 端到端流程、Photino 桌面殼（Desktop shell）行為、Twitch OAuth 真實完整往返以及 overlay 顯示驗證。
+本檔案記錄無法完全由自動化測試證實的手動檢查：瀏覽器 UI 端對端流程、Photino 桌面殼（Desktop shell）行為、Twitch OAuth 真實完整往返以及 overlay 顯示驗證。
 
 ## 範本
 
@@ -59,9 +59,9 @@
 2. **跨重新啟動持久化**：在分頁 A 提交聊天模擬，停止 Web 主機 (Ctrl+C)，以 `dotnet run --project src/Hosts/Vulperonex.Web` 重新啟動，重新載入 `/overlay/chat`。訊息必須重新出現在列表中（從 `SystemSettings` `overlay.history.chat` 重新載入）。
 3. **提醒重播不重發動畫**：在開啟 `/overlay/alerts` 分頁的情況下，提交 `follow` 模擬 → 即時橫幅播放動畫。關閉並重新開啟 `/overlay/alerts` → 條目出現在列表中，外觀呈現灰色變暗（`data-replayed="true"`），且**沒有**即時橫幅動畫。
 4. **上限限制**：快速提交超過 30 次聊天模擬；重新整理後只有最近的 30 筆是可見的。
-5. **從 overlay 路由清空**：點擊 `/overlay/chat` 標頭的「清空」按鈕 → 確認對話方塊 → 確認 → 列表立即清空；重新整理頁面 → 列表仍然為空。
-6. **從管理主控台清空**：點擊 `/` 首頁 `Chat Overlay Hub` 卡片上的「清空」 → 確認對話方塊 → 確認 → 開啟 `/overlay/chat` 的其他分頁收到 `cleared` 事件，且列表無需重新整理即清空。
-7. **取消和 ESC 關閉確認對話方塊**：點擊取消按鈕與按下 ESC 鍵皆可關閉對話方塊，且不執行清空。
+5. **從 overlay 路由清空**：點選 `/overlay/chat` 標頭的「清空」按鈕 → 確認對話方塊 → 確認 → 列表立即清空；重新整理頁面 → 列表仍然為空。
+6. **從管理主控台清空**：點選 `/` 首頁 `Chat Overlay Hub` 卡片上的「清空」 → 確認對話方塊 → 確認 → 開啟 `/overlay/chat` 的其他分頁收到 `cleared` 事件，且列表無需重新整理即清空。
+7. **取消和 ESC 關閉確認對話方塊**：點選取消按鈕與按下 ESC 鍵皆可關閉對話方塊，且不執行清空。
 8. **會員 hub 清空**：雖然會員 hub 在 MVP 階段沒有即時事件，但執行清空仍必須成功，返回 204 且無錯誤。
 
 > ⚠ Task 22 必須通過所有八項檢查才被視為完成，並清除階段 6 Gate 的 overlay 持久化需求。
@@ -132,12 +132,12 @@
 - 命令 / 步驟：
   1. 啟動 `dotnet run --project src/Hosts/Vulperonex.Web`（配置有 `Twitch:ClientId`）
   2. 開啟 Web UI Twitch 面板 → 驗證顯示 `clientIdConfigured: true`。
-  3. 點擊「Auth Start」 → 產生並在新分頁開啟 Twitch 授權 URL。
+  3. 點選「Auth Start」 → 產生並在新分頁開啟 Twitch 授權 URL。
      - URL 包含結構完整的 PKCE `code_challenge` 與 `state` 參數。
   4. Twitch 重新導向回 `localhost:7979/auth/callback`（CLI 風格的回環）。
      - **已知行為**：回呼連接埠 7979 為階段 5 設計的 CLI 專屬。在沒有執行 CLI 的情況下，瀏覽器顯示「無法連線至 localhost」 — 此為預期行為。
   5. 完整的 OAuth 往返（程式碼交換 + 加密 refresh token + 302 重導向回 `/`）已於階段 5 由 CLI 完成驗證（commit `6ff0ace`, 驗證者: lydek, `2026-05-20`）。
-  6. 點擊 Web UI「Reset」按鈕 → 狀態立即反映 `hasRefreshToken: false`。
+  6. 點選 Web UI「Reset」按鈕 → 狀態立即反映 `hasRefreshToken: false`。
 - 預期結果：Auth start 產生正確的 PKCE URL；狀態/重設面板功能運作正常；完整的 token 交換由階段 5 覆蓋。
 - 實際結果：Auth start 產生了正確且包含 PKCE 參數和 CSRF state 的 Twitch 授權 URL。重設按鈕成功清除 token 並同步更新 UI。localhost:7979 回呼需要 CLI 存在（階段 5 設計決定）。完整往返由階段 5 的記錄予以覆蓋。
 - 結果：PASS

@@ -35,7 +35,7 @@
 - [x] SC-4：Domain/Application 無 Twitch symbols 持續通過
 - [x] SC-9：SendChatMessage platform routing 通過
 - [x] SC-10：Plugin 發布事件觸發 WorkflowRule 通過
-- [x] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` 端到端通過
+- [x] SimulationAdapter -> Bus -> WorkflowEngine -> `IPlatformChatSender` 端對端通過
 - [x] `InvokeSubWorkflowAction` 使用穩定 `InvocationId` dedup，TDQ replay 不重複執行子工作流
 - [x] `IStreamEventTypeRegistry.IsKnownForWorkflow` 排除 system events 且允許 plugin custom events
 - [x] Plugin context reflection test 確認不暴露 `IServiceProvider`

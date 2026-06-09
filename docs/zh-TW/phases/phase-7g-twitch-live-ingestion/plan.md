@@ -124,7 +124,7 @@
    - 執行 `Vulperonex.Web`。日誌顯示：實況主已解析 → IRC 已連線 → EventSub 已連線 → 註冊了 7 個訂閱（或者 409 "已存在" 視為成功）。
    - 在頻道中傳送聊天訊息 → `/monitor` 的 ChatStream 會顯示該訊息；`/overlay/chat` 也能成功渲染。
    - 在 Twitch 上觸發追隨 / 訂閱 / 小額贊助 (Cheer) / 主辦 (Raid) / 點數兌換 → 對應的警報會流入 `/overlay/alerts` 中。
-   - 開啟規則編輯器 (Rule Editor) → 兌換點數觸發器 (Reward Redeemed Trigger) → 兌換名稱下拉選單會列出兌換項目；點擊 ↻ 會更新快取；過期值會出現「(已無法使用)」。
+   - 開啟規則編輯器 (Rule Editor) → 兌換點數觸發器 (Reward Redeemed Trigger) → 兌換名稱下拉選單會列出兌換項目；點選 ↻ 會更新快取；過期值會出現「(已無法使用)」。
    - 開啟 `/monitor` 模擬面板 (Simulate) → `redeem` 別名 → 兌換下拉選單有資料；送出後會觸發由該兌換標題篩選的工作流規則。
 5. **連線狀態晶片：** `/twitch` UI 會接聽 `platform.connection_changed` 事件；狀態晶片會反映即時連線狀態。中斷網路連線 → 記錄協調器重試與重新連線日誌。
 

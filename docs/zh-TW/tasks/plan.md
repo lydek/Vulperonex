@@ -458,7 +458,7 @@ frontend (Vue SPA)
 ### Checkpoint：Phase 3
 
 - [ ] `dotnet test` → SC-2, SC-3, SC-4, SC-9, SC-10 全通過
-- [ ] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端到端通過
+- [ ] SimulationAdapter → Bus → WorkflowEngine → IPlatformChatSender 端對端通過
 - [ ] Plugin 可發布事件並觸發規則
 
 ---
@@ -605,7 +605,7 @@ frontend (Vue SPA)
 - [ ] `POST /api/rules` with `trigger.eventTypeKey: "platform.connection_changed"` → 400 + `UNKNOWN_EVENT_TYPE_KEY`（`IsKnownForWorkflow` 排除系統事件；即使 `IsKnown()=true` 也不允許作為 WorkflowRule 觸發器）
 
 **驗證步驟：**
-- [ ] Integration test：WorkflowRule 完整 CRUD 端到端（in-memory SQLite）
+- [ ] Integration test：WorkflowRule 完整 CRUD 端對端（in-memory SQLite）
 - [ ] 循環引用偵測測試
 - [ ] Integration test：`GET /api/event-types` Simulation keys
 - [ ] Integration test：`GET /api/event-types` 回傳 keys 中**不含** `platform.connection_changed`（系統事件排除驗証）
@@ -662,7 +662,7 @@ frontend (Vue SPA)
 
 #### Task 15：SignalR Hub + Overlay Push + 雙埠 Kestrel
 
-**描述：** 實作 `/hubs/events` SignalR Hub（管理頁面用）和 `/hubs/overlay/*` 各 Overlay Hub（OBS 用）。設定 Kestrel 雙埠（ApiPort 5000 / OverlayPort 5001）、連接埠配對自動遞增邏輯、localhost-only 預設。SC-5 端到端測試。
+**描述：** 實作 `/hubs/events` SignalR Hub（管理頁面用）和 `/hubs/overlay/*` 各 Overlay Hub（OBS 用）。設定 Kestrel 雙埠（ApiPort 5000 / OverlayPort 5001）、連接埠配對自動遞增邏輯、localhost-only 預設。SC-5 端對端測試。
 
 **驗收標準：**
 - [x] SC-5 通過：publish `UserSentMessageEvent` → `/overlay/chat` client 5 秒內收到 `OverlayChatPayload`
@@ -721,7 +721,7 @@ frontend (Vue SPA)
 - [x] `security.*` / `oauth.*` config key 封鎖與 CLI passthrough 通過
 - [x] CLI rule / config / member / simulate 全命令 integration test 通過
 - [x] CLI simulate chat fixture rule + mock sender 驗證通過
-- [x] CLI simulate → Overlay SignalR 端到端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
+- [x] CLI simulate → Overlay SignalR 端對端手動測試，結果記錄於 `docs/phases/phase-5-web-signalr-cli/manual-verification.md`
 - [x] Phase 5 CLI E2E 收尾：published CLI 對獨立 Web API process 的人工 terminal smoke 已執行
 - [x] Phase 5 Twitch OAuth CLI 收尾：真實瀏覽器授權含完整 code exchange + refresh_token 加密儲存已人工執行
 - [x] Phase 5 CLI REPL 補充：人工 terminal 驗證已完成
@@ -1037,7 +1037,7 @@ Phase 7 將 Vulperonex workflow runtime 對齊 Omni-Commander 的常用 workflow
 | npm dependencies 撞版本或下載失敗 | 中 | Task 19a 先做 `corepack enable`，若 Windows shim 權限受阻改用 `corepack pnpm@9.15.4 <command>`；以 `corepack pnpm@9.15.4 install --lockfile-only --ignore-scripts` 做預檢；首次安裝前 ask-first |
 | Rule visual builder 膨脹 | 中 | MVP 只做 JSON editor + 輕量表單；完整 builder 後續切片 |
 | Twitch OAuth 與 Web UI callback UX 混淆 | 中 | OAuth `code` 僅由後端 loopback callback 消費；Web UI 唯讀 status/event |
-| SignalR/Polling 測試 flake | 中 | 核心 reducer/backoff 用 fake timer 單元測試；端到端留 manual verification |
+| SignalR/Polling 測試 flake | 中 | 核心 reducer/backoff 用 fake timer 單元測試；端對端留 manual verification |
 | Desktop/Photino 問題遮蔽 Web UI 問題 | 中 | 先以瀏覽器驗證 Web host，再進 Task 21 Desktop shell |
 | .NET 10.0 + Photino 3.x 相容性 | 中 | Task 21 做 compatibility 預驗；必要時使用 WebView2 fallback 或獨立 Kestrel 模式 |
 

@@ -110,7 +110,7 @@
 | 3.5 | 自當前切片延遲：替換儀表板標頭健康晶片資料來源：`getHealth` 10 秒輪詢 → `useHubConnectionState` (SignalR) + 保留 `/api/health` 於 30 秒作為深層健康輔助晶片，或合併最差二選一策略。 | `MonitorDashboardView.vue` | S |
 | 3.6 | 新增手動重新連線按鈕：僅在 `state === Disconnected` 時可見。連接到受保護的 `manualReconnect()`（重入保護 + 可見性觸發）。 | `ChatStreamPanel.vue` 或共享標頭 | S |
 | 3.7 | 國際化 (i18n)：`monitor.chat.title`, `monitor.chat.clear`, `monitor.chat.live.{connected,reconnecting,disconnected,connecting}`, `monitor.chat.reconnect` 鍵值。 | `i18n/*` | S |
-| 3.8 | Vitest：現有的聊天測試保持綠色；新增 (a) 標頭渲染 + 針對每個 `HubConnectionState` 的狀態晶片類別，(b) 清除按鈕點擊，(c) 涵蓋回呼同步 + 30 秒輪詢同步 + 銷毀清理的 `useHubConnectionState` 單元測試，(d) manualReconnect 重入保護。 | `ChatStreamPanel.test.ts` + `useHubConnectionState.test.ts` | M |
+| 3.8 | Vitest：現有的聊天測試保持綠色；新增 (a) 標頭渲染 + 針對每個 `HubConnectionState` 的狀態晶片類別，(b) 清除按鈕點選，(c) 涵蓋回呼同步 + 30 秒輪詢同步 + 銷毀清理的 `useHubConnectionState` 單元測試，(d) manualReconnect 重入保護。 | `ChatStreamPanel.test.ts` + `useHubConnectionState.test.ts` | M |
 
 驗證：vue-tsc + vitest + 於 1440/1200/800 手動測試 + 混亂測試（DevTools 節流網路 → 離線 → 線上，確認晶片能反映狀態而不會有無限制的重新連線垃圾郵件）。
 

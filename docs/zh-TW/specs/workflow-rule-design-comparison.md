@@ -292,7 +292,7 @@ DB migration：把既有 sub-workflow rule 的 `eventTypeKey=""` 改成 NULL。
 - (a) `ExpressionContext` 加 `RuleId` / `RuleName` 屬性，建構時填入；或
 - (b) 改 `IExpressionEvaluator.Evaluate` 簽名加 `EvaluationCallSite { RuleId, RuleName, Stage }` 參數
 
-(a) 改動最小但污染 context；(b) 較乾淨但 breaking API。傾向 (a)，
+(a) 改動最小但汙染 context；(b) 較乾淨但 breaking API。傾向 (a)，
 context 本就是「給 evaluator 看的所有狀態」。
 
 ### 5b.5 `workflow.timer` 未註冊到 event type registry — UI / Validator 雙缺

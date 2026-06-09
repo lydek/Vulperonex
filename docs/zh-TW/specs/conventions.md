@@ -223,7 +223,7 @@ export function useStreamEvents() {
 ### 7.2 位置
 
 - `tests/Vulperonex.Tests.Unit/` — 純單元測試，無 I/O。
-- `tests/Vulperonex.Tests.Integration/` — 記憶體內 SQLite + Simulation 配接器端到端測試。
+- `tests/Vulperonex.Tests.Integration/` — 記憶體內 SQLite + Simulation 配接器端對端測試。
 - `tests/Vulperonex.Tests.Architecture/` — 層級規則強制執行。
 - `src/frontend/tests/` — Vitest + Vue Test Utils。
 

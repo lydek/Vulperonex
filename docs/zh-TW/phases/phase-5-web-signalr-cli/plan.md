@@ -493,7 +493,7 @@
 **驗收標準：**
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 以 0 warning 通過。
 - [ ] `dotnet test` 通過 SC-2、SC-5、SC-8、SC-9。
-- [ ] WorkflowRule CRUD 與循環引用偵測端到端通過。
+- [ ] WorkflowRule CRUD 與循環引用偵測端對端通過。
 - [ ] 配置受保護命名空間測試通過 `security.*` 與 `oauth.*`。
 - [ ] CLI rule/config/member/simulate 命令通過整合測試。
 - [ ] CLI 模擬聊天固定規則與虛擬傳送者通過。

@@ -504,7 +504,7 @@
 - [ ] 任務 4a-8c 已完成並以小切片形式提交。
 - [ ] `dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false` 通過。
 - [ ] `dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false` 通過。
-- [ ] 事件 publish -> bus -> handler 端到端通過。
+- [ ] 事件 publish -> bus -> handler 端對端通過。
 - [ ] MigrationClassifier raw SQL destructive/review-required tests 通過。
 - [ ] DB bootstrap `PRAGMA auto_vacuum = 2` 通過。
 - [ ] TDQ overflow -> replay -> delete 通過。

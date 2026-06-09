@@ -23,7 +23,7 @@ curl http://localhost:5000/api/twitch/badges | jq '.ready, (.global | length), (
 
 1. 開 `/admin/simulate`（或 `/monitor`）。
 2. 「身份徽章」section 顯示徽章 chip grid，每個 chip 為徽章圖示 + 名稱。
-3. 點擊勾選 `VIP` + `Moderator` + 一個自訂徽章（如「繪師」）。
+3. 點選勾選 `VIP` + `Moderator` + 一個自訂徽章（如「繪師」）。
 4. 「名稱顏色」改為 `#FFCA28`，色塊即時更新。
 5. alias 維持 `chat`，輸入訊息「測試徽章顯示」，送出。
 
