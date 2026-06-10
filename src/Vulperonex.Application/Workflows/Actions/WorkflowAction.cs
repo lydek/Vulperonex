@@ -18,6 +18,7 @@ namespace Vulperonex.Application.Workflows.Actions;
 [JsonDerivedType(typeof(LookupPlatformUserAction), LookupPlatformUserAction.ActionType)]
 [JsonDerivedType(typeof(ShoutoutAction), ShoutoutAction.ActionType)]
 [JsonDerivedType(typeof(RefundRewardRedemptionAction), RefundRewardRedemptionAction.ActionType)]
+[JsonDerivedType(typeof(ParseChatCommandAction), ParseChatCommandAction.ActionType)]
 public abstract record WorkflowAction
 {
     [JsonIgnore]

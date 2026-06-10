@@ -18,6 +18,7 @@ const outputVariableOverrides: Record<string, string[]> = {
   randomPicker: ["Picked", "Index"],
   updateCounter: ["Value"],
   lookupTwitchUser: ["Login", "DisplayName", "UserId", "IsFound"],
+  parseChatCommand: ["CommandName", "ArgsText", "Arg1", "Arg2", "Arg3", "Target", "TargetLogin", "Mention", "HasTarget"],
   addLotteryTickets: ["Value"]
 };
 

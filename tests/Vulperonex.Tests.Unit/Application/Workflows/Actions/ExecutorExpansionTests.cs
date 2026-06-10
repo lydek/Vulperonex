@@ -64,6 +64,59 @@ public sealed class ExecutorExpansionTests
     }
 
     [Fact]
+    public async Task Given_ParseChatCommandAction_When_MessageHasMentionTarget_Then_OutputContainsCommandArguments()
+    {
+        var executor = new ParseChatCommandActionExecutor(new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new ParseChatCommandAction { CommandPrefix = "!shoutout" },
+            NewContext(messageText: "!shoutout @Alice_Prime extra"),
+            TestContext.Current.CancellationToken);
+
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["CommandName"].Should().Be("shoutout");
+        result.OutputValues!["ArgsText"].Should().Be("@Alice_Prime extra");
+        result.OutputValues!["Arg1"].Should().Be("@Alice_Prime");
+        result.OutputValues!["Arg2"].Should().Be("extra");
+        result.OutputValues!["Target"].Should().Be("Alice_Prime");
+        result.OutputValues!["TargetLogin"].Should().Be("Alice_Prime");
+        result.OutputValues!["Mention"].Should().Be("@Alice_Prime");
+        result.OutputValues!["HasTarget"].Should().Be(true);
+    }
+
+    [Fact]
+    public async Task Given_ParseChatCommandAction_When_CommandHasNoTarget_Then_HasTargetIsFalse()
+    {
+        var executor = new ParseChatCommandActionExecutor(new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new ParseChatCommandAction { CommandPrefix = "!shoutout" },
+            NewContext(messageText: "!shoutout"),
+            TestContext.Current.CancellationToken);
+
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["CommandName"].Should().Be("shoutout");
+        result.OutputValues!["ArgsText"].Should().Be(string.Empty);
+        result.OutputValues!["Target"].Should().Be(string.Empty);
+        result.OutputValues!["HasTarget"].Should().Be(false);
+    }
+
+    [Fact]
+    public async Task Given_ParseChatCommandAction_When_MessageTemplateIsConfigured_Then_TemplateIsResolved()
+    {
+        var executor = new ParseChatCommandActionExecutor(new TemplateResolver());
+
+        var result = await executor.ExecuteAsync(
+            new ParseChatCommandAction { Message = "!so @{Member.DisplayName}", CommandPrefix = "!so" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["CommandName"].Should().Be("so");
+        result.OutputValues!["Target"].Should().Be("Alice");
+    }
+
+    [Fact]
     public async Task Given_UpdateCounterAction_When_Executed_Then_OutputContainsNewValue()
     {
         var repository = new RecordingCounterRepository();
@@ -417,6 +470,30 @@ public sealed class ExecutorExpansionTests
     }
 
     [Fact]
+    public async Task Given_LookupTwitchUserAction_When_ResolverAvailable_Then_TargetIsResolved()
+    {
+        var client = new RecordingTwitchHelixClient();
+        var resolver = new RecordingPlatformUserResolver
+        {
+            Result = new ResolvedPlatformUser("alice_login", "Alice Prime", "user-1", IsFound: true),
+        };
+        var executor = new LookupPlatformUserActionExecutor(client, new TemplateResolver(), resolver);
+
+        var result = await executor.ExecuteAsync(
+            new LookupPlatformUserAction { Target = "@{Member.DisplayName}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        resolver.Requests.Should().ContainSingle().Which.Should().Be(("twitch", "@Alice"));
+        client.Requests.Should().BeEmpty();
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["UserId"].Should().Be("user-1");
+        result.OutputValues!["Login"].Should().Be("alice_login");
+        result.OutputValues!["DisplayName"].Should().Be("Alice Prime");
+        result.OutputValues!["IsFound"].Should().Be(true);
+    }
+
+    [Fact]
     public async Task Given_ShoutoutAction_When_Executed_Then_TargetLoginIsResolvedAndOutputContainsResult()
     {
         var client = new RecordingTwitchHelixClient
@@ -436,6 +513,33 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["TargetLogin"].Should().Be("alice");
         result.OutputValues!["TargetUserId"].Should().Be("user-1");
         result.OutputValues!["TargetDisplayName"].Should().Be("Alice");
+    }
+
+    [Fact]
+    public async Task Given_ShoutoutAction_When_ResolverAvailable_Then_SendsResolvedLogin()
+    {
+        var client = new RecordingTwitchHelixClient
+        {
+            ShoutoutResult = new PlatformShoutoutResult(true, "alice_login", "user-1", "Alice Prime"),
+        };
+        var resolver = new RecordingPlatformUserResolver
+        {
+            Result = new ResolvedPlatformUser("alice_login", "Alice Prime", "user-1", IsFound: true),
+        };
+        var executor = new ShoutoutActionExecutor(client, new TemplateResolver(), resolver);
+
+        var result = await executor.ExecuteAsync(
+            new ShoutoutAction { TargetLogin = "@{Member.DisplayName}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        resolver.Requests.Should().ContainSingle().Which.Should().Be(("twitch", "@Alice"));
+        client.Shoutouts.Should().ContainSingle().Which.Should().Be("alice_login");
+        result.OutputValues.Should().NotBeNull();
+        result.OutputValues!["IsSent"].Should().Be(true);
+        result.OutputValues!["TargetLogin"].Should().Be("alice_login");
+        result.OutputValues!["TargetUserId"].Should().Be("user-1");
+        result.OutputValues!["TargetDisplayName"].Should().Be("Alice Prime");
     }
 
     [Fact]
@@ -668,13 +772,17 @@ public sealed class ExecutorExpansionTests
         result.OutputValues!["RedemptionId"].Should().Be("redemption-1");
     }
 
-    private static ActionExecutionContext NewContext(DateTimeOffset? occurredAt = null, string platform = "twitch")
+    private static ActionExecutionContext NewContext(
+        DateTimeOffset? occurredAt = null,
+        string platform = "twitch",
+        string messageText = "")
     {
         var streamEvent = new UserSentMessageEvent
         {
             EventId = "event-1",
             Platform = platform,
             User = new StreamUser(platform, "alice", "Alice"),
+            MessageText = messageText,
             OccurredAt = occurredAt ?? new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero),
         };
 
@@ -829,6 +937,13 @@ public sealed class ExecutorExpansionTests
             return Task.FromResult(User);
         }
 
+        public Task<PlatformUserProfile?> SearchChannelExactAsync(
+            string query,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<PlatformUserProfile?>(null);
+        }
+
         public Task<PlatformShoutoutResult> SendShoutoutAsync(
             string targetLogin,
             CancellationToken cancellationToken = default)
@@ -878,6 +993,21 @@ public sealed class ExecutorExpansionTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<PlatformRewardDescriptor>>([]);
+        }
+    }
+
+    private sealed class RecordingPlatformUserResolver : IPlatformUserResolver
+    {
+        public ResolvedPlatformUser Result { get; init; } = new(string.Empty, string.Empty, null, IsFound: false);
+        public List<(string Platform, string Input)> Requests { get; } = [];
+
+        public Task<ResolvedPlatformUser> ResolveAsync(
+            string platform,
+            string input,
+            CancellationToken cancellationToken = default)
+        {
+            Requests.Add((platform, input));
+            return Task.FromResult(Result);
         }
     }
 

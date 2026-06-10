@@ -328,6 +328,30 @@ public sealed class WorkflowEngineTests
     }
 
     [Fact]
+    public async Task Given_ChatCommandMessage_When_ActionRuns_Then_CommandArgumentsAreAvailableInTriggerContext()
+    {
+        var executor = new RecordingActionExecutor();
+        var rule = NewRule();
+        await using var bus = new InMemoryStreamEventBus();
+        await using var engine = NewEngine(bus, [rule], [executor]);
+
+        await engine.ExecuteRuleAsync(
+            rule,
+            NewMessageEvent(messageText: "!shoutout @Alice_Prime extra"),
+            TestContext.Current.CancellationToken);
+
+        executor.Contexts.Should().ContainSingle();
+        var command = executor.Contexts[0].ExpressionContext.Trigger["Command"]
+            .Should().BeAssignableTo<IReadOnlyDictionary<string, object?>>().Subject;
+        command["CommandName"].Should().Be("shoutout");
+        command["ArgsText"].Should().Be("@Alice_Prime extra");
+        command["Arg1"].Should().Be("@Alice_Prime");
+        command["Target"].Should().Be("Alice_Prime");
+        command["TargetLogin"].Should().Be("Alice_Prime");
+        command["HasTarget"].Should().Be(true);
+    }
+
+    [Fact]
     public async Task Given_GlobalCooldown_When_RuleRunsTwiceImmediately_Then_SecondRunIsSkipped()
     {
         var executor = new RecordingActionExecutor();

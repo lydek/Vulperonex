@@ -20,6 +20,15 @@ describe("i18n locale parity", () => {
     }
   });
 
+  it("should compile every message without vue-i18n syntax errors", () => {
+    for (const key of Object.keys(enUS)) {
+      expect(() => i18n.global.t(key, 1, { locale: "en-US" }), `en-US ${key}`).not.toThrow();
+    }
+    for (const key of Object.keys(zhTW)) {
+      expect(() => i18n.global.t(key, 1, { locale: "zh-TW" }), `zh-TW ${key}`).not.toThrow();
+    }
+  });
+
   it("should default to zh-TW with en-US fallback when missing keys", () => {
     expect(i18n.global.locale.value).toBe("zh-TW");
     expect(i18n.global.fallbackLocale.value).toBe("en-US");

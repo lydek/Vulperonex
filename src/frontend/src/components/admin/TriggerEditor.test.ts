@@ -45,7 +45,7 @@ const triggerMetadataResponse = [
         required: false
       }
     ],
-    validVariables: ["EventId"]
+    validVariables: ["TotalBitsGiven"]
   }
 ];
 
@@ -113,6 +113,7 @@ describe("TriggerEditor", () => {
     expect(wrapper.find('[data-testid="trigger-filter-add"]').exists()).toBe(false);
     expect(wrapper.findAll(".rule-filter-row")).toHaveLength(0);
     expect(wrapper.text()).not.toContain("{Trigger.MessageText}");
+    await wrapper.find('[data-testid="variable-picker-group-trigger"]').trigger("click");
     expect(wrapper.text()).toContain("Trigger.MessageText");
     expect(wrapper.text()).not.toContain("Trigger.IsTest");
   });
@@ -267,8 +268,10 @@ describe("TriggerEditor", () => {
     }, { stubVariablePicker: false });
 
     await vi.waitFor(() => {
-      expect(wrapper.text()).toContain("Trigger.MessageText");
+      expect(wrapper.find('[data-testid="variable-picker-group-trigger"]').exists()).toBe(true);
     });
+    await wrapper.find('[data-testid="variable-picker-group-trigger"]').trigger("click");
+    expect(wrapper.text()).toContain("Trigger.MessageText");
 
     await wrapper.setProps({
       eventTypeKey: "user.donated",
@@ -279,7 +282,8 @@ describe("TriggerEditor", () => {
       expect(wrapper.find('[data-testid="trigger-filter-field-MinAmount"]').exists()).toBe(true);
     });
 
-    expect(wrapper.text()).toContain("Trigger.EventId");
+    await wrapper.find('[data-testid="variable-picker-group-trigger"]').trigger("click");
+    expect(wrapper.text()).toContain("Trigger.TotalBitsGiven");
     expect(wrapper.text()).not.toContain("Trigger.MessageText");
   });
 });

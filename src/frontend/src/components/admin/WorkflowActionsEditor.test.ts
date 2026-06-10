@@ -52,6 +52,31 @@ const actionMetadataResponse = [
     ]
   },
   {
+    type: "lookupTwitchUser",
+    displayName: "Lookup Twitch User",
+    description: "Resolve a chat login or display name to one exact user.",
+    parameters: [
+      { key: "Target", label: "Target User", type: "string", required: true, help: "Login, @DisplayName, or a variable. No numeric ID needed." }
+    ]
+  },
+  {
+    type: "parseChatCommand",
+    displayName: "Parse Chat Command",
+    description: "Extract command arguments from chat text.",
+    parameters: [
+      { key: "Message", label: "Message", type: "string", required: false, help: "Chat message text. Empty = Trigger.MessageText." },
+      { key: "CommandPrefix", label: "Command Prefix", type: "string", required: false, help: "Optional command prefix, e.g. !shoutout." }
+    ]
+  },
+  {
+    type: "shoutout",
+    displayName: "Shoutout",
+    description: "Send Twitch's native /shoutout for a resolved channel.",
+    parameters: [
+      { key: "TargetLogin", label: "Target Username", type: "string", required: true, help: "Target Twitch login name." }
+    ]
+  },
+  {
     type: "invokeSubWorkflow",
     displayName: "Invoke Sub-Workflow",
     description: "Invoke another sub-workflow rule",
@@ -319,7 +344,132 @@ describe("WorkflowActionsEditor", () => {
 
     expect(wrapper.text()).toContain("Send Chat Message");
     expect(wrapper.text()).toContain("Trigger Check-In");
+    expect(wrapper.find('[data-testid="workflow-actions-add-search"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-testid^="workflow-actions-card-"]').length).toBe(0);
+  });
+
+  it("should filter the action add menu by search text", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-shoutout"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-search"]').setValue("shout");
+
+    expect(wrapper.find('[data-testid="workflow-actions-add-option-shoutout"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="workflow-actions-add-option-sendChatMessage"]').exists()).toBe(false);
+  });
+
+  it("should use compact placeholders for lookup target fields", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-lookupTwitchUser"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-lookupTwitchUser"]').trigger("click");
+
+    const targetInput = wrapper.get('[data-testid="workflow-actions-field-target-0"]');
+    expect(targetInput.attributes("data-placeholder")).toBe("login or name");
+  });
+
+  it("should filter lookup target variables to user identifiers", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: JSON.stringify([
+          { type: "parseChatCommand", outputVariable: "Command" }
+        ]),
+        title: "Actions",
+        emptyText: "Empty",
+        eventTypeKey: "user.message"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-lookupTwitchUser"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-lookupTwitchUser"]').trigger("click");
+    await wrapper.find('.workflow-builder__target-field [data-testid="variable-picker-toggle"]').trigger("click");
+    const targetPickerPanel = wrapper.find(".workflow-builder__target-field .variable-picker__panel");
+    await targetPickerPanel.find('[data-testid="variable-picker-group-trigger"]').trigger("click");
+
+    expect(targetPickerPanel.text()).toContain("Trigger.Command.Target");
+    expect(targetPickerPanel.text()).not.toContain("Trigger.Command.TargetLogin");
+    expect(targetPickerPanel.text()).not.toContain("Trigger.Command.ArgsText");
+
+    await targetPickerPanel.find('[data-testid="variable-picker-group-member"]').trigger("click");
+
+    expect(targetPickerPanel.text()).toContain("Member.Login");
+    expect(targetPickerPanel.text()).toContain("Member.DisplayName");
+    expect(targetPickerPanel.text()).toContain("Member.UserId");
+    await targetPickerPanel.find('[data-testid="variable-picker-group-steps"]').trigger("click");
+    expect(targetPickerPanel.text()).toContain("Step.Command.Target");
+    expect(targetPickerPanel.text()).toContain("Step.Command.TargetLogin");
+    expect(targetPickerPanel.text()).not.toContain("Trigger.EventTypeKey");
+    expect(targetPickerPanel.text()).not.toContain("Trigger.RewardId");
+    expect(targetPickerPanel.text()).not.toContain("Member.Roles");
+    expect(targetPickerPanel.text()).not.toContain("Step.Command.ArgsText");
+  });
+
+  it("should hide chat command trigger target variables when event type is not chat", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty",
+        eventTypeKey: "user.donated"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-lookupTwitchUser"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-lookupTwitchUser"]').trigger("click");
+    await wrapper.find('.workflow-builder__target-field [data-testid="variable-picker-toggle"]').trigger("click");
+    const targetPickerPanel = wrapper.find(".workflow-builder__target-field .variable-picker__panel");
+
+    expect(targetPickerPanel.text()).toContain("Member.Login");
+    expect(targetPickerPanel.text()).not.toContain("Trigger.Command.Target");
+    expect(targetPickerPanel.text()).not.toContain("Trigger.Command.TargetLogin");
   });
 
   it("should clamp delay milliseconds to zero in the visual editor", async () => {

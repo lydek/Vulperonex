@@ -38,6 +38,7 @@ const props = defineProps<{
   emptyText: string;
   testIdPrefix?: string;
   notice?: string;
+  eventTypeKey?: string | null;
 }>();
 
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
@@ -48,6 +49,7 @@ const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
 const availableRules = ref<WorkflowRuleSummary[]>([]);
 const addMenuEl = ref<HTMLDetailsElement | null>(null);
+const actionSearch = ref("");
 const randomPickerRowCounts = ref<Record<number, number>>({});
 
 defineExpose({ focus });
@@ -56,6 +58,20 @@ watch(() => props.modelValue, syncFromModel, { immediate: true });
 
 const prefix = computed(() => props.testIdPrefix ?? "workflow-actions");
 const actionDefinitions = computed(() => actionMetadata.definitions);
+const filteredActionDefinitions = computed(() => {
+  const query = actionSearch.value.trim().toLowerCase();
+  if (query.length === 0) {
+    return actionDefinitions.value;
+  }
+
+  return actionDefinitions.value.filter(definition => {
+    const label = actionLabel(definition).toLowerCase();
+    const description = actionDescription(definition).toLowerCase();
+    return definition.type.toLowerCase().includes(query)
+      || label.includes(query)
+      || description.includes(query);
+  });
+});
 const metadataNotice = computed(() => {
   if (!actionMetadata.fallbackActive) {
     return props.notice;
@@ -121,8 +137,40 @@ function fieldLabel(actionType: string, field: FieldDefinition): string {
 }
 
 function fieldPlaceholder(actionType: string, field: FieldDefinition): string | undefined {
+  if (actionType === "lookupTwitchUser" && field.key === "target") {
+    return "login or name";
+  }
+
+  if (actionType === "shoutout" && field.key === "targetLogin") {
+    return "login";
+  }
+
   const localized = localizeMeta(`ruleEditor.actionMeta.${actionType}.params.${field.key}.help`, field.placeholder ?? "");
   return localized.length > 0 ? localized : undefined;
+}
+
+function fieldClass(actionType: string, field: FieldDefinition): Record<string, boolean> {
+  return {
+    "workflow-builder__target-field": (
+      (actionType === "lookupTwitchUser" && field.key === "target") ||
+      (actionType === "shoutout" && field.key === "targetLogin")
+    )
+  };
+}
+
+function isTargetUserField(actionType: string, field: FieldDefinition): boolean {
+  return (actionType === "lookupTwitchUser" && field.key === "target") ||
+    (actionType === "shoutout" && field.key === "targetLogin");
+}
+
+function allowedTriggerVariablesFor(actionType: string, field: FieldDefinition): string[] | undefined {
+  if (!isTargetUserField(actionType, field)) {
+    return undefined;
+  }
+
+  return (props.eventTypeKey ?? "").toLowerCase() === "user.message"
+    ? ["Command.Target"]
+    : [];
 }
 
 function createActionItem(type?: string): JsonRecord {
@@ -139,6 +187,7 @@ async function addItem(type?: string): Promise<void> {
   if (addMenuEl.value) {
     addMenuEl.value.open = false;
   }
+  actionSearch.value = "";
 
   await nextTick();
   const card = document.querySelector<HTMLElement>(`[data-testid="${prefix.value}-card-${nextIndex}"]`);
@@ -498,17 +547,31 @@ function previousStepsFor(index: number): JsonRecord[] {
           {{ fallbackLabel("common.add", "Add") }}
         </summary>
         <div class="workflow-builder__add-panel">
-          <button
-            v-for="definition in actionDefinitions"
-            :key="definition.type"
-            type="button"
-            class="workflow-builder__add-option"
-            :data-testid="`${prefix}-add-option-${definition.type}`"
-            @click="void addItem(definition.type)"
-          >
-            <strong>{{ actionLabel(definition) }}</strong>
-            <span>{{ actionDescription(definition) }}</span>
-          </button>
+          <label class="workflow-builder__add-search">
+            <span>{{ fallbackLabel("ruleEditor.actions.search", "Search actions") }}</span>
+            <input
+              v-model="actionSearch"
+              type="search"
+              :placeholder="fallbackLabel('ruleEditor.actions.searchPlaceholder', 'Type to filter actions')"
+              :data-testid="`${prefix}-add-search`"
+            />
+          </label>
+          <div class="workflow-builder__add-list">
+            <button
+              v-for="definition in filteredActionDefinitions"
+              :key="definition.type"
+              type="button"
+              class="workflow-builder__add-option"
+              :data-testid="`${prefix}-add-option-${definition.type}`"
+              @click="void addItem(definition.type)"
+            >
+              <strong>{{ actionLabel(definition) }}</strong>
+              <span>{{ actionDescription(definition) }}</span>
+            </button>
+            <p v-if="filteredActionDefinitions.length === 0" class="workflow-builder__add-empty">
+              {{ fallbackLabel("ruleEditor.actions.noMatches", "No matching actions.") }}
+            </p>
+          </div>
         </div>
       </details>
     </template>
@@ -610,7 +673,11 @@ function previousStepsFor(index: number): JsonRecord[] {
         </div>
 
         <template v-for="field in randomPickerFieldsOf(item)" :key="field.key">
-          <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
+          <label
+            v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'"
+            class="form-field"
+            :class="fieldClass(asString(item.type), field)"
+          >
             <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
             <select
               v-if="isSubWorkflowIdField(item, field)"
@@ -630,8 +697,10 @@ function previousStepsFor(index: number): JsonRecord[] {
               :model-value="String(fieldValue(item, field))"
               :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
+              :allowed-trigger-variables="allowedTriggerVariablesFor(asString(item.type), field)"
               :action-definitions="actionDefinitions"
               :filter-key="field.key"
+              :data-test-id="`${prefix}-field-${field.key}-${index}`"
               @update:model-value="updateField(index, field, $event)"
             />
             <ConditionExpressionInput
@@ -680,6 +749,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :rows="4"
               :placeholder="fieldPlaceholder(asString(item.type), field)"
               :previous-steps="previousStepsFor(index)"
+              :allowed-trigger-variables="allowedTriggerVariablesFor(asString(item.type), field)"
               :action-definitions="actionDefinitions"
               :filter-key="field.key"
               @update:model-value="updateField(index, field, $event)"
@@ -705,15 +775,21 @@ function previousStepsFor(index: number): JsonRecord[] {
           <summary>{{ fallbackLabel("ruleEditor.advancedOptions", "Advanced options") }}</summary>
           <div class="workflow-builder__advanced-grid">
             <template v-for="field in advancedFieldsOf(item)" :key="field.key">
-              <label v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
+              <label
+                v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'"
+                class="form-field"
+                :class="fieldClass(asString(item.type), field)"
+              >
                 <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
                 <VariableFieldInput
                   v-if="field.kind === 'text' && field.key !== 'condition'"
                   :model-value="String(fieldValue(item, field))"
                   :placeholder="fieldPlaceholder(asString(item.type), field)"
                   :previous-steps="previousStepsFor(index)"
+                  :allowed-trigger-variables="allowedTriggerVariablesFor(asString(item.type), field)"
                   :action-definitions="actionDefinitions"
                   :filter-key="field.key"
+                  :data-test-id="`${prefix}-field-${field.key}-${index}`"
                   @update:model-value="updateField(index, field, $event)"
                 />
                 <input
@@ -818,9 +894,9 @@ function previousStepsFor(index: number): JsonRecord[] {
   top: calc(100% + 8px);
   z-index: 30;
   display: grid;
-  gap: 8px;
-  width: min(320px, 70vw);
-  max-height: 360px;
+  gap: 10px;
+  width: min(520px, 78vw);
+  max-height: min(460px, 70vh);
   overflow: auto;
   padding: 10px;
   border: 1px solid var(--vp-border-default);
@@ -829,10 +905,32 @@ function previousStepsFor(index: number): JsonRecord[] {
   box-shadow: var(--vp-shadow-elevated);
 }
 
+.workflow-builder__add-search {
+  display: grid;
+  gap: 6px;
+}
+
+.workflow-builder__add-search span {
+  color: var(--vp-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workflow-builder__add-search input {
+  width: 100%;
+}
+
+.workflow-builder__add-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
 .workflow-builder__add-option {
   display: grid;
   gap: 4px;
-  padding: 10px 12px;
+  min-height: 78px;
+  padding: 9px 10px;
   text-align: left;
   border: 1px solid var(--vp-border-default);
   border-radius: 8px;
@@ -843,11 +941,24 @@ function previousStepsFor(index: number): JsonRecord[] {
 .workflow-builder__add-option span {
   color: var(--vp-text-muted);
   font-size: 12px;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .workflow-builder__add-option:hover {
   border-color: var(--vp-accent);
   background: var(--vp-bg-surface-muted);
+}
+
+.workflow-builder__add-empty {
+  margin: 0;
+  padding: 10px;
+  color: var(--vp-text-muted);
+  font-size: 13px;
 }
 
 .workflow-builder__grid {
@@ -858,6 +969,11 @@ function previousStepsFor(index: number): JsonRecord[] {
 
 .workflow-builder__wide {
   grid-column: 1 / -1;
+}
+
+.workflow-builder__target-field {
+  grid-column: 1 / -1;
+  max-width: 420px;
 }
 
 .workflow-builder__meta {

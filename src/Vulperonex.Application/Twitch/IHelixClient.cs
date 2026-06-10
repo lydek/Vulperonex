@@ -7,6 +7,16 @@ public interface IHelixClient
         string? userId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Search channels by a display-name query and return the single channel whose display name
+    /// or login matches the query exactly (case-insensitive), or null. Used to resolve a display
+    /// name that is not already known locally — including non-ASCII names that the users endpoint
+    /// (login-only) cannot resolve.
+    /// </summary>
+    Task<PlatformUserProfile?> SearchChannelExactAsync(
+        string query,
+        CancellationToken cancellationToken = default);
+
     Task<PlatformShoutoutResult> SendShoutoutAsync(
         string targetLogin,
         CancellationToken cancellationToken = default);

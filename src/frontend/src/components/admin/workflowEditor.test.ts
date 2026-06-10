@@ -16,6 +16,12 @@ describe("workflowEditor variable contract", () => {
     expect(getVariableInfo("Member.IsModerator")?.type).toBe("boolean");
   });
 
+  it("exposes parsed chat command fields through the Trigger scope", () => {
+    expect(getVariableInfo("Trigger.Command.Target")?.type).toBe("string");
+    expect(getVariableInfo("Trigger.Command.TargetLogin")?.type).toBe("string");
+    expect(getVariableInfo("Trigger.Command.HasTarget")?.type).toBe("boolean");
+  });
+
   it("keeps failure variables aligned with the runtime failure context", () => {
     expect(getVariableInfo("Failure.StepIndex")?.type).toBe("number");
     expect(getVariableInfo("Failure.ErrorMessage")?.type).toBe("string");
@@ -39,5 +45,26 @@ describe("workflowEditor variable contract", () => {
     expect(stepGroup?.variables.some(variable => variable.path === "{Step.Res.CheckInCount}")).toBe(true);
     expect(stepGroup?.variables.some(variable => variable.path === "{Step.Res.TotalLoyalty}")).toBe(true);
     expect(getStepStatusModeHint("Step.Res.Status", [{ type: "triggerCheckIn", outputVariable: "Res" }])).toBe("Mode: Check-in status");
+  });
+
+  it("marks parseChatCommand HasTarget output as boolean", () => {
+    const groups = buildVariableGroups(
+      [{ type: "parseChatCommand", outputVariable: "Command" }],
+      false,
+      [
+        {
+          type: "parseChatCommand",
+          label: "Parse chat command",
+          description: "",
+          fields: [],
+          outputVariables: ["Target", "TargetLogin", "HasTarget"],
+          create: () => ({ type: "parseChatCommand" })
+        }
+      ]);
+
+    const stepGroup = groups.find(group => group.key === "steps");
+    const hasTarget = stepGroup?.variables.find(variable => variable.path === "{Step.Command.HasTarget}");
+    expect(hasTarget?.type).toBe("boolean");
+    expect(stepGroup?.variables.some(variable => variable.path === "{Step.Command.Target}")).toBe(true);
   });
 });

@@ -11,13 +11,13 @@ namespace Vulperonex.Tests.Unit.Workflows.Metadata;
 public sealed class ActionMetadataProviderTests
 {
     [Fact]
-    public void Given_ActionMetadataProvider_When_GetAvailableActionsCalled_Then_ReturnsAll15ConcreteActions()
+    public void Given_ActionMetadataProvider_When_GetAvailableActionsCalled_Then_ReturnsAll16ConcreteActions()
     {
         var provider = new ActionMetadataProvider();
         var actions = provider.GetAvailableActions();
 
         // 應回傳 15 個 concrete actions
-        actions.Should().HaveCount(15);
+        actions.Should().HaveCount(16);
 
         // 驗證幾款典型的 Action
         var sendChat = actions.Should().ContainSingle(a => a.Type == "sendChatMessage").Subject;
@@ -37,6 +37,11 @@ public sealed class ActionMetadataProviderTests
         addLottery.DisplayName.Should().Be("Add Lottery Tickets");
         addLottery.Parameters.Should().Contain(p => p.Key == "UserId" && p.Type == "string");
         addLottery.Parameters.Should().Contain(p => p.Key == "Amount" && p.Type == "number");
+
+        var parseCommand = actions.Should().ContainSingle(a => a.Type == "parseChatCommand").Subject;
+        parseCommand.DisplayName.Should().Be("Parse Chat Command");
+        parseCommand.Parameters.Should().Contain(p => p.Key == "Message" && p.Type == "string");
+        parseCommand.Parameters.Should().Contain(p => p.Key == "CommandPrefix" && p.Type == "string");
     }
 
     [Fact]

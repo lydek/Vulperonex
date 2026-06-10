@@ -112,6 +112,15 @@ const triggerVariableDefinitions: VariableDefinition[] = [
   { path: "Trigger.EventTypeKey", label: "Event type key", type: "enum", options: eventTypeKeyOptions },
   { path: "Trigger.Platform", label: "Event platform", type: "enum", options: platformOptions },
   { path: "Trigger.MessageText", label: "Message text", type: "string" },
+  { path: "Trigger.Command.CommandName", label: "Chat command name", type: "string" },
+  { path: "Trigger.Command.ArgsText", label: "Chat command arguments", type: "string" },
+  { path: "Trigger.Command.Arg1", label: "Chat command argument 1", type: "string" },
+  { path: "Trigger.Command.Arg2", label: "Chat command argument 2", type: "string" },
+  { path: "Trigger.Command.Arg3", label: "Chat command argument 3", type: "string" },
+  { path: "Trigger.Command.Target", label: "Chat command first argument, without @", type: "string" },
+  { path: "Trigger.Command.TargetLogin", label: "Chat command target login (legacy alias)", type: "string" },
+  { path: "Trigger.Command.Mention", label: "Chat command mention", type: "string" },
+  { path: "Trigger.Command.HasTarget", label: "Chat command has target", type: "boolean", options: ["true", "false"] },
   { path: "Trigger.RewardId", label: "Reward id", type: "string" },
   { path: "Trigger.RewardTitle", label: "Reward title", type: "string" },
   { path: "Trigger.RedemptionId", label: "Redemption id", type: "string" },
@@ -217,6 +226,17 @@ export const fallbackActionDefinitions: ActionDefinition[] = [
     ],
     outputVariables: ["Picked", "Index"],
     create: () => ({ type: "randomPicker", choices: [] })
+  },
+  {
+    type: "parseChatCommand",
+    label: "Parse Chat Command",
+    description: "Extract command arguments from chat text.",
+    fields: [
+      { key: "message", label: "Message", kind: "text", placeholder: "Trigger.MessageText" },
+      { key: "commandPrefix", label: "Command Prefix", kind: "text", placeholder: "!shoutout" }
+    ],
+    outputVariables: ["CommandName", "ArgsText", "Arg1", "Arg2", "Arg3", "Target", "TargetLogin", "Mention", "HasTarget"],
+    create: () => ({ type: "parseChatCommand" })
   }
 ];
 
@@ -449,6 +469,10 @@ function inferStepVariableType(actionType: string, outputField: string): Variabl
   }
 
   if (actionType === "lookupTwitchUser" && outputField === "IsFound") {
+    return "boolean";
+  }
+
+  if (actionType === "parseChatCommand" && outputField === "HasTarget") {
     return "boolean";
   }
 

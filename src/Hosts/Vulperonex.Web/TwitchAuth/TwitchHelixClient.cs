@@ -48,6 +48,39 @@ public sealed class TwitchHelixClient(
                 user.BroadcasterType is "affiliate" or "partner");
     }
 
+    public async Task<PlatformUserProfile?> SearchChannelExactAsync(
+        string query,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return null;
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            $"search/channels?query={Uri.EscapeDataString(query)}&first=10");
+        await AddHelixHeadersAsync(request, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        var payload = await response.Content.ReadFromJsonAsync<TwitchSearchChannelsResponse>(cancellationToken);
+        // Search is fuzzy; keep only an exact display-name or login match so we never shout out an
+        // unrelated same-named channel.
+        var channel = payload?.Data.FirstOrDefault(c =>
+            string.Equals(c.DisplayName, query, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(c.BroadcasterLogin, query, StringComparison.OrdinalIgnoreCase));
+        return channel is null
+            ? null
+            : new PlatformUserProfile(
+                channel.Id,
+                channel.BroadcasterLogin,
+                channel.DisplayName,
+                channel.ThumbnailUrl,
+                null,
+                false);
+    }
+
     public async Task<PlatformShoutoutResult> SendShoutoutAsync(
         string targetLogin,
         CancellationToken cancellationToken = default)
@@ -273,6 +306,15 @@ public sealed class TwitchHelixClient(
     }
 
     private sealed record TwitchUsersResponse(IReadOnlyList<TwitchUserJson> Data);
+
+    private sealed record TwitchSearchChannelsResponse(
+        [property: JsonPropertyName("data")] IReadOnlyList<TwitchSearchChannelJson> Data);
+
+    private sealed record TwitchSearchChannelJson(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("broadcaster_login")] string BroadcasterLogin,
+        [property: JsonPropertyName("display_name")] string DisplayName,
+        [property: JsonPropertyName("thumbnail_url")] string? ThumbnailUrl);
 
     private sealed record TwitchUserJson(
         [property: JsonPropertyName("id")] string Id,

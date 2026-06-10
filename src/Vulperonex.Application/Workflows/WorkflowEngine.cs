@@ -569,6 +569,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         if (streamEvent is UserSentMessageEvent messageEvent)
         {
             trigger["MessageText"] = messageEvent.MessageText;
+            trigger["Command"] = ChatCommandParser.Parse(messageEvent.MessageText);
         }
 
         if (streamEvent.User is not null)

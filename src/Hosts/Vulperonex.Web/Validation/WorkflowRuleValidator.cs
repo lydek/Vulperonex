@@ -334,7 +334,8 @@ public sealed class WorkflowRuleValidator(
         {
             var lookupAction = element.Deserialize<LookupPlatformUserAction>(JsonOptions);
             if (lookupAction is null
-                || (string.IsNullOrWhiteSpace(lookupAction.Login)
+                || (string.IsNullOrWhiteSpace(lookupAction.Target)
+                    && string.IsNullOrWhiteSpace(lookupAction.Login)
                     && string.IsNullOrWhiteSpace(lookupAction.UserId)))
             {
                 return ErrorCodes.ActionMissingRequiredParam;

@@ -134,6 +134,7 @@ public static class DependencyInjection
         services.AddScoped<ITransactionProvider, EfTransactionProvider>();
         services.AddSingleton<IModuleStateService, ModuleStateService>();
         services.AddScoped<IPlatformUserDisplayInfoProvider, PlatformUserDisplayInfoProvider>();
+        services.AddScoped<IPlatformUserResolver, PlatformUserResolver>();
         services.AddScoped<Vulperonex.Adapters.Abstractions.IPlatformUserInfoCache>(serviceProvider =>
             new PlatformUserDisplayCache(serviceProvider.GetRequiredService<VulperonexDbContext>()));
         services.AddScoped<ICounterRepository, CounterRepository>();
@@ -178,6 +179,7 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowActionExecutor, LookupPlatformUserActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, ShoutoutActionExecutor>();
         services.AddScoped<IWorkflowActionExecutor, RefundRewardRedemptionActionExecutor>();
+        services.AddScoped<IWorkflowActionExecutor, ParseChatCommandActionExecutor>();
         services.AddScoped<WorkflowEngine>();
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
         services.AddScoped<Func<IWorkflowRuleInvoker>>(serviceProvider =>

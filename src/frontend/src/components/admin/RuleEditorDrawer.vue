@@ -388,6 +388,7 @@ function normalizeRole(value: string): string {
                 :title="t('ruleEditor.actions')"
                 empty-text="No actions yet. Add a step to build the workflow visually."
                 test-id-prefix="rule-drawer-actions"
+                :event-type-key="eventTypeKey"
               />
             </TabsContent>
 
@@ -397,6 +398,7 @@ function normalizeRole(value: string): string {
                 :title="t('ruleEditor.onFailure')"
                 empty-text="No failure recovery steps yet. Add fallback actions to run after an error."
                 test-id-prefix="rule-drawer-on-failure"
+                :event-type-key="eventTypeKey"
               />
             </TabsContent>
 

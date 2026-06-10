@@ -107,6 +107,15 @@ watch(filteredGroups, (nextGroups) => {
 function filterByFieldProperty(rawGroups: VariableGroup[], filterKey: string): VariableGroup[] {
   const key = filterKey.toLowerCase();
 
+  if (
+    key === "target" ||
+    key.includes("targetlogin") ||
+    key.includes("targetuser") ||
+    key.includes("recipient")
+  ) {
+    return filterTargetUserVariables(rawGroups);
+  }
+
   if (key === "userid" || key.endsWith(".userid")) {
     return rawGroups
       .map(group => ({
@@ -184,6 +193,45 @@ function filterByFieldProperty(rawGroups: VariableGroup[], filterKey: string): V
   }
 
   return rawGroups;
+}
+
+function filterTargetUserVariables(rawGroups: VariableGroup[]): VariableGroup[] {
+  return rawGroups
+    .map(group => ({
+      ...group,
+      variables: group.variables.filter(v => {
+        const pathLower = v.path.toLowerCase().replace(/[{}]/g, "");
+        if (pathLower.includes(".status")) {
+          return false;
+        }
+
+        if (pathLower.startsWith("trigger.command.")) {
+          return pathLower.endsWith(".target");
+        }
+
+        if (pathLower.startsWith("trigger.")) {
+          return false;
+        }
+
+        if (pathLower.startsWith("member.")) {
+          return pathLower.endsWith(".userid")
+            || pathLower.endsWith(".login")
+            || pathLower.endsWith(".displayname");
+        }
+
+        if (pathLower.startsWith("step.")) {
+          return pathLower.endsWith(".userid")
+            || pathLower.endsWith(".login")
+            || pathLower.endsWith(".displayname")
+            || pathLower.endsWith(".target")
+            || pathLower.endsWith(".targetlogin")
+            || pathLower.endsWith(".targetdisplayname");
+        }
+
+        return false;
+      })
+    }))
+    .filter(group => group.variables.length > 0);
 }
 
 function selectVariable(value: string): void {

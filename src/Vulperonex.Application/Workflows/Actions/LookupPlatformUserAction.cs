@@ -10,7 +10,11 @@ namespace Vulperonex.Application.Workflows.Actions;
 /// compatibility with rules saved before the type was renamed to be
 /// platform-neutral (see SPEC §6.1).
 /// </summary>
-[ActionMetadata("Lookup Platform User", "Look up user profile and details from the platform API")]
+[ActionMetadata(
+    "Lookup Platform User",
+    "Resolve a login or display name (e.g. viewer_login or @DisplayName) — the identifiers known from chat — "
+    + "to a single exact user. Known users are matched first; the platform API is only a fallback. "
+    + "Outputs Login / DisplayName / UserId / IsFound for later steps.")]
 public sealed record LookupPlatformUserAction : WorkflowAction
 {
     public const string ActionType = "lookupTwitchUser";
@@ -18,9 +22,16 @@ public sealed record LookupPlatformUserAction : WorkflowAction
     [JsonIgnore]
     public override string Type => ActionType;
 
-    [ActionParam("Username", "string", required: false, help: "Platform username (login) to search")]
+    [ActionParam(
+        "Target User",
+        "string",
+        required: true,
+        help: "Login or display name (chat-known), optionally @-prefixed, or a variable such as {Trigger.UserDisplayName}. A numeric user id is not required.")]
+    public string? Target { get; init; }
+
+    // Legacy fields (pre-Target). No longer surfaced in the editor, but still deserialized so rules
+    // saved before the single-Target redesign keep working. The executor prefers Target.
     public string? Login { get; init; }
 
-    [ActionParam("User ID", "string", required: false, help: "Platform unique user ID to search")]
     public string? UserId { get; init; }
 }
