@@ -259,6 +259,10 @@ public sealed class DefaultWorkflowRuleSeedService(
                 [
                     new ShoutoutAction
                     {
+                        // Target MUST be a Twitch login (Helix shoutout resolves login -> id).
+                        // {Member.Login} carries the raider's real login; display name != login
+                        // and would mis-resolve or fail. For non-login inputs, look the user up
+                        // first (by id/login) and feed {Step.<name>.Login} here.
                         TargetLogin = "{Member.Login}",
                         // Shoutout is best-effort: a failed Helix call (e.g. Twitch not
                         // authorized, or target login unknown during simulation) must not

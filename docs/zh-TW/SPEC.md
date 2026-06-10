@@ -118,7 +118,7 @@ Vulperonex/
   - **[Twitch 徽章與頻道點數獎勵快取](specs/features/badge-and-reward-cache.md)**：Helix API、記憶體快取同步、模擬器徽章與獎勵選擇器 UI (§4.23, §4.25)。
   - **[全域應用程式主題系統](specs/features/theme-system.md)**：應用程式設計語彙標記 (`--vp-*`)、執行期合約與設定 UI (§4.24)。
   - **[工作流規則強型別過濾器](specs/features/typed-filter-and-observability.md)**：Schema 整併、強型別比對器、動態元資料提供者與運算式 Warn 日誌 (§4.26)。
-  - **[模擬副作用政策](specs/features/simulation-side-effect-policy.md)**：模擬事件下動作分類、外部 API 一律 skip、DB 寫入 toggle 與 leaf 守門原則 (§4.27)。
-  - **[平台登入名稱顯示](specs/features/platform-login-display.md)**：由 IRC 捕捉 Twitch login、寫入顯示資訊快取、經讀取模型曝露至 API，UI 以 `@{login}` 取代數字 ID (§4.28)。
+  - **[模擬事件副作用政策](specs/features/simulation-side-effect-policy.md)**：模擬事件下的動作分類、無條件略過外部 API 呼叫、資料庫持久化寫入切換開關，以及執行器單獨守門原則 (§4.27)。
+  - **[平台登入名稱顯示](specs/features/platform-login-display.md)**：從 IRC 訊息中補齊 Twitch 帳號、寫入顯示快取、經由讀取模型與 API 曝露，最終於 UI 上呈現 `@{login}` 取代數字 ID (§4.28)。
 - **附錄與歷史決策**：
   - **[歷史決策、MVP 指標與疑義解答](specs/decisions-and-queries.md)**：成功準則、設計決策 (D1 - D8) 與 Resolved Queries (OQ1 - OQ6) (§9 - §12)。

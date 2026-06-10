@@ -102,12 +102,14 @@ public sealed class TriggerCheckInActionExecutor(
                 repeatedAvatarUrl = repeatedDisplayInfo.AvatarUrl;
             }
 
+            var repeatedLogin = ResolveLogin(context, userId, repeatedDisplayInfo?.Login);
+
             if (shouldEmitRepeatCard)
             {
                 await eventBus.PublishAsync(new MemberCheckedInEvent
                 {
                     Platform = platform,
-                    User = new StreamUser(platform, userId, repeatedDisplayName, context.StreamEvent.User?.Roles ?? StreamRole.None),
+                    User = new StreamUser(platform, userId, repeatedDisplayName, context.StreamEvent.User?.Roles ?? StreamRole.None, repeatedLogin),
                     AvatarUrl = repeatedAvatarUrl,
                     CheckInCount = memberBefore.Loyalty.CheckInCount,
                     TotalLoyalty = memberBefore.Loyalty.TotalLoyalty,
@@ -197,7 +199,8 @@ public sealed class TriggerCheckInActionExecutor(
             streamRole = context.StreamEvent.User.Roles;
         }
 
-        var streamUser = new StreamUser(platform, userId, displayName, streamRole);
+        var login = ResolveLogin(context, userId, displayInfo?.Login);
+        var streamUser = new StreamUser(platform, userId, displayName, streamRole, login);
         var checkInEvent = new MemberCheckedInEvent
         {
             Platform = platform,
@@ -269,7 +272,8 @@ public sealed class TriggerCheckInActionExecutor(
             streamRole = eventUser.Roles;
         }
 
-        var streamUser = new StreamUser(platform, userId, displayName, streamRole);
+        var login = ResolveLogin(context, userId, displayInfo?.Login);
+        var streamUser = new StreamUser(platform, userId, displayName, streamRole, login);
         await eventBus.PublishAsync(new MemberCheckedInEvent
         {
             Platform = platform,
@@ -292,6 +296,21 @@ public sealed class TriggerCheckInActionExecutor(
                 ["RoundIndex"] = roundIndex,
                 ["StampSlotInRound"] = stampSlotInRound,
             });
+    }
+
+    // Carry the real platform login onto the re-emitted member event so downstream rules can do
+    // strict {Member.Login} lookups. Prefer the triggering event's login (when it is the same
+    // user); otherwise fall back to the value cached in the display-info store.
+    private static string? ResolveLogin(ActionExecutionContext context, string userId, string? fallbackLogin)
+    {
+        if (context.StreamEvent.User is { } eventUser
+            && eventUser.UserId == userId
+            && !string.IsNullOrWhiteSpace(eventUser.Login))
+        {
+            return eventUser.Login;
+        }
+
+        return fallbackLogin;
     }
 
     private static DateTimeOffset ResolveWindowStartUtc(DateTimeOffset occurredAtUtc, string? resetTimeLocal)
