@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using TwitchLib.EventSub.Websockets.Extensions;
 using Vulperonex.Adapters.Simulation;
@@ -211,7 +212,12 @@ public static class DependencyInjection
         services.AddDbContext<VulperonexDbContext>((serviceProvider, options) =>
         {
             var databasePath = serviceProvider.GetRequiredService<IDatabasePathResolver>().Resolve();
-            options.UseSqlite($"Data Source={databasePath}");
+            var connectionString = new SqliteConnectionStringBuilder
+            {
+                DataSource = databasePath,
+                Pooling = false,
+            }.ToString();
+            options.UseSqlite(connectionString);
             options.AddInterceptors(serviceProvider.GetRequiredService<SqliteBusyTimeoutInterceptor>());
         });
 
