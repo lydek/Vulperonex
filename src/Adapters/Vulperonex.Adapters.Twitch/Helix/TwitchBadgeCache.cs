@@ -1,9 +1,10 @@
+﻿using Microsoft.Extensions.DependencyInjection;
 using System.Collections.Concurrent;
 using System.Net;
 using Microsoft.Extensions.Logging;
 using Vulperonex.Application.Twitch;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.Helix;
 
 public sealed class TwitchBadgeCache(
     IServiceScopeFactory scopeFactory,

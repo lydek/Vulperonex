@@ -1,9 +1,9 @@
 using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Adapters.Twitch.Helix;
 using Vulperonex.Application.Auth;
 using Vulperonex.Application.Settings;
 using Vulperonex.Web.Errors;
 using Vulperonex.Web.SignalR;
-using Vulperonex.Web.TwitchAuth;
 
 namespace Vulperonex.Web.Endpoints;
 

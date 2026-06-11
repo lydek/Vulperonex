@@ -1,10 +1,11 @@
+﻿using Microsoft.Extensions.Configuration;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.DependencyInjection;
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Application.Settings;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.Auth;
 
 public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceScopeFactory scopeFactory) : ITwitchTokenEndpoint
 {

@@ -1,6 +1,6 @@
-using Vulperonex.Adapters.Twitch.Auth;
+﻿using Vulperonex.Adapters.Twitch.Auth;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.Auth;
 
 public sealed class TwitchOAuthSessionStore(TimeProvider timeProvider)
 {

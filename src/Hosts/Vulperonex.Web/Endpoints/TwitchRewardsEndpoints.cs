@@ -1,5 +1,5 @@
+using Vulperonex.Adapters.Twitch.Helix;
 using Vulperonex.Application.Twitch;
-using Vulperonex.Web.TwitchAuth;
 
 namespace Vulperonex.Web.Endpoints;
 

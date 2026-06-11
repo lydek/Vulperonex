@@ -1,7 +1,7 @@
-using Vulperonex.Adapters.Twitch;
+﻿using Vulperonex.Adapters.Twitch;
 using Vulperonex.Domain;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch;
 
 /// <summary>
 /// Pure mapping from primitive EventSub fields to the adapter's

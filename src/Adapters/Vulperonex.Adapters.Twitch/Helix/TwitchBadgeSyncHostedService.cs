@@ -1,4 +1,5 @@
-namespace Vulperonex.Web.TwitchAuth;
+﻿using Microsoft.Extensions.Hosting;
+namespace Vulperonex.Adapters.Twitch.Helix;
 
 public sealed class TwitchBadgeSyncHostedService(
     TwitchBadgeSyncCoordinator coordinator) : IHostedService

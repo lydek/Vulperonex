@@ -1,6 +1,6 @@
-using System.Net;
+﻿using System.Net;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.Auth;
 
 public sealed class TwitchTokenExchangeException(HttpStatusCode statusCode) : Exception
 {

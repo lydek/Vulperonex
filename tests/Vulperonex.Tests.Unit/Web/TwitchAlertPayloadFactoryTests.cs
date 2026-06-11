@@ -1,6 +1,6 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Vulperonex.Adapters.Twitch;
-using Vulperonex.Web.TwitchAuth;
+using Vulperonex.Adapters.Twitch;
 using Xunit;
 
 namespace Vulperonex.Tests.Unit.Web;

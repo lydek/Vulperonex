@@ -7,6 +7,9 @@ using TwitchLib.EventSub.Websockets.Extensions;
 using Vulperonex.Adapters.Simulation;
 using Vulperonex.Adapters.Twitch;
 using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Adapters.Twitch.EventSub;
+using Vulperonex.Adapters.Twitch.Helix;
+using Vulperonex.Adapters.Twitch.Irc;
 using Vulperonex.Application.Auth;
 using Vulperonex.Application.Counters;
 using Vulperonex.Application.Data;
@@ -50,7 +53,6 @@ using Vulperonex.Web.Overlay;
 using Vulperonex.Web.Ports;
 using Vulperonex.Web.Simulation;
 using Vulperonex.Web.SignalR;
-using Vulperonex.Web.TwitchAuth;
 using Vulperonex.Web.Validation;
 
 namespace Vulperonex.Web;
@@ -85,7 +87,10 @@ public static class DependencyInjection
         services.AddSingleton<IPortAvailabilityProbe, SocketPortAvailabilityProbe>();
         services.AddSingleton<PortPairAllocator>();
         services.AddSingleton<IStreamEventTypeRegistry, InMemoryStreamEventTypeRegistry>();
-        services.AddSingleton<IStreamEventBus, InMemoryStreamEventBus>();
+        services.AddSingleton<IStreamEventBus>(serviceProvider => new InMemoryStreamEventBus(
+            InMemoryStreamEventBus.DefaultCapacity,
+            overflowStore: null,
+            serviceProvider.GetRequiredService<ILogger<InMemoryStreamEventBus>>()));
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<SimulationAliasRegistry>();
@@ -184,14 +189,10 @@ public static class DependencyInjection
         services.AddScoped<IWorkflowRuleInvoker>(serviceProvider => serviceProvider.GetRequiredService<WorkflowEngine>());
         services.AddScoped<Func<IWorkflowRuleInvoker>>(serviceProvider =>
             () => serviceProvider.GetRequiredService<IWorkflowRuleInvoker>());
-        // DatabaseMigrationStartupService must run first. Hosted services
-        // start in registration order, and several downstream workers
-        // (ChatOutboxDispatcher, WorkflowTimer, etc.) read SystemSettings via
-        // EF as soon as their ExecuteAsync runs. If the migration is queued
-        // later, those reads hit a database that has no schema yet.
-        services.AddHostedService<DatabaseMigrationStartupService>();
-        // DefaultWorkflowRuleSeedService runs after migration so it can write to the
-        // WorkflowRules table; seeds `!checkin` chat rule on first boot so
+        // Database migration runs in VulperonexWebApplication.Build() before the host
+        // starts, so hosted services below may read SystemSettings via EF immediately
+        // without depending on registration order.
+        // DefaultWorkflowRuleSeedService seeds the `!checkin` chat rule on first boot so
         // out-of-the-box installs immediately have a working chat → checkin pipeline.
         services.AddHostedService<DefaultWorkflowRuleSeedService>();
         services.AddHostedService<SimulationAdapterStartupService>();

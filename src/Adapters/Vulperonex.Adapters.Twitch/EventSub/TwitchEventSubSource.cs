@@ -1,3 +1,5 @@
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using TwitchLib.EventSub.Core.EventArgs.Channel;
 using TwitchLib.EventSub.Websockets;
@@ -9,7 +11,7 @@ using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Twitch;
 using Vulperonex.Domain.Events;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.EventSub;
 
 /// <summary>
 /// Live Twitch alert ingestion via EventSub WebSocket (TwitchLib.EventSub.Websockets).

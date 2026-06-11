@@ -1,9 +1,9 @@
-using System.Net;
+﻿using System.Net;
 using Microsoft.Extensions.Configuration;
 using FluentAssertions;
 using Vulperonex.Adapters.Twitch.Auth;
 using Vulperonex.Application.Auth;
-using Vulperonex.Web.TwitchAuth;
+using Vulperonex.Adapters.Twitch.Helix;
 using Xunit;
 
 namespace Vulperonex.Tests.Unit.Web;

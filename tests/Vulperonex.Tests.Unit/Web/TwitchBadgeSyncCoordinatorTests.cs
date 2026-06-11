@@ -1,10 +1,10 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Vulperonex.Application.Twitch;
-using Vulperonex.Web.TwitchAuth;
+using Vulperonex.Adapters.Twitch.Helix;
 using Xunit;
 
 namespace Vulperonex.Tests.Unit.Web;

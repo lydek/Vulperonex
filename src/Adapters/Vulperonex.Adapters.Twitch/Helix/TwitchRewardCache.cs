@@ -1,8 +1,12 @@
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using Vulperonex.Application.Settings;
 using Vulperonex.Application.Twitch;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.Helix;
 
 /// <summary>
 /// In-memory snapshot of the broadcaster's Twitch channel-point custom rewards.

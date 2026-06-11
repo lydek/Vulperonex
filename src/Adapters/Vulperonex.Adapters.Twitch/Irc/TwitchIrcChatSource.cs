@@ -1,3 +1,5 @@
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using TwitchLib.Client;
 using TwitchLib.Client.Events;
 using TwitchLib.Client.Models;
@@ -9,7 +11,7 @@ using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Workflows.Actions;
 using Vulperonex.Domain.Events;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch.Irc;
 
 /// <summary>
 /// Live Twitch chat ingestion via IRC (TwitchLib.Client). Mirrors omni-commander

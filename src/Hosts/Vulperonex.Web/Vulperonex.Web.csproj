@@ -7,8 +7,6 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Serilog.AspNetCore" />
-    <PackageReference Include="TwitchLib.Client" />
-    <PackageReference Include="TwitchLib.EventSub.Websockets" />
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Serilog.Sinks.File" />
     <ProjectReference Include="..\..\Adapters\Vulperonex.Adapters.Abstractions\Vulperonex.Adapters.Abstractions.csproj" />

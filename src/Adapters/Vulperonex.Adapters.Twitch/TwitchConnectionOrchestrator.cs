@@ -1,9 +1,14 @@
-using Vulperonex.Adapters.Twitch;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Vulperonex.Adapters.Twitch.Auth;
+using Vulperonex.Adapters.Twitch.EventSub;
+using Vulperonex.Adapters.Twitch.Irc;
 using Vulperonex.Application.Twitch;
 using Vulperonex.Application.Settings;
 
-namespace Vulperonex.Web.TwitchAuth;
+namespace Vulperonex.Adapters.Twitch;
 
 /// <summary>
 /// Coordinates the live Twitch connection lifecycle (mirrors omni-commander
