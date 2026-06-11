@@ -6,6 +6,11 @@ public static class ErrorCodeStatusMap
     {
         [ErrorCodes.WorkflowRuleNotFound] = StatusCodes.Status404NotFound,
         [ErrorCodes.WorkflowTimerNotFound] = StatusCodes.Status404NotFound,
+        [ErrorCodes.WorkflowTimerConflict] = StatusCodes.Status409Conflict,
+        [ErrorCodes.TimerRuleIdRequired] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.TimerIntervalInvalid] = StatusCodes.Status400BadRequest,
+        [ErrorCodes.ModuleNotFound] = StatusCodes.Status404NotFound,
+        [ErrorCodes.InvalidConfigValue] = StatusCodes.Status400BadRequest,
         [ErrorCodes.WorkflowRuleIdNotAllowed] = StatusCodes.Status400BadRequest,
         [ErrorCodes.WorkflowRuleConflict] = StatusCodes.Status409Conflict,
         [ErrorCodes.UnknownEventTypeKey] = StatusCodes.Status400BadRequest,

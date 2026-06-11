@@ -1,4 +1,5 @@
 using Vulperonex.Application.Workflows.Chat;
+using Vulperonex.Web.Errors;
 
 namespace Vulperonex.Web.Endpoints;
 
@@ -26,7 +27,7 @@ public static class ChatOutboxEndpoints
             {
                 if (!Enum.TryParse<ChatOutboxItemStatus>(status, ignoreCase: true, out var value))
                 {
-                    return Results.BadRequest(new { error = "INVALID_STATUS" });
+                    return ApiErrors.ToResult(ErrorCodes.InvalidQueryParam, StatusCodes.Status400BadRequest);
                 }
                 parsedStatus = value;
             }

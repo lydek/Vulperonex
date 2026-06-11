@@ -41,7 +41,7 @@ public static class PluginModuleEndpoints
             }
             catch (KeyNotFoundException)
             {
-                return Results.NotFound(new { error = "MODULE_NOT_FOUND" });
+                return ApiErrors.ToResult(ErrorCodes.ModuleNotFound, StatusCodes.Status404NotFound);
             }
             catch (ArgumentException)
             {
@@ -54,7 +54,9 @@ public static class PluginModuleEndpoints
 
     private static bool IsLoopbackRequest(IPAddress? remoteIpAddress)
     {
-        return remoteIpAddress is null || IPAddress.IsLoopback(remoteIpAddress);
+        // Mirrors AdminGuardMiddleware: a null remote address (Unix socket / proxy)
+        // is rejected rather than trusted.
+        return remoteIpAddress is not null && IPAddress.IsLoopback(remoteIpAddress);
     }
 
     private static PluginModuleDto MapDto(ModuleStateSnapshot item)

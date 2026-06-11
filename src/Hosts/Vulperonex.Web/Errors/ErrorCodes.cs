@@ -4,6 +4,11 @@ public static class ErrorCodes
 {
     public const string WorkflowRuleNotFound = "WORKFLOW_RULE_NOT_FOUND";
     public const string WorkflowTimerNotFound = "WORKFLOW_TIMER_NOT_FOUND";
+    public const string WorkflowTimerConflict = "WORKFLOW_TIMER_CONFLICT";
+    public const string TimerRuleIdRequired = "TIMER_RULE_ID_REQUIRED";
+    public const string TimerIntervalInvalid = "TIMER_INTERVAL_INVALID";
+    public const string ModuleNotFound = "MODULE_NOT_FOUND";
+    public const string InvalidConfigValue = "INVALID_CONFIG_VALUE";
     public const string WorkflowRuleIdNotAllowed = "WORKFLOW_RULE_ID_NOT_ALLOWED";
     public const string WorkflowRuleConflict = "WORKFLOW_RULE_CONFLICT";
     public const string UnknownEventTypeKey = "UNKNOWN_EVENT_TYPE_KEY";
