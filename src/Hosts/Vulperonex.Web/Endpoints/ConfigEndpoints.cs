@@ -1,36 +1,59 @@
+using System.Globalization;
+using System.Text.Json;
 using Vulperonex.Application.Settings;
+using Vulperonex.Application.Workflows.Chat;
 using Vulperonex.Web.Errors;
 
 namespace Vulperonex.Web.Endpoints;
 
 public static class ConfigEndpoints
 {
-    private static readonly IReadOnlyDictionary<string, string> RegisteredKeys = new[]
+    private enum ConfigValueType
     {
-        SystemSettingKey.StreamingPlatform,
-        SystemSettingKey.BusChannelCapacity,
-        SystemSettingKey.OverlayDisplayCacheL1Capacity,
-        SystemSettingKey.OverlayDisplayCacheTtlHours,
-        SystemSettingKey.LogMinLevel,
-        SystemSettingKey.LogDbRetentionDays,
-        SystemSettingKey.LogDbMaxSizeMb,
-        SystemSettingKey.LogFileRetentionDays,
-        SystemSettingKey.OverlayChatPreset,
-        SystemSettingKey.OverlayMemberPreset,
-        SystemSettingKey.OverlayAlertsPreset,
-        SystemSettingKey.OverlayChatShowMemberCard,
-        SystemSettingKey.OverlayChatAssistantDisplayName,
-        SystemSettingKey.OverlayChatAssistantAvatarUrl,
-        SystemSettingKey.OverlayChatCheckInDisplayName,
-        SystemSettingKey.CheckInResetTimeLocal,
-        SystemSettingKey.CheckInRepeatCardEnabled,
-        SystemSettingKey.TwitchClientId,
-        SystemSettingKey.TwitchChannelName,
-        SystemSettingKey.OverlayMemberBackgroundUrl,
-        SystemSettingKey.OverlayMemberStampUrl,
-        SystemSettingKey.WorkflowChatOutputDestination,
-        SystemSettingKey.SimulationAllowPersistentWrites,
-    }.ToDictionary(key => key.ToLowerInvariant(), key => key, StringComparer.Ordinal);
+        String,
+        Int,
+        Bool,
+        Choice,
+        TimeOfDay,
+    }
+
+    private sealed record ConfigKeyDescriptor(
+        string CanonicalKey,
+        ConfigValueType ValueType,
+        IReadOnlyList<string>? AllowedValues = null);
+
+    private static readonly IReadOnlyList<string> LogLevels =
+        ["Verbose", "Debug", "Information", "Warning", "Error", "Fatal"];
+
+    private static readonly IReadOnlyList<string> ChatOutputDestinations =
+        [WorkflowChatOutputDestination.Dual, WorkflowChatOutputDestination.OverlayOnly, WorkflowChatOutputDestination.PlatformOnly];
+
+    private static readonly IReadOnlyDictionary<string, ConfigKeyDescriptor> RegisteredKeys = new ConfigKeyDescriptor[]
+    {
+        new(SystemSettingKey.StreamingPlatform, ConfigValueType.String),
+        new(SystemSettingKey.BusChannelCapacity, ConfigValueType.Int),
+        new(SystemSettingKey.OverlayDisplayCacheL1Capacity, ConfigValueType.Int),
+        new(SystemSettingKey.OverlayDisplayCacheTtlHours, ConfigValueType.Int),
+        new(SystemSettingKey.LogMinLevel, ConfigValueType.Choice, LogLevels),
+        new(SystemSettingKey.LogDbRetentionDays, ConfigValueType.Int),
+        new(SystemSettingKey.LogDbMaxSizeMb, ConfigValueType.Int),
+        new(SystemSettingKey.LogFileRetentionDays, ConfigValueType.Int),
+        new(SystemSettingKey.OverlayChatPreset, ConfigValueType.String),
+        new(SystemSettingKey.OverlayMemberPreset, ConfigValueType.String),
+        new(SystemSettingKey.OverlayAlertsPreset, ConfigValueType.String),
+        new(SystemSettingKey.OverlayChatShowMemberCard, ConfigValueType.Bool),
+        new(SystemSettingKey.OverlayChatAssistantDisplayName, ConfigValueType.String),
+        new(SystemSettingKey.OverlayChatAssistantAvatarUrl, ConfigValueType.String),
+        new(SystemSettingKey.OverlayChatCheckInDisplayName, ConfigValueType.String),
+        new(SystemSettingKey.CheckInResetTimeLocal, ConfigValueType.TimeOfDay),
+        new(SystemSettingKey.CheckInRepeatCardEnabled, ConfigValueType.Bool),
+        new(SystemSettingKey.TwitchClientId, ConfigValueType.String),
+        new(SystemSettingKey.TwitchChannelName, ConfigValueType.String),
+        new(SystemSettingKey.OverlayMemberBackgroundUrl, ConfigValueType.String),
+        new(SystemSettingKey.OverlayMemberStampUrl, ConfigValueType.String),
+        new(SystemSettingKey.WorkflowChatOutputDestination, ConfigValueType.Choice, ChatOutputDestinations),
+        new(SystemSettingKey.SimulationAllowPersistentWrites, ConfigValueType.Bool),
+    }.ToDictionary(descriptor => descriptor.CanonicalKey.ToLowerInvariant(), descriptor => descriptor, StringComparer.Ordinal);
 
     public static IEndpointRouteBuilder MapConfigEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -44,8 +67,18 @@ public static class ConfigEndpoints
                 return validation.Error;
             }
 
-            var value = await settings.GetAsync<string?>(validation.CanonicalKey!, null, cancellationToken);
-            return Results.Ok(new ConfigValueResponse(validation.CanonicalKey!, value));
+            var descriptor = validation.Descriptor!;
+            // Values may be stored as JSON string, number, or boolean depending on the
+            // key's type; read the raw element and render a uniform string response.
+            var element = await settings.GetAsync<JsonElement?>(descriptor.CanonicalKey, null, cancellationToken);
+            var value = element switch
+            {
+                null => null,
+                { ValueKind: JsonValueKind.String } stringElement => stringElement.GetString(),
+                { ValueKind: JsonValueKind.Null } or { ValueKind: JsonValueKind.Undefined } => null,
+                { } otherElement => otherElement.GetRawText(),
+            };
+            return Results.Ok(new ConfigValueResponse(descriptor.CanonicalKey, value));
         });
 
         group.MapPut("/{key}", async (
@@ -60,14 +93,76 @@ public static class ConfigEndpoints
                 return validation.Error;
             }
 
-            await settings.SetAsync(validation.CanonicalKey!, request.Value, "http-api", cancellationToken);
-            return Results.NoContent();
+            var descriptor = validation.Descriptor!;
+            var stored = await TrySetTypedAsync(descriptor, request.Value, settings, cancellationToken);
+            return stored
+                ? Results.NoContent()
+                : ApiErrors.ToResult(ErrorCodes.InvalidConfigValue, StatusCodes.Status400BadRequest);
         });
 
         return endpoints;
     }
 
-    private static (string? CanonicalKey, IResult? Error) ValidateKey(string key)
+    private static async Task<bool> TrySetTypedAsync(
+        ConfigKeyDescriptor descriptor,
+        string? rawValue,
+        ISystemSettingsService settings,
+        CancellationToken cancellationToken)
+    {
+        const string category = "http-api";
+        var value = rawValue?.Trim();
+        if (value is null)
+        {
+            return false;
+        }
+
+        switch (descriptor.ValueType)
+        {
+            case ConfigValueType.Int:
+                if (!int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var intValue) || intValue < 0)
+                {
+                    return false;
+                }
+
+                await settings.SetAsync(descriptor.CanonicalKey, intValue, category, cancellationToken);
+                return true;
+
+            case ConfigValueType.Bool:
+                if (!bool.TryParse(value, out var boolValue))
+                {
+                    return false;
+                }
+
+                await settings.SetAsync(descriptor.CanonicalKey, boolValue, category, cancellationToken);
+                return true;
+
+            case ConfigValueType.Choice:
+                var match = descriptor.AllowedValues!
+                    .FirstOrDefault(allowed => string.Equals(allowed, value, StringComparison.OrdinalIgnoreCase));
+                if (match is null)
+                {
+                    return false;
+                }
+
+                await settings.SetAsync(descriptor.CanonicalKey, match, category, cancellationToken);
+                return true;
+
+            case ConfigValueType.TimeOfDay:
+                if (!TimeOnly.TryParseExact(value, "HH:mm", CultureInfo.InvariantCulture, DateTimeStyles.None, out var time))
+                {
+                    return false;
+                }
+
+                await settings.SetAsync(descriptor.CanonicalKey, time.ToString("HH:mm", CultureInfo.InvariantCulture), category, cancellationToken);
+                return true;
+
+            default:
+                await settings.SetAsync(descriptor.CanonicalKey, value, category, cancellationToken);
+                return true;
+        }
+    }
+
+    private static (ConfigKeyDescriptor? Descriptor, IResult? Error) ValidateKey(string key)
     {
         var normalized = key.Trim().ToLowerInvariant();
         if (normalized.StartsWith("security.", StringComparison.Ordinal))
@@ -80,8 +175,8 @@ public static class ConfigEndpoints
             return (null, ApiErrors.ToResult(ErrorCodes.OAuthCredentialNamespace, StatusCodes.Status403Forbidden));
         }
 
-        return RegisteredKeys.TryGetValue(normalized, out var canonicalKey)
-            ? (canonicalKey, null)
+        return RegisteredKeys.TryGetValue(normalized, out var descriptor)
+            ? (descriptor, null)
             : (null, ApiErrors.ToResult(ErrorCodes.UnknownConfigKey, StatusCodes.Status400BadRequest));
     }
 

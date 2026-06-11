@@ -30,7 +30,28 @@ public class SystemSettingsService : ISystemSettingsService
             return defaultValue;
         }
 
-        return JsonSerializer.Deserialize<T>(row.Value, JsonOptions) ?? defaultValue;
+        try
+        {
+            return JsonSerializer.Deserialize<T>(row.Value, JsonOptions) ?? defaultValue;
+        }
+        catch (JsonException) when (StartsWithQuote(row.Value))
+        {
+            // Older HTTP writes persisted every value as a JSON string (e.g. "\"true\"").
+            // Unwrap the string once and retry so typed readers keep working on legacy
+            // rows. Malformed payloads still throw so callers can surface corruption.
+            var unwrapped = JsonSerializer.Deserialize<string>(row.Value, JsonOptions);
+            if (unwrapped is null)
+            {
+                return defaultValue;
+            }
+
+            return JsonSerializer.Deserialize<T>(unwrapped, JsonOptions) ?? defaultValue;
+        }
+    }
+
+    private static bool StartsWithQuote(string value)
+    {
+        return value.AsSpan().TrimStart().StartsWith("\"", StringComparison.Ordinal);
     }
 
     public virtual async Task SetAsync<T>(string key, T value, string category, CancellationToken cancellationToken = default)
