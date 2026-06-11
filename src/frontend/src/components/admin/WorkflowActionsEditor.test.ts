@@ -60,6 +60,14 @@ const actionMetadataResponse = [
     ]
   },
   {
+    type: "emitOverlayWidget",
+    displayName: "Emit Overlay Widget",
+    description: "Display a widget on the stream overlay",
+    parameters: [
+      { key: "Severity", label: "Severity", type: "string", required: false, help: "Alert severity level", options: ["info", "warning", "error"] }
+    ]
+  },
+  {
     type: "parseChatCommand",
     displayName: "Parse Chat Command",
     description: "Extract command arguments from chat text.",
@@ -74,6 +82,26 @@ const actionMetadataResponse = [
     description: "Send Twitch's native /shoutout for a resolved channel.",
     parameters: [
       { key: "TargetLogin", label: "Target Username", type: "string", required: true, help: "Target Twitch login name." }
+    ]
+  },
+  {
+    type: "invokePlugin",
+    displayName: "Invoke Plugin",
+    description: "Invoke a registered plugin action.",
+    parameters: [
+      { key: "PluginId", label: "Plugin ID", type: "string", required: true, help: "Registered unique plugin identifier" },
+      { key: "ActionId", label: "Action ID", type: "string", required: true, help: "Unique action identifier within the plugin" },
+      { key: "Params", label: "Params", type: "dictionary", required: false, help: "Dynamic JSON-compatible structured parameters" },
+      { key: "Args", label: "Args", type: "dictionary", required: false, help: "String dictionary parameters for execution" }
+    ]
+  },
+  {
+    type: "updateCounter",
+    displayName: "Update Counter",
+    description: "Increment or decrement a persistent named counter",
+    parameters: [
+      { key: "Key", label: "Counter Key", type: "string", required: true, help: "Persistent tracker key for the counter" },
+      { key: "Delta", label: "Delta Value", type: "number", required: false, help: "Value offset to apply, default is 1" }
     ]
   },
   {
@@ -100,7 +128,62 @@ function stubActionMetadataFetch(status = 200): void {
       );
     }
 
-    if (url.includes("/api/rules/")) {
+    if (url.includes("/api/metadata/triggers")) {
+      return new Response(JSON.stringify([
+        {
+          key: "custom.plugin",
+          displayName: "Custom Plugin",
+          description: "Custom plugin event",
+          filterFields: [],
+          validVariables: ["Platform"]
+        }
+      ]), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      });
+    }
+
+    if (url.endsWith("/api/rules/sub-1")) {
+      return new Response(JSON.stringify({
+        id: "sub-1",
+        name: "Daily Check-In Child",
+        eventTypeKey: null,
+        isSubWorkflow: true,
+        isEnabled: true,
+        priority: 2,
+        createdAt: "2026-06-01T00:00:00Z",
+        version: 1,
+        trigger: null,
+        matchCondition: null,
+        conditions: [],
+        actions: [
+          {
+            type: "lookupTwitchUser",
+            target: "{Args.UserId}",
+            outputVariable: "User"
+          },
+          {
+            type: "sendChatMessage",
+            template: "Hello {Args.DisplayName}"
+          }
+        ],
+        onFailureSteps: [],
+        executionMode: "Serial",
+        maxParallelism: 1,
+        throttle: {
+          maxConcurrent: 1,
+          cooldownSeconds: 0,
+          perUserCooldown: false,
+          perUserCooldownSeconds: 0
+        },
+        timeoutSeconds: 30
+      }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200
+      });
+    }
+
+    if (url.endsWith("/api/rules/")) {
       return new Response(JSON.stringify([
         {
           id: "rule-main",
@@ -188,6 +271,29 @@ describe("WorkflowActionsEditor", () => {
       }
     ]);
 
+  });
+
+  it("should not open the variable drawer when focusing a message textarea", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: JSON.stringify([{ type: "sendChatMessage" }]),
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-field-template-0"]').exists()).toBe(true);
+    });
+
+    await wrapper.find('[data-testid="workflow-actions-field-template-0"]').trigger("click");
+    expect(wrapper.find(".variable-picker__panel--open").exists()).toBe(false);
+
+    await wrapper.find('[data-testid="workflow-actions-field-template-0"] + .variable-picker [data-testid="variable-picker-toggle"]').trigger("click");
+    expect(wrapper.find(".variable-picker__panel--open").exists()).toBe(true);
   });
 
   it("should keep random picker weights optional when left blank", async () => {
@@ -322,6 +428,49 @@ describe("WorkflowActionsEditor", () => {
 
     const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
     expect(emittedJson[0].workflowId).toBe("sub-1");
+  });
+
+  it("should render named argument fields from the selected sub-workflow", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-invokeSubWorkflow"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-invokeSubWorkflow"]').trigger("click");
+
+    await wrapper.get('[data-testid="workflow-actions-field-workflowId-0"]').setValue("sub-1");
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/rules/sub-1", expect.any(Object));
+      expect(wrapper.find('[data-testid="workflow-actions-subworkflow-arg-0-DisplayName"]').exists()).toBe(true);
+      expect(wrapper.find('[data-testid="workflow-actions-subworkflow-arg-0-UserId"]').exists()).toBe(true);
+    });
+
+    const displayNameInput = wrapper.get('[data-testid="workflow-actions-subworkflow-arg-0-DisplayName"]');
+    displayNameInput.element.textContent = "{Member.DisplayName}";
+    await displayNameInput.trigger("input");
+
+    const userIdInput = wrapper.get('[data-testid="workflow-actions-subworkflow-arg-0-UserId"]');
+    userIdInput.element.textContent = "{Member.UserId}";
+    await userIdInput.trigger("input");
+
+    const emittedJson = JSON.parse(wrapper.emitted("update:modelValue")?.at(-1)?.[0] as string);
+    expect(emittedJson[0].args).toEqual({
+      DisplayName: "{Member.DisplayName}",
+      UserId: "{Member.UserId}"
+    });
   });
 
   it("should open an action menu before inserting a new step", async () => {
@@ -470,6 +619,97 @@ describe("WorkflowActionsEditor", () => {
     expect(targetPickerPanel.text()).toContain("Member.Login");
     expect(targetPickerPanel.text()).not.toContain("Trigger.Command.Target");
     expect(targetPickerPanel.text()).not.toContain("Trigger.Command.TargetLogin");
+  });
+
+  it("renders a dropdown for params that declare a fixed option set", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-emitOverlayWidget"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-emitOverlayWidget"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-type-0"]').html()).toContain("emitOverlayWidget");
+    });
+
+    // Severity declares a fixed option set -> rendered as a <select> with those options.
+    const html = wrapper.html();
+    expect(html).toContain('value="info"');
+    expect(html).toContain('value="warning"');
+    expect(html).toContain('value="error"');
+  });
+
+  it("should expose plugin payload variables for invoke plugin fields", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty",
+        eventTypeKey: "custom.plugin"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-invokePlugin"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-invokePlugin"]').trigger("click");
+    await wrapper.find('[data-testid="workflow-actions-field-pluginId-0"] + .variable-picker [data-testid="variable-picker-toggle"]').trigger("click");
+
+    const pickerPanel = wrapper.find(".variable-picker__panel");
+    expect(pickerPanel.text()).toContain("Trigger.Payload.PluginId");
+    expect(pickerPanel.text()).toContain("Trigger.Payload.ActionId");
+    expect(pickerPanel.text()).toContain("Args.UserId");
+    expect(pickerPanel.text()).not.toContain("Trigger.MessageText");
+  });
+
+  it("should keep counter key variables available even when trigger metadata is narrow", async () => {
+    const wrapper = mount(WorkflowActionsEditor, {
+      props: {
+        modelValue: "[]",
+        title: "Actions",
+        emptyText: "Empty",
+        eventTypeKey: "custom.plugin"
+      },
+      global: {
+        plugins: [buildI18n(), createPinia()]
+      }
+    });
+
+    await vi.waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith("/api/metadata/actions", expect.any(Object));
+    });
+    await wrapper.find('[data-testid="workflow-actions-add"]').trigger("click");
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="workflow-actions-add-option-updateCounter"]').exists()).toBe(true);
+    });
+    await wrapper.find('[data-testid="workflow-actions-add-option-updateCounter"]').trigger("click");
+    await wrapper.find('[data-testid="workflow-actions-field-key-0"] + .variable-picker [data-testid="variable-picker-toggle"]').trigger("click");
+
+    const pickerPanel = wrapper.find(".variable-picker__panel");
+    expect(pickerPanel.text()).toContain("Member.UserId");
+    expect(pickerPanel.text()).toContain("Member.Login");
+    expect(pickerPanel.text()).toContain("Trigger.Platform");
+    expect(pickerPanel.text()).not.toContain("Trigger.MessageText");
   });
 
   it("should clamp delay milliseconds to zero in the visual editor", async () => {

@@ -255,7 +255,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
             />
           </div>
 
-          <label v-else-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
+          <div v-else-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'" class="form-field">
             <span class="form-label">{{ field.label }}</span>
             <VariableFieldInput
               v-if="field.kind === 'text'"
@@ -280,7 +280,7 @@ function updateRole(index: number, role: string, checked: boolean): void {
                 {{ option.label }}
               </option>
             </select>
-          </label>
+          </div>
 
           <label v-else-if="field.kind === 'checkbox'" class="form-field form-field-inline">
             <input

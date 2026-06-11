@@ -11,12 +11,40 @@ vi.mock("vue-i18n", () => ({
 
 
 describe("VariablePicker", () => {
-  it("shows group tabs instead of one long mixed list", () => {
+  it("shows side filters instead of one long mixed list", async () => {
     const wrapper = mount(VariablePicker);
 
+    await wrapper.find('[data-testid="variable-picker-toggle"]').trigger("click");
+
+    expect(wrapper.find(".variable-picker__panel--open").exists()).toBe(true);
+    expect(wrapper.find('[data-testid="variable-picker-filter-all"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="variable-picker-filter-trigger"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="variable-picker-filter-member"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("Trigger Event");
     expect(wrapper.text()).toContain("Args");
     expect(wrapper.text()).toContain("Trigger User");
+  });
+
+  it("filters visible sections from the side rail", async () => {
+    const wrapper = mount(VariablePicker);
+
+    await wrapper.find('[data-testid="variable-picker-filter-member"]').trigger("click");
+
+    expect(wrapper.text()).toContain("Member.UserId");
+    expect(wrapper.text()).not.toContain("Trigger.MessageText");
+    expect(wrapper.find('[data-testid="variable-picker-group-member"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="variable-picker-group-trigger"]').exists()).toBe(false);
+  });
+
+  it("toggles the side panel from the variable button", async () => {
+    const wrapper = mount(VariablePicker);
+    const toggle = wrapper.find('[data-testid="variable-picker-toggle"]');
+
+    await toggle.trigger("click");
+    expect(wrapper.find(".variable-picker__panel--open").exists()).toBe(true);
+
+    await toggle.trigger("click");
+    expect(wrapper.find(".variable-picker__panel--open").exists()).toBe(false);
   });
 
   it("does not expose low-value internal trigger fields", () => {
@@ -162,5 +190,56 @@ describe("VariablePicker", () => {
     expect(wrapper.text()).not.toContain("Step.Command.HasTarget");
     expect(wrapper.text()).not.toContain("Step.UserLookup.IsFound");
     expect(wrapper.text()).not.toContain("Step.CheckIn.CheckInCount");
+  });
+
+  it("filters reward fields to reward/redemption identifiers", () => {
+    const wrapper = mount(VariablePicker, {
+      props: { filterKey: "rewardId" }
+    });
+
+    expect(wrapper.text()).toContain("Trigger.RewardId");
+    expect(wrapper.text()).toContain("Trigger.RewardTitle");
+    expect(wrapper.text()).toContain("Trigger.RedemptionId");
+    expect(wrapper.text()).not.toContain("Trigger.MessageText");
+    expect(wrapper.text()).not.toContain("Member.UserId");
+  });
+
+  it("filters plugin fields to plugin payload and workflow args", async () => {
+    const wrapper = mount(VariablePicker, {
+      props: {
+        filterKey: "pluginId",
+        expressionMode: true,
+        previousSteps: [
+          { type: "invokePlugin", outputVariable: "PluginResult" },
+          { type: "updateCounter", outputVariable: "Counter" }
+        ],
+        actionDefinitions: [
+          {
+            type: "invokePlugin",
+            label: "Invoke plugin",
+            description: "",
+            fields: [],
+            outputVariables: ["Value"],
+            create: () => ({ type: "invokePlugin" })
+          },
+          {
+            type: "updateCounter",
+            label: "Counter",
+            description: "",
+            fields: [],
+            outputVariables: ["Value"],
+            create: () => ({ type: "updateCounter" })
+          }
+        ]
+      }
+    });
+
+    expect(wrapper.text()).toContain("Trigger.Payload.PluginId");
+    expect(wrapper.text()).toContain("Trigger.Payload.ActionId");
+    expect(wrapper.text()).toContain("Args.UserId");
+    expect(wrapper.text()).toContain("Step.PluginResult.Value");
+    expect(wrapper.text()).not.toContain("Trigger.MessageText");
+    expect(wrapper.text()).not.toContain("Member.UserId");
+    expect(wrapper.text()).not.toContain("Step.Counter.Value");
   });
 });

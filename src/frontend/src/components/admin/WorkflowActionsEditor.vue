@@ -2,8 +2,10 @@
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
+  getRule,
   getRules,
   isSubWorkflowSummary,
+  type WorkflowRuleDetail,
   type WorkflowRuleSummary
 } from "@/api/client";
 import ConditionExpressionInput from "@/components/admin/ConditionExpressionInput.vue";
@@ -31,6 +33,7 @@ import {
   type JsonRecord
 } from "@/components/admin/workflowEditor";
 import { useActionMetadataStore } from "@/stores/actionMetadata";
+import { useTriggerMetadataStore } from "@/stores/triggerMetadata";
 
 const props = defineProps<{
   modelValue: string;
@@ -44,10 +47,13 @@ const props = defineProps<{
 const emit = defineEmits<{ (event: "update:modelValue", value: string): void }>();
 const { t, te } = useI18n();
 const actionMetadata = useActionMetadataStore();
+const triggerMetadata = useTriggerMetadataStore();
 
 const items = ref<JsonRecord[]>([]);
 const lastSerialized = ref("");
 const availableRules = ref<WorkflowRuleSummary[]>([]);
+const subWorkflowDetails = ref<Record<string, WorkflowRuleDetail>>({});
+const subWorkflowDetailLoads = new Set<string>();
 const addMenuEl = ref<HTMLDetailsElement | null>(null);
 const actionSearch = ref("");
 const randomPickerRowCounts = ref<Record<number, number>>({});
@@ -55,6 +61,9 @@ const randomPickerRowCounts = ref<Record<number, number>>({});
 defineExpose({ focus });
 
 watch(() => props.modelValue, syncFromModel, { immediate: true });
+watch(items, () => {
+  void loadSelectedSubWorkflowDetails();
+}, { deep: true });
 
 const prefix = computed(() => props.testIdPrefix ?? "workflow-actions");
 const actionDefinitions = computed(() => actionMetadata.definitions);
@@ -86,14 +95,43 @@ const metadataNotice = computed(() => {
 
 onMounted(() => {
   void actionMetadata.load();
+  void triggerMetadata.load();
   void loadRules();
 });
 
 async function loadRules(): Promise<void> {
   try {
     availableRules.value = await getRules();
+    await loadSelectedSubWorkflowDetails();
   } catch {
     availableRules.value = [];
+  }
+}
+
+async function loadSelectedSubWorkflowDetails(): Promise<void> {
+  await Promise.all(items.value
+    .filter(item => asString(item.type) === "invokeSubWorkflow")
+    .map(item => loadSubWorkflowDetail(asString(item.workflowId).trim())));
+}
+
+async function loadSubWorkflowDetail(ruleId: string): Promise<void> {
+  if (ruleId.length === 0 || subWorkflowDetails.value[ruleId] || subWorkflowDetailLoads.has(ruleId)) {
+    return;
+  }
+
+  subWorkflowDetailLoads.add(ruleId);
+  try {
+    const detail = await getRule(ruleId);
+    if (detail.isSubWorkflow) {
+      subWorkflowDetails.value = {
+        ...subWorkflowDetails.value,
+        [ruleId]: detail
+      };
+    }
+  } catch {
+    // Keep the editor usable when a referenced sub-workflow was deleted or cannot be loaded.
+  } finally {
+    subWorkflowDetailLoads.delete(ruleId);
   }
 }
 
@@ -164,13 +202,34 @@ function isTargetUserField(actionType: string, field: FieldDefinition): boolean 
 }
 
 function allowedTriggerVariablesFor(actionType: string, field: FieldDefinition): string[] | undefined {
-  if (!isTargetUserField(actionType, field)) {
+  if (isTargetUserField(actionType, field)) {
+    return (props.eventTypeKey ?? "").toLowerCase() === "user.message"
+      ? ["Command.Target"]
+      : [];
+  }
+
+  if (actionType === "invokePlugin") {
+    return [
+      "EventTypeKey",
+      "Platform",
+      "Payload",
+      "Payload.PluginId",
+      "Payload.PluginName",
+      "Payload.ActionId",
+      "Payload.ActionName",
+      "Payload.ModuleName"
+    ];
+  }
+
+  if (actionType === "updateCounter" && field.key === "key") {
     return undefined;
   }
 
-  return (props.eventTypeKey ?? "").toLowerCase() === "user.message"
-    ? ["Command.Target"]
-    : [];
+  // General fields: restrict the Trigger group to variables valid for this rule's event type,
+  // so e.g. a message rule's chat template no longer lists reward / sub / raid variables that
+  // never resolve for it. Falls back to no filter until the event type / metadata is known.
+  const eventVars = triggerMetadata.variablesFor(props.eventTypeKey);
+  return eventVars.length > 0 ? eventVars : undefined;
 }
 
 function createActionItem(type?: string): JsonRecord {
@@ -375,6 +434,59 @@ function subWorkflowOptions(item: JsonRecord): Array<{ label: string; value: str
   }
 
   return options;
+}
+
+function selectedSubWorkflowDetail(item: JsonRecord): WorkflowRuleDetail | null {
+  const workflowId = asString(item.workflowId).trim();
+  return workflowId.length > 0 ? subWorkflowDetails.value[workflowId] ?? null : null;
+}
+
+function subWorkflowArgumentKeys(item: JsonRecord): string[] {
+  const detail = selectedSubWorkflowDetail(item);
+  if (!detail) {
+    return [];
+  }
+
+  const source = JSON.stringify({
+    matchCondition: detail.matchCondition,
+    conditions: detail.conditions,
+    actions: detail.actions,
+    onFailureSteps: detail.onFailureSteps
+  });
+  const keys = new Set<string>();
+  const argsPattern = /(?:\{)?Args\.([A-Za-z][A-Za-z0-9_]*)(?:\})?/g;
+  for (const match of source.matchAll(argsPattern)) {
+    keys.add(match[1]);
+  }
+
+  return [...keys].sort((a, b) => a.localeCompare(b));
+}
+
+function isSubWorkflowArgsField(item: JsonRecord, field: FieldDefinition): boolean {
+  return asString(item.type) === "invokeSubWorkflow" && field.key === "args";
+}
+
+function subWorkflowArgs(item: JsonRecord): Record<string, string> {
+  return isJsonRecord(item.args)
+    ? Object.fromEntries(Object.entries(item.args).filter((entry): entry is [string, string] => typeof entry[1] === "string"))
+    : {};
+}
+
+function updateSubWorkflowArg(index: number, key: string, value: string): void {
+  const current = subWorkflowArgs(items.value[index] ?? {});
+  const next = { ...current };
+  if (value.trim().length === 0) {
+    delete next[key];
+  } else {
+    next[key] = value;
+  }
+
+  patchItem(index, { args: Object.keys(next).length > 0 ? next : undefined });
+}
+
+function onSubWorkflowIdChange(index: number, field: FieldDefinition, value: string): void {
+  updateField(index, field, value);
+  void loadSubWorkflowDetail(value);
 }
 
 function patchItem(index: number, patch: Partial<JsonRecord>): void {
@@ -673,7 +785,7 @@ function previousStepsFor(index: number): JsonRecord[] {
         </div>
 
         <template v-for="field in randomPickerFieldsOf(item)" :key="field.key">
-          <label
+          <div
             v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'"
             class="form-field"
             :class="fieldClass(asString(item.type), field)"
@@ -683,7 +795,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               v-if="isSubWorkflowIdField(item, field)"
               :value="String(fieldValue(item, field))"
               :data-testid="`${prefix}-field-${field.key}-${index}`"
-              @change="updateField(index, field, ($event.target as HTMLSelectElement).value)"
+              @change="onSubWorkflowIdChange(index, field, ($event.target as HTMLSelectElement).value)"
             >
               <option value="">
                 {{ fallbackLabel("ruleEditor.actionMeta.invokeSubWorkflow.params.workflowId.placeholder", "Select a sub-workflow") }}
@@ -730,7 +842,7 @@ function previousStepsFor(index: number): JsonRecord[] {
                 {{ option.label }}
               </option>
             </select>
-          </label>
+          </div>
 
           <label v-else-if="field.kind === 'checkbox'" class="form-field form-field-inline">
             <input
@@ -741,7 +853,7 @@ function previousStepsFor(index: number): JsonRecord[] {
             <span>{{ fieldLabel(asString(item.type), field) }}</span>
           </label>
 
-          <label v-else-if="field.kind === 'textarea'" class="form-field workflow-builder__wide">
+          <div v-else-if="field.kind === 'textarea'" class="form-field workflow-builder__wide">
             <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
             <VariableFieldInput
               :model-value="String(fieldValue(item, field))"
@@ -752,9 +864,46 @@ function previousStepsFor(index: number): JsonRecord[] {
               :allowed-trigger-variables="allowedTriggerVariablesFor(asString(item.type), field)"
               :action-definitions="actionDefinitions"
               :filter-key="field.key"
+              :data-test-id="`${prefix}-field-${field.key}-${index}`"
               @update:model-value="updateField(index, field, $event)"
             />
-          </label>
+          </div>
+
+          <div
+            v-else-if="isSubWorkflowArgsField(item, field)"
+            class="form-field workflow-builder__wide sub-workflow-args"
+            :data-testid="`${prefix}-subworkflow-args-${index}`"
+          >
+            <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
+            <p
+              v-if="asString(item.workflowId).trim().length === 0"
+              class="workflow-builder__hint"
+            >
+              {{ fallbackLabel("ruleEditor.subWorkflowArgs.selectFirst", "Select a sub-workflow first.") }}
+            </p>
+            <p
+              v-else-if="subWorkflowArgumentKeys(item).length === 0"
+              class="workflow-builder__hint"
+            >
+              {{ fallbackLabel("ruleEditor.subWorkflowArgs.none", "This sub-workflow does not declare Args.* variables.") }}
+            </p>
+            <div
+              v-for="argKey in subWorkflowArgumentKeys(item)"
+              :key="argKey"
+              class="sub-workflow-args__row"
+            >
+              <span class="sub-workflow-args__key">{{ argKey }}</span>
+              <VariableFieldInput
+                :model-value="subWorkflowArgs(item)[argKey] ?? ''"
+                :placeholder="fallbackLabel('ruleEditor.subWorkflowArgs.valuePlaceholder', 'Value or variable')"
+                :previous-steps="previousStepsFor(index)"
+                :allowed-trigger-variables="allowedTriggerVariablesFor(asString(item.type), field)"
+                :action-definitions="actionDefinitions"
+                :data-test-id="`${prefix}-subworkflow-arg-${index}-${argKey}`"
+                @update:model-value="updateSubWorkflowArg(index, argKey, $event)"
+              />
+            </div>
+          </div>
 
           <label v-else-if="field.kind === 'string-map' || field.kind === 'json-object' || field.kind === 'string-list' || field.kind === 'number-list'" class="form-field workflow-builder__wide">
             <span class="form-label">{{ fieldLabel(asString(item.type), field) }}</span>
@@ -775,7 +924,7 @@ function previousStepsFor(index: number): JsonRecord[] {
           <summary>{{ fallbackLabel("ruleEditor.advancedOptions", "Advanced options") }}</summary>
           <div class="workflow-builder__advanced-grid">
             <template v-for="field in advancedFieldsOf(item)" :key="field.key">
-              <label
+              <div
                 v-if="field.kind === 'text' || field.kind === 'number' || field.kind === 'select'"
                 class="form-field"
                 :class="fieldClass(asString(item.type), field)"
@@ -810,7 +959,7 @@ function previousStepsFor(index: number): JsonRecord[] {
                     {{ option.label }}
                   </option>
                 </select>
-              </label>
+              </div>
               <label v-else-if="field.kind === 'checkbox'" class="form-field form-field-inline">
                 <input
                   type="checkbox"
@@ -824,7 +973,7 @@ function previousStepsFor(index: number): JsonRecord[] {
         </details>
 
         <div class="workflow-builder__meta workflow-builder__wide">
-          <label class="form-field workflow-builder__meta-condition">
+          <div class="form-field workflow-builder__meta-condition">
             <span class="form-label">{{ fallbackLabel("ruleEditor.executionCondition", "Execution condition") }}</span>
             <ConditionExpressionInput
               :model-value="asString(item.executionCondition)"
@@ -834,7 +983,7 @@ function previousStepsFor(index: number): JsonRecord[] {
               :data-test-id="`${prefix}-execution-${index}`"
               @update:model-value="patchItem(index, { executionCondition: $event })"
             />
-          </label>
+          </div>
 
           <label class="form-field workflow-builder__meta-output">
             <span class="form-label">{{ fallbackLabel("ruleEditor.outputVariable", "Output variable") }}</span>
@@ -1040,6 +1189,31 @@ function previousStepsFor(index: number): JsonRecord[] {
 
 .random-picker-editor__row input {
   min-width: 0;
+}
+
+.sub-workflow-args {
+  display: grid;
+  gap: 10px;
+}
+
+.sub-workflow-args__row {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.sub-workflow-args__key {
+  overflow: hidden;
+  padding: 8px 10px;
+  border: 1px solid var(--vp-border-default);
+  border-radius: 8px;
+  background: var(--vp-bg-subtle);
+  color: var(--vp-text-primary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .random-picker-editor__remove {
