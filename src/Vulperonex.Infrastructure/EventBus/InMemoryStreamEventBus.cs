@@ -1,5 +1,7 @@
 using System.Reactive.Subjects;
 using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Vulperonex.Application.EventBus;
 using Vulperonex.Application.Settings;
 using Vulperonex.Domain.Events;
@@ -11,6 +13,7 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
     public const int DefaultCapacity = 10_000;
 
     private readonly Channel<IStreamEvent> _channel;
+    private readonly ILogger<InMemoryStreamEventBus> _logger;
     private readonly TransientDeliveryQueueStore? _overflowStore;
     private readonly CancellationTokenSource _disposeTokenSource = new();
     private readonly Task _dispatchTask;
@@ -29,7 +32,10 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
     {
     }
 
-    public InMemoryStreamEventBus(int capacity, TransientDeliveryQueueStore? overflowStore = null)
+    public InMemoryStreamEventBus(
+        int capacity,
+        TransientDeliveryQueueStore? overflowStore = null,
+        ILogger<InMemoryStreamEventBus>? logger = null)
     {
         if (capacity <= 0)
         {
@@ -38,6 +44,7 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
 
         Capacity = capacity;
         _overflowStore = overflowStore;
+        _logger = logger ?? NullLogger<InMemoryStreamEventBus>.Instance;
         _channel = Channel.CreateBounded<IStreamEvent>(new BoundedChannelOptions(capacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
@@ -148,8 +155,18 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
                     {
                         await subscription.HandleAsync(streamEvent, _disposeTokenSource.Token);
                     }
-                    catch
+                    catch (OperationCanceledException) when (_disposeTokenSource.IsCancellationRequested)
                     {
+                        // Bus is shutting down; not a handler fault.
+                    }
+                    catch (Exception exception)
+                    {
+                        _logger.LogError(
+                            exception,
+                            "Stream event handler {HandlerEventType} failed for event {EventTypeKey} ({EventId}); dispatch continues.",
+                            subscription.EventType.Name,
+                            streamEvent.EventTypeKey,
+                            streamEvent.EventId);
                     }
                 }
 
@@ -157,11 +174,16 @@ public sealed class InMemoryStreamEventBus : IStreamEventBus, IAsyncDisposable
                 {
                     _subject.OnNext(streamEvent);
                 }
-                catch
+                catch (Exception exception)
                 {
                     // Rx subscribers manage their own error policy; an
                     // OnNext throw must not break the dispatch loop or
                     // starve the legacy Subscribe<TEvent> handlers.
+                    _logger.LogError(
+                        exception,
+                        "Rx observer threw for event {EventTypeKey} ({EventId}); dispatch continues.",
+                        streamEvent.EventTypeKey,
+                        streamEvent.EventId);
                 }
             }
             finally
