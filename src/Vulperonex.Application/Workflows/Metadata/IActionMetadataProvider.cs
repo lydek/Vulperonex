@@ -17,4 +17,5 @@ public sealed record ActionParamMetadataDto(
     string Type,
     bool Required,
     string? Help,
-    bool Advanced = false);
+    bool Advanced = false,
+    IReadOnlyList<string>? Options = null);

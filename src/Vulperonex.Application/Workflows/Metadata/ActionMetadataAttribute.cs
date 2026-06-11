@@ -21,4 +21,11 @@ public sealed class ActionParamAttribute(string label, string type, bool require
     /// 99% of cases but the executor still honors when set (e.g. overrides).
     /// </summary>
     public bool Advanced { get; } = advanced;
+
+    /// <summary>
+    /// Fixed set of allowed values. When present, the editor renders a dropdown
+    /// instead of a free-text field. Only use for genuinely closed enums (e.g.
+    /// alert severity) — never for open-ended or extensible values.
+    /// </summary>
+    public string[]? Options { get; set; }
 }

@@ -40,7 +40,8 @@ public sealed class ActionMetadataProvider : IActionMetadataProvider
                         paramAttr.Type,
                         paramAttr.Required,
                         paramAttr.Help,
-                        paramAttr.Advanced));
+                        paramAttr.Advanced,
+                        paramAttr.Options is { Length: > 0 } options ? options : null));
                 }
             }
 

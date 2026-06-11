@@ -106,6 +106,21 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         if (eventTypeKey.Equals("user.message", StringComparison.OrdinalIgnoreCase))
         {
             common.Add("MessageText");
+            // Command.* resolve only for message events (WorkflowEngine parses the message into
+            // Trigger.Command.* via ChatCommandParser). Surface them so message-rule fields offer
+            // them while other event types don't.
+            common.AddRange(new[]
+            {
+                "Command.CommandName",
+                "Command.ArgsText",
+                "Command.Arg1",
+                "Command.Arg2",
+                "Command.Arg3",
+                "Command.Target",
+                "Command.TargetLogin",
+                "Command.Mention",
+                "Command.HasTarget",
+            });
         }
         else if (eventTypeKey.Equals("user.donated", StringComparison.OrdinalIgnoreCase))
         {
@@ -133,6 +148,19 @@ public sealed class TriggerMetadataProvider(IStreamEventTypeRegistry eventTypeRe
         else if (eventTypeKey.Equals("workflow.timer", StringComparison.OrdinalIgnoreCase))
         {
             common.AddRange(new[] { "Depth", "Payload", "Payload.TimerId", "Payload.RuleId", "Payload.IntervalSeconds" });
+        }
+        else
+        {
+            common.AddRange(new[]
+            {
+                "Depth",
+                "Payload",
+                "Payload.PluginId",
+                "Payload.PluginName",
+                "Payload.ActionId",
+                "Payload.ActionName",
+                "Payload.ModuleName",
+            });
         }
 
         return common;

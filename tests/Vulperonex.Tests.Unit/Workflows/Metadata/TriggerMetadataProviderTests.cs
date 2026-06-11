@@ -73,4 +73,19 @@ public sealed class TriggerMetadataProviderTests
         variables.Should().Contain("Payload.IntervalSeconds");
         variables.Should().NotContain("TimerName");
     }
+
+    [Fact]
+    public void Given_CustomPluginEventKey_When_GetValidVariablesCalled_Then_ReturnsPluginPayloadVariables()
+    {
+        var registry = new InMemoryStreamEventTypeRegistry();
+        var provider = new TriggerMetadataProvider(registry);
+
+        var variables = provider.GetValidVariablesFor("custom.plugin");
+
+        variables.Should().Contain("Payload.PluginId");
+        variables.Should().Contain("Payload.PluginName");
+        variables.Should().Contain("Payload.ActionId");
+        variables.Should().Contain("Payload.ActionName");
+        variables.Should().Contain("Payload.ModuleName");
+    }
 }

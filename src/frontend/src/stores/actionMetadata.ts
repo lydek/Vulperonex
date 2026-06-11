@@ -98,11 +98,17 @@ function toFieldDefinition(parameter: ActionParameterMetadata): FieldDefinition 
     label: parameter.label,
     kind: fieldKindFor(parameter),
     placeholder: parameter.help ?? undefined,
-    advanced: parameter.advanced ?? false
+    advanced: parameter.advanced ?? false,
+    options: parameter.options && parameter.options.length > 0
+      ? parameter.options.map(value => ({ value, label: value }))
+      : undefined
   };
 }
 
 function fieldKindFor(parameter: ActionParameterMetadata): FieldKind {
+  if (parameter.options && parameter.options.length > 0) {
+    return "select";
+  }
   const key = lowerFirst(parameter.key).toLowerCase();
   const type = parameter.type.toLowerCase();
   if (type === "number") {

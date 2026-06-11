@@ -263,6 +263,7 @@ export interface ActionParameterMetadata {
   required: boolean;
   help?: string | null;
   advanced?: boolean;
+  options?: string[] | null;
 }
 
 export interface ActionMetadataEntry {

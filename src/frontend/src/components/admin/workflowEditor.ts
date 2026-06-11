@@ -129,9 +129,15 @@ const triggerVariableDefinitions: VariableDefinition[] = [
   { path: "Trigger.GiftCount", label: "Gift count", type: "number" },
   { path: "Trigger.ViewerCount", label: "Viewer count", type: "number" },
   { path: "Trigger.Depth", label: "Workflow depth", type: "number" },
+  { path: "Trigger.Payload", label: "Event payload", type: "string" },
   { path: "Trigger.Payload.TimerId", label: "Timer id", type: "string" },
   { path: "Trigger.Payload.RuleId", label: "Timer rule id", type: "string" },
-  { path: "Trigger.Payload.IntervalSeconds", label: "Timer interval seconds", type: "number" }
+  { path: "Trigger.Payload.IntervalSeconds", label: "Timer interval seconds", type: "number" },
+  { path: "Trigger.Payload.PluginId", label: "Plugin id", type: "string" },
+  { path: "Trigger.Payload.PluginName", label: "Plugin name", type: "string" },
+  { path: "Trigger.Payload.ActionId", label: "Plugin action id", type: "string" },
+  { path: "Trigger.Payload.ActionName", label: "Plugin action name", type: "string" },
+  { path: "Trigger.Payload.ModuleName", label: "Plugin module name", type: "string" }
 ];
 
 const memberVariableDefinitions: VariableDefinition[] = [
