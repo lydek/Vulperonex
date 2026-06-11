@@ -11,4 +11,6 @@ public sealed class WorkflowTimerEntity
     public bool IsEnabled { get; set; } = true;
 
     public DateTimeOffset NextFireAt { get; set; }
+
+    public int Version { get; set; }
 }

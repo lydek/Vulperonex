@@ -82,12 +82,16 @@ async function onUpdate(): Promise<void> {
   submitting.value = true;
   error.value = null;
   try {
-    const updated = await updateTimer(selectedTimer.value.id, {
-      ruleId: editRuleId.value.trim(),
-      intervalSeconds: editIntervalSeconds.value,
-      isEnabled: editIsEnabled.value,
-      nextFireAt: editNextFireAt.value
-    });
+    const updated = await updateTimer(
+      selectedTimer.value.id,
+      {
+        ruleId: editRuleId.value.trim(),
+        intervalSeconds: editIntervalSeconds.value,
+        isEnabled: editIsEnabled.value,
+        nextFireAt: editNextFireAt.value
+      },
+      selectedTimer.value.version
+    );
     selectedTimer.value = updated;
     syncEditForm(updated);
     await loadTimers();

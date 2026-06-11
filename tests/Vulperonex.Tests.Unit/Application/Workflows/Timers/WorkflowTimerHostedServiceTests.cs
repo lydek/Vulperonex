@@ -181,10 +181,10 @@ public sealed class WorkflowTimerHostedServiceTests
             return Task.CompletedTask;
         }
 
-        public Task UpdateAsync(WorkflowTimer timer, CancellationToken cancellationToken = default)
+        public Task UpdateAsync(WorkflowTimer timer, int expectedVersion, CancellationToken cancellationToken = default)
         {
             var index = Timers.FindIndex(existing => existing.Id == timer.Id);
-            Timers[index] = timer;
+            Timers[index] = timer with { Version = expectedVersion + 1 };
             return Task.CompletedTask;
         }
 

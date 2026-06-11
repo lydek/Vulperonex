@@ -126,12 +126,6 @@ public static class WorkflowRuleEndpoints
         group.MapPut("/{id}/disable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
             SetEnabledAsync(id, false, queryService, repository, cancellationToken));
 
-        group.MapPost("/{id}/enable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
-            SetEnabledAsync(id, true, queryService, repository, cancellationToken));
-
-        group.MapPost("/{id}/disable", (string id, IWorkflowRuleQueryService queryService, IWorkflowRuleRepository repository, CancellationToken cancellationToken) =>
-            SetEnabledAsync(id, false, queryService, repository, cancellationToken));
-
         return endpoints;
     }
 

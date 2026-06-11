@@ -53,7 +53,7 @@ public sealed class SchemaTests
         var workflowTimerColumns = await QueryScalarValuesAsync(
             fixture.Connection,
             "SELECT name FROM pragma_table_info('WorkflowTimers') ORDER BY name;");
-        workflowTimerColumns.Should().BeEquivalentTo("Id", "IntervalSeconds", "IsEnabled", "NextFireAt", "RuleId");
+        workflowTimerColumns.Should().BeEquivalentTo("Id", "IntervalSeconds", "IsEnabled", "NextFireAt", "RuleId", "Version");
     }
 
     [Fact]

@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -21,7 +21,7 @@ using Vulperonex.Infrastructure.Workflows;
 using Vulperonex.Web;
 using Vulperonex.Web.Configuration;
 using Vulperonex.Web.Ports;
-using Vulperonex.Web.TwitchAuth;
+using Vulperonex.Adapters.Twitch.Helix;
 using Xunit;
 
 namespace Vulperonex.Tests.Integration.Web;
@@ -316,19 +316,52 @@ public sealed class Phase5EndpointTests
         created.RootElement.GetProperty("ruleId").GetString().Should().Be("rule-1");
 
         var location = createResponse.Headers.Location!.ToString();
-        var updateResponse = await client.PutAsJsonAsync(
-            location,
-            new
+        var createdVersion = created.RootElement.GetProperty("version").GetInt32();
+
+        // PUT without If-Match must be rejected with 428.
+        var missingPreconditionRequest = new HttpRequestMessage(HttpMethod.Put, location)
+        {
+            Content = JsonContent.Create(new
             {
                 ruleId = "rule-2",
                 intervalSeconds = 60,
                 isEnabled = false,
                 nextFireAt = nextFireAt.AddSeconds(60),
-            },
-            TestContext.Current.CancellationToken);
+            }),
+        };
+        var missingPreconditionResponse = await client.SendAsync(missingPreconditionRequest, TestContext.Current.CancellationToken);
+        missingPreconditionResponse.StatusCode.Should().Be(HttpStatusCode.PreconditionRequired);
+
+        var updateRequest = new HttpRequestMessage(HttpMethod.Put, location)
+        {
+            Content = JsonContent.Create(new
+            {
+                ruleId = "rule-2",
+                intervalSeconds = 60,
+                isEnabled = false,
+                nextFireAt = nextFireAt.AddSeconds(60),
+            }),
+        };
+        updateRequest.Headers.TryAddWithoutValidation("If-Match", $"\"{createdVersion}\"");
+        var updateResponse = await client.SendAsync(updateRequest, TestContext.Current.CancellationToken);
         var updateBody = await updateResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         updateResponse.StatusCode.Should().Be(HttpStatusCode.OK, "response body was {0}", updateBody);
         updateBody.Should().Contain("rule-2");
+
+        // Replaying the same stale version must conflict with 409.
+        var staleRequest = new HttpRequestMessage(HttpMethod.Put, location)
+        {
+            Content = JsonContent.Create(new
+            {
+                ruleId = "rule-3",
+                intervalSeconds = 90,
+                isEnabled = false,
+                nextFireAt = nextFireAt.AddSeconds(90),
+            }),
+        };
+        staleRequest.Headers.TryAddWithoutValidation("If-Match", $"\"{createdVersion}\"");
+        var staleResponse = await client.SendAsync(staleRequest, TestContext.Current.CancellationToken);
+        staleResponse.StatusCode.Should().Be(HttpStatusCode.Conflict);
 
         var listResponse = await client.GetAsync("/api/timers", TestContext.Current.CancellationToken);
         var listBody = await listResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);

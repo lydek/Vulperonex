@@ -36,14 +36,30 @@ public sealed class WorkflowTimerRepository(VulperonexDbContext context) : IWork
         await context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpdateAsync(WorkflowTimer timer, CancellationToken cancellationToken = default)
+    public async Task UpdateAsync(WorkflowTimer timer, int expectedVersion, CancellationToken cancellationToken = default)
     {
         Validate(timer);
-        var entity = await context.WorkflowTimers.FirstOrDefaultAsync(existing => existing.Id == timer.Id, cancellationToken)
-            ?? throw new KeyNotFoundException(timer.Id);
+        var entity = await context.WorkflowTimers
+            .FirstOrDefaultAsync(existing => existing.Id == timer.Id && existing.Version == expectedVersion, cancellationToken);
+
+        if (entity is null)
+        {
+            var exists = await context.WorkflowTimers.AnyAsync(existing => existing.Id == timer.Id, cancellationToken);
+            throw exists
+                ? new WorkflowTimerConcurrencyException(timer.Id)
+                : new KeyNotFoundException(timer.Id);
+        }
 
         CopyToEntity(timer, entity);
-        await context.SaveChangesAsync(cancellationToken);
+        entity.Version++;
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            throw new WorkflowTimerConcurrencyException(timer.Id);
+        }
     }
 
     public async Task DeleteAsync(string id, CancellationToken cancellationToken = default)
@@ -76,7 +92,15 @@ public sealed class WorkflowTimerRepository(VulperonexDbContext context) : IWork
             ?? throw new KeyNotFoundException(id);
 
         entity.NextFireAt = nextFireAt;
-        await context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A concurrent admin edit bumped the version; its NextFireAt wins
+            // over the scheduler's reschedule, so dropping this write is safe.
+        }
     }
 
     private static WorkflowTimer ToDomain(WorkflowTimerEntity entity)
@@ -88,6 +112,7 @@ public sealed class WorkflowTimerRepository(VulperonexDbContext context) : IWork
             IntervalSeconds = entity.IntervalSeconds,
             IsEnabled = entity.IsEnabled,
             NextFireAt = entity.NextFireAt,
+            Version = entity.Version,
         };
     }
 

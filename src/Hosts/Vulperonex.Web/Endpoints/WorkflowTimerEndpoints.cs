@@ -15,12 +15,16 @@ public static class WorkflowTimerEndpoints
             return Results.Ok(timers.Select(ToDto));
         });
 
-        group.MapGet("/{id}", async (string id, IWorkflowTimerRepository repository, CancellationToken cancellationToken) =>
+        group.MapGet("/{id}", async (string id, IWorkflowTimerRepository repository, HttpResponse response, CancellationToken cancellationToken) =>
         {
             var timer = await repository.GetAsync(id, cancellationToken);
-            return timer is null
-                ? ApiErrors.ToResult(ErrorCodes.WorkflowTimerNotFound, StatusCodes.Status404NotFound)
-                : Results.Ok(ToDto(timer));
+            if (timer is null)
+            {
+                return ApiErrors.ToResult(ErrorCodes.WorkflowTimerNotFound, StatusCodes.Status404NotFound);
+            }
+
+            response.Headers.ETag = $"\"{timer.Version}\"";
+            return Results.Ok(ToDto(timer));
         });
 
         group.MapPost("/", async (
@@ -31,7 +35,7 @@ public static class WorkflowTimerEndpoints
             var validationError = Validate(request);
             if (validationError is not null)
             {
-                return Results.BadRequest(new { error = validationError });
+                return ApiErrors.ToResult(validationError, ErrorCodeStatusMap.GetStatusCode(validationError));
             }
 
             var id = Guid.NewGuid().ToString("N");
@@ -43,26 +47,36 @@ public static class WorkflowTimerEndpoints
         group.MapPut("/{id}", async (
             string id,
             WorkflowTimerUpsertRequest request,
+            HttpContext httpContext,
             IWorkflowTimerRepository repository,
             CancellationToken cancellationToken) =>
         {
             var validationError = Validate(request);
             if (validationError is not null)
             {
-                return Results.BadRequest(new { error = validationError });
+                return ApiErrors.ToResult(validationError, ErrorCodeStatusMap.GetStatusCode(validationError));
+            }
+
+            if (!TryParseIfMatchVersion(httpContext.Request.Headers.IfMatch.ToString(), out var expectedVersion))
+            {
+                return ApiErrors.ToResult(ErrorCodes.PreconditionRequired, StatusCodes.Status428PreconditionRequired);
             }
 
             var timer = ToTimer(request, id);
             try
             {
-                await repository.UpdateAsync(timer, cancellationToken);
+                await repository.UpdateAsync(timer, expectedVersion, cancellationToken);
             }
             catch (KeyNotFoundException)
             {
                 return ApiErrors.ToResult(ErrorCodes.WorkflowTimerNotFound, StatusCodes.Status404NotFound);
             }
+            catch (WorkflowTimerConcurrencyException)
+            {
+                return ApiErrors.ToResult(ErrorCodes.WorkflowTimerConflict, StatusCodes.Status409Conflict);
+            }
 
-            return Results.Ok(ToDto(timer));
+            return Results.Ok(ToDto(timer with { Version = expectedVersion + 1 }));
         });
 
         group.MapDelete("/{id}", async (string id, IWorkflowTimerRepository repository, CancellationToken cancellationToken) =>
@@ -82,9 +96,31 @@ public static class WorkflowTimerEndpoints
         return endpoints;
     }
 
+    private static bool TryParseIfMatchVersion(string? ifMatch, out int version)
+    {
+        version = 0;
+        var value = ifMatch?.Trim();
+        if (string.IsNullOrEmpty(value))
+        {
+            return false;
+        }
+
+        if (value.StartsWith("W/", StringComparison.OrdinalIgnoreCase))
+        {
+            value = value[2..];
+        }
+
+        if (value.StartsWith('"') && value.EndsWith('"') && value.Length >= 2)
+        {
+            value = value[1..^1];
+        }
+
+        return int.TryParse(value, out version) && version >= 0;
+    }
+
     private static WorkflowTimerDto ToDto(WorkflowTimer timer)
     {
-        return new WorkflowTimerDto(timer.Id, timer.RuleId, timer.IntervalSeconds, timer.IsEnabled, timer.NextFireAt);
+        return new WorkflowTimerDto(timer.Id, timer.RuleId, timer.IntervalSeconds, timer.IsEnabled, timer.NextFireAt, timer.Version);
     }
 
     private static WorkflowTimer ToTimer(WorkflowTimerUpsertRequest request, string id)
@@ -103,12 +139,12 @@ public static class WorkflowTimerEndpoints
     {
         if (string.IsNullOrWhiteSpace(request.RuleId))
         {
-            return "RULE_ID_REQUIRED";
+            return ErrorCodes.TimerRuleIdRequired;
         }
 
         if (request.IntervalSeconds <= 0)
         {
-            return "INTERVAL_SECONDS_INVALID";
+            return ErrorCodes.TimerIntervalInvalid;
         }
 
         return null;
@@ -120,7 +156,8 @@ public sealed record WorkflowTimerDto(
     string RuleId,
     int IntervalSeconds,
     bool IsEnabled,
-    DateTimeOffset NextFireAt);
+    DateTimeOffset NextFireAt,
+    int Version);
 
 public sealed record WorkflowTimerUpsertRequest(
     string RuleId,

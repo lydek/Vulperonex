@@ -8,7 +8,7 @@ public interface IWorkflowTimerRepository
 
     Task AddAsync(WorkflowTimer timer, CancellationToken cancellationToken = default);
 
-    Task UpdateAsync(WorkflowTimer timer, CancellationToken cancellationToken = default);
+    Task UpdateAsync(WorkflowTimer timer, int expectedVersion, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(string id, CancellationToken cancellationToken = default);
 

@@ -7,4 +7,5 @@ public sealed record WorkflowTimer
     public required int IntervalSeconds { get; init; }
     public bool IsEnabled { get; init; } = true;
     public required DateTimeOffset NextFireAt { get; init; }
+    public int Version { get; init; }
 }

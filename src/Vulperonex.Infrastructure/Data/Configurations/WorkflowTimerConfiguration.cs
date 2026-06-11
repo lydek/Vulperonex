@@ -15,6 +15,7 @@ public sealed class WorkflowTimerConfiguration : IEntityTypeConfiguration<Workfl
         builder.Property(timer => timer.IntervalSeconds).HasColumnType("INTEGER");
         builder.Property(timer => timer.IsEnabled).HasColumnType("INTEGER");
         builder.Property(timer => timer.NextFireAt).HasColumnType("TEXT");
+        builder.Property(timer => timer.Version).HasColumnType("INTEGER").IsConcurrencyToken();
         builder.HasIndex(timer => timer.RuleId);
         builder.HasIndex(timer => timer.NextFireAt);
     }

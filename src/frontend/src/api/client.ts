@@ -308,6 +308,7 @@ export interface WorkflowTimerDto {
   intervalSeconds: number;
   isEnabled: boolean;
   nextFireAt: string;
+  version: number;
 }
 
 export interface WorkflowTimerUpsertRequest {
@@ -347,13 +348,15 @@ export async function createTimer(
 export async function updateTimer(
   id: string,
   body: WorkflowTimerUpsertRequest,
+  version: number,
   signal?: AbortSignal
 ): Promise<WorkflowTimerDto> {
   const response = await fetchWithCsrf(`${apiBaseUrl}/api/timers/${encodeURIComponent(id)}`, {
     method: "PUT",
     headers: {
       Accept: "application/json",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "If-Match": `"${version}"`
     },
     body: JSON.stringify(body),
     signal
