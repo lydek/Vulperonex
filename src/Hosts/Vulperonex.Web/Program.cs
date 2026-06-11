@@ -47,6 +47,12 @@ public static partial class VulperonexWebApplication
         ConfigureSerilog(builder);
         var app = builder.Build();
 
+        // Apply migrations before the host (and thus every hosted service) starts.
+        // Several workers read SystemSettings via EF as soon as their ExecuteAsync
+        // runs; running the migration here removes any dependency on hosted-service
+        // registration order.
+        MigrateDatabase(app);
+
         var levelSwitch = app.Services.GetRequiredService<Serilog.Core.LoggingLevelSwitch>();
         var broker = app.Services.GetRequiredService<Vulperonex.Infrastructure.Settings.SystemSettingsBroker>();
         var hotReload = SerilogConfigurator.BindHotReload(levelSwitch, broker);
@@ -209,6 +215,13 @@ public static partial class VulperonexWebApplication
             var directory = SerilogConfigurator.ResolveLogDirectory();
             SerilogConfigurator.ConfigureLogger(loggerConfiguration, levelSwitch, sink, directory);
         });
+    }
+
+    private static void MigrateDatabase(WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var bootstrapper = scope.ServiceProvider.GetRequiredService<Vulperonex.Infrastructure.Data.DatabaseBootstrapper>();
+        bootstrapper.MigrateAsync(CancellationToken.None).GetAwaiter().GetResult();
     }
 
     private static void EnsureOverlayLanAccessKey(WebApplication app)
