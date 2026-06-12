@@ -57,4 +57,18 @@ describe("chat overlay scrolling", () => {
     expect(chatContainer.scrollTop).toBe(960);
     expect(chatContainer.lastElementChild?.textContent).toContain("!Test");
   });
+
+  it("renders htmlMessage as plain text so chat input can never inject HTML", () => {
+    window.eval(scriptSource);
+    document.dispatchEvent(new Event("DOMContentLoaded"));
+
+    overlayHandlers?.event({
+      displayName: "attacker",
+      htmlMessage: '<img src=x onerror="document.title=\'pwned\'">'
+    });
+
+    const content = document.querySelector(".chat-content");
+    expect(content?.querySelector("img")).toBeNull();
+    expect(content?.textContent).toContain("<img src=x");
+  });
 });

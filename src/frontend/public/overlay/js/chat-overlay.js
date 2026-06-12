@@ -70,8 +70,21 @@
             return !!eventId && renderedCheckInEventIds.has(eventId);
         }
 
+        // Escapes viewer-controlled values before they enter an HTML template
+        // string; covers both element text and quoted attribute contexts.
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         // Shared Member Stamp Card HTML generator
-        function buildMemberCardHtml(displayName, total, avatarUrl, isHistory = false) {
+        function buildMemberCardHtml(rawDisplayName, total, rawAvatarUrl, isHistory = false) {
+            const displayName = escapeHtml(rawDisplayName);
+            const avatarUrl = rawAvatarUrl ? escapeHtml(rawAvatarUrl) : null;
             const stamps = (total % 10 === 0) ? 10 : (total % 10);
             const currentRound = Math.max(1, Math.ceil(total / 10));
 
@@ -260,6 +273,10 @@
             const contentSpan = document.createElement('span');
             contentSpan.className = 'chat-content';
 
+            // Chat text is viewer-controlled input: render via the segments path
+            // (createTextNode / explicit <img>) so it can never be interpreted as
+            // HTML. The legacy htmlMessage fallback is rendered as plain text —
+            // never innerHTML — so a payload without segments cannot become XSS.
             if (data.segments && Array.isArray(data.segments)) {
                 data.segments.forEach(seg => {
                     const type = seg.type || seg.kind || 'text';
@@ -276,8 +293,7 @@
                     }
                 });
             } else {
-                const rawText = data.htmlMessage || data.HtmlMessage || "";
-                contentSpan.innerHTML = rawText; // fallback to html
+                contentSpan.textContent = data.htmlMessage || data.HtmlMessage || "";
             }
             chatLine.appendChild(contentSpan);
 
