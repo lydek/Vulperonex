@@ -87,7 +87,7 @@ Workflow rules with the `reward.redeemed` trigger expose a `RewardName` filter (
    - Image URL fallback: `image.url_4x → 2x → 1x → default_image.url_4x → 2x → 1x`.
    - Required scope: `channel:read:redemptions` (already in the post-Phase-7G scope set; re-grant required on upgrade).
 
-2. **`ITwitchRewardCache` singleton (`Vulperonex.Web.TwitchAuth`):**
+2. **`ITwitchRewardCache` singleton (`Vulperonex.Adapters.Twitch.Helix`):**
    - Surface: `bool IsReady`, `DateTimeOffset? LastRefreshedAt`, `IReadOnlyList<TwitchRewardDescriptor> List()`, `Task RefreshAsync(CancellationToken)`, `void QueueRefresh()`.
    - In-memory only (no persistence); replaced wholesale on each successful refresh.
    - Broadcaster id resolution chain mirrors §4.7: `Twitch:BroadcasterId` → `SystemSettingKey.TwitchChannelName` (DB) → `Twitch:ChannelName` (config) → `IHelixClient.LookupUserAsync(channelName)`.

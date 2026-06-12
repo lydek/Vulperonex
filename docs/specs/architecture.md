@@ -377,7 +377,7 @@ All actions in this catalog live in `Vulperonex.Application.Workflows.Actions` a
 **Twitch live ingestion topology (post-Phase-7G):**
 
 ```
-TwitchConnectionOrchestrator (BackgroundService, in Vulperonex.Web)
+TwitchConnectionOrchestrator (BackgroundService, in Vulperonex.Adapters.Twitch)
   ├─ Resolves broadcaster:
   │   • SystemSettingKey.TwitchChannelName   (preferred)
   │   • Twitch:ChannelName        config     (fallback)

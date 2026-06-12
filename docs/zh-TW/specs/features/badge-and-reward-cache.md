@@ -84,7 +84,7 @@
 **設計重點：**
 
 1. **Helix 查詢** — `IHelixClient.GetCustomRewardsAsync(broadcasterId, ct)` 取 `channel_points/custom_rewards`，回傳 `TwitchRewardDescriptor { Id, Title, Cost, IsEnabled, ImageUrl? }`。所需 scope `channel:read:redemptions` 已含於 Phase 7G 後的預設 scope 集。
-2. **`ITwitchRewardCache` 單例**（`Vulperonex.Web.TwitchAuth`）— 純記憶體快取；refresh 流程：UI `/refresh` 端點 + OAuth `/complete` 完成後自動 `QueueRefresh()`。broadcaster 解析鏈與 §4.7 一致（`Twitch:BroadcasterId` → `SystemSettingKey.TwitchChannelName` → `Twitch:ChannelName` → `LookupUserAsync`）。401/403 直接吃掉並以 `ready=false` 表示。
+2. **`ITwitchRewardCache` 單例**（`Vulperonex.Adapters.Twitch.Helix`）— 純記憶體快取；refresh 流程：UI `/refresh` 端點 + OAuth `/complete` 完成後自動 `QueueRefresh()`。broadcaster 解析鏈與 §4.7 一致（`Twitch:BroadcasterId` → `SystemSettingKey.TwitchChannelName` → `Twitch:ChannelName` → `LookupUserAsync`）。401/403 直接吃掉並以 `ready=false` 表示。
 3. **HTTP 端點**：
    - `GET /api/twitch/rewards` — 回傳 `{ ready, lastRefreshedAt, rewards }` 快取快照，不打網路。
    - `POST /api/twitch/rewards/refresh` — 強制重整。未授權狀態回 `200 { ready:false }`，讓 UI 顯示「請先授權」而非錯誤橫幅。
