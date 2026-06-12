@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Vulperonex.Adapters.Abstractions;
 using Vulperonex.Application.Settings;
 using Vulperonex.Infrastructure.Data;
@@ -7,14 +8,34 @@ using Vulperonex.Infrastructure.Data.Entities;
 
 namespace Vulperonex.Infrastructure.Cache;
 
-public sealed class PlatformUserDisplayCache(
-    VulperonexDbContext context,
-    int l1Capacity = 500) : IPlatformUserInfoCache
+public sealed class PlatformUserDisplayCache : IPlatformUserInfoCache
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-    private readonly LruCache<string, PlatformUserDisplayInfo> _l1 = new(l1Capacity);
+    private readonly LruCache<string, PlatformUserDisplayInfo> _l1;
+    private readonly VulperonexDbContext? _context;
+    private readonly IServiceScopeFactory? _scopeFactory;
 
-    public int L1Capacity { get; } = l1Capacity;
+    /// <summary>Binds the cache to one DbContext for its lifetime (scoped usage and tests).</summary>
+    public PlatformUserDisplayCache(VulperonexDbContext context, int l1Capacity = 500)
+    {
+        _context = context;
+        L1Capacity = l1Capacity;
+        _l1 = new LruCache<string, PlatformUserDisplayInfo>(l1Capacity);
+    }
+
+    /// <summary>
+    /// Process-lifetime mode: the L1 LRU survives across events and a short-lived
+    /// scope is opened per database access. This is the production registration —
+    /// a scoped cache is rebuilt for every event scope, so its L1 never hits.
+    /// </summary>
+    public PlatformUserDisplayCache(IServiceScopeFactory scopeFactory, int l1Capacity = 500)
+    {
+        _scopeFactory = scopeFactory;
+        L1Capacity = l1Capacity;
+        _l1 = new LruCache<string, PlatformUserDisplayInfo>(l1Capacity);
+    }
+
+    public int L1Capacity { get; }
 
     public TimeSpan Ttl { get; private init; } = TimeSpan.FromHours(24);
 
@@ -42,13 +63,19 @@ public sealed class PlatformUserDisplayCache(
             return cached;
         }
 
-        var row = await context.PlatformUserDisplayInfo.FindAsync([platform, platformUserId], cancellationToken);
-        if (row is null)
+        var displayInfo = await WithContextAsync(async context =>
+        {
+            var row = await context.PlatformUserDisplayInfo
+                .FindAsync([platform, platformUserId], cancellationToken)
+                .ConfigureAwait(false);
+            return row is null ? null : FromEntity(row);
+        }).ConfigureAwait(false);
+
+        if (displayInfo is null)
         {
             return null;
         }
 
-        var displayInfo = FromEntity(row);
         _l1.Set(key, displayInfo);
         return displayInfo;
     }
@@ -59,24 +86,42 @@ public sealed class PlatformUserDisplayCache(
         Func<PlatformUserDisplayInfo, PlatformUserDisplayInfo> updater,
         CancellationToken cancellationToken = default)
     {
-        var row = await context.PlatformUserDisplayInfo.FindAsync([platform, platformUserId], cancellationToken);
-        if (row is null)
+        var updated = await WithContextAsync(async context =>
         {
-            row = new PlatformUserDisplayInfoEntity
+            var row = await context.PlatformUserDisplayInfo
+                .FindAsync([platform, platformUserId], cancellationToken)
+                .ConfigureAwait(false);
+            if (row is null)
             {
-                Platform = platform,
-                PlatformUserId = platformUserId,
-                BadgesJson = "[]",
-                FetchedAt = DateTimeOffset.UtcNow,
-            };
-            context.PlatformUserDisplayInfo.Add(row);
-        }
+                row = new PlatformUserDisplayInfoEntity
+                {
+                    Platform = platform,
+                    PlatformUserId = platformUserId,
+                    BadgesJson = "[]",
+                    FetchedAt = DateTimeOffset.UtcNow,
+                };
+                context.PlatformUserDisplayInfo.Add(row);
+            }
 
-        var updated = updater(FromEntity(row));
-        Apply(row, updated);
-        await context.SaveChangesAsync(cancellationToken);
+            var next = updater(FromEntity(row));
+            Apply(row, next);
+            await context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+            return next;
+        }).ConfigureAwait(false);
+
         _l1.Set(CacheKey(platform, platformUserId), updated);
         return updated;
+    }
+
+    private async Task<T> WithContextAsync<T>(Func<VulperonexDbContext, Task<T>> action)
+    {
+        if (_scopeFactory is null)
+        {
+            return await action(_context!).ConfigureAwait(false);
+        }
+
+        await using var scope = _scopeFactory.CreateAsyncScope();
+        return await action(scope.ServiceProvider.GetRequiredService<VulperonexDbContext>()).ConfigureAwait(false);
     }
 
     private static PlatformUserDisplayInfo FromEntity(PlatformUserDisplayInfoEntity row)

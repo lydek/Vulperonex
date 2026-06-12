@@ -126,7 +126,12 @@ public static class DependencyInjection
         services.AddSingleton<ITwitchTokenEndpoint>(serviceProvider => serviceProvider.GetRequiredService<TwitchTokenEndpoint>());
         services.AddScoped<WorkflowRuleValidator>();
         services.AddScoped<IWorkflowRuleQueryService, WorkflowRuleQueryService>();
-        services.AddScoped<IRuleSnapshotCache, InMemoryRuleSnapshotCache>();
+        // Singleton on purpose: WorkflowEngineDispatcher opens a fresh scope per
+        // event, so a scoped snapshot cache would start empty every time and the
+        // rules table would be re-queried for every chat message. The cache is
+        // thread-safe and reads through a scope-bridging query service on miss.
+        services.AddSingleton<IRuleSnapshotCache>(serviceProvider => new InMemoryRuleSnapshotCache(
+            new ScopedWorkflowRuleQueryService(serviceProvider.GetRequiredService<IServiceScopeFactory>())));
         services.AddScoped<IWorkflowRuleRepository, WorkflowRuleRepository>();
         services.AddScoped<IWorkflowTimerRepository, WorkflowTimerRepository>();
         services.AddSingleton<SystemSettingsBroker>();
@@ -141,8 +146,21 @@ public static class DependencyInjection
         services.AddSingleton<IModuleStateService, ModuleStateService>();
         services.AddScoped<IPlatformUserDisplayInfoProvider, PlatformUserDisplayInfoProvider>();
         services.AddScoped<IPlatformUserResolver, PlatformUserResolver>();
-        services.AddScoped<Vulperonex.Adapters.Abstractions.IPlatformUserInfoCache>(serviceProvider =>
-            new PlatformUserDisplayCache(serviceProvider.GetRequiredService<VulperonexDbContext>()));
+        // Singleton for the same reason as IRuleSnapshotCache: per-event scopes
+        // rebuilt the L1 LRU on every message, so every avatar/badge lookup hit
+        // the database. Capacity comes from the (previously dead) config key.
+        services.AddSingleton<Vulperonex.Adapters.Abstractions.IPlatformUserInfoCache>(serviceProvider =>
+        {
+            using var scope = serviceProvider.CreateScope();
+            var settings = scope.ServiceProvider.GetRequiredService<ISystemSettingsService>();
+            var capacity = settings
+                .GetAsync(SystemSettingKey.OverlayDisplayCacheL1Capacity, 500, CancellationToken.None)
+                .GetAwaiter()
+                .GetResult();
+            return new PlatformUserDisplayCache(
+                serviceProvider.GetRequiredService<IServiceScopeFactory>(),
+                Math.Clamp(capacity, 1, 100_000));
+        });
         services.AddScoped<ICounterRepository, CounterRepository>();
         services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
         services.AddSingleton<IPlatformChatSender, SimulationPlatformChatSender>();

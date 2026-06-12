@@ -4,6 +4,7 @@ public sealed class LruCache<TKey, TValue>
     where TKey : notnull
 {
     private readonly int _capacity;
+    private readonly object _gate = new();
     private readonly Dictionary<TKey, LinkedListNode<Entry>> _entries = [];
     private readonly LinkedList<Entry> _usage = [];
 
@@ -19,37 +20,45 @@ public sealed class LruCache<TKey, TValue>
 
     public bool TryGet(TKey key, out TValue value)
     {
-        if (!_entries.TryGetValue(key, out var node))
+        // TryGet also mutates the usage list, so reads need the same lock as
+        // writes; the cache is shared by concurrent event-dispatch tasks.
+        lock (_gate)
         {
-            value = default!;
-            return false;
-        }
+            if (!_entries.TryGetValue(key, out var node))
+            {
+                value = default!;
+                return false;
+            }
 
-        _usage.Remove(node);
-        _usage.AddFirst(node);
-        value = node.Value.Value;
-        return true;
+            _usage.Remove(node);
+            _usage.AddFirst(node);
+            value = node.Value.Value;
+            return true;
+        }
     }
 
     public void Set(TKey key, TValue value)
     {
-        if (_entries.TryGetValue(key, out var existing))
+        lock (_gate)
         {
-            existing.Value = new Entry(key, value);
-            _usage.Remove(existing);
-            _usage.AddFirst(existing);
-            return;
-        }
+            if (_entries.TryGetValue(key, out var existing))
+            {
+                existing.Value = new Entry(key, value);
+                _usage.Remove(existing);
+                _usage.AddFirst(existing);
+                return;
+            }
 
-        var node = new LinkedListNode<Entry>(new Entry(key, value));
-        _usage.AddFirst(node);
-        _entries[key] = node;
+            var node = new LinkedListNode<Entry>(new Entry(key, value));
+            _usage.AddFirst(node);
+            _entries[key] = node;
 
-        while (_entries.Count > _capacity)
-        {
-            var last = _usage.Last!;
-            _usage.RemoveLast();
-            _entries.Remove(last.Value.Key);
+            while (_entries.Count > _capacity)
+            {
+                var last = _usage.Last!;
+                _usage.RemoveLast();
+                _entries.Remove(last.Value.Key);
+            }
         }
     }
 

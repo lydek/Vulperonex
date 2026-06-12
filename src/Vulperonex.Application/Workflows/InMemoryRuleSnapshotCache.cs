@@ -21,7 +21,9 @@ public sealed class InMemoryRuleSnapshotCache(IWorkflowRuleQueryService querySer
         _rulesByEventType[eventTypeKey] = snapshot;
         foreach (var rule in snapshot)
         {
-            _rulesById[rule.Id] = Clone(rule);
+            // Internal entries can share instances with the stored snapshot;
+            // callers only ever receive clones, so no extra copy is needed here.
+            _rulesById[rule.Id] = rule;
         }
 
         return Clone(snapshot);
