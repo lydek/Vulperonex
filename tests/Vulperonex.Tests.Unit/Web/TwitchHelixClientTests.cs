@@ -60,6 +60,31 @@ public sealed class TwitchHelixClientTests
     }
 
     [Fact]
+    public async Task Given_InjectedClientWithoutBaseAddress_When_LookupRuns_Then_HelixBaseAddressIsEnsured()
+    {
+        // AddHttpClient() makes DI satisfy the optional HttpClient parameter with
+        // a client that has no BaseAddress; the Helix client must still resolve
+        // its relative request paths against the Helix API.
+        HttpRequestMessage? capturedRequest = null;
+        using var httpClient = new HttpClient(new StubHandler(request =>
+        {
+            capturedRequest = request;
+            return JsonResponse("""{"data":[]}""");
+        }));
+
+        var client = new TwitchHelixClient(
+            NewConfiguration(),
+            NewTokenProvider(),
+            new FakeSettingsService(),
+            httpClient);
+
+        await client.LookupUserAsync("alice", userId: null, TestContext.Current.CancellationToken);
+
+        capturedRequest.Should().NotBeNull();
+        capturedRequest!.RequestUri!.ToString().Should().Be("https://api.twitch.tv/helix/users?login=alice");
+    }
+
+    [Fact]
     public async Task Given_UserIdLookup_When_UserMissing_Then_ReturnsNull()
     {
         using var httpClient = new HttpClient(new StubHandler(_ => JsonResponse("""{"data":[]}""")))

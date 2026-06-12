@@ -17,10 +17,20 @@ public sealed class TwitchHelixClient(
     ISystemSettingsService settings,
     HttpClient? httpClient = null) : IHelixClient
 {
-    private readonly HttpClient _httpClient = httpClient ?? new HttpClient
+    private static readonly Uri HelixBaseAddress = new("https://api.twitch.tv/helix/");
+
+    // AddHttpClient() registers a transient HttpClient in DI, so this optional
+    // parameter is now satisfied by the container with a client that has no
+    // BaseAddress. All request paths here are Helix-relative, so the base
+    // address must be ensured regardless of where the client came from.
+    private readonly HttpClient _httpClient = EnsureHelixBaseAddress(httpClient);
+
+    private static HttpClient EnsureHelixBaseAddress(HttpClient? client)
     {
-        BaseAddress = new Uri("https://api.twitch.tv/helix/"),
-    };
+        client ??= new HttpClient();
+        client.BaseAddress ??= HelixBaseAddress;
+        return client;
+    }
 
     public async Task<PlatformUserProfile?> LookupUserAsync(
         string? login,
