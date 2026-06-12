@@ -109,7 +109,7 @@ public sealed class TriggerCheckInActionExecutor(
                 await eventBus.PublishAsync(new MemberCheckedInEvent
                 {
                     Platform = platform,
-                    User = new StreamUser(platform, userId, repeatedDisplayName, context.StreamEvent.User?.Roles ?? StreamRole.None, repeatedLogin),
+                    User = new StreamUser(platform, userId, repeatedDisplayName, context.StreamEvent?.User?.Roles ?? StreamRole.None, repeatedLogin),
                     AvatarUrl = repeatedAvatarUrl,
                     CheckInCount = memberBefore.Loyalty.CheckInCount,
                     TotalLoyalty = memberBefore.Loyalty.TotalLoyalty,

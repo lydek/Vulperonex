@@ -1294,7 +1294,7 @@ public sealed class Phase5EndpointTests
                     .GetInfrastructure(context.Database)
                     .GetRequiredService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>();
                 
-                await migrator.MigrateAsync("20260525085813_AddMemberAuditLogSubjectKindIndex");
+                await migrator.MigrateAsync("20260525085813_AddMemberAuditLogSubjectKindIndex", TestContext.Current.CancellationToken);
 
                 var triggerJson = "{\"eventTypeKey\":\"user.message\",\"filter\":{},\"matchCondition\":\"1 == 1\"}";
                 await context.Database.ExecuteSqlRawAsync(
@@ -1302,10 +1302,10 @@ public sealed class Phase5EndpointTests
                     "VALUES ('migration_test_rule', 'Test Rule', '', '', {0}, 0, 1, 100, 'Serial', 1, 30, '[]', '[]', '[]', '2026-05-16 00:00:00', '{{}}', 0);",
                     triggerJson);
 
-                await migrator.MigrateAsync("20260528164414_ConsolidateWorkflowRuleSchema");
+                await migrator.MigrateAsync("20260528164414_ConsolidateWorkflowRuleSchema", TestContext.Current.CancellationToken);
 
                 context.ChangeTracker.Clear();
-                var dbRule = await context.Set<WorkflowRuleEntity>().FirstOrDefaultAsync(r => r.Id == "migration_test_rule");
+                var dbRule = await context.Set<WorkflowRuleEntity>().FirstOrDefaultAsync(r => r.Id == "migration_test_rule", TestContext.Current.CancellationToken);
                 
                 dbRule.Should().NotBeNull();
                 dbRule!.EventTypeKey.Should().Be("user.message");

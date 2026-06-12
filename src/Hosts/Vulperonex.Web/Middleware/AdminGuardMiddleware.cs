@@ -179,7 +179,7 @@ public sealed class AdminGuardMiddleware
         return remoteIpAddress is not null && IPAddress.IsLoopback(remoteIpAddress);
     }
 
-    private static bool IsAllowedHost(string host)
+    private static bool IsAllowedHost(string? host)
     {
         if (string.IsNullOrWhiteSpace(host)) return false;
 

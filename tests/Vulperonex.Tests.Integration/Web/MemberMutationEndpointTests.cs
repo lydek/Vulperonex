@@ -119,12 +119,12 @@ public sealed class MemberMutationEndpointTests
         await using (var dbScope = app.Services.CreateAsyncScope())
         {
             var db = dbScope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
-            var member = await db.Members.FirstAsync(x => x.MemberId == "member-1");
+            var member = await db.Members.FirstAsync(x => x.MemberId == "member-1", TestContext.Current.CancellationToken);
             member.TotalLoyalty.Should().Be(20);
             member.CheckInCount.Should().Be(5);
             member.UpdatedAtTicks.Should().NotBe(currentTicks);
 
-            var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-1");
+            var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-1", TestContext.Current.CancellationToken);
             auditLog.Should().NotBeNull();
             auditLog!.Operation.Should().Be("adjust_loyalty");
             auditLog.Reason.Should().Be("Bonus points");
@@ -158,11 +158,11 @@ public sealed class MemberMutationEndpointTests
         await using (var dbScope = app.Services.CreateAsyncScope())
         {
             var db = dbScope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
-            var member = await db.Members.FirstAsync(x => x.MemberId == "member-1");
+            var member = await db.Members.FirstAsync(x => x.MemberId == "member-1", TestContext.Current.CancellationToken);
             member.TotalLoyalty.Should().Be(0);
             member.CheckInCount.Should().Be(0);
 
-            var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-1");
+            var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-1", TestContext.Current.CancellationToken);
             auditLog.Should().NotBeNull();
             auditLog!.Operation.Should().Be("reset");
             auditLog.Reason.Should().Be("Admin reset");
@@ -198,12 +198,12 @@ public sealed class MemberMutationEndpointTests
         await using (var scope = app.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
-            var exists = await db.Members.AnyAsync(x => x.MemberId == "member-delete-token");
+            var exists = await db.Members.AnyAsync(x => x.MemberId == "member-delete-token", TestContext.Current.CancellationToken);
             exists.Should().BeFalse();
 
             // Audit logs follow an append-only contract, so deletes must not cascade.
             // After the member is removed, the related MemberAuditLogs rows must still remain in the database.
-            var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-delete-token" && x.Operation == "delete");
+            var auditLog = await db.MemberAuditLogs.FirstOrDefaultAsync(x => x.MemberId == "member-delete-token" && x.Operation == "delete", TestContext.Current.CancellationToken);
             auditLog.Should().NotBeNull();
             auditLog!.Reason.Should().Be("Dangerous user");
         }
@@ -244,7 +244,7 @@ public sealed class MemberMutationEndpointTests
         await using (var scope = app.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
-            var exists = await db.Members.AnyAsync(x => x.MemberId == "member-missing-delete-token");
+            var exists = await db.Members.AnyAsync(x => x.MemberId == "member-missing-delete-token", TestContext.Current.CancellationToken);
             exists.Should().BeTrue();
         }
 
@@ -270,7 +270,7 @@ public sealed class MemberMutationEndpointTests
         await using (var scope = app.Services.CreateAsyncScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<VulperonexDbContext>();
-            var exists = await db.Members.AnyAsync(x => x.MemberId == "member-bad-json-delete");
+            var exists = await db.Members.AnyAsync(x => x.MemberId == "member-bad-json-delete", TestContext.Current.CancellationToken);
             exists.Should().BeTrue();
         }
 

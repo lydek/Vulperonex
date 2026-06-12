@@ -22,7 +22,7 @@ public sealed class TwitchBadgeCacheTests
             Badge("subscriber_0", "subscriber", "0", "https://cdn/sub.png", "Subscriber"),
         });
 
-        await cache.SyncGlobalAsync();
+        await cache.SyncGlobalAsync(TestContext.Current.CancellationToken);
 
         cache.IsReady.Should().BeTrue();
         cache.GetUrl("vip_1").Should().Be("https://cdn/vip.png");
@@ -38,8 +38,8 @@ public sealed class TwitchBadgeCacheTests
             global: new[] { Badge("subscriber_0", "subscriber", "0", "https://cdn/global-sub.png", "Subscriber") },
             channel: new[] { Badge("subscriber_0", "subscriber", "0", "https://cdn/channel-sub.png", "Channel Sub", isChannel: true) });
 
-        await cache.SyncGlobalAsync();
-        await cache.SyncChannelAsync("broadcaster-1");
+        await cache.SyncGlobalAsync(TestContext.Current.CancellationToken);
+        await cache.SyncChannelAsync("broadcaster-1", TestContext.Current.CancellationToken);
 
         cache.GetUrl("subscriber_0").Should().Be("https://cdn/channel-sub.png");
         cache.ListChannel().Should().ContainSingle();
@@ -63,7 +63,7 @@ public sealed class TwitchBadgeCacheTests
 
         var cache = BuildCacheWithClient(client);
 
-        await cache.SyncGlobalAsync();
+        await cache.SyncGlobalAsync(TestContext.Current.CancellationToken);
 
         cache.IsReady.Should().BeFalse();
         cache.ListGlobal().Should().BeEmpty();

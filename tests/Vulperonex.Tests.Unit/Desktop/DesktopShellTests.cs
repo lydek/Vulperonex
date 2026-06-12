@@ -36,7 +36,7 @@ public sealed class DesktopShellTests
                     break;
                 }
 
-                await Task.Delay(1); // Small delay to avoid busy looping in tests
+                await Task.Delay(1, TestContext.Current.CancellationToken); // Small delay to avoid busy looping in tests
             }
         }
 

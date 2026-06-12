@@ -40,7 +40,7 @@ public sealed class WorkflowCommandFilterTests
         await using var bus = new InMemoryStreamEventBus();
         var sender = new RecordingChatSender("twitch");
         await using var engine = NewEngine(bus, sender);
-        await engine.StartAsync();
+        await engine.StartAsync(TestContext.Current.CancellationToken);
 
         var adapter = new SimulationAdapter(bus, new InMemoryStreamEventTypeRegistry());
         await adapter.SimulateAsync(
