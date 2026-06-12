@@ -164,11 +164,19 @@ public static class DependencyInjection
         services.AddScoped<ICounterRepository, CounterRepository>();
         services.AddSingleton<ISimulationAdapter, SimulationAdapter>();
         services.AddSingleton<IPlatformChatSender, SimulationPlatformChatSender>();
-        services.AddScoped<WorkflowConditionEvaluator>();
+        // Singleton: holds the in-memory cooldown ledger. As a scoped service the
+        // ledger was rebuilt per event scope, so CooldownCondition never blocked
+        // anything in production.
+        services.AddSingleton<WorkflowConditionEvaluator>();
         services.AddScoped<ITemplateResolver, TemplateResolver>();
         services.AddScoped<IExpressionEvaluator, NCalcExpressionEvaluator>();
         services.AddScoped<TemplateRenderer>();
-        services.AddScoped<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
+        // Singleton: replay/idempotency ledger must outlive a single event scope
+        // (TDQ replays arrive in fresh scopes). FIFO-bounded internally.
+        services.AddSingleton<IWorkflowActionExecutionStore, InMemoryWorkflowActionExecutionStore>();
+        // Singleton: per-rule Serial/MaxParallelism limits only mean anything if
+        // they contend across events; the engine itself stays scoped.
+        services.AddSingleton<WorkflowRuleConcurrencyGate>();
         services.AddSingleton<IWorkflowThrottleService, InMemoryWorkflowThrottleService>();
         services.AddSingleton<WorkflowChatEchoTracker>();
         services.AddSingleton<ITriggerMetadataProvider, TriggerMetadataProvider>();

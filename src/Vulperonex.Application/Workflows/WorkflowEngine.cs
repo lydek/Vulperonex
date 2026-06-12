@@ -28,7 +28,7 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
     private readonly IExpressionEvaluator _expressionEvaluator;
     private readonly IWorkflowThrottleService _throttleService;
     private readonly IClock _clock;
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _ruleSemaphores = new();
+    private readonly WorkflowRuleConcurrencyGate _concurrencyGate;
     private IDisposable? _subscription;
 
     private readonly ILogger<WorkflowEngine> _logger;
@@ -44,7 +44,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         IWorkflowThrottleService throttleService,
         IClock clock,
         ILogger<WorkflowEngine> logger,
-        TriggerFilterMatcherRegistry matcherRegistry)
+        TriggerFilterMatcherRegistry matcherRegistry,
+        WorkflowRuleConcurrencyGate? concurrencyGate = null)
     {
         _eventBus = eventBus;
         _ruleSnapshotCache = ruleSnapshotCache;
@@ -56,6 +57,9 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         _clock = clock;
         _logger = logger;
         _matcherRegistry = matcherRegistry;
+        // Engine-local fallback keeps tests self-contained; production DI passes
+        // the singleton gate so per-rule concurrency limits hold across events.
+        _concurrencyGate = concurrencyGate ?? new WorkflowRuleConcurrencyGate();
     }
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -165,14 +169,8 @@ public sealed class WorkflowEngine : IWorkflowRuleInvoker, IAsyncDisposable
         var effectiveCancellationToken = timeoutSource?.Token ?? cancellationToken;
 
         var capacity = ResolveCapacity(rule);
-        // Cache key includes capacity + execution mode so an edited rule
-        // does not reuse a semaphore sized for the previous configuration.
-        // Note: superseded semaphores remain in the dictionary; leak is
-        // bounded by (rule count × edits per rule × engine lifetime) and
-        // is acceptable for the MVP in-process engine. A persistent
-        // engine should evict entries keyed by inactive rule ids.
         var semaphoreKey = $"{rule.Id}|{rule.ExecutionMode}|{capacity}";
-        var semaphore = _ruleSemaphores.GetOrAdd(semaphoreKey, _ => new SemaphoreSlim(capacity));
+        var semaphore = _concurrencyGate.GetOrAdd(semaphoreKey, capacity);
 
         await semaphore.WaitAsync(effectiveCancellationToken);
         try
