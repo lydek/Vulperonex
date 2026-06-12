@@ -85,6 +85,80 @@ public sealed class TwitchAccessTokenProviderTests
         endpoint.RefreshToken.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Given_ExpiredToken_When_ManyCallersEnsureConcurrently_Then_OnlyOneRefreshRuns()
+    {
+        // Regression for the ce5c6aa race: Twitch rotates the refresh token on
+        // every refresh, so two concurrent refreshes make the loser persist a
+        // stale rotated-away token and silently de-authorize the app. The
+        // provider must single-flight refreshes behind its lock.
+        var store = new RecordingTokenStore { RefreshToken = "refresh-old" };
+        var endpoint = new BlockingTokenEndpoint(new TwitchTokenResponse("access-new", "refresh-new", ExpiresIn: 600));
+        var provider = new TwitchAccessTokenProvider(store, endpoint);
+
+        var callers = Enumerable.Range(0, 8)
+            .Select(_ => provider.EnsureValidAccessTokenAsync(TestContext.Current.CancellationToken))
+            .ToArray();
+
+        // All callers are now queued; release the single in-flight refresh.
+        await endpoint.WaitForFirstRefreshAsync(TestContext.Current.CancellationToken);
+        endpoint.ReleaseRefresh();
+        await Task.WhenAll(callers);
+
+        endpoint.RefreshCount.Should().Be(1, "concurrent callers must share one refresh, never race the rotating refresh token");
+        provider.AccessToken.Should().Be("access-new");
+        store.Stored.Should().ContainSingle().Which.Should().Be(("twitch", "refresh-new"));
+    }
+
+    [Fact]
+    public async Task Given_RefreshEndpointRejectsToken_When_RefreshRuns_Then_AuthorizationRequiredAndTokenCleared()
+    {
+        var store = new RecordingTokenStore { RefreshToken = "refresh-revoked" };
+        var endpoint = new ThrowingTokenEndpoint();
+        var provider = new TwitchAccessTokenProvider(store, endpoint);
+
+        await provider.RefreshAsync(TestContext.Current.CancellationToken);
+
+        provider.AuthorizationRequired.Should().BeTrue();
+        provider.AccessToken.Should().BeNull();
+        // The invalid refresh token must be cleared so we stop hammering id.twitch.tv.
+        store.Stored.Should().ContainSingle().Which.Should().Be(("twitch", string.Empty));
+    }
+
+    private sealed class BlockingTokenEndpoint(TwitchTokenResponse response) : ITwitchTokenEndpoint
+    {
+        private readonly TaskCompletionSource _firstRefreshStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _release = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _refreshCount;
+
+        public int RefreshCount => Volatile.Read(ref _refreshCount);
+
+        public Task WaitForFirstRefreshAsync(CancellationToken cancellationToken)
+            => _firstRefreshStarted.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+
+        public void ReleaseRefresh() => _release.TrySetResult();
+
+        public Task<TwitchTokenResponse> ExchangeCodeAsync(string code, string codeVerifier, CancellationToken cancellationToken = default)
+            => Task.FromResult(response);
+
+        public async Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _refreshCount);
+            _firstRefreshStarted.TrySetResult();
+            await _release.Task.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            return response;
+        }
+    }
+
+    private sealed class ThrowingTokenEndpoint : ITwitchTokenEndpoint
+    {
+        public Task<TwitchTokenResponse> ExchangeCodeAsync(string code, string codeVerifier, CancellationToken cancellationToken = default)
+            => throw new HttpRequestException("invalid grant");
+
+        public Task<TwitchTokenResponse> RefreshAsync(string refreshToken, CancellationToken cancellationToken = default)
+            => throw new HttpRequestException("invalid grant");
+    }
+
     private sealed class RecordingTokenStore : IOAuthTokenStore
     {
         public string? RefreshToken { get; init; }
