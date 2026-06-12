@@ -7,7 +7,10 @@ using Vulperonex.Application.Settings;
 
 namespace Vulperonex.Adapters.Twitch.Auth;
 
-public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceScopeFactory scopeFactory) : ITwitchTokenEndpoint
+public sealed class TwitchTokenEndpoint(
+    IConfiguration configuration,
+    IServiceScopeFactory scopeFactory,
+    IHttpClientFactory httpClientFactory) : ITwitchTokenEndpoint
 {
     private static readonly Uri TokenEndpoint = new("https://id.twitch.tv/oauth2/token");
     private static readonly Uri DeviceEndpoint = new("https://id.twitch.tv/oauth2/device");
@@ -74,7 +77,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceSc
         CancellationToken cancellationToken = default)
     {
         var clientId = await GetClientIdAsync(cancellationToken);
-        using var httpClient = new HttpClient();
+        var httpClient = httpClientFactory.CreateClient(nameof(TwitchTokenEndpoint));
         using var response = await httpClient.PostAsync(
             DeviceEndpoint,
             new FormUrlEncodedContent(new Dictionary<string, string>
@@ -116,7 +119,7 @@ public sealed class TwitchTokenEndpoint(IConfiguration configuration, IServiceSc
         Dictionary<string, string> form,
         CancellationToken cancellationToken)
     {
-        using var httpClient = new HttpClient();
+        var httpClient = httpClientFactory.CreateClient(nameof(TwitchTokenEndpoint));
         using var response = await httpClient.PostAsync(TokenEndpoint, new FormUrlEncodedContent(form), cancellationToken);
         if (!response.IsSuccessStatusCode)
         {

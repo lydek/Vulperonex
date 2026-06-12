@@ -76,6 +76,7 @@ public static class DependencyInjection
         });
 
         services.AddOpenApi();
+        services.AddHttpClient();
         services.AddSignalR()
             .AddJsonProtocol(options =>
             {
