@@ -2,357 +2,207 @@
 
 > **Language / 語言**: [English](README.md) | [繁體中文](docs/zh-TW/README.md)
 
-Streaming Assistant Platform — Integrating Twitch event streams, member loyalty, overlay broadcasting, workflow rule engine, and plugin module management.
+Vulperonex is a streaming assistant platform for Twitch workflows, member loyalty, check-in cards, OBS overlays, timers, rules, and modular integrations.
 
-## Documentation Locale Policy
+This repository contains the ASP.NET Core host, Vue admin UI, desktop host, CLI host, workflow runtime, tests, and supporting documentation.
 
-- English is the default documentation language and keeps the original filename.
-- Localized Markdown files live under `docs/<locale>/` with the same relative path and clean filename as the English source.
-- Traditional Chinese documentation uses the `docs/zh-TW/` tree.
-- Do not use locale suffix naming such as `*.zh-TW.md`; use the locale directory strategy instead.
+## Quick Start
 
-This project consists of four executable Hosts:
+Use the development script from the repository root.
 
-| Host | Purpose | OutputType | TargetFramework |
-|---|---|---|---|
-| `Vulperonex.Web` | ASP.NET Core API + SignalR Hub + Static Overlay Site | `Exe` | `net10.0` |
-| `Vulperonex.Cli` | Console CLI (member / rule / simulate / twitch / timer / config) | `Exe` | `net10.0` |
-| `Vulperonex.Desktop` | Windows Desktop Shell (Photino.NET, WebView2-backed) wrapping the embedded Web host | `WinExe` | `net10.0-windows` |
-| `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue) | n/a | n/a |
-
----
-
-## System Requirements
-
-| Tool | Version | Purpose |
-|---|---|---|
-| .NET SDK | 10.0+ | Compile all C# projects |
-| Node.js | 20.x LTS+ | Frontend toolchain |
-| pnpm | 9.15.4 | Frontend package manager (specified in `package.json`) |
-| PowerShell | 5.1+ / 7+ | Windows development environment |
-| Git | 2.40+ | Version control |
-
-> The Windows Desktop Host (`Vulperonex.Desktop`) is built on **Photino.NET 3.x**, which uses the system WebView2 Runtime — requires Windows 10 1809+ and the WebView2 Runtime installed.
-
----
-
-## Getting the Source Code
+First-time setup:
 
 ```powershell
-git clone <repo-url> Vulperonex
-cd Vulperonex
-dotnet restore Vulperonex.sln
-cd src/frontend
-pnpm install --frozen-lockfile
-cd ../..
+.\scripts\dev.ps1 restore
+.\scripts\dev.ps1 build
 ```
 
----
-
-## Backend — Vulperonex.Web (API + Overlay)
-
-### Build
+Daily startup:
 
 ```powershell
-dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false
+.\scripts\dev.ps1 run-web
 ```
 
-> `/m:1 /nr:false /p:UseSharedCompilation=false` are the project convention flags to avoid MSBuild node reuse which can lead to file locks on Windows.
+The web host starts the API, admin UI static host, SignalR hubs, and overlay endpoints.
 
-### Run
+Open the local URL printed by the console after startup. The API port normally starts at `5000`, but Vulperonex can automatically choose the next available port pair if the default port is already in use.
+
+Typical first URL:
+
+```text
+http://localhost:5000
+```
+
+## Requirements
+
+- Windows PowerShell 5.1 or PowerShell 7+
+- .NET SDK 10+
+- Node.js 20+
+- pnpm 9.15.4
+- Git
+
+The frontend package declares `pnpm@9.15.4`. If Corepack is available, enable it once:
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Web/Vulperonex.Web.csproj
+corepack enable
 ```
 
-Default behavior:
+## Development Script
 
-- Listens on a loopback (`127.0.0.1`) port pair (API + Overlay) dynamically allocated by `PortPairAllocator`; the actual URL is printed to the console on startup.
-- The environment variable `ASPNETCORE_ENVIRONMENT=Development` launches the developer exception page.
-- On the first startup, the following will be generated under the user's AppData directory:
-  - `machine-key` (HMAC ETag signature key)
-  - `.admin-csrf-token` (per-process random CSRF token)
+The main entry point is [scripts/dev.ps1](scripts/dev.ps1). It keeps the common build, test, and run commands in one place.
 
-### Developer Flags
+| Task | Command | Purpose |
+| --- | --- | --- |
+| Help | `.\scripts\dev.ps1 help` | Show available tasks. |
+| Restore | `.\scripts\dev.ps1 restore` | Restore NuGet packages and install frontend packages. |
+| Frontend install | `.\scripts\dev.ps1 install` | Run pnpm install only. |
+| Build all | `.\scripts\dev.ps1 build` | Build backend solution and frontend assets. |
+| Build backend | `.\scripts\dev.ps1 build-backend` | Build `Vulperonex.sln`. |
+| Build frontend | `.\scripts\dev.ps1 build-frontend` | Run `pnpm build` in `src/frontend`. |
+| Test all | `.\scripts\dev.ps1 test` | Run backend and frontend tests. |
+| Test backend | `.\scripts\dev.ps1 test-backend` | Run `dotnet test` for the solution. |
+| Test frontend | `.\scripts\dev.ps1 test-frontend` | Run Vitest with coverage. |
+| Type-check UI | `.\scripts\dev.ps1 typecheck` | Run Vue TypeScript checks. |
+| Lint UI | `.\scripts\dev.ps1 lint` | Run oxlint. |
+| Run web host | `.\scripts\dev.ps1 run-web` | Start `Vulperonex.Web`. |
+| Run frontend dev server | `.\scripts\dev.ps1 run-frontend` | Start Vite on `127.0.0.1`. |
+| Run desktop host | `.\scripts\dev.ps1 run-desktop` | Start `Vulperonex.Desktop`. |
 
-| Environment Variable | Default | Description |
-|---|---|---|
-| `ASPNETCORE_ENVIRONMENT` | `Production` | `Development` enables the exception page and detailed logging |
-| `Security:CsrfTokenPath` | User AppData | Overrides the CSRF token file path (commonly used in testing) |
-
-### Database Migrations
-
-SQLite automatic `Migrate()` is triggered upon application startup. To apply manually:
+Examples:
 
 ```powershell
-dotnet ef database update --project src/Vulperonex.Infrastructure --startup-project src/Hosts/Vulperonex.Web
+.\scripts\dev.ps1 build -Configuration Release
+.\scripts\dev.ps1 test-backend -Filter "WorkflowEngineTests"
+.\scripts\dev.ps1 run-web
+.\scripts\dev.ps1 run-frontend
 ```
 
-To add a new migration:
+The script automatically uses `pnpm` when available. If `pnpm` is not on `PATH`, it falls back to `corepack pnpm`.
+
+The backend build and test tasks use Windows-friendly MSBuild flags to reduce file-lock issues:
+
+```text
+/m:1 /nr:false /p:UseSharedCompilation=false
+```
+
+## Common Workflows
+
+### First-Time Setup
 
 ```powershell
-dotnet ef migrations add <Name> --project src/Vulperonex.Infrastructure --startup-project src/Hosts/Vulperonex.Web
+.\scripts\dev.ps1 restore
+.\scripts\dev.ps1 build
 ```
 
----
-
-## CLI — Vulperonex.Cli
-
-### Build + Run
+### Run the App
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Cli -- <command> [args]
+.\scripts\dev.ps1 run-web
 ```
 
-Or self-contained publication:
+Open the URL printed by the web host. It is usually `http://localhost:5000`, but it may be another nearby port when `5000` is already occupied.
+
+### Run Frontend Dev Server
 
 ```powershell
-dotnet publish src/Hosts/Vulperonex.Cli -c Release -r win-x64 --self-contained false -o artifacts/cli
-artifacts/cli/Vulperonex.Cli.exe --help
+.\scripts\dev.ps1 run-frontend
 ```
 
-### Built-in Command Tree
+This is useful for UI iteration when the API host is already running.
 
-| Group | Subcommand | Purpose |
-|---|---|---|
-| `member` | `list` / `show` / `seed` / `delete` | Member management (loyalty adjust / reset / audit are API-only, not CLI) |
-| `rule` | `list` / `show` / `create` / `update` / `enable` / `disable` / `delete` | Workflow rule management |
-| `simulate` | `chat` / `follow` / `sub` / `checkin` | Event simulation / Check-in |
-| `twitch` | `auth start` / `auth reset` | OAuth workflow |
-| `timer` | `list` / `show` / `create` / `delete` | Timer workflows |
-| `config` | `get` / `set` | SystemSetting key-value (no `list`) |
-
-Full reference: [`docs/cli.md`](docs/cli.md). Examples:
+### Run Tests
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Cli -- member list
-dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user-id testuser --stamp-count 1 --skip-cooldown
+.\scripts\dev.ps1 test
 ```
 
-### Multi-language
-
-The CLI loads strings through `Resources/I18n/{en-US,zh-TW}.json`; override with the `CULTURE` environment variable:
+For a focused backend test run:
 
 ```powershell
-$env:CULTURE = "en-US"; dotnet run --project src/Hosts/Vulperonex.Cli -- --help
+.\scripts\dev.ps1 test-backend -Filter "TriggerMetadataProviderTests"
 ```
 
----
-
-## Desktop — Vulperonex.Desktop (Windows Shell)
-
-### Build + Run
+For frontend-only checks:
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Desktop
+.\scripts\dev.ps1 typecheck
+.\scripts\dev.ps1 test-frontend
+.\scripts\dev.ps1 lint
 ```
 
-Behavior:
+## OBS Overlay URLs
 
-- Launches the embedded `Vulperonex.Web` host (loopback only).
-- WebView2 loads the admin SPA.
-- Closing the window terminates all background services.
-
-### Publication
+Start the web host first:
 
 ```powershell
-dotnet publish src/Hosts/Vulperonex.Desktop -c Release -r win-x64 --self-contained true -o artifacts/desktop
+.\scripts\dev.ps1 run-web
 ```
 
-Produces `artifacts/desktop/Vulperonex.Desktop.exe`.
+Then open the admin UI URL shown in the console and copy OBS browser-source URLs from the overlay/settings area.
 
-> Buildable only on Windows (`net10.0-windows` TargetFramework). `dotnet build` will skip this host on Linux/macOS.
+Use the local URL when OBS runs on the same machine. Use the LAN URL only when OBS runs on another machine on the same network and LAN overlay access is enabled in settings. LAN copy actions should generate the URL from the current detected IP because local IP addresses can change over time.
 
----
+## Manual Commands
 
-## Frontend UI — `src/frontend/`
-
-### Installation
+The script is preferred. These commands are useful when you need to debug the toolchain directly.
 
 ```powershell
-cd src/frontend
-pnpm install --frozen-lockfile
+dotnet restore .\Vulperonex.sln
+dotnet build .\Vulperonex.sln -c Debug /m:1 /nr:false /p:UseSharedCompilation=false
+dotnet test .\Vulperonex.sln -c Debug /m:1 /nr:false /p:UseSharedCompilation=false
+corepack pnpm --dir .\src\frontend install --frozen-lockfile
+corepack pnpm --dir .\src\frontend build
+dotnet run --project .\src\Hosts\Vulperonex.Web\Vulperonex.Web.csproj
 ```
 
-### Development Mode
+## Repository Layout
 
-```powershell
-pnpm dev
+```text
+src/
+  Hosts/
+    Vulperonex.Web/      ASP.NET Core API, SignalR, admin UI host, overlays
+    Vulperonex.Desktop/  Desktop host
+    Vulperonex.Cli/      CLI host
+  frontend/              Vue 3 admin UI
+  Vulperonex.*           Domain, application, infrastructure, plugin modules
+tests/
+  Vulperonex.Tests.Unit/
+  Vulperonex.Tests.Integration/
+  Vulperonex.Tests.Architecture/
+docs/                    Specs, phase notes, and localized documentation
+scripts/                 Local development scripts
 ```
-
-- Vite dev server listens on `127.0.0.1:5173` (host locked to loopback).
-- Vite proxy forwards `/api/*` + `/hubs/*` to the backend Web host.
-- HMR is enabled. The backend must be running to invoke admin APIs.
-
-### Production Build
-
-```powershell
-pnpm build
-```
-
-Executes two steps:
-
-1. `vue-tsc --noEmit` — Type checking (does not output .d.ts, validation only)
-2. `vite build` — Packages to `src/frontend/dist/`
-
-The backend Web host serves this directory directly via `UseStaticFiles` upon startup.
-
-### Lint
-
-```powershell
-pnpm lint     # oxlint
-pnpm vue-tsc  # Pure type check
-```
-
----
-
-## Testing
-
-### Backend C#
-
-Three test projects exist in the solution:
-
-| Project | Count | Purpose |
-|---|---|---|
-| `Vulperonex.Tests.Architecture` | 19 | NDepend-style dependency directions, naming conventions, layer boundaries |
-| `Vulperonex.Tests.Unit` | 210 | Pure logical unit tests (no DB / no HTTP) |
-| `Vulperonex.Tests.Integration` | 219 | `WebApplicationFactory` + SQLite + full HTTP/Hub end-to-end |
-
-Execute the full suite:
-
-```powershell
-dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
-```
-
-Unit tests only:
-
-```powershell
-dotnet test tests/Vulperonex.Tests.Unit/Vulperonex.Tests.Unit.csproj
-```
-
-Integration tests only:
-
-```powershell
-dotnet test tests/Vulperonex.Tests.Integration/Vulperonex.Tests.Integration.csproj
-```
-
-Filter a single test:
-
-```powershell
-dotnet test --filter "FullyQualifiedName~MemberMutationEndpointTests"
-```
-
-> The integration test `CreateClient` will:
-> - Allocate a per-test temporary `Security:CsrfTokenPath` to avoid concurrent IO locking
-> - Retrieve `AdminCsrfTokenProvider.Token` from DI and set it as the `X-Admin-Csrf` header
-> - Inject both `Origin` and `Referer` headers matching the local host
-
-### Frontend Vitest
-
-```powershell
-cd src/frontend
-pnpm test
-```
-
-Executes `vitest run --coverage`:
-
-- 34 test files, 167 cases
-- Coverage report output to `src/frontend/coverage/`
-- Environment is `jsdom`, automatically detects `MODE === "test"` to skip actual CSRF token fetches
-
-Watch mode:
-
-```powershell
-pnpm vitest
-```
-
-### One-click All Tests
-
-```powershell
-dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
-cd src/frontend; pnpm vue-tsc --noEmit; pnpm test; pnpm build; pnpm lint
-```
-
----
-
-## Complete Checkpoint Process
-
-Must be run before finalizing any phase:
-
-```powershell
-# 1. Backend build
-dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false
-
-# 2. Backend test
-dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
-
-# 3. Frontend type-check + test + build + lint
-cd src/frontend
-pnpm vue-tsc --noEmit
-pnpm test
-pnpm build
-pnpm lint
-cd ../..
-```
-
-All four steps must pass green to allow a merge.
-
----
-
-## Project Structure
-
-```
-Vulperonex/
-├── Vulperonex.sln
-├── Directory.Build.props        # net10.0 + C# 14 + Nullable enable
-├── Directory.Packages.props     # Centralized package version locking
-├── src/
-│   ├── Vulperonex.Domain/                 # Pure domain models + Events
-│   ├── Vulperonex.Application/            # Use cases + interfaces
-│   ├── Vulperonex.Infrastructure/         # EF Core + external integrations
-│   ├── Adapters/
-│   │   ├── Vulperonex.Adapters.Twitch/
-│   │   ├── Vulperonex.Adapters.OneComme/
-│   │   └── Vulperonex.Adapters.Simulation/
-│   ├── Plugins/
-│   │   └── Vulperonex.Plugins.Abstractions/
-│   ├── Hosts/
-│   │   ├── Vulperonex.Web/                # API + SignalR + Static
-│   │   ├── Vulperonex.Cli/                # Console CLI
-│   │   └── Vulperonex.Desktop/            # WebView2 shell
-│   └── frontend/                          # Vue 3 SPA
-├── tests/
-│   ├── Vulperonex.Tests.Architecture/
-│   ├── Vulperonex.Tests.Unit/
-│   └── Vulperonex.Tests.Integration/
-└── docs/
-    └── phases/                            # Phase plan + todo + verification
-```
-
----
-
-## Documentation
-
-- `CONTRIBUTING.md` — Plugin development conventions
-- `docs/SPEC.md` — System specifications
-- `docs/phases/` — Phase plan / todo / manual-verification
-- `docs/cli.md` — CLI complete command reference (if exists)
-
----
 
 ## Troubleshooting
 
-| Symptom | Solution |
-|---|---|
-| `dotnet build` fails: file is locked | Ensure `/m:1 /nr:false /p:UseSharedCompilation=false` is included |
-| Integration tests CSRF 403 | Confirm tests retrieve `AdminCsrfTokenProvider.Token` from DI instead of hardcoding `"true"` |
-| Frontend dev cannot connect to API | Start backend first, confirm the vite proxy target port aligns with the URL printed in the console |
-| `pnpm install` hangs | Delete `src/frontend/node_modules` + `pnpm-lock.yaml` and reinstall |
-| SQLite migration errors | Delete `%LOCALAPPDATA%/Vulperonex/*.db` and restart to trigger automatic migration |
-| Desktop starts with white screen | Install [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/) |
+### PowerShell Execution Policy
 
----
+If PowerShell blocks the script, run it with bypass for the current invocation:
 
-## License
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1 help
+```
 
-See the LICENSE file in the repo root (if exists).
+### pnpm Store Mismatch
+
+If pnpm reports an unexpected store location, reinstall frontend dependencies:
+
+```powershell
+.\scripts\dev.ps1 install
+```
+
+### Locked .NET Build Files
+
+Stop any running `Vulperonex.Web` or `Vulperonex.Desktop` process, then rerun:
+
+```powershell
+.\scripts\dev.ps1 build-backend
+```
+
+### Twitch Credentials
+
+Twitch integration settings are managed from the admin UI. Local development can still run without production credentials, but Twitch-specific features require configured app credentials and authorized broadcaster or bot accounts.
+
+## Documentation
+
+Project specs and phase notes live in [docs](docs/). Traditional Chinese documentation is under [docs/zh-TW](docs/zh-TW/).

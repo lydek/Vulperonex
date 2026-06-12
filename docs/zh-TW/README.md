@@ -2,357 +2,208 @@
 
 > **Language / 語言**: [English](../../README.md) | [繁體中文](README.md)
 
-直播輔助平台 — 整合 Twitch 事件流、會員忠誠度、Overlay 廣播、Workflow 規則引擎與外掛模組管理。
+Vulperonex 是一個直播輔助平台，提供 Twitch 工作流、會員忠誠度、打卡集點卡、OBS Overlay、計時器、規則以及模組化整合等功能。
 
-## 文件語系策略
+此儲存庫包含 ASP.NET Core 主機、Vue 後台 UI、桌面端主機、CLI 主機、工作流執行期、測試以及相關輔助文件。
 
-- 英文為預設文件語言，保留原始檔名。
-- 在地化 Markdown 文件放在 `docs/<locale>/` 之下，並與英文來源維持相同的相對路徑與純淨檔名。
-- 繁體中文文件使用 `docs/zh-TW/` 目錄樹。
-- 不使用 `*.zh-TW.md` 這類語系字尾命名；改採專用語系資料夾策略。
+## 快速開始
 
-本專案由四個可執行 Host 組成：
+請使用儲存庫根目錄的開發腳本。
 
-| Host | 用途 | OutputType | TargetFramework |
-|---|---|---|---|
-| `Vulperonex.Web` | ASP.NET Core API + SignalR Hub + 靜態 Overlay 站台 | `Exe` | `net10.0` |
-| `Vulperonex.Cli` | 主控台 CLI (member / rule / simulate / twitch / timer / config) | `Exe` | `net10.0` |
-| `Vulperonex.Desktop` | Windows 桌面殼 (Photino.NET，WebView2 為底) 包裝內嵌 Web Host | `WinExe` | `net10.0-windows` |
-| `frontend/` | Vue 3 SPA Admin UI (Vite + Pinia + PrimeVue) | n/a | n/a |
+首次設定：
 
----
+```powershell
+.\scripts\dev.ps1 restore
+.\scripts\dev.ps1 build
+```
+
+日常啟動：
+
+```powershell
+.\scripts\dev.ps1 run-web
+```
+
+網頁主機將會啟動 API、後台 UI 靜態主機、SignalR 中繼站（SignalR Hubs）以及 Overlay 端點。
+
+啟動後，開啟主控台輸出的本機 URL。API 連接埠通常預設為 `5000`，但如果預設連接埠已被佔用，Vulperonex 會自動選擇下一組可用的連接埠對。
+
+預設的第一個 URL：
+
+```text
+http://localhost:5000
+```
 
 ## 系統需求
 
-| 工具 | 版本 | 用途 |
-|---|---|---|
-| .NET SDK | 10.0+ | 編譯所有 C# 專案 |
-| Node.js | 20.x LTS+ | 前端 toolchain |
-| pnpm | 9.15.4 | 前端套件管理（`package.json` 內已指定） |
-| PowerShell | 5.1+ / 7+ | Windows 開發環境 |
-| Git | 2.40+ | 版本控制 |
+- Windows PowerShell 5.1 或 PowerShell 7+
+- .NET SDK 10+
+- Node.js 20+
+- pnpm 9.15.4
+- Git
 
-> Windows 桌面 Host (`Vulperonex.Desktop`) 以 **Photino.NET 3.x** 建構，使用系統 WebView2 Runtime — 需要 Windows 10 1809+ 並安裝 WebView2 Runtime。
-
----
-
-## 取得原始程式碼
+前端套件宣告使用 `pnpm@9.15.4`。如果已安裝 Corepack，請執行一次啟用指令：
 
 ```powershell
-git clone <repo-url> Vulperonex
-cd Vulperonex
-dotnet restore Vulperonex.sln
-cd src/frontend
-pnpm install --frozen-lockfile
-cd ../..
+corepack enable
 ```
 
----
+## 開發腳本
 
-## 後端 — Vulperonex.Web（API + Overlay）
+主要進入點為 [scripts/dev.ps1](../../scripts/dev.ps1)。它將常用的建置、測試與執行指令整合在同一個地方。
 
-### 建置
+| 任務 | 指令 | 用途 |
+| --- | --- | --- |
+| 說明 | `.\scripts\dev.ps1 help` | 顯示可用的任務。 |
+| 還原 | `.\scripts\dev.ps1 restore` | 還原 NuGet 套件並安裝前端套件。 |
+| 安裝前端套件 | `.\scripts\dev.ps1 install` | 僅執行 pnpm install。 |
+| 建置全部 | `.\scripts\dev.ps1 build` | 建置後端方案與前端資產。 |
+| 建置後端 | `.\scripts\dev.ps1 build-backend` | 建置 `Vulperonex.sln`。 |
+| 建置前端 | `.\scripts\dev.ps1 build-frontend` | 在 `src/frontend` 中執行 `pnpm build`。 |
+| 測試全部 | `.\scripts\dev.ps1 test` | 執行後端與前端測試。 |
+| 測試後端 | `.\scripts\dev.ps1 test-backend` | 執行方案的 `dotnet test`。 |
+| 測試前端 | `.\scripts\dev.ps1 test-frontend` | 執行 Vitest 並輸出測試覆蓋率。 |
+| 檢查 UI 型別 | `.\scripts\dev.ps1 typecheck` | 執行 Vue TypeScript 檢查。 |
+| 檢查 UI 語法 | `.\scripts\dev.ps1 lint` | 執行 oxlint 程式碼檢查。 |
+| 執行網頁主機 | `.\scripts\dev.ps1 run-web` | 啟動 `Vulperonex.Web`。 |
+| 執行前端開發伺服器 | `.\scripts\dev.ps1 run-frontend` | 在 `127.0.0.1` 啟動 Vite 開發伺服器。 |
+| 執行桌面端主機 | `.\scripts\dev.ps1 run-desktop` | 啟動 `Vulperonex.Desktop`。 |
+
+範例：
 
 ```powershell
-dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false
+.\scripts\dev.ps1 build -Configuration Release
+.\scripts\dev.ps1 test-backend -Filter "WorkflowEngineTests"
+.\scripts\dev.ps1 run-web
+.\scripts\dev.ps1 run-frontend
 ```
 
-> `/m:1 /nr:false /p:UseSharedCompilation=false` 為專案約定旗標，避免 MSBuild node reuse 導致 Windows 上 file lock。
+當 `pnpm` 可用時，此腳本會自動使用它。如果 `PATH` 中沒有 `pnpm`，則會退回使用 `corepack pnpm`
+。
 
-### 執行
+後端建置與測試任務使用對 Windows 友善的 MSBuild 旗標，以減少檔案鎖定問題：
+
+```text
+/m:1 /nr:false /p:UseSharedCompilation=false
+```
+
+## 常見工作流
+
+### 首次設定
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Web/Vulperonex.Web.csproj
+.\scripts\dev.ps1 restore
+.\scripts\dev.ps1 build
 ```
 
-預設行為：
-
-- 監聽 loopback (`127.0.0.1`) port pair（API + Overlay）由 `PortPairAllocator` 動態配置；啟動時 console 印出實際 URL。
-- 環境變數 `ASPNETCORE_ENVIRONMENT=Development` 啟動 dev 例外頁。
-- 第一次啟動會在使用者 AppData 下產生：
-  - `machine-key`（HMAC ETag 簽章）
-  - `.admin-csrf-token`（per-process 隨機 CSRF token）
-
-### 開發者旗標
-
-| 環境變數 | 預設 | 說明 |
-|---|---|---|
-| `ASPNETCORE_ENVIRONMENT` | `Production` | `Development` 開啟例外頁與詳細 log |
-| `Security:CsrfTokenPath` | 使用者 AppData | 覆寫 CSRF token 檔案路徑（測試常用） |
-
-### 資料庫遷移
-
-SQLite 自動隨應用啟動 `Migrate()`。手動套用：
+### 執行應用程式
 
 ```powershell
-dotnet ef database update --project src/Vulperonex.Infrastructure --startup-project src/Hosts/Vulperonex.Web
+.\scripts\dev.ps1 run-web
 ```
 
-新增 migration：
+開啟網頁主機輸出的 URL。通常為 `http://localhost:5000`，但如果 `5000` 連接埠已被佔用，則可能是鄰近的其他連接埠。
+
+### 執行前端開發伺服器
 
 ```powershell
-dotnet ef migrations add <Name> --project src/Vulperonex.Infrastructure --startup-project src/Hosts/Vulperonex.Web
+.\scripts\dev.ps1 run-frontend
 ```
 
----
+這在 API 主機已啟動時，對於進行 UI 迭代開發非常有用。
 
-## CLI — Vulperonex.Cli
-
-### 建置 + 執行
+### 執行測試
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Cli -- <command> [args]
+.\scripts\dev.ps1 test
 ```
 
-或自包式發行：
+僅執行指定的後端測試：
 
 ```powershell
-dotnet publish src/Hosts/Vulperonex.Cli -c Release -r win-x64 --self-contained false -o artifacts/cli
-artifacts/cli/Vulperonex.Cli.exe --help
+.\scripts\dev.ps1 test-backend -Filter "TriggerMetadataProviderTests"
 ```
 
-### 內建指令樹
-
-| 群組 | 子指令 | 用途 |
-|---|---|---|
-| `member` | `list` / `show` / `seed` / `delete` | 會員管理（忠誠調整 / 重設 / 稽核為 API-only，非 CLI） |
-| `rule` | `list` / `show` / `create` / `update` / `enable` / `disable` / `delete` | Workflow 規則管理 |
-| `simulate` | `chat` / `follow` / `sub` / `checkin` | 模擬事件 / 打卡 |
-| `twitch` | `auth start` / `auth reset` | OAuth 流程 |
-| `timer` | `list` / `show` / `create` / `delete` | 計時器 workflow |
-| `config` | `get` / `set` | SystemSetting 鍵值（無 `list`） |
-
-完整參考：[`docs/cli.md`](../cli.md)。範例：
+僅執行前端檢查：
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Cli -- member list
-dotnet run --project src/Hosts/Vulperonex.Cli -- simulate checkin --user-id testuser --stamp-count 1 --skip-cooldown
+.\scripts\dev.ps1 typecheck
+.\scripts\dev.ps1 test-frontend
+.\scripts\dev.ps1 lint
 ```
 
-### 多語
+## OBS Overlay 連結
 
-CLI 透過 `Resources/I18n/{en-US,zh-TW}.json` 載入字串；用 `CULTURE` 環境變數覆寫：
+請先啟動網頁主機：
 
 ```powershell
-$env:CULTURE = "zh-TW"; dotnet run --project src/Hosts/Vulperonex.Cli -- --help
+.\scripts\dev.ps1 run-web
 ```
 
----
+接著開啟主控台顯示的後台 UI URL，並從 Overlay 或設定區域複製 OBS 瀏覽器來源的 URL。
 
-## Desktop — Vulperonex.Desktop（Windows 殼）
+當 OBS 與本專案在同一台機器上執行時，請使用本機 URL（local URL）；僅當 OBS 執行於同網路的另一台機器，且已在設定中啟用區域網路 Overlay 存取時，才使用區網 URL（LAN URL）。由於本機 IP 可能會隨時間變動，區網複製動作應根據目前偵測到的 IP 產生 URL。
 
-### 建置 + 執行
+## 手動指令
+
+建議優先使用腳本。以下指令適用於需要直接偵錯工具鏈時。
 
 ```powershell
-dotnet run --project src/Hosts/Vulperonex.Desktop
+dotnet restore .\Vulperonex.sln
+dotnet build .\Vulperonex.sln -c Debug /m:1 /nr:false /p:UseSharedCompilation=false
+dotnet test .\Vulperonex.sln -c Debug /m:1 /nr:false /p:UseSharedCompilation=false
+corepack pnpm --dir .\src\frontend install --frozen-lockfile
+corepack pnpm --dir .\src\frontend build
+dotnet run --project .\src\Hosts\Vulperonex.Web\Vulperonex.Web.csproj
 ```
 
-行為：
+## 專案目錄配置
 
-- 啟動內嵌 `Vulperonex.Web` host (loopback only)。
-- WebView2 載入 admin SPA。
-- 關閉 window 即關閉所有背景 service。
-
-### 發行
-
-```powershell
-dotnet publish src/Hosts/Vulperonex.Desktop -c Release -r win-x64 --self-contained true -o artifacts/desktop
+```text
+src/
+  Hosts/
+    Vulperonex.Web/      ASP.NET Core API、SignalR、後台 UI 主機、Overlay
+    Vulperonex.Desktop/  桌面端主機
+    Vulperonex.Cli/      CLI 主機
+  frontend/              Vue 3 後台 UI
+  Vulperonex.*           領域、應用程式、基礎設施、外掛模組
+tests/
+  Vulperonex.Tests.Unit/
+  Vulperonex.Tests.Integration/
+  Vulperonex.Tests.Architecture/
+docs/                    規格、階段說明與在地化文件
+scripts/                 本地開發腳本
 ```
-
-產出 `artifacts/desktop/Vulperonex.Desktop.exe`。
-
-> 僅 Windows 可建（`net10.0-windows` TargetFramework）。在 Linux/Mac 上 `dotnet build` 會略過此 host。
-
----
-
-## 前端 UI — `src/frontend/`
-
-### 安裝
-
-```powershell
-cd src/frontend
-pnpm install --frozen-lockfile
-```
-
-### 開發模式
-
-```powershell
-pnpm dev
-```
-
-- Vite dev server 監聽 `127.0.0.1:5173`（host 鎖 loopback）。
-- 經由 vite proxy 轉寄 `/api/*` + `/hubs/*` 到後端 Web host。
-- HMR 啟用。需要後端先跑起來才能呼叫 admin API。
-
-### 生產建置
-
-```powershell
-pnpm build
-```
-
-執行兩步：
-
-1. `vue-tsc --noEmit` — 型別檢查（編譯不出 .d.ts，純驗證）
-2. `vite build` — 打包至 `src/frontend/dist/`
-
-後端 Web host 啟動時透過 `UseStaticFiles` 直接服務該目錄。
-
-### Lint
-
-```powershell
-pnpm lint     # oxlint
-pnpm vue-tsc  # 純型別檢查
-```
-
----
-
-## 測試
-
-### 後端 C#
-
-整個方案三個測試專案：
-
-| 專案 | 數量 | 用途 |
-|---|---|---|
-| `Vulperonex.Tests.Architecture` | 19 | NDepend-style 相依方向、命名規約、層級邊界 |
-| `Vulperonex.Tests.Unit` | 210 | 純邏輯單元測試（無 DB / 無 HTTP） |
-| `Vulperonex.Tests.Integration` | 219 | `WebApplicationFactory` + SQLite + 全 HTTP/Hub 端對端 |
-
-執行全套：
-
-```powershell
-dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
-```
-
-僅單元：
-
-```powershell
-dotnet test tests/Vulperonex.Tests.Unit/Vulperonex.Tests.Unit.csproj
-```
-
-僅整合：
-
-```powershell
-dotnet test tests/Vulperonex.Tests.Integration/Vulperonex.Tests.Integration.csproj
-```
-
-過濾單一測試：
-
-```powershell
-dotnet test --filter "FullyQualifiedName~MemberMutationEndpointTests"
-```
-
-> 整合測試的 `CreateClient` 會：
-> - 配置 per-test 臨時 `Security:CsrfTokenPath`，避免並行 IO 鎖死
-> - 從 DI 取 `AdminCsrfTokenProvider.Token` 設為 `X-Admin-Csrf` 標頭
-> - 注入對齊本機 host 的 `Origin` + `Referer` 雙標頭
-
-### 前端 Vitest
-
-```powershell
-cd src/frontend
-pnpm test
-```
-
-執行 `vitest run --coverage`：
-
-- 34 個測試檔，167 個案例
-- 覆蓋率報告輸出至 `src/frontend/coverage/`
-- 環境 `jsdom`，自動偵測 `MODE === "test"` 略過實際 CSRF token fetch
-
-watch 模式：
-
-```powershell
-pnpm vitest
-```
-
-### 全測試單鍵
-
-```powershell
-dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
-cd src/frontend; pnpm vue-tsc --noEmit; pnpm test; pnpm build; pnpm lint
-```
-
----
-
-## 完整 Checkpoint 流程
-
-phase 收尾必跑：
-
-```powershell
-# 1. 後端 build
-dotnet build Vulperonex.sln --no-restore /m:1 /nr:false /p:UseSharedCompilation=false
-
-# 2. 後端 test
-dotnet test Vulperonex.sln --no-build /m:1 /nr:false /p:UseSharedCompilation=false
-
-# 3. 前端 type-check + test + build + lint
-cd src/frontend
-pnpm vue-tsc --noEmit
-pnpm test
-pnpm build
-pnpm lint
-cd ../..
-```
-
-四步全綠才可 merge。
-
----
-
-## 專案結構
-
-```
-Vulperonex/
-├── Vulperonex.sln
-├── Directory.Build.props        # net10.0 + C# 14 + Nullable enable
-├── Directory.Packages.props     # 中央套件版本鎖定
-├── src/
-│   ├── Vulperonex.Domain/                 # 純領域模型 + Event
-│   ├── Vulperonex.Application/            # Use case + interface
-│   ├── Vulperonex.Infrastructure/         # EF Core + 外部整合
-│   ├── Adapters/
-│   │   ├── Vulperonex.Adapters.Twitch/
-│   │   ├── Vulperonex.Adapters.OneComme/
-│   │   └── Vulperonex.Adapters.Simulation/
-│   ├── Plugins/
-│   │   └── Vulperonex.Plugins.Abstractions/
-│   ├── Hosts/
-│   │   ├── Vulperonex.Web/                # API + SignalR + Static
-│   │   ├── Vulperonex.Cli/                # Console CLI
-│   │   └── Vulperonex.Desktop/            # WebView2 殼
-│   └── frontend/                          # Vue 3 SPA
-├── tests/
-│   ├── Vulperonex.Tests.Architecture/
-│   ├── Vulperonex.Tests.Unit/
-│   └── Vulperonex.Tests.Integration/
-└── docs/
-    └── phases/                            # 階段 plan + todo + verification
-```
-
----
-
-## 文件
-
-- `CONTRIBUTING.md` — 外掛開發約定
-- `docs/SPEC.md` — 系統規格
-- `docs/phases/` — 各 phase plan / todo / manual-verification
-- `docs/cli.md` — CLI 完整指令參考（若存在）
-
----
 
 ## 疑難排解
 
-| 症狀 | 解法 |
-|---|---|
-| `dotnet build` 失敗：file is locked | 確認加上 `/m:1 /nr:false /p:UseSharedCompilation=false` |
-| 整合測試 CSRF 403 | 確認測試從 DI 取 `AdminCsrfTokenProvider.Token`，未 hardcode `"true"` |
-| 前端 dev 連不到 API | 後端先啟動，確認 vite proxy 目標 port 對齊 console 印出 URL |
-| `pnpm install` 卡住 | 刪 `src/frontend/node_modules` + `pnpm-lock.yaml` 後重灌 |
-| SQLite 遷移錯誤 | 刪 `%LOCALAPPDATA%/Vulperonex/*.db` 重新啟動觸發自動 migrate |
-| Desktop 啟動白屏 | 安裝 [WebView2 Runtime Evergreen](https://developer.microsoft.com/microsoft-edge/webview2/) |
+### PowerShell 執行原則
 
----
+如果 PowerShell 封鎖了腳本執行，可在本次呼叫中使用 bypass 參數執行：
 
-## 授權
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\dev.ps1 help
+```
 
-見 repo 根目錄 LICENSE 檔（若有）。
+### pnpm 儲存庫不符
+
+如果 pnpm 回報非預期的 store 位置，請重新安裝前端相依套件：
+
+```powershell
+.\scripts\dev.ps1 install
+```
+
+### 鎖定的 .NET 建置檔案
+
+停止任何執行中的 `Vulperonex.Web` 或 `Vulperonex.Desktop` 程式，然後重新執行：
+
+```powershell
+.\scripts\dev.ps1 build-backend
+```
+
+### Twitch 憑證
+
+Twitch 整合設定是經由後台 UI 管理的。本地開發在沒有生產環境憑證的情況下仍可運作，但與 Twitch 相關的特定功能則需要配置應用程式憑證，以及授權實況主或機器人帳戶。
+
+## 文件
+
+專案規格與階段說明位於 [docs](../../docs/)。繁體中文文件則位於 [docs/zh-TW](./) 下。
