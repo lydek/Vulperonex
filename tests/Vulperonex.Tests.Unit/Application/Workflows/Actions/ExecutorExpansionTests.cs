@@ -178,6 +178,38 @@ public sealed class ExecutorExpansionTests
     }
 
     [Fact]
+    public async Task Given_MemberNotBound_When_TriggerCheckInRuns_Then_InvalidOperationIsThrownAndNothingPersists()
+    {
+        // Incident class 2026-05-27: a chatter without a member binding makes the
+        // executor throw, the workflow fails silently, and no overlay card appears.
+        // Lock the failure shape so a future auto-bind change is a conscious one.
+        var repository = new RecordingMemberStreamStateRepository();
+        var bus = new RecordingStreamEventBus();
+        var auditLogRepository = new RecordingMemberAuditLogRepository();
+        var executor = new TriggerCheckInActionExecutor(
+            repository,
+            new TemplateResolver(),
+            bus,
+            new AlwaysEnabledModuleStateService(),
+            new FakeSystemSettingsService(),
+            new FakePlatformUserDisplayInfoProvider(),
+            new NullMemberQueryService(),
+            auditLogRepository,
+            new FakeTransactionProvider());
+
+        var act = () => executor.ExecuteAsync(
+            new TriggerCheckInAction { UserId = "{Member.UserId}" },
+            NewContext(),
+            TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*was not found before check-in*");
+        repository.CheckIns.Should().BeEmpty("a missing member must never be incremented");
+        bus.Published.Should().BeEmpty("no overlay card event may be emitted for an unbound chatter");
+        auditLogRepository.Logs.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Given_CheckInAlreadyExistsInCurrentWindow_When_Executed_Then_ResultIsRepeatAndOverlayEventIsPublished()
     {
         var occurredAt = new DateTimeOffset(2026, 5, 14, 12, 0, 0, TimeSpan.Zero);
@@ -1078,6 +1110,18 @@ public sealed class ExecutorExpansionTests
             CheckInCards.Add(message);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class NullMemberQueryService : IMemberQueryService
+    {
+        public Task<IReadOnlyList<MemberReadModel>> ListAsync(string? platform = null, int limit = 50, int offset = 0, CancellationToken cancellationToken = default)
+            => Task.FromResult<IReadOnlyList<MemberReadModel>>([]);
+
+        public Task<MemberReadModel?> FindByMemberIdAsync(string memberId, CancellationToken cancellationToken = default)
+            => Task.FromResult<MemberReadModel?>(null);
+
+        public Task<MemberReadModel?> FindByIdentityAsync(PlatformIdentity identity, CancellationToken cancellationToken = default)
+            => Task.FromResult<MemberReadModel?>(null);
     }
 
     private sealed class FakeMemberQueryService : IMemberQueryService

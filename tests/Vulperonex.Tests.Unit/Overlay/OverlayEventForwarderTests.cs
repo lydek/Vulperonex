@@ -121,4 +121,48 @@ public sealed class OverlayEventForwarderTests
         // Clean up
         await forwarder.StopAsync(CancellationToken.None);
     }
+
+    [Fact]
+    public async Task Given_MemberSnapshotResolveThrows_When_ChatEventReceived_Then_ChatPayloadStillForwardedWithNullSnapshot()
+    {
+        // The member snapshot is decoration — a DB hiccup while resolving it must
+        // degrade to a plain chat payload, never drop the message.
+        _mockScopeFactory.CreateScope().Returns(_ => throw new InvalidOperationException("db unavailable"));
+
+        var forwarder = new OverlayEventForwarder(
+            _mockEventBus,
+            _mockEventsHub,
+            _mockChatHub,
+            _mockAlertsHub,
+            _mockMemberHub,
+            _mockChatHistory,
+            _mockAlertsHistory,
+            _mockMemberHistory,
+            _mockScopeFactory,
+            _mockBadgeCache,
+            _echoTracker,
+            _mockClock,
+            NullLogger<OverlayEventForwarder>.Instance);
+
+        await forwarder.StartAsync(CancellationToken.None);
+
+        var chatEvent = new UserSentMessageEvent
+        {
+            Platform = "twitch",
+            User = new StreamUser("twitch", "alice", "Alice", StreamRole.None),
+            MessageText = "hello world"
+        };
+
+        _eventStream.OnNext(chatEvent);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+
+        await _mockChatHistory.Received(1).AddAsync(
+            Arg.Is<OverlayChatPayload>(p =>
+                p.EventId == chatEvent.EventId &&
+                p.DisplayName == "Alice" &&
+                p.MemberSnapshot == null),
+            Arg.Any<CancellationToken>());
+
+        await forwarder.StopAsync(CancellationToken.None);
+    }
 }
