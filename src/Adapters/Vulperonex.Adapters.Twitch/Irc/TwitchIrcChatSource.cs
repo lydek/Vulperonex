@@ -25,42 +25,62 @@ public sealed class TwitchIrcChatSource(
     IServiceScopeFactory scopeFactory,
     ILogger<TwitchIrcChatSource> logger) : IPlatformChatSender
 {
-    private readonly TwitchClient _client = new();
-    private int _wired;
+    private TwitchClient? _client;
     private string? _channelLogin;
 
     public string Platform => "twitch";
 
-    public Task ConnectAsync(string channelLogin, string accessToken, CancellationToken cancellationToken)
+    public async Task ConnectAsync(string channelLogin, string accessToken, CancellationToken cancellationToken)
     {
-        if (Interlocked.Exchange(ref _wired, 1) == 0)
-        {
-            _client.OnMessageReceived += OnMessageReceivedAsync;
-            _client.OnConnected += OnConnectedAsync;
-            _client.OnDisconnected += OnDisconnectedAsync;
-            _client.OnIncorrectLogin += OnIncorrectLoginAsync;
-        }
+        // A TwitchClient cannot be re-initialized after use, and a reconnect
+        // must carry a freshly refreshed access token (user tokens expire
+        // after ~4h), so every connect builds a new client instance.
+        await DisconnectAsync().ConfigureAwait(false);
+
+        var client = new TwitchClient();
+        client.OnMessageReceived += OnMessageReceivedAsync;
+        client.OnConnected += OnConnectedAsync;
+        client.OnDisconnected += OnDisconnectedAsync;
+        client.OnIncorrectLogin += OnIncorrectLoginAsync;
 
         _channelLogin = channelLogin;
-        _client.Initialize(new ConnectionCredentials(channelLogin, accessToken), channelLogin);
-        return _client.ConnectAsync();
+        client.Initialize(new ConnectionCredentials(channelLogin, accessToken), channelLogin);
+        _client = client;
+        await client.ConnectAsync().ConfigureAwait(false);
     }
 
-    public Task DisconnectAsync()
+    public async Task DisconnectAsync()
     {
-        return _client.IsConnected ? _client.DisconnectAsync() : Task.CompletedTask;
+        var client = Interlocked.Exchange(ref _client, null);
+        if (client is null)
+        {
+            return;
+        }
+
+        // Unhook before disconnecting so the orchestrator's reconnect
+        // supervision is not re-triggered by our own teardown.
+        client.OnMessageReceived -= OnMessageReceivedAsync;
+        client.OnConnected -= OnConnectedAsync;
+        client.OnDisconnected -= OnDisconnectedAsync;
+        client.OnIncorrectLogin -= OnIncorrectLoginAsync;
+
+        if (client.IsConnected)
+        {
+            await client.DisconnectAsync().ConfigureAwait(false);
+        }
     }
 
     public Task SendAsync(string message, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (!_client.IsConnected || string.IsNullOrWhiteSpace(_channelLogin))
+        var client = _client;
+        if (client is null || !client.IsConnected || string.IsNullOrWhiteSpace(_channelLogin))
         {
             throw new InvalidOperationException("Twitch IRC is not connected.");
         }
 
-        return _client.SendMessageAsync(_channelLogin, message);
+        return client.SendMessageAsync(_channelLogin, message);
     }
 
     private async Task OnMessageReceivedAsync(object? sender, OnMessageReceivedArgs e)

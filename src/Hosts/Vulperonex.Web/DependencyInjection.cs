@@ -112,7 +112,14 @@ public static class DependencyInjection
                 serviceProvider.GetRequiredService<IConfiguration>()["Security:RootPath"]));
         services.AddScoped<DatabaseBootstrapper>();
         services.AddScoped<IOAuthTokenStore, OAuthTokenStore>();
-        services.AddScoped<TwitchAccessTokenProvider>();
+        // Singleton: the access token cache and the single refresh path must
+        // outlive per-event scopes. Scoped providers each started cold, so every
+        // Helix-using scope did a full refresh round-trip; worse, Twitch rotates
+        // refresh tokens, so concurrent scoped refreshes raced each other and the
+        // loser's error handling wiped the freshly issued refresh token.
+        services.AddSingleton<TwitchAccessTokenProvider>(serviceProvider => new TwitchAccessTokenProvider(
+            new ScopedOAuthTokenStore(serviceProvider.GetRequiredService<IServiceScopeFactory>()),
+            serviceProvider.GetRequiredService<ITwitchTokenEndpoint>()));
         services.AddScoped<IHelixClient, TwitchHelixClient>();
         services.AddSingleton<TwitchAdapter>();
         services.AddTwitchLibEventSubWebsockets();
